@@ -918,5 +918,5 @@ MQ.sansu1 = (function () {
     return out;
   }
 
-  return { make: make, stages: stages, levelCounts: levelCounts };
+  return { make: make, stages: stages, levelCounts: levelCounts, clockHtml: clockHtml, clockQ: clockQ };
 })();

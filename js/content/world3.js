@@ -1,7 +1,7 @@
 /* ---------------------------------------------------------
    ワールド・エリア・ステージ
 
-   ワールド ＝ 学年（小1〜小6）。小3 と 小1 が あそべる（v2.2）。ほかは じゅんびちゅう。
+   ワールド ＝ 学年（小1〜小6）。小1・小2・小3 が あそべる（v2.3）。小4〜小6は じゅんびちゅう。
    いま あそんでいる ワールドは activeWorld()（プレイヤーの がくねん）で 決まる。
    エリア   ＝ 教科（算数の山・国語の森・理科社会の海・英語の空）
    ステージ ＝ 単元。算数は 日本文教出版『小学算数』3年の順。
@@ -106,8 +106,8 @@ MQ.content = (function () {
     return {
       id: areaId + g + '-' + stageNo + ':write:' + kanji,
       type: 'write',
-      unit: g === 1 ? 'かん字を かく（ゆびで）' : 'かん字を書く（ゆびで）',
-      prompt: '「<b>' + m[1] + '</b>」の かん字を ゆびで ' + (g === 1 ? 'かこう' : '書こう'),
+      unit: g <= 2 ? 'かん字を かく（ゆびで）' : 'かん字を書く（ゆびで）',
+      prompt: '「<b>' + m[1] + '</b>」の かん字を ゆびで ' + (g <= 2 ? 'かこう' : '書こう'),
       answer: kanji,
       hint: q.hint,
       note: q.note,
@@ -150,6 +150,14 @@ MQ.content = (function () {
     return {
       id: 'sansu1-' + no, no: no, name: name, when: '', available: true,
       make: function (n, opts) { return MQ.sansu1.make(no, n, opts); }
+    };
+  }
+
+  // 小2の さんすう（sansu2.js の 生成器）
+  function sansu2Stage(no, name) {
+    return {
+      id: 'sansu2-' + no, no: no, name: name, when: '', available: true,
+      make: function (n, opts) { return MQ.sansu2.make(no, n, opts); }
     };
   }
 
@@ -325,9 +333,49 @@ MQ.content = (function () {
     ]
   };
 
+  /* =======================================================
+     小2ワールド（v2.3）。小1と 同じく さんすう＋こくごの 2エリア・塔なし
+     ======================================================= */
+  const kokugo2 = function () { return MQ.kokugo2.questions; };
+
+  const world2 = {
+    id: 'g2', grade: 2, name: '小2ワールド', locked: false,
+    areas: [
+      {
+        id: 'sansu', name: 'さんすうの やま', short: 'さんすう', color: 'var(--c-sansu)', biome: 'mountain',
+        stages: [
+          sansu2Stage(1, 'ひょうと グラフ'),
+          sansu2Stage(2, 'たしざんの ひっさん'),
+          sansu2Stage(3, 'ひきざんの ひっさん'),
+          sansu2Stage(4, 'ながさ（cm・mm）'),
+          sansu2Stage(5, '100より 大きい かず'),
+          sansu2Stage(6, 'かさ（L・dL）'),
+          sansu2Stage(7, 'とけいと じかん'),
+          sansu2Stage(8, '3けたの けいさん'),
+          sansu2Stage(9, 'かたち'),
+          sansu2Stage(10, 'かけざん（1）'),
+          sansu2Stage(11, 'かけざん（2）'),
+          sansu2Stage(12, 'ながい ものの ながさ（m）'),
+          sansu2Stage(13, '1000より 大きい かず'),
+          sansu2Stage(14, 'ぶんすう')
+        ]
+      },
+      {
+        id: 'kokugo', name: 'こくごの もり', short: 'こくご', color: 'var(--c-kokugo)', biome: 'forest',
+        stages: [
+          stage('kokugo', 1, 'かん字の よみ', kokugo2, 2),
+          { id: 'kokugo2-2', no: 2, name: 'かん字を かく', available: true,
+            make: writeMixStage(kokugo2, 'kokugo', 2, 2) },
+          stage('kokugo', 3, 'ことばの きまり', kokugo2, 2),
+          stage('kokugo', 4, 'ことばの いみ', kokugo2, 2)
+        ]
+      }
+    ]
+  };
+
   const worlds = [
     world1,
-    { id: 'g2', grade: 2, name: '小2ワールド', locked: true, areas: [] },
+    world2,
     world3,
     { id: 'g4', grade: 4, name: '小4ワールド', locked: true, areas: [] },
     { id: 'g5', grade: 5, name: '小5ワールド', locked: true, areas: [] },
@@ -339,7 +387,7 @@ MQ.content = (function () {
     return null;
   }
 
-  // がくねん（1〜6）→ ワールド。あそべるのは locked が ない ワールド（小1・小3）
+  // がくねん（1〜6）→ ワールド。あそべるのは locked が ない ワールド（小1・小2・小3）
   function worldForGrade(grade) {
     for (let i = 0; i < worlds.length; i++) if (worlds[i].grade === grade) return worlds[i];
     return world3;
@@ -433,7 +481,7 @@ MQ.content = (function () {
   }
 
   return {
-    worlds: worlds, world: world, world3: world3, world1: world1, worldForGrade: worldForGrade,
+    worlds: worlds, world: world, world3: world3, world1: world1, world2: world2, worldForGrade: worldForGrade,
     activeWorld: activeWorld, setActive: setActive, hasTower: hasTower,
     areaOf: areaOf, subjectAreas: subjectAreas, findStage: findStage, isUnlocked: isUnlocked,
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,

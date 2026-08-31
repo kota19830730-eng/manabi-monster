@@ -93,7 +93,27 @@ MQ.treasure = (function () {
     { stage: 'kokugo1-2', id: 'tr1-kata',    name: 'かたかなの すず',        shape: 'bell',      colors: c('#8FD3FF', '#4FA3E0') },
     { stage: 'kokugo1-3', id: 'tr1-yomi',    name: 'かん字の ほん',          shape: 'book',      colors: c('#3E9A6B', '#1E5A3C') },
     { stage: 'kokugo1-4', id: 'tr1-kaki',    name: 'かん字の まきもの',      shape: 'scroll',    colors: c('#A96BE0', '#5A2D8A') },
-    { stage: 'kokugo1-5', id: 'tr1-kotoba',  name: 'ことばの きいろいし',    shape: 'gem',       colors: c('#FFD166', '#B8860B') }
+    { stage: 'kokugo1-5', id: 'tr1-kotoba',  name: 'ことばの きいろいし',    shape: 'gem',       colors: c('#FFD166', '#B8860B') },
+
+    /* ---- 小2 さんすうの やま（14）・こくごの もり（4）（v2.3） ---- */
+    { stage: 'sansu2-1',  id: 'tr2-hyou',    name: 'ひょうの ほし',          shape: 'star',      colors: c('#FF9A4A') },
+    { stage: 'sansu2-2',  id: 'tr2-tashi',   name: 'たしざんの あかいし',    shape: 'gem',       colors: c('#FF5A5A', '#A82424') },
+    { stage: 'sansu2-3',  id: 'tr2-hiki',    name: 'ひきざんの あおいし',    shape: 'gem',       colors: c('#4F8CFF', '#1F4FB0') },
+    { stage: 'sansu2-4',  id: 'tr2-nagasa',  name: 'ながさの わ',            shape: 'ring',      colors: c('#4CD164', '#1E7A3C') },
+    { stage: 'sansu2-5',  id: 'tr2-hyaku',   name: 'ひゃくの かんむり',      shape: 'crown',     colors: c('#FF9A4A', '#A8542A') },
+    { stage: 'sansu2-6',  id: 'tr2-kasa',    name: 'かさの びん',            shape: 'potion',    colors: c('#8FD3FF', '#4FA3E0') },
+    { stage: 'sansu2-7',  id: 'tr2-jikan',   name: 'じかんの すなどけい',    shape: 'hourglass', colors: c('#A96BE0', '#5A2D8A') },
+    { stage: 'sansu2-8',  id: 'tr2-sanketa', name: 'さんけたの ほん',        shape: 'book',      colors: c('#E8443A', '#8A1F18') },
+    { stage: 'sansu2-9',  id: 'tr2-katachi', name: 'かたちの らしんばん',    shape: 'compass',   colors: c('#FFD166', '#B8860B') },
+    { stage: 'sansu2-10', id: 'tr2-kake',    name: 'かけざんの たま',        shape: 'orb',       colors: c('#4CD164', '#1E7A3C') },
+    { stage: 'sansu2-11', id: 'tr2-kuku',    name: 'くくの かぎ',            shape: 'key',       colors: c('#F2C14E', '#B8860B') },
+    { stage: 'sansu2-12', id: 'tr2-metoru',  name: 'メートルの わ',          shape: 'ring',      colors: c('#8FD3FF', '#4FA3E0') },
+    { stage: 'sansu2-13', id: 'tr2-sen',     name: 'せんの まきもの',        shape: 'scroll',    colors: c('#A96BE0', '#5A2D8A') },
+    { stage: 'sansu2-14', id: 'tr2-bunsuu',  name: 'ぶんすうの すず',        shape: 'bell',      colors: c('#FF6B9A', '#A8244F') },
+    { stage: 'kokugo2-1', id: 'tr2-yomi',    name: 'かん字の はね',          shape: 'feather',   colors: c('#FFD166', '#B8860B') },
+    { stage: 'kokugo2-2', id: 'tr2-kaki',    name: 'かきかたの まきもの',    shape: 'scroll',    colors: c('#3E9A6B', '#1E5A3C') },
+    { stage: 'kokugo2-3', id: 'tr2-kimari',  name: 'きまりの ほん',          shape: 'book',      colors: c('#8A6BD8', '#4A2F8A') },
+    { stage: 'kokugo2-4', id: 'tr2-imi',     name: 'いみの みどりいし',      shape: 'gem',       colors: c('#4CD164', '#1E7A3C') }
   ];
 
   const byStage = {};

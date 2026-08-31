@@ -1790,3 +1790,12 @@ body {
 .clock__hand--m { width: 6px; height: 74px; margin-left: -3px; }
 .clock__center { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px;
                  border-radius: 50%; background: #d42a20; }
+
+
+/* あたらしい バージョンの お知らせ（v2.3）。画面の 下に 出る */
+.upd { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 80;
+       display: flex; align-items: center; gap: 10px; width: max-content; max-width: 370px;
+       padding: 8px 8px 8px 16px; border-radius: 14px;
+       background: rgba(16,24,48,.95); border: 2px solid #FFD166; box-shadow: 0 8px 20px rgba(0,0,0,.4);
+       color: #fff; font-size: 14px; }
+.upd .btn { margin: 0; }

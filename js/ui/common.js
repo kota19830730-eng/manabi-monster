@@ -36,6 +36,21 @@ MQ.ui = MQ.ui || {};
     toastTimer = setTimeout(function () { t.classList.remove('is-shown'); }, 2200);
   };
 
+  /* あたらしい バージョンが 入った ときの お知らせ（v2.3）。「こうしん」で 読みなおす */
+  MQ.ui.updateReady = function () {
+    if (document.getElementById('upd')) return;
+    const stage = document.getElementById('stage') || document.body;
+    stage.appendChild(h('div', { id: 'upd', class: 'upd', role: 'status' }, [
+      h('span', { class: 'upd__t', text: 'あたらしい バージョンが あるよ' }),
+      h('button', { class: 'btn btn--small', type: 'button', text: 'こうしん', onclick: function () { location.reload(); } })
+    ]));
+  };
+  // せっていに いまの バージョンを 出す（sw.js が こたえる）
+  MQ.ui.showVersion = function () {
+    const el = document.getElementById('ver-note');
+    if (el) el.textContent = 'いまの バージョン: ' + (MQ.version || 'しらべています…');
+  };
+
   // v1.2 までの なごり。いまは 何も しない（模様は CSS で 描いている）
   MQ.ui.setTextures = function () {};
 

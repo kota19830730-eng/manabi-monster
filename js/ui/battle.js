@@ -664,7 +664,7 @@ MQ.ui.battle = (function () {
     d.keys.hidden = false;
 
     if (useMemo) {
-      d.memoHint.textContent = 'ここに ゆびで 筆算が かけるよ';
+      d.memoHint.textContent = 'ここに ゆびで ひっさんが かけるよ';
       if (q.layout === 'vertical') {
         d.hissan.hidden = false;
         d.hissan.innerHTML =

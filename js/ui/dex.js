@@ -436,6 +436,11 @@ MQ.ui.dex = (function () {
         h('button', { class: 'btn btn--stone', type: 'button', text: '↩ きろくを もどす', onclick: function () { MQ.sfx.tap(); restore(); } })
       ]),
 
+      h('h2', { class: 'label', text: 'バージョン' }),
+      h('p', { class: 'note', id: 'ver-note', text: 'いまの バージョン: ' + (MQ.version || 'しらべています…') }),
+      h('p', { class: 'note', text: 'あたらしい バージョンが 入ると、画面の 下に「こうしん」の お知らせが 出ます。' }),
+      h('button', { class: 'btn btn--small btn--stone', type: 'button', text: 'あたらしい バージョンを しらべる', onclick: function () { MQ.sfx.tap(); if (MQ.ui.checkUpdate) MQ.ui.checkUpdate(); } }),
+
       h('h2', { class: 'label', text: 'プレイヤー' }),
       h('button', {
         class: 'btn btn--small btn--danger', type: 'button', text: 'この プレイヤーを 消す',

@@ -6,7 +6,7 @@
    ※ファイルを 増やしたら FILES にも 足してください。
    --------------------------------------------------------- */
 
-const CACHE_NAME = 'manabi-monster-v32';
+const CACHE_NAME = 'manabi-monster-v33';
 
 const FILES = [
   './',
@@ -32,6 +32,8 @@ const FILES = [
   './js/content/kokugo3.js',
   './js/content/sansu1.js',
   './js/content/kokugo1.js',
+  './js/content/sansu2.js',
+  './js/content/kokugo2.js',
   './js/content/rikashakai3.js',
   './js/content/eigo3.js',
   './js/content/romaji3.js',
@@ -66,6 +68,13 @@ self.addEventListener('activate', function (event) {
     })
   );
   self.clients.claim();
+});
+
+// アプリから「version」と 聞かれたら、いまの 番号を こたえる（せっていに 出す・v2.3）
+self.addEventListener('message', function (event) {
+  if (event.data === 'version' && event.source) {
+    event.source.postMessage({ version: CACHE_NAME.replace('manabi-monster-', '') });
+  }
 });
 
 self.addEventListener('fetch', function (event) {
