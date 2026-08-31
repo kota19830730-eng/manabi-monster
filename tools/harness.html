@@ -230,6 +230,21 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (!isNaN(n)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n < 0 ? 99999 : n; }
       return;
     }
+    // #figs … 小2「かたち」「ぶんすう」の 図を ぜんぶ ならべて 見る
+    if (mode === 'figs') {
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;z-index:99;align-content:start;';
+      ['tri', 'rtri', 'quad', 'rect', 'square', 'box'].forEach(function (k) {
+        const d = document.createElement('div'); d.innerHTML = MQ.sansu2.fig(k); box.appendChild(d);
+      });
+      const d1 = document.createElement('div'); d1.innerHTML = MQ.sansu2.fig('rect', true); box.appendChild(d1);
+      const d2 = document.createElement('div'); d2.innerHTML = MQ.sansu2.fig('box', true); box.appendChild(d2);
+      const d3 = document.createElement('div'); d3.innerHTML = MQ.sansu2.fracSvg(3, 1); box.appendChild(d3);
+      const d4 = document.createElement('div'); d4.innerHTML = MQ.sansu2.fracSvg(4, 1); box.appendChild(d4);
+      const d5 = document.createElement('div'); d5.style.gridColumn = '1 / -1'; d5.innerHTML = MQ.sansu2.figPair('へんが 3ぼんの かたちは どっち？', 'tri', 'quad'); box.appendChild(d5);
+      document.getElementById('stage').appendChild(box);
+      return;
+    }
     // 小2ワールド（v2.3）：#map2(:-1) マップ／#battle2:N さんすうN／#kokugo2 かん字を かく／#treasure2／#upd お知らせ
     if (mode === 'map2' || mode.indexOf('map2:') === 0 || mode.indexOf('battle2') === 0 || mode === 'kokugo2' || mode === 'treasure2' || mode === 'upd') {
       fresh({

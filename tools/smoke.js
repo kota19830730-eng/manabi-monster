@@ -158,6 +158,8 @@ for (let s = 1; s <= 14; s++) {
 console.log('sansu2 generated ok: ' + sansu2Count);
 check(MQ.sansu2.make(7, 30).some(function (q) { return q.prompt.indexOf('class="clock"') !== -1; }), '小2の とけいにも 絵が 出る');
 check(MQ.sansu2.make(2, 12).some(function (q) { return q.layout === 'vertical'; }), '小2の ひっさんは たての ならび');
+check(MQ.sansu2.make(9, 12).filter(function (q) { return q.prompt.indexOf('<svg') !== -1; }).length >= 10, '小2の かたちは ほぼ ぜんぶ 図つき');
+check(MQ.sansu2.make(14, 12).some(function (q) { return q.prompt.indexOf('<svg') !== -1; }), '小2の ぶんすうに 図が 出る');
 
 [['kokugo', MQ.kokugo3.questions], ['rikashakai', MQ.rikashakai3.questions], ['eigo', MQ.eigo3.questions], ['kokugo1', MQ.kokugo1.questions], ['kokugo2', MQ.kokugo2.questions]].forEach(function (pair) {
   const name = pair[0], list = pair[1];

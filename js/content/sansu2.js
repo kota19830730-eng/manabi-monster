@@ -612,40 +612,101 @@ MQ.sansu2 = (function () {
   };
 
   /* =======================================================
-     ステージ9 かたち（決まった 問題から えらぶ）
+     かたちの 図（inline SVG。画像ファイルは 使わない）
+     線は 黒・中は クリーム・ちょっかくの しるしは 赤。はこは 見えない へんを てんせんで。
+     viewBox は いつも 160×120。大きさは CSS（.figbox / .figpair）で 決める。
      ======================================================= */
-  function fq(unit, prompt, choices, note, hint) { return { type: 'choice', unit: unit, prompt: prompt, choices: choices, answer: 0, note: note, hint: hint, key: 'k:' + prompt }; }
-  function fn(unit, prompt, answer, note, hint) { return { type: 'number', unit: unit, prompt: prompt, answer: answer, scratch: false, note: note, hint: hint, key: 'k:' + prompt }; }
+  const FIG_STROKE = '#1a1a1a', FIG_FILL = '#FFF3C4', FIG_FILL2 = '#FFE58A', FIG_FILL3 = '#F2C96B', FIG_RED = '#d42a20';
+  function poly(points, fill) {
+    return '<polygon points="' + points.map(function (p) { return p.join(','); }).join(' ') + '" fill="' + (fill || FIG_FILL) + '" stroke="' + FIG_STROKE + '" stroke-width="4" stroke-linejoin="round"/>';
+  }
+  function line(a, b, dashed) {
+    return '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="' + FIG_STROKE + '" stroke-width="4" stroke-linecap="round"' + (dashed ? ' stroke-dasharray="7 6"' : '') + '/>';
+  }
+  // ちょっかくの しるし（かどに 小さな 四角）。corner=かどの 点、dx/dy=となりの 2つの へんの むき
+  function raMark(corner, ux, uy, vx, vy) {
+    const s = 12;
+    const p1 = [corner[0] + ux * s, corner[1] + uy * s];
+    const p2 = [corner[0] + ux * s + vx * s, corner[1] + uy * s + vy * s];
+    const p3 = [corner[0] + vx * s, corner[1] + vy * s];
+    return '<polyline points="' + [p1, p2, p3].map(function (p) { return p.join(','); }).join(' ') + '" fill="none" stroke="' + FIG_RED + '" stroke-width="3"/>';
+  }
+  function svgWrap(inner) { return '<svg viewBox="0 0 160 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + inner + '</svg>'; }
+  const FIGS = {
+    tri: function () { return svgWrap(poly([[20, 104], [140, 104], [80, 18]])); },
+    rtri: function () { return svgWrap(poly([[28, 104], [138, 104], [28, 16]]) + raMark([28, 104], 1, 0, 0, -1)); },
+    quad: function () { return svgWrap(poly([[28, 104], [142, 94], [122, 24], [44, 36]])); },
+    rect: function (diag) {
+      const pts = [[18, 24], [142, 24], [142, 100], [18, 100]];
+      return svgWrap(poly(pts) + raMark(pts[0], 1, 0, 0, 1) + raMark(pts[1], -1, 0, 0, 1) + raMark(pts[2], -1, 0, 0, -1) + raMark(pts[3], 1, 0, 0, -1) + (diag ? line([18, 100], [142, 24], true) : ''));
+    },
+    square: function () {
+      const pts = [[40, 20], [120, 20], [120, 100], [40, 100]];
+      return svgWrap(poly(pts) + raMark(pts[0], 1, 0, 0, 1) + raMark(pts[1], -1, 0, 0, 1) + raMark(pts[2], -1, 0, 0, -1) + raMark(pts[3], 1, 0, 0, -1));
+    },
+    // はこの かたち（見える 3つの めん ＋ 見えない へんは てんせん）
+    box: function (cube) {
+      const w = cube ? 64 : 84, h = cube ? 64 : 58, d = cube ? 26 : 30;
+      const x0 = cube ? 34 : 24, y0 = 110 - h;                 // まえの めんの ひだり下
+      const F = [[x0, y0], [x0 + w, y0], [x0 + w, y0 + h], [x0, y0 + h]];               // まえ
+      const T = [[x0, y0], [x0 + d, y0 - d], [x0 + w + d, y0 - d], [x0 + w, y0]];       // うえ
+      const S = [[x0 + w, y0], [x0 + w + d, y0 - d], [x0 + w + d, y0 + h - d], [x0 + w, y0 + h]]; // よこ
+      const hidden = [x0 + d, y0 + h - d];                                              // うしろの ひだり下（見えない ちょうてん）
+      return svgWrap(poly(F) + poly(T, FIG_FILL2) + poly(S, FIG_FILL3) +
+        line(hidden, [x0 + d, y0 - d], true) + line(hidden, [x0 + w + d, y0 + h - d], true) + line(hidden, [x0, y0 + h], true));
+    }
+  };
+  function fig(kind, arg) { return '<span class="figbox">' + FIGS[kind](arg) + '</span>'; }
+  // 問題文の 右に 図を おく（とけいと 同じ よこならび）
+  function figQ(text, kind, arg) { return '<span class="figq"><span class="figq__t">' + text + '</span>' + fig(kind, arg) + '</span>'; }
+  // 図を 2つ ならべて「あ」「い」で えらばせる
+  function figPair(text, kindA, kindB) {
+    return text + '<span class="figpair"><span class="fig"><b>あ</b>' + FIGS[kindA]() + '</span><span class="fig"><b>い</b>' + FIGS[kindB]() + '</span></span>';
+  }
+
+  /* =======================================================
+     ステージ9 かたち（図つき・決まった 問題から えらぶ）
+     ======================================================= */
+  function fq(unit, prompt, choices, note, hint, key) { return { type: 'choice', unit: unit, prompt: prompt, choices: choices, answer: 0, note: note, hint: hint, key: 'k:' + key }; }
+  function fn(unit, prompt, answer, note, hint, key) { return { type: 'number', unit: unit, prompt: prompt, answer: answer, scratch: false, note: note, hint: hint, key: 'k:' + key }; }
+  const NAMES4 = ['さんかくけい', 'しかくけい', 'ちょうほうけい', 'せいほうけい', 'ちょっかくさんかくけい'];
+  function nameChoices(ans) { return [ans].concat(NAMES4.filter(function (n) { return n !== ans; }).slice(0, 3)); }
   const SHAPE_EASY = [
-    fn('さんかくけい', 'さんかくけいの へんは なんぼん？', 3, 'さんかくけいは 3ぼんの まっすぐな せんで かこまれた かたち。', 'まわりの まっすぐな せんを かぞえよう。'),
-    fn('さんかくけい', 'さんかくけいの ちょうてんは いくつ？', 3, 'かどの てんが ちょうてん。さんかくけいは 3つ。', 'かどを かぞえよう。'),
-    fn('しかくけい', 'しかくけいの へんは なんぼん？', 4, 'しかくけいは 4ほんの まっすぐな せんで かこまれた かたち。', 'まわりの まっすぐな せんを かぞえよう。'),
-    fn('しかくけい', 'しかくけいの ちょうてんは いくつ？', 4, 'しかくけいの かど（ちょうてん）は 4つ。', 'かどを かぞえよう。'),
-    fq('かたちの なまえ', '3ぼんの まっすぐな せんで かこまれた かたちは？', ['さんかくけい', 'しかくけい', 'まる', 'はこの かたち'], 'さんかくけい。「さん」は 3 の こと。', 'せんが 3ぼん。'),
-    fq('かたちの なまえ', '4ほんの まっすぐな せんで かこまれた かたちは？', ['しかくけい', 'さんかくけい', 'まる', 'ぼうの かたち'], 'しかくけい。「し」は 4 の こと。', 'せんが 4ほん。')
+    fn('さんかくけい', figQ('この さんかくけいの へんは なんぼん？', 'tri'), 3, 'さんかくけいは 3ぼんの まっすぐな せん（へん）で かこまれた かたち。', 'まわりの まっすぐな せんを かぞえよう。', 'tri-e'),
+    fn('さんかくけい', figQ('この さんかくけいの ちょうてんは いくつ？', 'tri'), 3, 'かどの てんが ちょうてん。さんかくけいは 3つ。', 'かどを かぞえよう。', 'tri-v'),
+    fn('しかくけい', figQ('この しかくけいの へんは なんぼん？', 'quad'), 4, 'しかくけいは 4ほんの へんで かこまれた かたち。', 'まわりの まっすぐな せんを かぞえよう。', 'quad-e'),
+    fn('しかくけい', figQ('この しかくけいの ちょうてんは いくつ？', 'quad'), 4, 'しかくけいの かど（ちょうてん）は 4つ。', 'かどを かぞえよう。', 'quad-v'),
+    fq('かたちの なまえ', figQ('この かたちの なまえは？', 'tri'), ['さんかくけい', 'しかくけい', 'まる', 'はこの かたち'], 'さんかくけい。「さん」は 3 の こと。へんが 3ぼん。', 'へんを かぞえよう。', 'name-tri'),
+    fq('かたちの なまえ', figQ('この かたちの なまえは？', 'quad'), ['しかくけい', 'さんかくけい', 'まる', 'ぼうの かたち'], 'しかくけい。「し」は 4 の こと。へんが 4ほん。', 'へんを かぞえよう。', 'name-quad'),
+    fq('かたちの なまえ', figPair('へんが 3ぼんの かたちは どっち？', 'tri', 'quad'), ['あ', 'い'], 'あ が さんかくけい（へん 3ぼん）。い は しかくけい（へん 4ほん）。', 'まわりの せんを かぞえよう。', 'pair-tri'),
+    fq('かたちの なまえ', figPair('ちょうてんが 4つの かたちは どっち？', 'tri', 'quad'), ['い', 'あ'], 'い が しかくけい（ちょうてん 4つ）。', 'かどを かぞえよう。', 'pair-quad')
   ];
   const SHAPE_NORMAL = [
-    fq('ちょうほうけい', '4つの かどが みんな ちょっかくの しかくけいを なんと いう？', ['ちょうほうけい', 'さんかくけい', 'ましかくじゃない しかくけい', 'まる'], 'ちょうほうけい。かどが みんな ちょっかく。', 'ノートや ドアの かたち。'),
-    fq('せいほうけい', '4つの かどが みんな ちょっかくで、へんの ながさが みんな おなじ しかくけいは？', ['せいほうけい', 'ちょうほうけい', 'さんかくけい', 'まる'], 'せいほうけい。かども へんも みんな おなじ。', 'おりがみの かたち。'),
-    fq('ちょっかくさんかくけい', 'ちょっかくの かどが ある さんかくけいは？', ['ちょっかくさんかくけい', 'せいほうけい', 'ちょうほうけい', 'まる'], 'ちょっかくさんかくけい。ちょうほうけいを はんぶんに きると できる。', 'ちょうほうけいを ななめに きった かたち。'),
-    fq('ちょうほうけい', 'ちょうほうけいの むかいあう へんの ながさは？', ['おなじ', 'ちがう', 'かたほうが 2ばい', 'きまっていない'], 'ちょうほうけいは むかいあう へんの ながさが おなじ。', 'ノートの うえと したの へんを くらべてみよう。'),
-    fn('せいほうけい', 'せいほうけいの へんは なんぼん？', 4, 'せいほうけいは しかくけいの なかま。へんは 4ほん。', 'せいほうけいも しかくけい。'),
-    fq('ちょっかく', 'かみを 2かい おって できる かどを なんと いう？', ['ちょっかく', 'まるいかく', 'とがりかく', 'はんかく'], 'ちょっかく。ちょうほうけいの かどは みんな ちょっかく。', 'ノートの かどと おなじ 大きさの かど。')
+    fq('ちょうほうけい', figQ('この かたちの なまえは？（かどは みんな ちょっかく）', 'rect'), nameChoices('ちょうほうけい'), 'ちょうほうけい。4つの かどが みんな ちょっかく。', 'ノートや ドアの かたち。', 'name-rect'),
+    fq('せいほうけい', figQ('この かたちの なまえは？（かどは みんな ちょっかく・へんは みんな おなじ ながさ）', 'square'), nameChoices('せいほうけい'), 'せいほうけい。かども へんも みんな おなじ。', 'おりがみの かたち。', 'name-square'),
+    fq('ちょっかくさんかくけい', figQ('この かたちの なまえは？（赤い しるしは ちょっかく）', 'rtri'), nameChoices('ちょっかくさんかくけい'), 'ちょっかくさんかくけい。ちょっかくの かどが 1つ ある さんかくけい。', 'ちょうほうけいを ななめに きった かたち。', 'name-rtri'),
+    fn('ちょっかく', figQ('この かたちに ちょっかくの かどは いくつ？（赤い しるし）', 'rect'), 4, 'ちょうほうけいの かどは 4つ とも ちょっかく。', '赤い しるしを かぞえよう。', 'ra-rect'),
+    fn('ちょっかく', figQ('この かたちに ちょっかくの かどは いくつ？（赤い しるし）', 'rtri'), 1, 'ちょっかくさんかくけいの ちょっかくは 1つ。', '赤い しるしを かぞえよう。', 'ra-rtri'),
+    fq('ちょうほうけい', figQ('ちょうほうけいの むかいあう へんの ながさは？', 'rect'), ['おなじ', 'ちがう', 'かたほうが 2ばい', 'きまっていない'], 'ちょうほうけいは むかいあう へんの ながさが おなじ。', 'うえと したの へんを くらべよう。', 'rect-opp'),
+    fq('ちょっかく', 'かみを 2かい おって できる かどを なんと いう？', ['ちょっかく', 'まるいかど', 'とがった かど', 'はんかく'], 'ちょっかく。ちょうほうけいの かどは みんな ちょっかく。', 'ノートの かどと おなじ 大きさの かど。', 'ra-fold'),
+    fq('かたちの なまえ', figPair('せいほうけいは どっち？', 'rect', 'square'), ['い', 'あ'], 'い が せいほうけい（へんが みんな おなじ ながさ）。あ は ちょうほうけい。', 'へんの ながさを くらべよう。', 'pair-square')
   ];
   const SHAPE_HARD = [
-    fn('はこの かたち', 'はこの かたちの めんは いくつ？', 6, 'はこの めんは 6つ。うえ・した・まえ・うしろ・みぎ・ひだり。', 'さいころを おもいだそう。'),
-    fn('はこの かたち', 'はこの かたちの へんは なんぼん？', 12, 'はこの へんは 12ほん。', 'うえに 4ほん、したに 4ほん、たてに 4ほん。'),
-    fn('はこの かたち', 'はこの かたちの ちょうてんは いくつ？', 8, 'はこの ちょうてんは 8つ。', 'うえに 4つ、したに 4つ。'),
-    fq('さいころの かたち', 'さいころの かたちの めんは どんな かたち？', ['せいほうけい', 'ちょうほうけい', 'さんかくけい', 'まる'], 'さいころの めんは ぜんぶ せいほうけい。', 'めんは ぜんぶ おなじ 大きさの ましかく。'),
-    fq('はこの かたち', 'はこの かたちの めんは どんな かたち？', ['ちょうほうけい か せいほうけい', 'さんかくけい', 'まる', 'ほし'], 'はこの めんは ちょうほうけい か せいほうけい。', 'ティッシュの はこの めんを 見てみよう。'),
-    fq('ちょっかくさんかくけい', 'ちょうほうけいを ななめに はんぶんに きると、できる かたちは？', ['ちょっかくさんかくけい', 'せいほうけい', 'まる', 'ちょうほうけい'], 'ちょうほうけいを ななめに きると ちょっかくさんかくけいが 2つ。', 'ちょっかくの かどが のこるよ。')
+    fn('はこの かたち', figQ('この はこの めんは いくつ？（見えない めんも かぞえる）', 'box'), 6, 'はこの めんは 6つ。うえ・した・まえ・うしろ・みぎ・ひだり。', 'さいころを おもいだそう。見えない めんも あるよ。', 'box-f'),
+    fn('はこの かたち', figQ('この はこの へんは なんぼん？（てんせんも かぞえる）', 'box'), 12, 'はこの へんは 12ほん。', 'うえに 4ほん、したに 4ほん、たてに 4ほん。', 'box-e'),
+    fn('はこの かたち', figQ('この はこの ちょうてんは いくつ？（見えない ちょうてんも かぞえる）', 'box'), 8, 'はこの ちょうてんは 8つ。', 'うえに 4つ、したに 4つ。', 'box-v'),
+    fq('さいころの かたち', figQ('この さいころの かたちの めんは どんな かたち？', 'box', true), ['せいほうけい', 'ちょうほうけい', 'さんかくけい', 'まる'], 'さいころの めんは ぜんぶ せいほうけい。', 'めんは ぜんぶ おなじ 大きさの ましかく。', 'cube-face'),
+    fq('はこの かたち', figQ('この はこの めんは どんな かたち？', 'box'), ['ちょうほうけい', 'さんかくけい', 'まる', 'ほし'], 'はこの めんは ちょうほうけい（か せいほうけい）。', 'ティッシュの はこの めんを 見てみよう。', 'box-face'),
+    fq('ちょっかくさんかくけい', figQ('ちょうほうけいを てんせんで きると、できる かたちは？', 'rect', true), ['ちょっかくさんかくけい', 'せいほうけい', 'まる', 'ちょうほうけい'], 'ななめに きると ちょっかくさんかくけいが 2つ できる。', 'ちょっかくの かどが のこるよ。', 'rect-cut'),
+    fn('ちょっかくさんかくけい', figQ('ちょうほうけいを てんせんで きると、ちょっかくさんかくけいは いくつ できる？', 'rect', true), 2, 'ちょっかくさんかくけいが 2つ できる。', 'てんせんの うえと したで 1つずつ。', 'rect-cut-n')
   ];
   const SHAPE_BOSS = [
-    fq('はこの かたち', 'さいころの かたちに ついて、ただしいのは どれ？', ['めんが 6つで、ぜんぶ せいほうけい', 'めんが 4つ', 'へんが 6ぽん', 'ちょうてんが 6つ'], 'さいころは めん 6・へん 12・ちょうてん 8。めんは ぜんぶ せいほうけい。', 'めん・へん・ちょうてんの かずを おもいだそう。'),
-    fn('はこの かたち', 'はこの かたちの へんの かずから ちょうてんの かずを ひくと？', 4, 'へん 12 − ちょうてん 8 = 4。', 'へんは 12ほん、ちょうてんは 8つ。'),
-    fq('せいほうけい', 'せいほうけいに ついて、ただしいのは どれ？', ['4つの へんの ながさが みんな おなじ', 'へんが 3ぼん', 'かどが 1つだけ ちょっかく', 'まるい'], 'せいほうけいは へんが 4ほん みんな おなじ ながさで、かどは みんな ちょっかく。', 'おりがみの かたち。'),
-    fq('ちょうほうけい', 'ちょうほうけいと せいほうけいの ちがいは？', ['へんの ながさが ぜんぶ おなじか どうか', 'かどが ちょっかくか どうか', 'へんの かず', 'ちょうてんの かず'], 'どちらも かどは ちょっかく。せいほうけいは へんが ぜんぶ おなじ ながさ。', 'かどは どちらも ちょっかく。'),
-    fn('さんかくけい', 'さんかくけいを 2つ あわせて しかくけいを つくった。ちょうてんは いくつ？', 4, 'できた しかくけいの ちょうてんは 4つ。', 'できあがった かたちは しかくけい。')
+    fq('さいころの かたち', figQ('さいころの かたちに ついて、ただしいのは どれ？', 'box', true), ['めんが 6つで、ぜんぶ せいほうけい', 'めんが 4つ', 'へんが 6ぽん', 'ちょうてんが 6つ'], 'さいころは めん 6・へん 12・ちょうてん 8。めんは ぜんぶ せいほうけい。', 'めん・へん・ちょうてんの かずを おもいだそう。', 'cube-fact'),
+    fn('はこの かたち', figQ('この はこの へんの かずから ちょうてんの かずを ひくと？', 'box'), 4, 'へん 12 − ちょうてん 8 = 4。', 'へんは 12ほん、ちょうてんは 8つ。', 'box-sub'),
+    fq('せいほうけい', figQ('この かたちに ついて、ただしいのは どれ？', 'square'), ['4つの へんの ながさが みんな おなじ', 'へんが 3ぼん', 'かどが 1つだけ ちょっかく', 'まるい'], 'せいほうけいは へん 4ほんが みんな おなじ ながさで、かどは みんな ちょっかく。', 'おりがみの かたち。', 'square-fact'),
+    fq('ちょうほうけい', figPair('あ と い の ちがいは？', 'rect', 'square'), ['へんの ながさが ぜんぶ おなじか どうか', 'かどが ちょっかくか どうか', 'へんの かず', 'ちょうてんの かず'], 'どちらも かどは ちょっかく。い（せいほうけい）は へんが ぜんぶ おなじ ながさ。', 'かどは どちらも ちょっかく。', 'pair-diff'),
+    fn('さんかくけい', figQ('てんせんで わけた 2つの さんかくけいを あわせると、ちょうてんは いくつ？', 'rect', true), 4, 'あわせると ちょうほうけい。ちょうてんは 4つ。', 'できあがった かたちは しかくけい。', 'rect-join'),
+    fn('はこの かたち', figQ('この さいころの かたちの へんは なんぼん？', 'box', true), 12, 'さいころの かたちも へんは 12ほん。', 'はこの かたちと おなじ。', 'cube-e')
   ];
   const stage9 = {
     easy: [fixed(SHAPE_EASY), fixed(SHAPE_EASY)],
@@ -756,11 +817,27 @@ MQ.sansu2 = (function () {
   };
 
   /* =======================================================
-     ステージ14 ぶんすう（2ぶんの 1・4ぶんの 1・3ぶんの 1）
+     ステージ14 ぶんすう（図つき：おなじ 大きさに わけた 1つに いろ）
      ======================================================= */
   function bun(n) { return n + 'ぶんの 1'; }
+  // よこながの 四角を n こに わけて、shaded こに いろを つける
+  function fracSvg(n, shaded) {
+    const w = 150 / n;
+    let s = '';
+    for (let i = 0; i < n; i++) {
+      s += '<rect x="' + (5 + i * w) + '" y="30" width="' + w + '" height="60" fill="' + (i < shaded ? FIG_RED : '#fff') + '" stroke="' + FIG_STROKE + '" stroke-width="4"/>';
+    }
+    return '<span class="figbox">' + svgWrap(s) + '</span>';
+  }
+  function fracQ(text, n, shaded) { return '<span class="figq"><span class="figq__t">' + text + '</span>' + fracSvg(n, shaded == null ? 1 : shaded) + '</span>'; }
   const stage14 = {
     easy: [
+      function figName() {
+        const n = pickFrom([2, 3, 4]);
+        return choice('ぶんすう', fracQ('赤い ところは もとの 大きさの？', n), withDistractors(bun(n), [bun(n + 1), bun(n - 1 || 5), '1ぶんの ' + n, bun(n * 2)]), {
+          hint: 'おなじ 大きさに いくつに わけているか かぞえよう。' + n + 'つなら「' + n + 'ぶんの 1」。', note: n + 'つに わけた 1つぶん ＝ ' + bun(n), key: 'fn:' + n
+        });
+      },
       function name() {
         const n = pickFrom([2, 3, 4]);
         return choice('ぶんすう', 'おなじ 大きさに ' + n + 'つに わけた 1つぶんの 大きさを なんと いう？', withDistractors(bun(n), [bun(n + 1), bun(n - 1 || 5), '1ぶんの ' + n, bun(n * 2)]), {
@@ -768,17 +845,21 @@ MQ.sansu2 = (function () {
         });
       },
       function halfOf() {
-        const n = U.randInt(1, 6) * 2;
+        const n = U.randInt(2, 6) * 2;
         return num('ぶんすう', n + 'この 2ぶんの 1 は なんこ？', n / 2, { hint: n + 'こを おなじ かずずつ 2つに わけよう。', note: n + 'この 2ぶんの 1 は ' + (n / 2) + 'こ', key: 'hf:' + n });
       }
     ],
     normal: [
+      function figCount() {
+        const n = pickFrom([2, 3, 4, 5, 6]);
+        return num('ぶんすう', fracQ('いくつに わけている？', n), n, { hint: 'しきりで わけられた ますを かぞえよう。', note: n + 'つに わけている。赤い ところは ' + bun(n), key: 'fc:' + n });
+      },
       function quarterOf() {
-        const n = U.randInt(1, 5) * 4;
+        const n = U.randInt(2, 5) * 4;
         return num('ぶんすう', n + 'この 4ぶんの 1 は なんこ？', n / 4, { hint: n + 'こを おなじ かずずつ 4つに わけよう。', note: n + 'この 4ぶんの 1 は ' + (n / 4) + 'こ', key: 'qt:' + n });
       },
       function thirdOf() {
-        const n = U.randInt(1, 6) * 3;
+        const n = U.randInt(2, 6) * 3;
         return num('ぶんすう', n + 'この 3ぶんの 1 は なんこ？', n / 3, { hint: n + 'こを おなじ かずずつ 3つに わけよう。', note: n + 'この 3ぶんの 1 は ' + (n / 3) + 'こ', key: 'th:' + n });
       },
       function bigger() {
@@ -790,13 +871,19 @@ MQ.sansu2 = (function () {
       }
     ],
     hard: [
+      function figWhich() {
+        const n = pickFrom([2, 3, 4]);
+        return choice('ぶんすう', fracQ('赤い ところは もとの 大きさの？', n), withDistractors(bun(n), [bun(n + 1), bun(n - 1 || 5), bun(n * 2)]), {
+          hint: 'いくつに わけているか かぞえよう。', note: bun(n), key: 'fw:' + n
+        });
+      },
       function whole() {
         const n = pickFrom([2, 3, 4]);
         return num('ぶんすう', bun(n) + ' を ' + n + 'こ あつめると もとの 大きさの いくつぶん？', 1, { hint: n + 'つに わけた ものを ' + n + 'こ あわせると もとに もどる。', note: bun(n) + ' が ' + n + 'こで 1', key: 'wh:' + n });
       },
       function howMany() {
         const n = pickFrom([2, 3, 4]);
-        return num('ぶんすう', 'もとの 大きさは ' + bun(n) + ' の いくつぶん？', n, { hint: n + 'つに わけたのだから、' + n + 'こぶん。', note: 'もとの 大きさは ' + bun(n) + ' の ' + n + 'こぶん', key: 'hm:' + n });
+        return num('ぶんすう', fracQ('もとの 大きさは 赤い ところの いくつぶん？', n), n, { hint: n + 'つに わけたのだから、' + n + 'こぶん。', note: 'もとの 大きさは ' + bun(n) + ' の ' + n + 'こぶん', key: 'hm:' + n });
       },
       function partOfLen() {
         const n = pickFrom([2, 4]), len = U.randInt(2, 5) * n;
@@ -812,10 +899,10 @@ MQ.sansu2 = (function () {
         const n = pickFrom([2, 3, 4]), part = U.randInt(2, 6);
         return num('ぶんすう', 'ある かずの ' + bun(n) + ' が ' + part + 'こ です。もとの かずは いくつ？', part * n, { hint: bun(n) + ' が ' + part + 'こ なら、もとは ' + part + ' の ' + n + 'ばい。', note: part + ' × ' + n + ' = ' + (part * n), key: 'bw:' + n + ':' + part });
       },
-      function bossName() {
-        const n = pickFrom([2, 3, 4]);
-        return choice('ぶんすう', 'ケーキを おなじ 大きさに ' + n + 'つに きった 1きれは、もとの ケーキの？', withDistractors(bun(n), [bun(n + 1), bun(n * 2), bun(n - 1 || 6)]), {
-          hint: n + 'つに きったら 1きれは ' + bun(n) + '。', note: bun(n), key: 'bn:' + n
+      function bossTwo() {
+        const n = pickFrom([3, 4, 5, 6]);
+        return choice('ぶんすう', fracQ('赤い ところは もとの 大きさの？', n), withDistractors(bun(n), [bun(n + 1), bun(n - 1), bun(2)]), {
+          hint: 'ますの かずを かぞえよう。', note: bun(n), key: 'bt:' + n
         });
       }
     ]
@@ -867,5 +954,5 @@ MQ.sansu2 = (function () {
     return out;
   }
 
-  return { make: make, stages: stages, levelCounts: levelCounts };
+  return { make: make, stages: stages, levelCounts: levelCounts, fig: fig, figPair: figPair, fracSvg: fracSvg };
 })();
