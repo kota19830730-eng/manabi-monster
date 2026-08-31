@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>harness — まなびモンスター</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Mochiy+Pop+One&display=swap">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<!--
+  画面の 通しテスト／スクリーンショット用。
+  パスは 相対（../）なので フォルダを 動かしても そのまま 使えます。
+
+  ハッシュで モードを えらぶ：
+    #start   タイトル
+    #maker   なまえ・見た目えらび
+    #look    すがたを かえる（あとから）
+    #map     マップ（#map:600 で その いちまで／#map:-1 で いちばん下）
+    #battle  たたかい（1問目で 止める）
+    #note    正解の ふきだし（長い 補足つき）
+    #fx:fire #fx:bolt #fx:star  ひっさつわざの エフェクト
+    #graph   ぼうグラフの 問題（カードが 高い ケース）
+    #boss    ボス戦で 止める
+    #last    さいごの塔（ラスボス）で 止める
+    #roma    ローマ字の「うつ」問題で 止める
+    #write   かん字を「書く」問題で 止める
+    #result  けっか画面（ボス討伐＋レベルアップ）／#result2 にげられて ★0
+    #dex     図かん（主人公）
+    #treasure たからばこ
+    #parent  おうちの人ページ
+    #flow    ぜんぶ 自動で 通す（ログを #log に 出す）
+
+  例:
+  chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
+    --dump-dom "file:///.../tools/harness.html#flow"
+  画像は --screenshot=x.png --window-size=520,1000 --hide-scrollbars
+-->
+<div id="stage" class="stage">
+<main id="screen-start"  class="screen is-active"></main>
+<main id="screen-map"    class="screen"></main>
+<main id="screen-battle" class="screen"></main>
+<main id="screen-result" class="screen"></main>
+<main id="screen-dex"    class="screen"></main>
+<div id="toast" class="toast" role="status"></div>
+</div>
+<pre id="log" style="position:fixed;left:0;bottom:0;max-height:0;overflow:hidden;opacity:0;margin:0"></pre>
+<script>
+window.__log = [];
+window.onerror = function (m, s, l) { window.__log.push('ERROR ' + m + ' @' + String(s || '').split('/').pop() + ':' + l); };
+window.addEventListener('unhandledrejection', function (e) { window.__log.push('REJECT ' + e.reason); });
+</script>
+
+<script src="../js/core/util.js"></script>
+<script src="../js/core/stage.js"></script>
+<script src="../js/core/pixel.js"></script>
+<script src="../js/core/blocks.js"></script>
+<script src="../js/core/tiles.js"></script>
+<script src="../js/core/sfx.js"></script>
+<script src="../js/core/bgm.js"></script>
+<script src="../js/core/save.js"></script>
+<script src="../js/core/battle.js"></script>
+<script src="../js/content/monsterart.js"></script>
+<script src="../js/content/face.js"></script>
+<script src="../js/content/enemies.js"></script>
+<script src="../js/content/hero.js"></script>
+<script src="../js/content/art.js"></script>
+<script src="../js/content/treasure.js"></script>
+<script src="../js/content/sansu3.js"></script>
+<script src="../js/content/kokugo3.js"></script>
+<script src="../js/content/rikashakai3.js"></script>
+<script src="../js/content/eigo3.js"></script>
+<script src="../js/content/romaji3.js"></script>
+<script src="../js/content/world3.js"></script>
+<script src="../js/ui/common.js"></script>
+<script src="../js/ui/look.js"></script>
+<script src="../js/ui/start.js"></script>
+<script src="../js/ui/map.js"></script>
+<script src="../js/ui/battle.js"></script>
+<script src="../js/ui/result.js"></script>
+<script src="../js/ui/dex.js"></script>
+<script src="../js/ui/photo.js"></script>
+
+<script>
+(function () {
+  const L = window.__log;
+  const mode = (location.hash || '#flow').slice(1);
+  const $ = function (s, root) { return (root || document).querySelector(s); };
+  const $$ = function (s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); };
+  function say(t) { L.push(t); }
+  function dump() { document.getElementById('log').textContent = L.join('\n'); }
+
+  // 音は 切っておく（headless では 鳴らない）
+  MQ.stage.fit();
+  MQ.save.load();
+  MQ.save.setSetting('sfx', false);
+  MQ.save.setSetting('bgm', false);
+  MQ.sfx.setEnabled(false);
+  MQ.bgm.setEnabled(false);
+  MQ.ui.setTextures();
+
+  function fresh(opts) {
+    opts = opts || {};
+    try { localStorage.clear(); } catch (e) {}
+    MQ.save.load();
+    MQ.save.setSetting('sfx', false);
+    MQ.save.setSetting('bgm', false);
+    const p = MQ.save.createPlayer('こうた', { hair: 'gold', skin: 'mid', style: 'short' });
+    MQ.save.update(function (pl) {
+      pl.xp = opts.xp != null ? opts.xp : 1400;
+      MQ.hero.gear.forEach(function (g) {
+        if (opts.allGear || (!MQ.hero.isDensetsu(g.id) && g.gradeNo <= (opts.grade || 3))) {
+          pl.gear.push(g.id);
+          pl.equipped[g.slot] = g.id;
+        }
+      });
+      pl.stars = opts.stars || { 'sansu3-1': 3, 'sansu3-2': 3, 'sansu3-3': 2, 'sansu3-4': 2, 'kokugo3-1': 3, 'kokugo3-2': 2, 'rikashakai3-1': 2, 'eigo3-1': 1 };
+      pl.best = { 'sansu3-6': { correct: 8, total: 12, time: 260 } };
+      pl.treasure = opts.treasure || { 'tr-kake': 2, 'tr-wari': 2, 'tr-jikoku': 1, 'tr-yomi': 1 };
+      pl.frags = opts.frags || { sansu: true, kokugo: true };
+      pl.coins = 7;
+      pl.bag = Object.keys(pl.treasure).slice(0, 3);   // もちもの（どうぐ）
+      // ずかんの 見た目を たしかめられるように、さいしょの 20体ぐらいは 見つけた ことに する
+      pl.dex = {};
+      MQ.enemies.list.slice(0, 20).forEach(function (e, i) { pl.dex[e.id] = 3 + (i % 4); });
+      ['skullhorse', 'zukan', 'boss-dragon'].forEach(function (id) { pl.dex[id] = 1; });
+      pl.dexNew = { 'slime-green': true, 'robot-gray': true };
+      pl.battles = 12; pl.defeated = 96;
+      MQ.hero.checkTitles(pl);
+      pl.title = 't-ryu';
+      MQ.save.addLog(pl, 'あまりのあるわり算：8/12　★2　4:20');
+      MQ.save.addLog(pl, 'かけ算のきまり：12/12　★3　3:41');
+    });
+    MQ.ui.syncCustom();
+    return p;
+  }
+
+  function correctValue(q) {
+    if (q.type === 'number') return q.answer;
+    if (q.type === 'choice') return q.answer;
+    if (q.type === 'roma') return q.answer;
+    if (q.type === 'write') return true;
+    return { q: q.answer.q, r: q.answer.r };
+  }
+  function wrongValue(q) {
+    if (q.type === 'number') return q.answer + 1;
+    if (q.type === 'choice') return (q.answer + 1) % q.choices.length;
+    if (q.type === 'roma') return 'zzz';
+    if (q.type === 'write') return false;
+    return { q: q.answer.q + 1, r: q.answer.r };
+  }
+
+  // 画面の ボタンを 押して 答える（UIも まとめて ためす）
+  function answerViaUI(good) {
+    const q = MQ.battle.current();
+    if (!q) return false;
+    if (q.type === 'choice') {
+      const btns = $$('#screen-battle .choice');
+      const want = good ? q.answer : (q.answer + 1) % q.choices.length;
+      if (!btns[want]) { say('NO CHOICE BUTTONS'); return false; }
+      btns[want].click();
+      return true;
+    }
+    if (q.type === 'write') {
+      const keys = $$('#screen-battle .keys--write .key');
+      if (!keys.length) { say('NO WRITE BUTTON'); return false; }
+      keys[0].click();                       // 「かけた！」
+      const k2 = $$('#screen-battle .keys--write .key');
+      (good ? k2[0] : k2[1]).click();        // ○ / ✕
+      return true;
+    }
+    const keys = $$('#screen-battle .key');
+    if (!keys.length) { say('NO KEYS for ' + q.type); return false; }
+    function press(label) {
+      const b = keys.filter(function (k) { return k.textContent === label; })[0];
+      if (b) b.click(); else say('NO KEY ' + label);
+    }
+    if (q.type === 'roma') {
+      String(good ? q.answer : 'zzz').split('').forEach(press);
+      press('こたえる');
+      return true;
+    }
+    if (q.type === 'divrem') {
+      String(good ? q.answer.q : q.answer.q + 1).split('').forEach(press);
+      press('こたえる');
+      String(q.answer.r).split('').forEach(press);
+      press('こたえる');
+      return true;
+    }
+    String(good ? q.answer : q.answer + 1).split('').forEach(press);
+    press('こたえる');
+    return true;
+  }
+
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  /* いま 画面に 出ている 一瞬（ふきだし・ひっさつの エフェクト）を
+     スクリーンショットに のこす ため、これいじょう タイマーを 進めない。 */
+  function freeze() { window.setTimeout = function () { return 0; }; }
+
+  async function playBattle(label, opts) {
+    opts = opts || {};
+    let guard = 0;
+    while (!MQ.battle.isOver() && guard < 120) {
+      guard++;
+      const q = MQ.battle.current();
+      if (!q) break;
+      if (opts.stopAtBoss && q.boss) { say(label + ': ボスで 停止'); return 'boss'; }
+      const good = opts.missFirst && guard === 1 ? false : true;
+      answerViaUI(good);
+      await wait(60);
+      if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+      await wait(opts.slow ? 3400 : 3300);
+    }
+    say(label + ': おわり guard=' + guard + ' over=' + MQ.battle.isOver());
+    return 'done';
+  }
+
+  async function run() {
+    if (mode === 'start') { fresh(); MQ.ui.start.render(); MQ.ui.show('screen-start'); return; }
+    if (mode === 'maker') { try { localStorage.clear(); } catch (e) {} MQ.save.load(); MQ.ui.start.maker(); return; }
+    if (mode === 'look') { fresh(); MQ.ui.look.edit(); return; }
+    if (mode === 'map' || mode.indexOf('map:') === 0) {
+      fresh(); MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
+      const n = parseInt(mode.slice(4), 10);   // #map:600 で その いちまで スクロール（-1 は いちばん下）
+      if (!isNaN(n)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n < 0 ? 99999 : n; }
+      return;
+    }
+    if (mode === 'dex') { fresh(); MQ.ui.dex.render('hero'); MQ.ui.show('screen-dex'); return; }
+    if (mode === 'treasure') { fresh(); MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
+    if (mode === 'mons') { fresh(); MQ.ui.dex.render('mons'); MQ.ui.show('screen-dex'); return; }
+    if (mode === 'parent') { fresh(); MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
+    if (mode === 'set') { fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); return; }
+    if (mode === 'photo') { fresh(); MQ.ui.photo.render(); return; }
+
+    // 正解の ふきだし（いちばん 長い 補足）。画面に おさまるか 見る
+    if (mode === 'note') {
+      fresh();
+      let pool = [];
+      [MQ.kokugo3.questions, MQ.rikashakai3.questions, MQ.eigo3.questions].forEach(function (list) {
+        pool = pool.concat(list.filter(function (q) { return q.note && q.choices; }));
+      });
+      pool.sort(function (a, b) { return b.note.length - a.note.length; });
+      const long = pool[0];
+      const st = MQ.content.findStage('rikashakai3-2').stage;
+      const orig = st.make;
+      st.make = function (n) {
+        const out = [];
+        for (let i = 0; i < n; i++) {
+          out.push({
+            id: 'note-test-' + i, type: 'choice', unit: long.unit,
+            prompt: long.text, choices: long.choices.slice(), answer: 0,
+            hint: long.hint, note: long.note
+          });
+        }
+        return out;
+      };
+      void orig;                       // テスト用なので もとに もどさない
+      MQ.ui.battle.start('rikashakai3-2');
+      await wait(300);
+      freeze();                        // 先に 止めてから 答える（ふきだしが 消えない）
+      answerViaUI(true);
+      const el = $('#screen-battle .feedback__note');
+      say('note(' + (el ? el.textContent.length : 0) + '): ' + (el ? el.textContent : 'なし'));
+      return;
+    }
+    // ひっさつわざの エフェクト（#fx:fire / #fx:bolt / #fx:star）
+    if (mode.indexOf('fx') === 0) {
+      const want = mode.split(':')[1] || 'fire';
+      fresh(); MQ.ui.battle.start('rikashakai3-1'); await wait(400);
+      freeze();
+      const sp = MQ.ui.battle.demoSpecial(want);
+      // アニメを とちゅうで 止めて 撮る
+      const st = document.createElement('style');
+      st.textContent = '.fx, .fx *, .hero, .enemy__img, .combo { animation-delay: -.3s !important; animation-play-state: paused !important; }';
+      document.head.appendChild(st);
+      say('fx: ' + want + ' → ' + sp.name);
+      return;
+    }
+    // どうぐ（v2.0）：#bag＝シートを 開いた ところ／#bagfx:<power>＝使った ときの 演出
+    //                 #bagguard＝たてが まもった ところ／#bagdex＝ずかんの もちもの
+    const ITEM_OF = { burst: 'tr-wari', shield: 'tr-ookii', freeze: 'tr-jikoku', guide: 'tr-hissan', golden: 'tr-graph', chest: 'tr-amari', power: 'tr-kake', charge: 'tr-omosa' };
+    if (mode === 'bag' || mode.indexOf('bagfx') === 0 || mode === 'bagguard' || mode === 'bagre') {
+      const want = mode.split(':')[1] || 'burst';
+      fresh({ treasure: { 'tr-wari': 2, 'tr-ookii': 1, 'tr-graph': 1, 'tr-jikoku': 1, 'tr-hissan': 2, 'tr-amari': 1, 'tr-kake': 1, 'tr-omosa': 1 } });
+      MQ.save.update(function (pl) {
+        pl.bag = mode === 'bag' ? ['tr-wari', 'tr-ookii', 'tr-graph'] : [ITEM_OF[mode === 'bagguard' ? 'shield' : want] || 'tr-wari'];
+      });
+      MQ.ui.battle.start('sansu3-6');
+      await wait(400);
+      const pause = function () {
+        const st = document.createElement('style');
+        st.textContent = '.fx, .fx *, .hero, .hero::after, .enemy__img, .combo, .bagbtn__dot { animation-delay: -.3s !important; animation-play-state: paused !important; }';
+        document.head.appendChild(st);
+      };
+      if (mode === 'bag') { MQ.ui.battle.openBag(); say('bag: ' + $$('.bagrow').length + ' items'); return; }
+      if (mode === 'bagre') {
+        // つかいおわった アイテムに「もう1回」（コイン2まい）が 出る ところ
+        MQ.ui.battle.demoItem('burst');
+        await wait(1100);
+        MQ.ui.battle.openBag();
+        say('bagre: ' + ($('.bagrow__re') ? 'ok' : 'MISSING') + ' / coins: ' + ($('.bagcard__coins') ? $('.bagcard__coins').textContent : 'なし'));
+        return;
+      }
+      if (mode === 'bagguard') {
+        MQ.ui.battle.demoItem('shield');
+        await wait(1200);
+        answerViaUI(false); await wait(900);
+        freeze();
+        answerViaUI(false);
+        pause();
+        say('guard: ' + $('.arena__msg').textContent);
+        return;
+      }
+      freeze();
+      const it = MQ.ui.battle.demoItem(want);
+      pause();
+      say('bagfx: ' + want + ' → ' + (it ? it.powerName : 'なし') + ' / ' + $('.arena__msg').textContent);
+      return;
+    }
+    if (mode === 'bagdex') { fresh(); MQ.ui.dex.pick('tr-wari'); MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
+    if (mode === 'battle') { fresh(); MQ.ui.battle.start('sansu3-6'); await wait(600); return; }
+    if (mode === 'graph')  { fresh(); MQ.ui.battle.start('sansu3-5'); await wait(600); return; }  // ぼうグラフ（せの高い 問題）
+    if (mode === 'roma') {
+      fresh();
+      MQ.ui.battle.start('kokugo3-5');
+      for (let i = 0; i < 30; i++) {
+        await wait(200);
+        const q = MQ.battle.current();
+        if (q && q.type === 'roma') { say('roma question shown'); return; }
+        answerViaUI(true); await wait(3400);
+      }
+      return;
+    }
+    if (mode === 'write') {
+      fresh();
+      MQ.ui.battle.start('kokugo3-2');
+      for (let i = 0; i < 30; i++) {
+        await wait(200);
+        const q = MQ.battle.current();
+        if (q && q.type === 'write') { say('write question shown'); return; }
+        answerViaUI(true); await wait(3400);
+      }
+      return;
+    }
+    if (mode === 'boss') {
+      fresh();
+      MQ.ui.battle.start('sansu3-6');
+      await wait(400);
+      await playBattle('boss', { stopAtBoss: true });
+      await wait(2200);
+      return;
+    }
+    if (mode === 'last') {
+      fresh({ frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true } });
+      MQ.ui.battle.start('tower3');
+      await wait(3200);
+      say('tower: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
+      return;
+    }
+    if (mode === 'result' || mode === 'result2' || mode === 'result3') {
+      // #result  … ボスを たおして レベルアップも する にぎやかな ケース
+      // #result2 … ボスに にげられて ★0 の さみしい ケース
+      fresh();
+      MQ.save.update(function (pl) {
+        // つぎの 1戦で かならず レベルアップ するように、あと 40 で 上がる XP に する
+        let xp = pl.xp;
+        while (MQ.hero.progress(xp).need - MQ.hero.progress(xp).into > 40) xp++;
+        pl.xp = xp;
+      });
+      MQ.ui.battle.start(mode === 'result3' ? 'sansu3-4' : 'sansu3-6');   // result3 … つぎの ステージが ある
+      await wait(400);
+      if (mode === 'result2') {
+        let g = 0;
+        while (!MQ.battle.isOver() && g++ < 60) { answerViaUI(false); await wait(60); if (MQ.battle.isRetry()) { answerViaUI(false); await wait(60); } await wait(3300); }
+      } else {
+        await playBattle('result');
+      }
+      await wait(800);
+      say('result: ' + ($('.rs') ? 'ok' : 'MISSING') + ' / ボス: ' + ($('.rs__boss') ? 'ok' : 'MISSING'));
+      return;
+    }
+
+    /* ---- #flow: ぜんぶ 通す ---- */
+    fresh();
+    say('--- タイトル ---');
+    MQ.ui.start.render(); MQ.ui.show('screen-start');
+    await wait(300);
+    say('logo: ' + ($('.title__logo') ? 'ok' : 'MISSING'));
+
+    say('--- マップ ---');
+    MQ.ui.goMap();
+    await wait(400);
+    say('nodes: ' + $$('#screen-map .node').length + ' / tower: ' + ($('#screen-map .tower') ? 'ok' : 'MISSING'));
+
+    say('--- 算数バトル（1問 わざと まちがえる） ---');
+    MQ.ui.battle.start('sansu3-6');
+    await wait(400);
+    // どうぐを 1つ 使ってから たたかう
+    say('bagbtn: ' + ($('.bagbtn') && !$('.bagbtn').hidden ? 'ok' : 'MISSING'));
+    MQ.ui.battle.openBag();
+    await wait(100);
+    const bi = $('.bagrow__use');
+    say('bag items: ' + $$('.bagrow').length + (bi ? ' → use ' + bi.closest('.bagrow').querySelector('.bagrow__pw').textContent : ' MISSING'));
+    if (bi) bi.click();
+    await wait(1200);
+    await playBattle('sansu', { missFirst: true });
+    await wait(700);
+    say('result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
+
+    say('--- 国語（かん字を 書く） ---');
+    MQ.ui.battle.start('kokugo3-2');
+    await wait(400);
+    await playBattle('kokugo2');
+    await wait(700);
+
+    say('--- ローマ字 ---');
+    MQ.ui.battle.start('kokugo3-5');
+    await wait(400);
+    await playBattle('romaji');
+    await wait(700);
+
+    say('--- とっくん ---');
+    MQ.save.update(function (p) {
+      MQ.save.addEscaped(p, 'sansu', { key: 'x1', q: { id: 'x1', type: 'number', prompt: '2×3は？', answer: 6, unit: 'テスト' }, enemyId: 'slime-green', areaId: 'sansu', stageId: 'sansu3-1' });
+    });
+    MQ.ui.battle.startTokkun();
+    await wait(400);
+    await playBattle('tokkun');
+    await wait(700);
+
+    say('--- さいごの塔 ---');
+    MQ.save.update(function (p) { p.frags = { sansu: true, kokugo: true, rikashakai: true, eigo: true }; });
+    MQ.ui.battle.start('tower3');
+    await wait(3200);
+    await playBattle('tower');
+    await wait(900);
+    const p = MQ.save.current();
+    say('たからもの: ' + MQ.treasure.countOwned(p) + ' / ' + MQ.treasure.total());
+    say('でんせつ: ' + p.gear.filter(function (g) { return MQ.hero.isDensetsu(g); }).length + ' / 5');
+    say('しょうごう: ' + MQ.hero.titleName(p));
+
+    say('--- 図かん ---');
+    ['hero', 'treasure', 'mons', 'parent', 'set'].forEach(function (t) {
+      MQ.ui.dex.render(t);
+      say('dex ' + t + ': ' + ($('#screen-dex .wrap') ? 'ok' : 'MISSING'));
+    });
+    MQ.ui.photo.render();
+    say('photo: ' + ($('.photo__stage') ? 'ok' : 'MISSING'));
+
+    say('=== エラー: ' + L.filter(function (t) { return t.indexOf('ERROR') === 0 || t.indexOf('MISSING') >= 0; }).length + ' ===');
+    dump();
+  }
+
+  run().then(dump, function (e) { say('THROW ' + e); dump(); });
+  setInterval(dump, 500);
+})();
+</script>
+</body>
+</html>

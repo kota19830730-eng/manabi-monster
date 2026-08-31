@@ -1,0 +1,177 @@
+/* ---------------------------------------------------------
+   小3 英語（外国語活動レベル・Let's Try! 1 の 単元に合わせた）
+
+   ステージ
+     1 あいさつ（Hello / How are you? / What's this? など）
+     2 色と数・アルファベット
+     3 どうぶつと たべもの（I like 〜）
+     4 曜日・月・天気・季節
+
+   書き方は kokugo3.js と同じです（lv 1〜3 で むずかしさ）。
+   --------------------------------------------------------- */
+window.MQ = window.MQ || {};
+
+MQ.eigo3 = {
+  questions: [
+    /* ===== 1 あいさつ ===== */
+    /* -- やさしい -- */
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Good morning." の いみは？', choices: ['おはよう', 'こんばんは', 'さようなら', 'ありがとう'], note: '朝の あいさつです。昼は "Good afternoon."' },
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Good afternoon." の いみは？', choices: ['こんにちは（昼）', 'おはよう', 'おやすみ', 'またね'], note: 'afternoon ＝ 午後。昼の あいさつ。' },
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Good night." の いみは？', choices: ['おやすみなさい', 'こんばんは', 'おはよう', 'ありがとう'], note: 'ねる前の あいさつ。night ＝ 夜。' },
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Hello." の いみは？', choices: ['こんにちは', 'さようなら', 'ごめんなさい', 'おやすみ'], note: 'いつでも 使える あいさつ。"Hi." も 同じ。' },
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Thank you." の いみは？', choices: ['ありがとう', 'ごめんなさい', 'さようなら', 'どうぞ'], note: '答えは "You\'re welcome."（どういたしまして）。' },
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Goodbye." の いみは？', choices: ['さようなら', 'こんにちは', 'おはよう', 'ありがとう'], note: '別れの あいさつ。短く "Bye." とも 言います。' },
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Good evening." の いみは？', choices: ['こんばんは', 'おはよう', 'おやすみ', 'こんにちは'], note: 'evening ＝ 夕方・夜。夜に 会ったときの あいさつ。' },
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Hi." の いみは？', choices: ['やあ・こんにちは', 'さようなら', 'ありがとう', 'ごめんなさい'], note: '"Hello." より くだけた あいさつ。' },
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Bye." の いみは？', choices: ['じゃあね', 'こんにちは', 'ありがとう', 'はい'], note: '"Goodbye." を 短く 言った もの。' },
+    { stage: 1, lv: 1, unit: '気もち', text: '"I\'m happy." の いみは？', choices: ['うれしい', 'かなしい', 'ねむい', 'おなかが すいた'], note: 'happy ＝ うれしい・しあわせ。' },
+    { stage: 1, lv: 1, unit: '気もち', text: '"I\'m sad." の いみは？', choices: ['かなしい', 'うれしい', 'いそがしい', 'ねむい'], note: 'sad ＝ かなしい。' },
+    { stage: 1, lv: 1, unit: 'あいさつ', text: '"Yes." の いみは？', choices: ['はい', 'いいえ', 'たぶん', 'わからない'], note: 'Yes ＝ はい。No ＝ いいえ。' },
+    /* -- ふつう -- */
+    { stage: 1, lv: 2, unit: 'あいさつ', text: '"How are you?" の いみは？', choices: ['元気ですか？', '何さいですか？', 'どこへ行くの？', '名前は何？'], note: '答えるときは "I\'m fine, thank you."' },
+    { stage: 1, lv: 2, unit: 'あいさつ', text: '"I\'m fine." の いみは？', choices: ['元気です', 'おなかが すいた', 'ねむい', 'いそがしい'], note: 'fine ＝ 元気。"How are you?" の 答え。' },
+    { stage: 1, lv: 2, unit: 'あいさつ', text: '"Nice to meet you." の いみは？', choices: ['はじめまして', 'また あとで', 'ごめんなさい', 'いただきます'], note: 'はじめて 会った人に つかいます。' },
+    { stage: 1, lv: 2, unit: 'あいさつ', text: '「ごめんなさい」を 英語で いうと？', choices: ['I\'m sorry.', 'Thank you.', 'Good night.', 'See you.'], note: 'sorry ＝ ごめんなさい。' },
+    { stage: 1, lv: 2, unit: 'あいさつ', text: '"See you." の いみは？', choices: ['またね', 'はじめまして', 'おやすみ', 'ありがとう'], note: '別れるときの あいさつ。"Goodbye." も 同じ。' },
+    { stage: 1, lv: 2, unit: 'あいさつ', text: '"My name is Ken." の いみは？', choices: ['ぼくの 名前は ケンです', 'ケンは 友だちです', 'ケンを よんで', 'ケンは 元気です'], note: 'name ＝ 名前。' },
+    { stage: 1, lv: 2, unit: 'あいさつ', text: '"I\'m nine." の いみは？', choices: ['9さいです', '9時です', '9月です', '9人です'], note: '"How old are you?" の 答え。nine ＝ 9。' },
+    { stage: 1, lv: 2, unit: 'あいさつ', text: '"You\'re welcome." の いみは？', choices: ['どういたしまして', 'ようこそ', 'ありがとう', 'さようなら'], note: '"Thank you." と 言われたときの 答え。' },
+    { stage: 1, lv: 2, unit: 'あいさつ', text: '"Excuse me." の いみは？', choices: ['すみません（人に 声を かけるとき）', 'ありがとう', 'おやすみ', 'おめでとう'], note: '道を 聞くときや、人の 前を 通るときに 言います。' },
+    { stage: 1, lv: 2, unit: '気もち', text: '"I\'m hungry." の いみは？', choices: ['おなかが すいた', 'ねむい', 'つかれた', 'あつい'], note: 'hungry ＝ おなかが すいた。' },
+    { stage: 1, lv: 2, unit: '気もち', text: '"I\'m sleepy." の いみは？', choices: ['ねむい', 'おなかが すいた', 'うれしい', 'さむい'], note: 'sleepy ＝ ねむい。sleep ＝ ねる。' },
+    { stage: 1, lv: 2, unit: 'よびかけ', text: '"Let\'s play." の いみは？', choices: ['あそぼう', 'ねよう', '食べよう', '帰ろう'], note: 'Let\'s 〜 ＝ 〜しよう。play ＝ あそぶ。' },
+    { stage: 1, lv: 2, unit: 'よびかけ', text: '"Stand up." の いみは？', choices: ['立って', 'すわって', '走って', '止まって'], note: 'stand ＝ 立つ。"Sit down." は「すわって」。' },
+    { stage: 1, lv: 2, unit: 'よびかけ', text: '"Sit down." の いみは？', choices: ['すわって', '立って', '手を あげて', 'しずかに'], note: 'sit ＝ すわる。' },
+    /* -- むずかしい（ボスにも 出る） -- */
+    { stage: 1, lv: 3, unit: 'あいさつ', text: '"What\'s your name?" の いみは？', choices: ['名前は 何ですか？', '何さいですか？', 'どこから 来ましたか？', '元気ですか？'], note: '答えは "My name is 〇〇." または "I\'m 〇〇."', boss: true },
+    { stage: 1, lv: 3, unit: 'あいさつ', text: '"How old are you?" の いみは？', choices: ['何さいですか？', '名前は 何ですか？', '元気ですか？', 'どこに 住んでいますか？'], note: 'old ＝ 年をとった。年を 聞く 言い方。', boss: true },
+    { stage: 1, lv: 3, unit: 'しつもん', text: '"How many?" の いみは？', choices: ['いくつ？', 'いくら？', 'どこ？', 'だれ？'], note: 'many ＝ たくさん。数を 聞く 言い方。' },
+    { stage: 1, lv: 3, unit: 'しつもん', text: '"What\'s this?" の いみは？', choices: ['これは 何？', 'これは だれ？', 'これは いくら？', 'これは どこ？'], note: 'this ＝ これ。答えは "It\'s a 〇〇."' },
+    { stage: 1, lv: 3, unit: 'じこしょうかい', text: '"I\'m from Japan." の いみは？', choices: ['日本から 来ました', '日本に 行きます', '日本が すきです', '日本人では ありません'], note: 'from ＝ 〜から。Japan ＝ 日本。' },
+    { stage: 1, lv: 3, unit: 'しつもん', text: '"Who are you?" の いみは？', choices: ['あなたは だれ？', 'あなたは どこ？', 'あなたは 何さい？', 'あなたは 元気？'], note: 'who ＝ だれ。' },
+
+    /* ===== 2 色と数・アルファベット ===== */
+    /* -- やさしい -- */
+    { stage: 2, lv: 1, unit: '色', text: '"blue" の いみは？', choices: ['青', '赤', '緑', '黄色'], note: 'red＝赤、green＝緑、yellow＝黄色。' },
+    { stage: 2, lv: 1, unit: '色', text: '"red" の いみは？', choices: ['赤', '青', '白', '黒'], note: 'red ＝ 赤。' },
+    { stage: 2, lv: 1, unit: '色', text: '"yellow" の いみは？', choices: ['黄色', '緑', '赤', 'むらさき'], note: 'yellow ＝ 黄色。' },
+    { stage: 2, lv: 1, unit: '色', text: '"white" の いみは？', choices: ['白', '黒', '青', '茶色'], note: 'white ＝ 白、black ＝ 黒。' },
+    { stage: 2, lv: 1, unit: '色', text: '"black" の いみは？', choices: ['黒', '白', '赤', '緑'], note: 'black ＝ 黒。' },
+    { stage: 2, lv: 1, unit: '数', text: '"three" は いくつ？', choices: ['3', '2', '4', '13'], note: 'one, two, three ＝ 1, 2, 3。' },
+    { stage: 2, lv: 1, unit: '数', text: '"seven" は いくつ？', choices: ['7', '6', '9', '11'], note: 'six＝6、seven＝7、eight＝8。' },
+    { stage: 2, lv: 1, unit: '数', text: '"eight" は いくつ？', choices: ['8', '3', '18', '80'], note: 'eight ＝ 8。' },
+    { stage: 2, lv: 1, unit: '数', text: '"ten" は いくつ？', choices: ['10', '1', '100', '2'], note: 'ten ＝ 10。' },
+    { stage: 2, lv: 1, unit: '色', text: '"orange" の いみは？', choices: ['オレンジ色', '茶色', 'むらさき', '金色'], note: 'orange ＝ オレンジ色。くだものの オレンジも 同じ 言葉。' },
+    { stage: 2, lv: 1, unit: '数', text: '"one" は いくつ？', choices: ['1', '10', '2', '0'], note: 'one ＝ 1。' },
+    { stage: 2, lv: 1, unit: '数', text: '"two" は いくつ？', choices: ['2', '3', '12', '20'], note: 'two ＝ 2。' },
+    { stage: 2, lv: 1, unit: '数', text: '"six" は いくつ？', choices: ['6', '7', '16', '60'], note: 'six ＝ 6。' },
+    /* -- ふつう -- */
+    { stage: 2, lv: 2, unit: '色', text: '"purple" の いみは？', choices: ['むらさき', 'ピンク', 'オレンジ色', '茶色'], note: 'purple ＝ むらさき。' },
+    { stage: 2, lv: 2, unit: '色', text: '"brown" の いみは？', choices: ['茶色', '黒', 'むらさき', '緑'], note: 'brown ＝ 茶色。' },
+    { stage: 2, lv: 2, unit: '色', text: '「みどり」を 英語で いうと？', choices: ['green', 'gray', 'brown', 'gold'], note: 'green（グリーン）です。' },
+    { stage: 2, lv: 2, unit: '色', text: '「ピンク（ももいろ）」を 英語で いうと？', choices: ['pink', 'purple', 'peach', 'pin'], note: 'pink ＝ ピンク。' },
+    { stage: 2, lv: 2, unit: '数', text: '"twelve" は いくつ？', choices: ['12', '20', '2', '10'], note: 'twelve＝12、twenty＝20。にていて まちがえやすい 言葉です。' },
+    { stage: 2, lv: 2, unit: '数', text: '"eleven" は いくつ？', choices: ['11', '7', '1', '17'], note: 'eleven ＝ 11、twelve ＝ 12。' },
+    { stage: 2, lv: 2, unit: '数', text: '「5」を 英語で いうと？', choices: ['five', 'four', 'nine', 'fine'], note: 'five ＝ 5。"fine"（元気）と にているので 注意。' },
+    { stage: 2, lv: 2, unit: '数', text: '「4」を 英語で いうと？', choices: ['four', 'for', 'fore', 'fourteen'], note: 'four ＝ 4。' },
+    { stage: 2, lv: 2, unit: '数', text: '「9」を 英語で いうと？', choices: ['nine', 'night', 'nice', 'nain'], note: 'nine ＝ 9。night は「夜」、nice は「すてき」。' },
+    { stage: 2, lv: 2, unit: '色', text: '"gray" の いみは？', choices: ['はいいろ', '金色', '茶色', '黒'], note: 'gray ＝ はいいろ（グレー）。' },
+    { stage: 2, lv: 2, unit: '色', text: '"gold" の いみは？', choices: ['金色', '銀色', '黄色', 'オレンジ色'], note: 'gold ＝ 金・金色。silver ＝ 銀色。' },
+    { stage: 2, lv: 2, unit: '数', text: '"thirteen" は いくつ？', choices: ['13', '30', '3', '12'], note: 'thirteen ＝ 13。thirty ＝ 30。' },
+    { stage: 2, lv: 2, unit: '数', text: '"sixteen" は いくつ？', choices: ['16', '60', '6', '15'], note: 'sixteen ＝ 16。sixty ＝ 60。' },
+    { stage: 2, lv: 2, unit: 'すきなもの', text: '"I like red." の いみは？', choices: ['赤が すき', '赤は きらい', '赤い 服', '赤を 見て'], note: 'like ＝ すき。' },
+    { stage: 2, lv: 2, unit: 'アルファベット', text: 'A → B → C の つぎの 文字は？', choices: ['D', 'E', 'F', 'G'], note: 'A・B・C・D・E・F・G… の 順です。' },
+    /* -- むずかしい（ボスにも 出る） -- */
+    { stage: 2, lv: 3, unit: '数', text: '"fifteen" は いくつ？', choices: ['15', '50', '5', '14'], note: 'fifteen ＝ 15、fifty ＝ 50。', boss: true },
+    { stage: 2, lv: 3, unit: '数', text: '"twenty" は いくつ？', choices: ['20', '12', '2', '22'], note: 'twenty ＝ 20。', boss: true },
+    { stage: 2, lv: 3, unit: '色', text: '"silver" の いみは？', choices: ['銀色', '金色', 'はいいろ', '白'], note: 'silver ＝ 銀色。gold ＝ 金色。' },
+    { stage: 2, lv: 3, unit: '数', text: '"eighteen" は いくつ？', choices: ['18', '80', '8', '19'], note: 'eighteen ＝ 18。eighty ＝ 80。' },
+    { stage: 2, lv: 3, unit: '数', text: '"nineteen" は いくつ？', choices: ['19', '90', '9', '18'], note: 'nineteen ＝ 19。ninety ＝ 90。' },
+    { stage: 2, lv: 3, unit: '数', text: '"thirty" は いくつ？', choices: ['30', '13', '3', '33'], note: 'thirty ＝ 30。thirteen ＝ 13。' },
+    { stage: 2, lv: 3, unit: 'すきなもの', text: '"What color do you like?" の いみは？', choices: ['何色が すき？', '何色を 持っている？', '何色に 見える？', '色は いくつ ある？'], note: '答えは "I like 〇〇."' },
+    { stage: 2, lv: 3, unit: 'アルファベット', text: 'アルファベットは ぜんぶで 何文字？', choices: ['26文字', '20文字', '30文字', '50文字'], note: 'A から Z まで 26文字。大文字と 小文字が あります。' },
+
+    /* ===== 3 どうぶつと たべもの ===== */
+    /* -- やさしい -- */
+    { stage: 3, lv: 1, unit: 'どうぶつ', text: '"rabbit" の いみは？', choices: ['うさぎ', 'ねこ', 'きつね', 'ねずみ'], note: 'cat＝ねこ、fox＝きつね、mouse＝ねずみ。' },
+    { stage: 3, lv: 1, unit: 'どうぶつ', text: '"cat" の いみは？', choices: ['ねこ', '犬', 'うさぎ', 'とり'], note: 'cat ＝ ねこ。' },
+    { stage: 3, lv: 1, unit: 'どうぶつ', text: '"bird" の いみは？', choices: ['とり', 'さかな', 'くま', 'ぶた'], note: 'bird ＝ とり。' },
+    { stage: 3, lv: 1, unit: 'どうぶつ', text: '"fish" の いみは？', choices: ['さかな', 'とり', 'かえる', 'うし'], note: 'fish ＝ さかな。' },
+    { stage: 3, lv: 1, unit: 'どうぶつ', text: '「いぬ」を 英語で いうと？', choices: ['dog', 'duck', 'deer', 'dolphin'], note: 'dog（ドッグ）です。' },
+    { stage: 3, lv: 1, unit: 'たべもの', text: '"apple" の いみは？', choices: ['りんご', 'ぶどう', 'いちご', 'みかん'], note: 'grape＝ぶどう、strawberry＝いちご、orange＝みかん。' },
+    { stage: 3, lv: 1, unit: 'たべもの', text: '"egg" の いみは？', choices: ['たまご', 'パン', 'ごはん', 'ぎゅうにゅう'], note: 'egg ＝ たまご。' },
+    { stage: 3, lv: 1, unit: 'たべもの', text: '"milk" の いみは？', choices: ['ぎゅうにゅう', '水', 'ジュース', 'お茶'], note: 'milk ＝ ぎゅうにゅう。' },
+    { stage: 3, lv: 1, unit: 'どうぶつ', text: '"lion" の いみは？', choices: ['ライオン', 'とら', 'くま', 'ぞう'], note: 'lion ＝ ライオン。' },
+    { stage: 3, lv: 1, unit: 'どうぶつ', text: '"panda" の いみは？', choices: ['パンダ', 'くま', 'さる', 'コアラ'], note: 'panda ＝ パンダ。' },
+    { stage: 3, lv: 1, unit: 'たべもの', text: '"banana" の いみは？', choices: ['バナナ', 'りんご', 'ぶどう', 'メロン'], note: 'banana ＝ バナナ。' },
+    { stage: 3, lv: 1, unit: 'たべもの', text: '"cake" の いみは？', choices: ['ケーキ', 'パン', 'クッキー', 'アイス'], note: 'cake ＝ ケーキ。' },
+    { stage: 3, lv: 1, unit: 'たべもの', text: '"pizza" の いみは？', choices: ['ピザ', 'パスタ', 'ハンバーガー', 'カレー'], note: 'pizza ＝ ピザ。' },
+    { stage: 3, lv: 1, unit: 'たべもの', text: '"tomato" の いみは？', choices: ['トマト', 'にんじん', 'じゃがいも', 'たまねぎ'], note: 'tomato ＝ トマト。' },
+    /* -- ふつう -- */
+    { stage: 3, lv: 2, unit: 'どうぶつ', text: '"monkey" の いみは？', choices: ['さる', 'ぞう', 'くま', 'ライオン'], note: 'monkey ＝ さる。' },
+    { stage: 3, lv: 2, unit: 'どうぶつ', text: '"elephant" の いみは？', choices: ['ぞう', 'きりん', 'さる', 'うま'], note: 'elephant ＝ ぞう。' },
+    { stage: 3, lv: 2, unit: 'どうぶつ', text: '"bear" の いみは？', choices: ['くま', 'ぶた', 'とり', 'ひつじ'], note: 'bear ＝ くま。' },
+    { stage: 3, lv: 2, unit: 'どうぶつ', text: '"pig" の いみは？', choices: ['ぶた', 'うし', 'ひつじ', 'やぎ'], note: 'pig ＝ ぶた、cow ＝ うし。' },
+    { stage: 3, lv: 2, unit: 'どうぶつ', text: '「うし」を 英語で いうと？', choices: ['cow', 'cat', 'cap', 'cook'], note: 'cow ＝ うし。' },
+    { stage: 3, lv: 2, unit: 'たべもの', text: '"bread" の いみは？', choices: ['パン', 'ごはん', 'めん', 'ケーキ'], note: 'bread ＝ パン、rice ＝ ごはん。' },
+    { stage: 3, lv: 2, unit: 'たべもの', text: '"rice" の いみは？', choices: ['ごはん', 'パン', 'たまご', 'にく'], note: 'rice ＝ ごはん・米。' },
+    { stage: 3, lv: 2, unit: 'たべもの', text: '「みかん・オレンジ」を 英語で いうと？', choices: ['orange', 'apple', 'lemon', 'onion'], note: 'orange は 色（オレンジ色）の いみも あります。' },
+    { stage: 3, lv: 2, unit: 'どうぶつ', text: '"horse" の いみは？', choices: ['うま', 'うし', 'ひつじ', 'しか'], note: 'horse ＝ うま。' },
+    { stage: 3, lv: 2, unit: 'どうぶつ', text: '"tiger" の いみは？', choices: ['とら', 'ライオン', 'ねこ', 'ひょう'], note: 'tiger ＝ とら。' },
+    { stage: 3, lv: 2, unit: 'どうぶつ', text: '"frog" の いみは？', choices: ['かえる', 'かめ', 'へび', 'さかな'], note: 'frog ＝ かえる。' },
+    { stage: 3, lv: 2, unit: 'どうぶつ', text: '"mouse" の いみは？', choices: ['ねずみ', 'ねこ', 'うさぎ', 'りす'], note: 'mouse ＝ ねずみ。パソコンの マウスも 同じ 言葉。' },
+    { stage: 3, lv: 2, unit: 'たべもの', text: '"peach" の いみは？', choices: ['もも', 'なし', 'りんご', 'さくらんぼ'], note: 'peach ＝ もも。' },
+    { stage: 3, lv: 2, unit: 'たべもの', text: '"carrot" の いみは？', choices: ['にんじん', 'だいこん', 'トマト', 'きゅうり'], note: 'carrot ＝ にんじん。' },
+    { stage: 3, lv: 2, unit: 'たべもの', text: '"potato" の いみは？', choices: ['じゃがいも', 'さつまいも', 'トマト', 'たまねぎ'], note: 'potato ＝ じゃがいも。' },
+    { stage: 3, lv: 2, unit: 'すきなもの', text: '"I like cats." の いみは？', choices: ['ねこが すき', 'ねこを 見た', 'ねこは きらい', 'ねこが いる'], note: 'like ＝ すき。cats ＝ ねこ（たくさん）。' },
+    /* -- むずかしい（ボスにも 出る） -- */
+    { stage: 3, lv: 3, unit: 'たべもの', text: '「いちご」を 英語で いうと？', choices: ['strawberry', 'cherry', 'peach', 'melon'], note: 'strawberry ＝ いちご。', boss: true },
+    { stage: 3, lv: 3, unit: 'たべもの', text: '「ぶどう」を 英語で いうと？', choices: ['grapes', 'grass', 'group', 'green'], note: 'grapes ＝ ぶどう。', boss: true },
+    { stage: 3, lv: 3, unit: 'どうぶつ', text: '"sheep" の いみは？', choices: ['ひつじ', 'やぎ', 'うし', 'ぶた'], note: 'sheep ＝ ひつじ。' },
+    { stage: 3, lv: 3, unit: 'たべもの', text: '"onion" の いみは？', choices: ['たまねぎ', 'にんじん', 'なす', 'メロン'], note: 'onion ＝ たまねぎ。orange と まちがえないように。' },
+    { stage: 3, lv: 3, unit: 'すきなもの', text: '"Do you like dogs?" の いみは？', choices: ['犬は すき？', '犬を 見た？', '犬を 飼っている？', '犬は どこ？'], note: '答えは "Yes, I do." / "No, I don\'t."' },
+    { stage: 3, lv: 3, unit: 'すきなもの', text: '"What do you like?" の いみは？', choices: ['何が すき？', '何を 持っている？', '何を 食べた？', '何が ほしい？'], note: '答えは "I like 〇〇."' },
+
+    /* ===== 4 曜日・月・天気・季節 ===== */
+    /* -- やさしい -- */
+    { stage: 4, lv: 1, unit: '曜日', text: '"Monday" は 何曜日？', choices: ['月曜日', '木曜日', '日曜日', '水曜日'], note: 'Sunday＝日、Monday＝月、Tuesday＝火。' },
+    { stage: 4, lv: 1, unit: '曜日', text: '"Sunday" は 何曜日？', choices: ['日曜日', '月曜日', '土曜日', '金曜日'], note: 'Sunday ＝ 日曜日。sun ＝ 太陽。' },
+    { stage: 4, lv: 1, unit: '曜日', text: '"Friday" は 何曜日？', choices: ['金曜日', '土曜日', '月曜日', '日曜日'], note: 'Friday ＝ 金曜日。' },
+    { stage: 4, lv: 1, unit: '月', text: '"January" は 何月？', choices: ['1月', '6月', '7月', '10月'], note: 'January＝1月、June＝6月、July＝7月。' },
+    { stage: 4, lv: 1, unit: '月', text: '"December" は 何月？', choices: ['12月', '10月', '2月', '11月'], note: 'December ＝ 12月。' },
+    { stage: 4, lv: 1, unit: '天気', text: '"sunny" の いみは？', choices: ['晴れ', '雨', 'くもり', '雪'], note: 'sunny ＝ 晴れ。sun ＝ 太陽。' },
+    { stage: 4, lv: 1, unit: '天気', text: '"rainy" の いみは？', choices: ['雨', '晴れ', '雪', '風'], note: 'rainy ＝ 雨。rain ＝ 雨がふる。' },
+    { stage: 4, lv: 1, unit: '天気', text: '"cloudy" の いみは？', choices: ['くもり', '晴れ', '雨', '雪'], note: 'cloudy ＝ くもり。cloud ＝ 雲。' },
+    { stage: 4, lv: 1, unit: '天気', text: '"snowy" の いみは？', choices: ['雪', '雨', 'くもり', '晴れ'], note: 'snowy ＝ 雪。snow ＝ 雪。' },
+    { stage: 4, lv: 1, unit: '天気', text: '"It\'s hot." の いみは？', choices: ['あつい', 'さむい', 'すずしい', 'あたたかい'], note: 'hot ＝ あつい、cold ＝ さむい。' },
+    { stage: 4, lv: 1, unit: '天気', text: '"It\'s cold." の いみは？', choices: ['さむい', 'あつい', 'あたたかい', 'すずしい'], note: 'cold ＝ さむい。' },
+    { stage: 4, lv: 1, unit: '月', text: '"April" は 何月？', choices: ['4月', '8月', '1月', '5月'], note: 'April ＝ 4月。' },
+    { stage: 4, lv: 1, unit: '月', text: '"June" は 何月？', choices: ['6月', '7月', '1月', '9月'], note: 'June ＝ 6月。July ＝ 7月。' },
+    { stage: 4, lv: 1, unit: '季節', text: '"spring" の いみは？', choices: ['春', '夏', '秋', '冬'], note: 'spring ＝ 春。' },
+    { stage: 4, lv: 1, unit: '季節', text: '"summer" の いみは？', choices: ['夏', '春', '秋', '冬'], note: 'summer ＝ 夏。' },
+    /* -- ふつう -- */
+    { stage: 4, lv: 2, unit: '曜日', text: '"Tuesday" は 何曜日？', choices: ['火曜日', '木曜日', '水曜日', '月曜日'], note: 'Tuesday ＝ 火曜日、Thursday ＝ 木曜日。にているので 注意。' },
+    { stage: 4, lv: 2, unit: '曜日', text: '"Thursday" は 何曜日？', choices: ['木曜日', '火曜日', '水曜日', '土曜日'], note: 'Thursday ＝ 木曜日。' },
+    { stage: 4, lv: 2, unit: '曜日', text: '"Saturday" は 何曜日？', choices: ['土曜日', '日曜日', '金曜日', '火曜日'], note: 'Saturday ＝ 土曜日。' },
+    { stage: 4, lv: 2, unit: '月', text: '"March" は 何月？', choices: ['3月', '5月', '8月', '12月'], note: 'March ＝ 3月。' },
+    { stage: 4, lv: 2, unit: '月', text: '"July" は 何月？', choices: ['7月', '6月', '1月', '9月'], note: 'June ＝ 6月、July ＝ 7月。' },
+    { stage: 4, lv: 2, unit: '月', text: '「4月」を 英語で いうと？', choices: ['April', 'August', 'March', 'May'], note: 'April ＝ 4月、August ＝ 8月。' },
+    { stage: 4, lv: 2, unit: '曜日', text: '"Wednesday" は 何曜日？', choices: ['水曜日', '木曜日', '火曜日', '金曜日'], note: 'Wednesday ＝ 水曜日。' },
+    { stage: 4, lv: 2, unit: '曜日', text: '「日曜日」を 英語で いうと？', choices: ['Sunday', 'Saturday', 'Monday', 'Sunny'], note: 'Sunday ＝ 日曜日。sunny は「晴れ」。' },
+    { stage: 4, lv: 2, unit: '月', text: '"February" は 何月？', choices: ['2月', '12月', '4月', '1月'], note: 'February ＝ 2月。' },
+    { stage: 4, lv: 2, unit: '月', text: '"August" は 何月？', choices: ['8月', '4月', '10月', '6月'], note: 'August ＝ 8月。April ＝ 4月。' },
+    { stage: 4, lv: 2, unit: '月', text: '"October" は 何月？', choices: ['10月', '8月', '11月', '12月'], note: 'October ＝ 10月。ハロウィンの 月。' },
+    { stage: 4, lv: 2, unit: '天気', text: '"windy" の いみは？', choices: ['風が 強い', '雨', 'くもり', '雪'], note: 'windy ＝ 風が 強い。wind ＝ 風。' },
+    { stage: 4, lv: 2, unit: '季節', text: '"winter" の いみは？', choices: ['冬', '秋', '春', '夏'], note: 'winter ＝ 冬。' },
+    { stage: 4, lv: 2, unit: '季節', text: '"fall" の いみは？', choices: ['秋', '春', '夏', '冬'], note: 'fall ＝ 秋。autumn とも 言います。' },
+    { stage: 4, lv: 2, unit: '天気', text: '"It\'s warm." の いみは？', choices: ['あたたかい', 'あつい', 'さむい', 'すずしい'], note: 'warm ＝ あたたかい。' },
+    /* -- むずかしい（ボスにも 出る） -- */
+    { stage: 4, lv: 3, unit: '曜日', text: '「水曜日」を 英語で いうと？', choices: ['Wednesday', 'Wensday', 'Thursday', 'Tuesday'], note: 'Wednesday ＝ 水曜日。つづりに 注意。', boss: true },
+    { stage: 4, lv: 3, unit: '月', text: '「5月」を 英語で いうと？', choices: ['May', 'March', 'April', 'June'], note: 'May ＝ 5月。', boss: true },
+    { stage: 4, lv: 3, unit: '月', text: '"September" は 何月？', choices: ['9月', '7月', '11月', '12月'], note: 'September ＝ 9月。' },
+    { stage: 4, lv: 3, unit: '月', text: '"November" は 何月？', choices: ['11月', '9月', '12月', '10月'], note: 'November ＝ 11月。' },
+    { stage: 4, lv: 3, unit: '月', text: '「10月」を 英語で いうと？', choices: ['October', 'November', 'August', 'September'], note: 'October ＝ 10月。' },
+    { stage: 4, lv: 3, unit: '天気', text: '"How\'s the weather?" の いみは？', choices: ['天気は どう？', '今日は 何曜日？', '今 何時？', '気分は どう？'], note: 'weather ＝ 天気。答えは "It\'s sunny." など。' },
+    { stage: 4, lv: 3, unit: '曜日', text: '"What day is it today?" の いみは？', choices: ['今日は 何曜日？', '今日は 何月？', '今日は 何日？', '今日は 何の 日？'], note: 'day ＝ 曜日・日。答えは "It\'s Monday." など。' }
+  ]
+};

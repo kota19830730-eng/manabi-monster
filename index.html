@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="まなびモンスター">
+<title>まなびモンスター</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Mochiy+Pop+One&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!--
+  画面は 400px はば の「ステージ」の 中に 作ります。
+  たての 長さだけ 端末に あわせて のびます（js/core/stage.js）。
+-->
+<div id="stage" class="stage">
+  <main id="screen-start"  class="screen is-active"></main>
+  <main id="screen-map"    class="screen"></main>
+  <main id="screen-battle" class="screen"></main>
+  <main id="screen-result" class="screen"></main>
+  <main id="screen-dex"    class="screen"></main>
+  <div id="toast" class="toast" role="status"></div>
+</div>
+
+<!-- 道具 -->
+<script src="js/core/util.js"></script>
+<script src="js/core/stage.js"></script>
+<script src="js/core/pixel.js"></script>
+<script src="js/core/blocks.js"></script>
+<script src="js/core/tiles.js"></script>
+<script src="js/core/sfx.js"></script>
+<script src="js/core/bgm.js"></script>
+<script src="js/core/save.js"></script>
+<script src="js/core/battle.js"></script>
+
+<!-- 中身（絵・問題・ステージ） -->
+<script src="js/content/monsterart.js"></script>
+<script src="js/content/face.js"></script>
+<script src="js/content/enemies.js"></script>
+<script src="js/content/hero.js"></script>
+<script src="js/content/art.js"></script>
+<script src="js/content/treasure.js"></script>
+<script src="js/content/sansu3.js"></script>
+<script src="js/content/kokugo3.js"></script>
+<script src="js/content/rikashakai3.js"></script>
+<script src="js/content/eigo3.js"></script>
+<script src="js/content/romaji3.js"></script>
+<script src="js/content/world3.js"></script>
+
+<!-- 画面 -->
+<script src="js/ui/common.js"></script>
+<script src="js/ui/look.js"></script>
+<script src="js/ui/start.js"></script>
+<script src="js/ui/map.js"></script>
+<script src="js/ui/battle.js"></script>
+<script src="js/ui/result.js"></script>
+<script src="js/ui/dex.js"></script>
+<script src="js/ui/photo.js"></script>
+<script src="js/ui/boot.js"></script>
+</body>
+</html>

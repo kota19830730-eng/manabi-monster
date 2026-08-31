@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>facelab</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  body { margin:0; background:#2A2018; color:#F3EBE0; font-family:sans-serif; }
+  h2 { font-size:14px; margin:10px 8px 4px; }
+  .row { display:flex; flex-wrap:wrap; gap:6px; padding:0 8px; }
+  .it { text-align:center; font-size:11px; }
+  img { image-rendering: pixelated; display:block; }
+  .face img { width:144px; height:104px; }
+  .full img { width:120px; height:120px; }
+  .big img { width:240px; height:240px; }
+  body { overflow:auto; height:auto; }
+  .it .bxbox { margin:0 auto; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script src="../js/core/util.js"></script>
+<script src="../js/core/pixel.js"></script>
+<script src="../js/core/blocks.js"></script>
+<script src="../js/content/monsterart.js"></script>
+<script src="../js/content/face.js"></script>
+<script src="../js/content/hero.js"></script>
+<script src="../js/content/enemies.js"></script>
+<script src="../js/content/art.js"></script>
+<script src="../js/content/treasure.js"></script>
+<script src="../js/content/world3.js"></script>
+<script>
+(function () {
+  const out = document.getElementById('out');
+  const mode = (location.hash || '#parts').slice(1);
+  const base = MQ.hero.defaultLook();
+
+  function block(title, cls, items) {
+    const h2 = document.createElement('h2'); h2.textContent = title; out.appendChild(h2);
+    const row = document.createElement('div'); row.className = 'row ' + cls;
+    items.forEach(function (it) {
+      const d = document.createElement('div'); d.className = 'it';
+      const img = document.createElement('img'); img.src = it.src;
+      d.appendChild(img);
+      const s = document.createElement('div'); s.textContent = it.name; d.appendChild(s);
+      row.appendChild(d);
+    });
+    out.appendChild(row);
+  }
+  // div の 絵を ならべる
+  function blockNode(title, cls, items) {
+    const h2 = document.createElement('h2'); h2.textContent = title; out.appendChild(h2);
+    const row = document.createElement('div'); row.className = 'row ' + cls;
+    items.forEach(function (it) {
+      const d = document.createElement('div'); d.className = 'it';
+      d.appendChild(it.node);
+      const s = document.createElement('div'); s.textContent = it.name; d.appendChild(s);
+      row.appendChild(d);
+    });
+    out.appendChild(row);
+  }
+  function look(over) {
+    const l = {}; Object.keys(base).forEach(function (k) { l[k] = base[k]; });
+    Object.keys(over || {}).forEach(function (k) { l[k] = over[k]; });
+    return l;
+  }
+
+  if (mode === 'parts') {
+    MQ.hero.lookGroups.forEach(function (g) {
+      block(g.label, 'face', g.list.map(function (item) {
+        const o = {}; o[g.key] = item.id;
+        return { name: item.name + (item.lv ? '(Lv' + item.lv + ')' : ''), src: MQ.hero.partSprite(look(o), g.preview) };
+      }));
+    });
+  } else if (mode === 'random') {
+    const items = [];
+    for (let i = 0; i < 24; i++) {
+      const l = MQ.hero.randomLook();
+      items.push({ name: '', src: MQ.hero.sprite({ look: l, equipped: {} }, { noGear: true }) });
+    }
+    block('でたらめ 24人（全身・そうびなし）', 'full', items);
+    const faces = [];
+    for (let i = 0; i < 18; i++) faces.push({ name: '', src: MQ.hero.faceSprite(MQ.hero.randomLook()) });
+    block('でたらめ 18人（顔）', 'face', faces);
+  } else if (mode.indexOf('zoom:') === 0) {
+    const ids = mode.slice(5).split(',');
+    blockNode('ズーム', 'big', ids.map(function (id) { return { name: id, node: MQ.enemies.node(id, { size: 200 }) }; }));
+  } else if (mode === 'poster') {
+    block('タイトルの 勇者', 'big', [{ name: 'ポスター', src: MQ.hero.poster() }]);
+  } else if (mode === 'mons') {
+    const ids = MQ.enemies.list.map(function (e) { return e.id; }).concat(MQ.enemies.bosses.map(function (b) { return b.id; }));
+    blockNode('モンスター ぜんぶ', 'full', ids.map(function (id) {
+      const e = MQ.enemies.get(id);
+      return { name: e.name, node: MQ.enemies.node(id, { size: 96 }) };
+    }));
+  } else if (mode === 'items') {
+    blockNode('たからもの ぜんぶ', 'full', MQ.treasure.list.map(function (t) {
+      return { name: t.name, node: MQ.treasure.node(t.id, { size: 80 }) };
+    }));
+    blockNode('ぴかぴか（★3）', 'full', MQ.treasure.list.slice(0, 8).map(function (t) {
+      return { name: t.name, node: MQ.treasure.node(t.id, { gold: true, size: 80 }) };
+    }));
+  } else if (mode === 'gear') {
+    const eq = {};
+    MQ.hero.slots.forEach(function (s) { eq[s] = 'tetsu-' + s; });
+    const one = MQ.hero.defaultLook();
+    block('てつ 一式（大きく）', 'big', [
+      { name: 'ぜんぶ', src: MQ.hero.sprite({ look: one, equipped: eq }) },
+      { name: 'そうびなし', src: MQ.hero.sprite({ look: one, equipped: {} }) }
+    ]);
+    const items = [];
+    for (let i = 0; i < 8; i++) items.push({ name: '', src: MQ.hero.sprite({ look: MQ.hero.randomLook(), equipped: eq }) });
+    block('いろいろな 子', 'full', items);
+    ['kihon','tetsu','ryu','densetsu'].forEach(function(gr){
+      const e = {}; MQ.hero.slots.forEach(function(sl){ e[sl] = gr + '-' + sl; });
+      block(gr, 'full', [{ name: gr, src: MQ.hero.sprite({ look: one, equipped: e }) }]);
+    });
+  }
+})();
+</script>
+</body>
+</html>
