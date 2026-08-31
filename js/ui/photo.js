@@ -48,6 +48,7 @@ MQ.ui.photo = (function () {
   let aiBusy = false;               // AIに たのんで まっている
   let aiUsed = false;               // いまの 絵は AIが かいた もの
   let aiError = '';
+  let edited = '';                  // ドット絵エディタで 直した 絵（v2.9）。あれば これを つかう
 
   /* =======================================================
      しらべる 道具
@@ -492,7 +493,7 @@ MQ.ui.photo = (function () {
         im.onload = function () {
           if (!origImg) { origImg = img; origCrop = Object.assign({}, crop); }
           img = im;
-          aiUsed = true; aiBusy = false;
+          aiUsed = true; aiBusy = false; edited = '';
           crop = { x: 0, y: 0, w: 1, h: 1 };
           autoCrop();
           drawStage(); refresh(); paintAi();
@@ -510,9 +511,15 @@ MQ.ui.photo = (function () {
       if (!origImg) return;
       img = origImg; crop = origCrop;
       origImg = null; origCrop = null;
-      aiUsed = false; aiError = '';
+      aiUsed = false; aiError = ''; edited = '';
       drawStage(); refresh(); paintAi();
     }
+
+    // ドット絵エディタ（v2.9）：できあがりを マス目で 直す
+    const editRow = h('div', { class: 'photo__editrow', hidden: 'hidden' }, [
+      h('button', { class: 'btn btn--small btn--cream photo__edit', type: 'button', text: 'ドットを 直す', onclick: function () { openEditor(false); } }),
+      h('button', { class: 'btn btn--small btn--stone photo__redo', type: 'button', text: '写真から やり直す', onclick: function () { MQ.sfx.tap(); edited = ''; drawStage(); refresh(); } })
+    ]);
 
     // できあがりの みほん。しゃしんを とるまでは かくしておく
     const previewRow = h('div', { class: 'photo__preview', hidden: 'hidden' }, [
@@ -530,22 +537,43 @@ MQ.ui.photo = (function () {
       h('div', { class: 'photo__btns' }, [
         h('button', { class: 'btn btn--small btn--cream', type: 'button', text: 'わくを 自動で', onclick: function () { MQ.sfx.tap(); autoCrop(); drawStage(); refresh(); } }),
         h('button', { class: 'btn btn--small btn--cream', type: 'button', text: '回す', onclick: function () { MQ.sfx.tap(); rotateImg(); } })
-      ])
+      ]),
+      h('p', { class: 'note photo__edited', text: '直した ドット絵を つかうよ。もっと 直すことも、写真から やり直すことも できるよ。' }),
+      editRow
     ]);
 
     function refresh() {
-      outUrl = build();
+      outUrl = edited || build();
       preview.src = outUrl || '';
       previewBattle.src = outUrl || '';
-      previewRow.hidden = !img;   // まだ しゃしんが ない ときは かくす
-      emptyNote.hidden = !(img && !outUrl);
+      previewRow.hidden = !(img || edited);   // しゃしんも 直した 絵も ない ときは かくす
+      previewRow.classList.toggle('is-edited', !!edited);
+      emptyNote.hidden = !!edited || !(img && !outUrl);
+      editRow.hidden = !outUrl;
+    }
+    // ドット絵エディタ（v2.9）を 開く。できあがりを 直す／まっしろから かく
+    function openEditor(blank) {
+      if (!MQ.ui.pixedit) return;
+      MQ.sfx.tap();
+      MQ.ui.pixedit.open({
+        png: blank ? null : outUrl,
+        size: blank ? 48 : null,
+        title: blank ? 'ドット絵を かく' : 'ドットを 直す',
+        onDone: function (url) {
+          if (!url) return;
+          if (blank) { img = null; origImg = null; origCrop = null; aiUsed = false; aiError = ''; }
+          edited = url;
+          drawStage(); refresh(); paintAi();
+          MQ.sfx.rare();
+        }
+      });
     }
 
     /* ---- わく（ドラッグして 動かす／右下で 大きさ） ---- */
     function drawStage() {
       stage.innerHTML = '';
       if (!img) {
-        stage.appendChild(h('p', { class: 'note', style: { padding: '20px', textAlign: 'center' }, text: 'まず したの ボタンで しゃしんを とってね' }));
+        stage.appendChild(h('p', { class: 'note', style: { padding: '20px', textAlign: 'center' }, text: edited ? 'ドット絵を じぶんで かいたよ。「ドットを 直す」で つづきが かけるよ' : 'まず したの ボタンで しゃしんを とってね。ドット絵を じぶんで かくことも できるよ' }));
         return;
       }
       const el = h('img', { class: 'photo__img', src: img.src, alt: '' });
@@ -604,7 +632,7 @@ MQ.ui.photo = (function () {
 
     function useImage(im) {
       img = im;
-      origImg = null; origCrop = null; aiUsed = false; aiError = '';
+      origImg = null; origCrop = null; aiUsed = false; aiError = ''; edited = '';
       crop = defaultCrop();
       autoCrop();
       drawStage();
@@ -627,20 +655,21 @@ MQ.ui.photo = (function () {
     });
 
     function save() {
-      if (!img || !outUrl) { MQ.ui.toast('まず しゃしんを とってね'); return; }
+      if (!outUrl) { MQ.ui.toast('まず しゃしんを とるか、ドット絵を かいてね'); return; }
       const name = (nameIn.value || '').trim();
       if (!name) { MQ.ui.toast('なまえを 入れてね'); return; }
       const mon = { id: 'my-' + MQ.util.uid(), name: name, area: areaId, png: outUrl };
       if (aiUsed) mon.ai = true;
-      const byAi = aiUsed;
+      if (edited) mon.edited = true;
+      const how = aiUsed ? '（AIで かっこよく）' : edited && !img ? '（ドット絵を じぶんで かいた）' : edited ? '（ドットを 直した）' : '';
       MQ.save.update(function (p) {
         MQ.save.addCustom(p, mon);
-        MQ.save.addLog(p, 'じぶんの モンスター「' + name + '」を つくった' + (byAi ? '（AIで かっこよく）' : ''));
+        MQ.save.addLog(p, 'じぶんの モンスター「' + name + '」を つくった' + how);
       });
       MQ.ui.syncCustom();
       MQ.sfx.rare();
       MQ.ui.toast(name + ' が なかまに なった！ バトルに 出てくるよ');
-      img = null; outUrl = '';
+      img = null; outUrl = ''; edited = '';
       origImg = null; origCrop = null; aiUsed = false; aiError = '';
       MQ.ui.dex.render('mons');
       MQ.ui.show('screen-dex');
@@ -653,6 +682,23 @@ MQ.ui.photo = (function () {
         MQ.blocks.imgBox(m.png, { size: 52, cls: 'cell__img' }),
         h('span', { class: 'cell__name', text: m.name }),
         h('span', { class: 'cell__tag', text: area ? area.short : '' }),
+        h('button', {
+          class: 'btn btn--small btn--cream', type: 'button', text: '直す',
+          onclick: function () {
+            if (!MQ.ui.pixedit) return;
+            MQ.sfx.tap();
+            MQ.ui.pixedit.open({
+              png: m.png, title: m.name + ' を 直す',
+              onDone: function (url) {
+                if (!url) return;
+                MQ.save.update(function (p) { (p.custom || []).forEach(function (c) { if (c.id === m.id) { c.png = url; c.edited = true; } }); });
+                MQ.ui.syncCustom();
+                MQ.ui.toast(m.name + ' を 直したよ');
+                render();
+              }
+            });
+          }
+        }),
         h('button', {
           class: 'btn btn--small btn--danger', type: 'button', text: '消す',
           onclick: function () {
@@ -672,6 +718,7 @@ MQ.ui.photo = (function () {
         stage,
         h('button', { class: 'btn', type: 'button', text: '📷 しゃしんを とる', onclick: function () { MQ.sfx.tap(); fileIn.click(); } }),
         fileIn,
+        h('button', { class: 'btn btn--cream photo__blank', type: 'button', text: 'ドット絵を じぶんで かく', onclick: function () { openEditor(true); } }),
         aiBtn,
         aiRow,
         aiErr,
@@ -703,6 +750,7 @@ MQ.ui.photo = (function () {
     };
     render.askAi = askAi;
     render.restore = restoreOrig;
+    render.edit = openEditor;
   }
 
   return {
@@ -712,7 +760,7 @@ MQ.ui.photo = (function () {
     crop: function () { return crop; },
     build: build,
     // AI（v2.8）の いまの 状態（テスト用）
-    aiState: function () { return { busy: aiBusy, ai: aiUsed, error: aiError, hasOrig: !!origImg, out: outUrl.length }; },
+    aiState: function () { return { busy: aiBusy, ai: aiUsed, error: aiError, hasOrig: !!origImg, out: outUrl.length, edited: !!edited }; },
     setOptions: function (o) { if (o.size) size = o.size; if (o.tol != null) tol = o.tol; if (o.ink != null) inkLv = o.ink; }
   };
 })();

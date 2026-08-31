@@ -60,6 +60,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/bgm.js"></script>
 <script src="../js/core/save.js"></script>
 <script src="../js/core/ai.js"></script>
+<script src="../js/core/handwrite.js"></script>
 <script src="../js/core/battle.js"></script>
 <script src="../js/content/monsterart.js"></script>
 <script src="../js/content/face.js"></script>
@@ -74,6 +75,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/romaji3.js"></script>
 <script src="../js/content/sansu1.js"></script>
 <script src="../js/content/kanjiq.js"></script>
+<script src="../js/content/kakusu.js"></script>
 <script src="../js/content/kokugo1.js"></script>
 <script src="../js/content/sansu2.js"></script>
 <script src="../js/content/kokugo2.js"></script>
@@ -87,6 +89,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/result.js"></script>
 <script src="../js/ui/dex.js"></script>
 <script src="../js/ui/photo.js"></script>
+<script src="../js/ui/pixedit.js"></script>
 
 <script>
 (function () {
@@ -171,9 +174,14 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (q.type === 'write') {
       const keys = $$('#screen-battle .keys--write .key');
       if (!keys.length) { say('NO WRITE BUTTON'); return false; }
+      // v2.9：字を かいてから「かけた！」（正しい字は フォントで・まちがいは なぐりがき）。まよった ときだけ ◯／✕
+      memoCanvasDraw(function (ctx, w, hh) {
+        if (good) drawKanjiLike(ctx, q.answer, { w: w, h: hh, size: Math.min(hh * 0.8, 170, w * 0.85 / q.answer.length), rot: 2, wave: 2 });
+        else drawJunk(ctx, 'scribble', w, hh);
+      });
       keys[0].click();                       // 「かけた！」
       const k2 = $$('#screen-battle .keys--write .key');
-      (good ? k2[0] : k2[1]).click();        // ○ / ✕
+      if (k2.length >= 2) (good ? k2[0] : k2[1]).click();   // ◯ おなじに かけた ／ ✕ ちがった
       return true;
     }
     const keys = $$('#screen-battle .key');
@@ -266,6 +274,84 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const png = fakeAiArt().split(',')[1];
       return Promise.resolve({ status: 200, json: { candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'Here is your monster.' }, { inlineData: { mimeType: 'image/png', data: png } }] } }] } });
     };
+  }
+
+  /* ---- かん字の はんてい（v2.9）の 道具 ---- */
+  // キャンバスに 字を「手書きふう」に 描く：フォント・かたむき・のび・ゆがみ・太さ を ばらす
+  function drawKanjiLike(ctx, text, o) {
+    o = o || {};
+    const W = o.w, Hh = o.h;
+    const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = Hh;
+    const t = tmp.getContext('2d');
+    const size = o.size || 150;
+    t.save();
+    t.translate(o.x != null ? o.x : W / 2, o.y != null ? o.y : Hh / 2);
+    t.rotate((o.rot || 0) * Math.PI / 180);
+    t.transform(o.sx || 1, o.shy || 0, o.shx || 0, o.sy || 1, 0, 0);
+    if (o.mirror) t.scale(-1, 1);
+    t.font = size + 'px ' + (o.font || "'HGKyokashotai'");
+    t.textAlign = 'center'; t.textBaseline = 'middle';
+    t.fillStyle = '#1F2D3A'; t.strokeStyle = '#1F2D3A'; t.lineJoin = 'round';
+    t.lineWidth = o.lw || 0;
+    if (o.lw) t.strokeText(text, 0, 0);
+    t.fillText(text, 0, 0);
+    t.restore();
+    // ゆがみ（手の ふるえ）：行ごと・列ごとに 少し ずらす
+    const amp = o.wave == null ? 3 : o.wave;
+    const tmp2 = document.createElement('canvas'); tmp2.width = W; tmp2.height = Hh;
+    const t2 = tmp2.getContext('2d');
+    for (let y = 0; y < Hh; y++) t2.drawImage(tmp, 0, y, W, 1, amp * Math.sin(y / 17 + (o.ph || 0)), y, W, 1);
+    for (let x = 0; x < W; x++) ctx.drawImage(tmp2, x, 0, 1, Hh, x, amp * Math.sin(x / 23 + (o.ph || 0) * 1.7), 1, Hh);
+  }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  // なぐりがき・線・かたまり など
+  function drawJunk(ctx, kind, W, Hh) {
+    ctx.strokeStyle = '#1F2D3A'; ctx.fillStyle = '#1F2D3A'; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = rnd(5, 10);
+    const cx = W / 2, cy = Hh / 2;
+    if (kind === 'scribble') {
+      const n = 1 + Math.floor(rnd(1, 4));
+      for (let s = 0; s < n; s++) {
+        let x = cx + rnd(-60, 60), y = cy + rnd(-50, 50);
+        ctx.beginPath(); ctx.moveTo(x, y);
+        for (let i = 0; i < 14; i++) { x += rnd(-45, 45); y += rnd(-40, 40); ctx.lineTo(x, y); }
+        ctx.stroke();
+      }
+    } else if (kind === 'line') {
+      const a = rnd(0, Math.PI), L = rnd(60, 120);
+      ctx.beginPath(); ctx.moveTo(cx - Math.cos(a) * L, cy - Math.sin(a) * L); ctx.lineTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L); ctx.stroke();
+    } else if (kind === 'blob') {
+      ctx.beginPath(); ctx.ellipse(cx, cy, rnd(50, 90), rnd(40, 80), rnd(0, 3), 0, Math.PI * 2); ctx.fill();
+    } else if (kind === 'zig') {
+      ctx.beginPath(); ctx.moveTo(cx - 90, cy - 60);
+      for (let i = 1; i <= 8; i++) ctx.lineTo(cx - 90 + i * 22, cy + (i % 2 ? 60 : -60));
+      ctx.stroke();
+    } else if (kind === 'circle') {
+      ctx.beginPath(); ctx.ellipse(cx, cy, rnd(50, 80), rnd(50, 80), 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (kind === 'lines') {
+      for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(cx - 80, cy - 50 + i * 50 + rnd(-8, 8)); ctx.lineTo(cx + 80, cy - 50 + i * 50 + rnd(-8, 8)); ctx.stroke(); }
+    }
+  }
+  function memoCanvasDraw(fn) {
+    const cv = $('.memo__canvas');
+    const r = cv.getBoundingClientRect();
+    const ctx = cv.getContext('2d');   // makeMemo が dpr の transform を かけている → CSS px で 描ける
+    fn(ctx, r.width, r.height);
+    return cv;
+  }
+  function keyBtn(label) {
+    const b = Array.prototype.filter.call(document.querySelectorAll('.key'), function (x) { return x.textContent === label; })[0];
+    if (b) b.click();
+    return !!b;
+  }
+  async function reachWrite(stageId) {
+    MQ.ui.battle.start(stageId);
+    for (let i = 0; i < 30; i++) {
+      await wait(200);
+      const q = MQ.battle.current();
+      if (q && q.type === 'write') return q;
+      answerViaUI(true); await wait(3400);
+    }
+    return null;
   }
 
   async function playBattle(label, opts) {
@@ -385,6 +471,168 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       }
       await new Promise(function (res) { MQ.ui.photo.render.load(url, function (info, out) { say('photo: ' + JSON.stringify(info) + ' png=' + (out ? out.length : 0) + ' crop=' + JSON.stringify(MQ.ui.photo.crop())); res(); }); });
       await wait(200);
+      dump();
+      return;
+    }
+
+    // ドット絵エディタ（v2.9）：#pixedit = 写真 → 直す を 開いて ペン・ぬる・けしゴム・もどす・ゆび2本／#pixedit:zoom = ×4 で 拡大／#pixedit:blank = まっしろから／#pixedit:mine = つくった モンスターを 直す
+    if (mode.indexOf('pixedit') === 0) {
+      fresh();
+      const kind = mode.split(':')[1] || '';
+      MQ.ui.photo.render();
+      if (kind === 'mine') {
+        // つくった モンスターが ある 状態
+        MQ.save.update(function (p) { MQ.save.addCustom(p, { id: 'my-test', name: 'テスト', area: 'sansu', png: fakeAiArt() }); });
+        MQ.ui.photo.render();
+        const fix = Array.prototype.filter.call(document.querySelectorAll('.cell .btn'), function (b) { return b.textContent === '直す'; })[0];
+        say('pixedit mine: fixbtn=' + !!fix);
+        if (fix) fix.click();
+        await wait(150);
+      } else if (kind === 'blank') {
+        $('.photo__blank').click();
+        await wait(100);
+      } else {
+        await new Promise(function (res) { MQ.ui.photo.render.load(fakeDrawing(), function () { res(); }); });
+        say('pixedit before: editrow=' + ($('.photo__editrow').hidden ? 'hidden' : 'shown'));
+        $('.photo__edit').click();
+        await wait(150);
+      }
+      const T = MQ.ui.pixedit.test;
+      if (!T) { say('pixedit: MISSING'); dump(); return; }
+      const N = T.state().N;
+      say('pixedit open: N=' + N + ' swatches=' + document.querySelectorAll('.pixed__sw').length + ' view=' + $('.pixed__view').style.width);
+      const view = T.view; const r = view.getBoundingClientRect();
+      function pe(type, x, y, id) { view.dispatchEvent(new PointerEvent(type, { pointerId: id || 1, pointerType: 'touch', isPrimary: !id || id === 1, clientX: r.left + x, clientY: r.top + y, bubbles: true, cancelable: true })); }
+      if (kind === 'zoom') { T.zoom(4); say('pixedit zoom: ' + T.state().zoom + ' pan=' + JSON.stringify(T.state().pan) + ' cv=' + T.canvas.style.width); }
+      // ペンで 赤い 線（左上 → 右下）
+      T.color([255, 0, 0]);
+      say('pixedit view: ' + Math.round(r.width) + 'x' + Math.round(r.height) + (Math.abs(r.width - r.height) < 1 ? ' square' : ' NOT SQUARE'));
+      pe('pointerdown', r.width * 0.1, r.height * 0.1);
+      for (let t = 0.1; t <= 0.9; t += 0.05) pe('pointermove', r.width * t, r.height * t);
+      pe('pointerup', r.width * 0.9, r.height * 0.9);
+      const rr = T.canvas.getBoundingClientRect();
+      function cellOf(fx, fy) { return { x: Math.floor((r.left + r.width * fx - rr.left) / rr.width * N), y: Math.floor((r.top + r.height * fy - rr.top) / rr.height * N) }; }
+      const c1 = cellOf(0.5, 0.5);
+      { let reds = []; for (let yy = 0; yy < N; yy++) for (let xx = 0; xx < N; xx++) { const p = T.pixel(xx, yy); if (p[0] === 255 && p[1] === 0 && p[2] === 0) reds.push(xx + ',' + yy); } say('pixedit reds: ' + reds.length + (reds.length >= 40 ? ' ok' : ' TOO FEW') + ' ' + reds.slice(0, 6).join(' ')); }
+      say('pixedit pen: cell ' + JSON.stringify(c1) + ' = ' + JSON.stringify(T.pixel(c1.x, c1.y)) + ' undo=' + T.state().undo.length);
+      // ぬる（右上の あき）→ 青
+      T.color([0, 0, 255]); T.tool('fill');
+      const c2 = cellOf(0.85, 0.15);
+      pe('pointerdown', r.width * 0.85, r.height * 0.15); pe('pointerup', r.width * 0.85, r.height * 0.15);
+      say('pixedit fill: cell ' + JSON.stringify(c2) + ' = ' + JSON.stringify(T.pixel(c2.x, c2.y)));
+      // けしゴム（線の まん中）
+      T.tool('eraser'); T.brush(3);
+      pe('pointerdown', r.width * 0.5, r.height * 0.5); pe('pointerup', r.width * 0.5, r.height * 0.5);
+      say('pixedit eraser: ' + JSON.stringify(T.pixel(c1.x, c1.y)));
+      T.undo();
+      say('pixedit undo: ' + JSON.stringify(T.pixel(c1.x, c1.y)) + ' undo=' + T.state().undo.length);
+      // スポイト：赤い 線の 色を とる
+      T.color([0, 0, 0]); T.tool('pick');
+      pe('pointerdown', r.width * 0.5, r.height * 0.5); pe('pointerup', r.width * 0.5, r.height * 0.5);
+      say('pixedit pick: color=' + JSON.stringify(T.state().color) + ' tool=' + T.state().tool);
+      // ゆび 2本で うごかす（×4 の とき だけ うごく）
+      T.tool('pen');
+      const p0 = JSON.stringify(T.state().pan);
+      pe('pointerdown', r.width * 0.3, r.height * 0.3, 1); pe('pointerdown', r.width * 0.6, r.height * 0.6, 2);
+      pe('pointermove', r.width * 0.2, r.height * 0.2, 1); pe('pointermove', r.width * 0.5, r.height * 0.5, 2);
+      pe('pointerup', r.width * 0.2, r.height * 0.2, 1); pe('pointerup', r.width * 0.5, r.height * 0.5, 2);
+      say('pixedit two-finger: pan ' + p0 + ' -> ' + JSON.stringify(T.state().pan) + ' drawing=' + !!T.state().drawing);
+      // スクショ用：canvas の 写し（headless では canvas が 写らない）
+      const im = document.createElement('img'); im.src = T.canvas.toDataURL();
+      im.style.cssText = 'position:absolute;left:' + T.canvas.style.left + ';top:' + T.canvas.style.top + ';width:' + T.canvas.style.width + ';height:' + T.canvas.style.height + ';image-rendering:pixelated;pointer-events:none;';
+      view.appendChild(im);
+      if (kind === 'done') {
+        Array.prototype.filter.call(document.querySelectorAll('.pixed__foot .btn'), function (b) { return b.textContent === 'これで OK'; })[0].click();
+        await wait(100);
+        say('pixedit done: open=' + MQ.ui.pixedit.isOpen() + ' state=' + JSON.stringify(MQ.ui.photo.aiState()) + ' edited-class=' + $('.photo__preview').classList.contains('is-edited'));
+      }
+      dump();
+      return;
+    }
+    // かん字の はんてい（v2.9）の 校正：#judge（おてほん＝端末の 教科書体）／#judge:gothic（おてほんを ゴシックに して 書体の ずれを 大きく）
+    if (mode.indexOf('judge') === 0) {
+      fresh();
+      const HW = MQ.handwrite;
+      const gothic = mode.split(':')[1] === 'gothic';
+      if (gothic) HW.setFont("'Yu Gothic', 'Meiryo', sans-serif");
+      say('judge: template font = ' + HW.font().slice(0, 40) + ' TH=' + JSON.stringify(HW.thresholds()));
+      const list = [];
+      MQ.kokugo1.kanji.forEach(function (k) { list.push({ k: k.k, r: k.r }); });
+      MQ.kokugo2.kanji.forEach(function (k) { list.push({ k: k.k, r: k.r }); });
+      MQ.kokugo3.questions.filter(function (q) { return q.stage === 2 && /「([^」]+)」を かん字で/.test(q.text); }).forEach(function (q) { list.push({ k: q.choices[0], r: (q.text.match(/「([^」]+)」/) || [])[1] }); });
+      const pickEvery = Math.max(1, Math.floor(list.length / 48));
+      const K = list.filter(function (x, i) { return i % pickEvery === 0; }).slice(0, 48);
+      const FONTS = gothic ? ["'UD Digi Kyokasho N'", "'HGKyokashotai'", "'Yu Mincho'", "'BIZ UDMincho Medium'"] : ["'HGKyokashotai'", "'Yu Mincho'", "'BIZ UDMincho Medium'", "'Noto Serif JP'", "'Yu Gothic'"];
+      const W = 360, Hh = 240;
+      const res = { same: [], small: [], other: [], kana: [], mirror: [], scribble: [], line: [], blob: [], zig: [], circle: [], lines: [] };
+      const verd = {};
+      function run(kind, kanji, fn) {
+        const c = document.createElement('canvas'); c.width = W; c.height = Hh;
+        fn(c.getContext('2d'));
+        const j = HW.judge(c, kanji);
+        res[kind].push(j.score);
+        verd[kind] = verd[kind] || { ok: 0, maybe: 0, ng: 0 };
+        verd[kind][j.verdict]++;
+        return j;
+      }
+      function like(text, o) { return function (ctx) { drawKanjiLike(ctx, text, Object.assign({ w: W, h: Hh, font: FONTS[Math.floor(Math.random() * FONTS.length)], size: rnd(120, 190), rot: rnd(-7, 7), sx: rnd(0.85, 1.15), sy: rnd(0.85, 1.15), shx: rnd(-0.12, 0.12), lw: rnd(0, 6), wave: rnd(1.5, 4), ph: rnd(0, 6) }, o || {})); }; }
+      K.forEach(function (it, i) {
+        for (let s = 0; s < 3; s++) run('same', it.k, like(it.k));
+        run('small', it.k, like(it.k, { size: rnd(60, 90), lw: rnd(2, 5) }));
+        for (let s = 0; s < 2; s++) { const o = K[(i + 7 + s * 11) % K.length]; run('other', it.k, like(o.k)); }
+        if (it.r) run('kana', it.k, like(it.r, { size: rnd(80, 120) }));
+        run('mirror', it.k, like(it.k, { mirror: true }));
+        ['scribble', 'line', 'blob', 'zig', 'circle', 'lines'].forEach(function (kd) { run(kd, it.k, function (ctx) { drawJunk(ctx, kd, W, Hh); }); });
+      });
+      function q(arr, p) { const a = arr.slice().sort(function (x, y) { return x - y; }); return a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))].toFixed(2) : '-'; }
+      Object.keys(res).forEach(function (k) {
+        const a = res[k]; if (!a.length) return;
+        const v = verd[k];
+        say('judge ' + k.padEnd(9) + ' n=' + String(a.length).padStart(3) + ' p5=' + q(a, 0.05) + ' p25=' + q(a, 0.25) + ' p50=' + q(a, 0.5) + ' p75=' + q(a, 0.75) + ' p95=' + q(a, 0.95) + ' | ok ' + Math.round(v.ok / a.length * 100) + '% maybe ' + Math.round(v.maybe / a.length * 100) + '% ng ' + Math.round(v.ng / a.length * 100) + '%');
+      });
+      // しきい値を 動かした ときの 率（ok の しきい値 / ng の しきい値）
+      const junk = res.scribble.concat(res.line, res.blob, res.zig, res.circle, res.lines);
+      [0.55, 0.6, 0.65, 0.7].forEach(function (tn) {
+        const j = junk.filter(function (s) { return s < tn; }).length / junk.length, sm = res.same.concat(res.small).filter(function (s) { return s < tn; }).length / (res.same.length + res.small.length), ot = res.other.filter(function (s) { return s < tn; }).length / res.other.length;
+        say('judge ng<' + tn + ': junk ng ' + Math.round(j * 100) + '% / other ng ' + Math.round(ot * 100) + '% / same ng ' + Math.round(sm * 100) + '%');
+      });
+      [0.75, 0.8, 0.85, 0.9].forEach(function (to) {
+        const sm = res.same.filter(function (s) { return s >= to; }).length / res.same.length, ot = res.other.filter(function (s) { return s >= to; }).length / res.other.length, mi = res.mirror.filter(function (s) { return s >= to; }).length / res.mirror.length, ka = res.kana.filter(function (s) { return s >= to; }).length / Math.max(1, res.kana.length);
+        say('judge ok>=' + to + ': same ok ' + Math.round(sm * 100) + '% / other ok ' + Math.round(ot * 100) + '% / mirror ok ' + Math.round(mi * 100) + '% / kana ok ' + Math.round(ka * 100) + '%');
+      });
+      dump();
+      return;
+    }
+    // かん字を 書く 画面（v2.9）：#write2 = 正しい字（教科書体・少し かたむけ）→ 自動で ○／#write3 = なぐりがき → ×＋おてほん／
+    //   #write4 = しきい値を 動かして「まよう」→ 見くらべ 画面／#write5 = べつの 字
+    if (/^write[2-5]/.test(mode)) {
+      fresh();
+      const q = await reachWrite('kokugo3-2');
+      if (!q) { say('write: MISSING'); dump(); return; }
+      say('write q: ' + q.answer);
+      if (mode === 'write4') { MQ.handwrite.LEVELS.test = { ok: 0.99, ng: 0 }; MQ.save.setSetting('judge', 'test'); }   // かならず「まよう」→ 見くらべ 画面
+      if (mode === 'write3') {
+        // なぐりがきを ゆびで（PointerEvent → paths が のこる → 画数・なぐりがきの ルールが 効く）
+        const cv = $('.memo__canvas'); const rr = cv.getBoundingClientRect();
+        function pe(type, x, y) { cv.dispatchEvent(new PointerEvent(type, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: rr.left + x, clientY: rr.top + y, bubbles: true, cancelable: true })); }
+        for (let s = 0; s < 2; s++) {
+          let x = rr.width * 0.5, y = rr.height * 0.5;
+          pe('pointerdown', x, y);
+          for (let i = 0; i < 14; i++) { x = Math.max(6, Math.min(rr.width - 6, x + rnd(-40, 40))); y = Math.max(6, Math.min(rr.height - 6, y + rnd(-35, 35))); pe('pointermove', x, y); }
+          pe('pointerup', x, y);
+        }
+      }
+      memoCanvasDraw(function (ctx, w, hh) {
+        if (mode === 'write3') return;
+        if (mode === 'write5') drawKanjiLike(ctx, q.answer === '山' ? '川' : '山', { w: w, h: hh, size: Math.min(hh * 0.8, 170), rot: 3, wave: 2 });
+        else drawKanjiLike(ctx, q.answer, { w: w, h: hh, size: Math.min(hh * 0.8, 170, w * 0.85 / q.answer.length), rot: rnd(-5, 5), sx: rnd(0.9, 1.1), lw: 3, wave: 2.5 });
+      });
+      await wait(50);
+      freeze();   // せいかい の あと つぎの 問題に 進まない ように、押す 前に 止める（timer は 押した ときに 予約される）
+      say('write keys: ' + keyBtn('かけた！'));
+      const j = MQ.ui.battle.lastJudge();
+      say('write judge: ' + JSON.stringify(j));
+      say('write ui: msg=' + $('.arena__msg').textContent + ' | feedback=' + $('.feedback').textContent + ' | model=' + ($('.card__model') ? $('.card__model').textContent : '-') + ' | cmp=' + !!$('.wcmp') + ' | keys=' + Array.prototype.map.call(document.querySelectorAll('.key'), function (b) { return b.textContent; }).join('/'));
       dump();
       return;
     }

@@ -46,10 +46,10 @@ function load(rel) {
   vm.runInThisContext(code, { filename: rel });
 }
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/ai.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
  'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
- 'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/terms.js', 'js/content/world3.js'].forEach(load);
+ 'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kakusu.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/terms.js', 'js/content/world3.js'].forEach(load);
 
 const MQ = global.MQ;
 const TYPES = ['number', 'choice', 'divrem', 'roma', 'write'];
@@ -1056,6 +1056,70 @@ check(MQ.content.worldForGrade(4).locked === true && MQ.content.worldForGrade(6)
 })();
 
 /* ---- セーブの 引きつぎ（v1.1の データでも 動く） ---- */
+// ---- かん字の はんてい（v2.9）：形の 特徴が「同じ形は 高く・ちがう形は 低く」なるか（DOM なし） ----
+(function () {
+  const HW = MQ.handwrite;
+  function shape(w, hh, lines) {
+    const a = new Uint8Array(w * hh); let n = 0;
+    lines.forEach(function (L) { for (let y = L[1]; y <= L[3]; y++) for (let x = L[0]; x <= L[2]; x++) { if (!a[y * w + x]) { a[y * w + x] = 1; n++; } } });
+    return { w: w, h: hh, a: a, n: n };
+  }
+  // 十（たて＋よこ）／口（四角）／一（よこの 線）／T
+  const plus = shape(80, 80, [[38, 10, 42, 70], [10, 38, 70, 42]]);
+  const plus2 = shape(120, 100, [[58, 20, 64, 85], [20, 50, 100, 56]]);   // 大きさ・場所・たてよこ が ちがう 十
+  const box = shape(80, 80, [[10, 10, 70, 14], [10, 66, 70, 70], [10, 10, 14, 70], [66, 10, 70, 70]]);
+  const bar = shape(80, 80, [[8, 38, 72, 42]]);
+  const tee = shape(80, 80, [[10, 10, 70, 14], [38, 10, 42, 70]]);
+  const np = HW.normalize(plus), np2 = HW.normalize(plus2), nb = HW.normalize(box), nbar = HW.normalize(bar), nt = HW.normalize(tee);
+  check(np && Math.abs(np.aspect - 1) < 0.05 && nbar.aspect < 0.1, 'handwrite: たてよこ ' + (np && np.aspect) + ' ' + nbar.aspect);
+  const fp = HW.features(np.g), fp2 = HW.features(np2.g), fb = HW.features(nb.g), ft = HW.features(nt.g);
+  const same = HW.compare(fp, fp).score, moved = HW.compare(fp, fp2).score, diffBox = HW.compare(fp, fb).score, diffT = HW.compare(fp, ft).score;
+  check(same > 0.999, 'handwrite: 同じ形 = 1 (' + same.toFixed(3) + ')');
+  check(moved > 0.9, 'handwrite: 大きさ・場所が ちがっても 同じ形は 高い (' + moved.toFixed(3) + ')');
+  check(diffBox < moved - 0.15 && diffT < moved - 0.08, 'handwrite: ちがう形は 低い box=' + diffBox.toFixed(3) + ' T=' + diffT.toFixed(3) + ' vs ' + moved.toFixed(3));
+  // ぬりつぶし
+  const blob = shape(80, 80, [[10, 10, 70, 70]]);
+  check(HW.normalize(blob).fill > 0.95, 'handwrite: ぬりつぶし fill');
+  // 細い 線を ふとらせる
+  const thin = HW.normalize(shape(80, 80, [[39, 10, 40, 70], [10, 39, 70, 40]]));
+  const thick = HW.matchThickness(thin.g, 0.3);
+  check(HW.fillOf(thick) > HW.fillOf(thin.g) * 1.5, 'handwrite: matchThickness');
+  check(HW.thresholds().ok > HW.thresholds().ng, 'handwrite: しきい値');
+})();
+
+// ---- 画数の 表（v2.9）と 線の ならびの ルール ----
+(function () {
+  const K = MQ.kakusu, HW = MQ.handwrite;
+  check(Object.keys(K.table).filter(function (k) { return /[一-龠]/.test(k); }).length === 440, 'kakusu: かん字 440字 (' + K.count() + ' entries)');
+  const miss = [];
+  // 表の k は「一つ」「大きい」のような ことば（送りがなつき）→ かん字の 字だけ 見る
+  MQ.kokugo1.kanji.concat(MQ.kokugo2.kanji).forEach(function (k) { String(k.k).split('').forEach(function (ch) { if (/[一-龠]/.test(ch) && !K.has(ch)) miss.push(ch); }); });
+  MQ.kokugo3.questions.filter(function (q) { return q.stage === 2 && /「([^」]+)」を かん字で/.test(q.text); }).forEach(function (q) {
+    String(q.choices[0]).split('').forEach(function (ch) { if (/[一-龠]/.test(ch) && !K.has(ch)) miss.push(ch); });
+  });
+  check(!miss.length, 'kakusu: 表に ない かん字 ' + miss.join(''));
+  check(K.ofWord('花火') === 11 && K.ofWord('学校') === 18 && K.ofWord('大きい') === 9 && K.ofWord('が') === 5, 'kakusu: ofWord ' + K.ofWord('花火') + ' ' + K.ofWord('学校') + ' ' + K.ofWord('大きい') + ' ' + K.ofWord('が'));
+  let bad = 0;
+  Object.keys(K.table).forEach(function (k) { if (K.table[k] < 1 || K.table[k] > 20) bad++; });
+  check(!bad, 'kakusu: 画数の 範囲');
+  check(K.of('一') === 1 && K.of('森') === 12 && K.of('曜') === 18 && K.of('題') === 18 && K.of('氷') === 5, 'kakusu: 例');
+  function line(a, b, n) { const p = []; for (let i = 0; i <= n; i++) p.push({ x: a[0] + (b[0] - a[0]) * i / n, y: a[1] + (b[1] - a[1]) * i / n }); return p; }
+  const yama = [line([60, 20], [60, 120], 20), line([20, 40], [20, 120], 16).concat(line([20, 120], [100, 120], 16)), line([100, 40], [100, 120], 16)];
+  const s1 = HW.pathStats(yama);
+  check(s1.strokes === 3 && s1.sharpMax === 1 && s1.sharpTotal === 1, 'handwrite: 山の 線 ' + JSON.stringify(s1));
+  const zig = [[]];
+  for (let i = 0; i <= 8; i++) zig[0].push({ x: 20 + i * 15, y: i % 2 ? 100 : 20 });
+  const s2 = HW.pathStats(zig);
+  check(s2.strokes === 1 && s2.sharpMax >= 6, 'handwrite: ジグザグ ' + JSON.stringify(s2));
+  check(!HW.pathRules(yama, '山'), 'handwrite: 山 は 通る');
+  check((HW.pathRules(zig, '山') || {}).reason === 'scribble', 'handwrite: ジグザグ は scribble');
+  check((HW.pathRules([yama[0]], '森') || {}).reason === 'strokes', 'handwrite: 森 を 1画 は strokes');
+  check(!HW.pathRules([yama[0]], '一') && !HW.pathRules([yama[0], yama[2]], '山'), 'handwrite: 一 を 1画・山 を 2画 は 通る');
+  const many = []; for (let i = 0; i < 12; i++) many.push(line([10 + i * 8, 10], [12 + i * 8, 20], 3));
+  check((HW.pathRules(many, '山') || {}).reason === 'strokes', 'handwrite: ちょんちょん 12本 は strokes');
+  HW.setLevel('strict'); check(HW.thresholds().ok === 0.9, 'handwrite: setLevel'); HW.setLevel('normal');
+})();
+
 // ---- AI（v2.8）：せってい・回数・こたえの 読みとり・まちがいの 分け方（通信は しない） ----
 (function () {
   const ai = MQ.ai;

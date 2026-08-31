@@ -6,7 +6,7 @@
    ※ファイルを 増やしたら FILES にも 足してください。
    --------------------------------------------------------- */
 
-const CACHE_NAME = 'manabi-monster-v42';
+const CACHE_NAME = 'manabi-monster-v43';
 
 const FILES = [
   './',
@@ -22,6 +22,7 @@ const FILES = [
   './js/core/bgm.js',
   './js/core/save.js',
   './js/core/ai.js',
+  './js/core/handwrite.js',
   './js/core/battle.js',
   './js/content/monsterart.js',
   './js/content/face.js',
@@ -33,6 +34,7 @@ const FILES = [
   './js/content/kokugo3.js',
   './js/content/sansu1.js',
   './js/content/kanjiq.js',
+  './js/content/kakusu.js',
   './js/content/kokugo1.js',
   './js/content/sansu2.js',
   './js/content/kokugo2.js',
@@ -49,6 +51,7 @@ const FILES = [
   './js/ui/result.js',
   './js/ui/dex.js',
   './js/ui/photo.js',
+  './js/ui/pixedit.js',
   './js/ui/boot.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png'

@@ -27,7 +27,10 @@ MQ.ui.battle = (function () {
   let bossOnScreen = false;
   let fxTimer = null;
   let quakeTimer = null;
-  let writeState = 'draw';     // かん字を 書く問題： 'draw' → 'check'
+  let writeState = 'draw';     // かん字を 書く問題： 'draw' → 'check'（はんていが まよった ときだけ）
+  let writeModel = false;      // ×の あとは おてほんを 見せながら 書き直す（v2.9）
+  let writeMsg = '';           // ×の ときの ふきだし
+  let lastJudge = null;        // はんていの 結果（harness 用）
   let leftSec = 0;
 
   // 遠くの 山（四角い ブロック 2つ）
@@ -353,6 +356,7 @@ MQ.ui.battle = (function () {
     locked = false;
     input = '';
     writeState = 'draw';
+    writeModel = false; writeMsg = '';
     div = { q: '', r: '', active: 'q' };
     closeWide();
     d.feedback.textContent = '';
@@ -753,33 +757,67 @@ MQ.ui.battle = (function () {
     d.keys.appendChild(last);
   }
 
-  // かん字を 書く問題の ボタン
+  // かん字を 書く問題の ボタン（v2.9：「かけた！」で 形を はんてい。まよった ときだけ じぶんで ◯✕）
   function renderWriteKeys(q) {
     d.keys.className = 'keys keys--write';
     d.keys.innerHTML = '';
     if (writeState === 'draw') {
       d.keys.appendChild(h('button', {
         class: 'key key--go key--go3', type: 'button', text: 'かけた！',
-        onclick: function () {
-          if (locked) return;
-          MQ.sfx.tap();
-          writeState = 'check';
-          d.prompt.innerHTML = q.prompt + '<br><span class="card__ans">' + MQ.util.esc(q.answer) + '</span>';
-          fitPrompt();
-          feedback('じぶんの 字と 見くらべてみよう。');
-          renderWriteKeys(q);
-        }
+        onclick: function () { if (locked) return; MQ.sfx.tap(); judgeWrite(q); }
       }));
       return;
     }
     d.keys.appendChild(h('button', {
-      class: 'key key--go', type: 'button', text: '◯ かけた',
+      class: 'key key--go', type: 'button', text: '◯ おなじに かけた',
       onclick: function () { if (locked) return; MQ.sfx.tap(); submit(true); }
     }));
     d.keys.appendChild(h('button', {
       class: 'key key--del', type: 'button', text: '✕ ちがった',
       onclick: function () { if (locked) return; MQ.sfx.tap(); submit(false); }
     }));
+  }
+  // 問題文（×の あとは おてほんつき）
+  function writePrompt(q) {
+    return q.prompt + (writeModel ? '<span class="card__model">おてほん<b>' + MQ.util.esc(q.answer) + '</b></span>' : '');
+  }
+  // きみの 字 と おてほん を ならべる
+  function showWriteCompare(q) {
+    let url = '';
+    try { url = MQ.handwrite.cropUrl(d.canvas, 96); } catch (e) { url = ''; }
+    d.prompt.innerHTML = q.prompt +
+      '<span class="wcmp">' +
+        '<span class="wcmp__box"><img class="wcmp__img" alt="きみの 字" src="' + url + '"><span class="wcmp__cap">きみの 字</span></span>' +
+        '<span class="wcmp__box"><span class="wcmp__k">' + MQ.util.esc(q.answer) + '</span><span class="wcmp__cap">おてほん</span></span>' +
+      '</span>';
+    fitPrompt();
+  }
+  // 書いた 字を おてほんと くらべる（js/core/handwrite.js）
+  function judgeWrite(q) {
+    if (MQ.handwrite) MQ.handwrite.setLevel(MQ.save.getSetting('judge', 'normal'));   // きびしさ（おうちの人ページ）
+    const r = MQ.handwrite ? MQ.handwrite.judge(d.canvas, q.answer, { strokes: memo.strokes ? memo.strokes() : 0, paths: memo.paths ? memo.paths() : null }) : { verdict: 'maybe', reason: 'nojudge' };
+    lastJudge = r;
+    if (r.reason === 'empty') { MQ.ui.toast('まず ゆびで かん字を かいてね'); return; }
+    if (r.verdict === 'ok') {
+      writeModel = true;
+      d.prompt.innerHTML = writePrompt(q);
+      fitPrompt();
+      submit(true);
+      return;
+    }
+    if (r.verdict === 'ng') {
+      writeModel = true;
+      writeMsg = r.reason === 'blob' ? 'ぬりつぶしじゃ なくて、字を かいてね。おてほんを 見て もう1回！'
+        : r.reason === 'scribble' ? 'なぐりがきは ✕だよ。1画ずつ ていねいに かいてね！'
+        : r.reason === 'strokes' ? '「' + q.answer + '」は ' + r.expected + '画（かく）だよ。1画ずつ かいてね！'
+        : 'うーん、形が ちがうみたい。おてほんを 見て もう1回！';
+      submit(false);
+      return;
+    }
+    writeState = 'check';
+    showWriteCompare(q);
+    feedback('おてほんと くらべてみよう。', 'おなじ 形に かけたら ◯、ちがったら ✕');
+    renderWriteKeys(q);
   }
 
   function pressKey(label) {
@@ -889,7 +927,7 @@ MQ.ui.battle = (function () {
       input = '';
       writeState = 'draw';
       div = { q: '', r: '', active: 'q' };
-      if (q.type === 'write') { d.prompt.innerHTML = q.prompt; renderWriteKeys(q); memo.clear(); }
+      if (q.type === 'write') { d.prompt.innerHTML = writePrompt(q); fitPrompt(); renderWriteKeys(q); memo.clear(); }
       else if (q.type !== 'choice') renderDisplays();
       startCountdown();
       wait(500, function () { locked = false; });
@@ -901,11 +939,12 @@ MQ.ui.battle = (function () {
       comboShow(res.combo || 0);
       d.msg.textContent = res.frozen ? 'おしい！ でも 時とめで コンボは そのまま！ もう1回！'
         : q.boss ? 'おしい！ ふせがれた。もう1回！' : 'おしい！ ' + e.name + ' に よけられた。もう1回！';
+      if (q.type === 'write' && writeMsg) { d.msg.textContent = writeMsg; writeMsg = ''; }
       showHint(res.hint, q, value);
       input = '';
       writeState = 'draw';
       div = { q: '', r: '', active: 'q' };
-      if (q.type === 'write') { d.prompt.innerHTML = q.prompt; renderWriteKeys(q); memo.clear(); }
+      if (q.type === 'write') { d.prompt.innerHTML = writePrompt(q); fitPrompt(); renderWriteKeys(q); memo.clear(); }
       else if (q.type !== 'choice') renderDisplays();
       startCountdown();
       wait(500, function () { locked = false; });
@@ -1616,6 +1655,9 @@ MQ.ui.battle = (function () {
     let drawing = false;
     let activeId = null;
     let last = null;
+    let strokes = 0;   // ペンを おろした 回数（かん字の はんてい用・v2.9）
+    let paths = [];    // 線の ならび（1画ずつ・CSS px）。画数・なぐりがきの はんてい用
+    let curPath = null;
 
     function lineWidth() {
       const st = (MQ.stage && MQ.stage.size) ? MQ.stage.size().scale : 1;
@@ -1659,6 +1701,7 @@ MQ.ui.battle = (function () {
       }
     }
     function clear() {
+      strokes = 0; paths = []; curPath = null;
       c.save();
       c.setTransform(1, 0, 0, 1, 0, 0);
       c.clearRect(0, 0, canvas.width, canvas.height);
@@ -1674,6 +1717,7 @@ MQ.ui.battle = (function () {
       c.lineTo(p.x, p.y);
       c.stroke();
       last = p;
+      if (curPath) curPath.push(p);
     }
 
     canvas.addEventListener('pointerdown', function (e) {
@@ -1681,8 +1725,10 @@ MQ.ui.battle = (function () {
       e.preventDefault();
       if (!fits()) resizeKeep();   // 大きさが ずれていたら 先に 直す
       drawing = true;
+      strokes++;
       activeId = e.pointerId;
       last = point(e);
+      curPath = [last]; paths.push(curPath);
       try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
       c.beginPath();
       c.moveTo(last.x, last.y);
@@ -1714,7 +1760,7 @@ MQ.ui.battle = (function () {
       canvas.addEventListener('touchstart', function (e) {
         const t = e.touches[0]; if (!t) return;
         if (!fits()) resizeKeep();
-        drawing = true; last = point(t);
+        drawing = true; strokes++; last = point(t); curPath = [last]; paths.push(curPath);
         c.beginPath(); c.moveTo(last.x, last.y); c.lineTo(last.x + 0.1, last.y + 0.1); c.stroke();
       }, { passive: false });
       canvas.addEventListener('touchmove', function (e) {
@@ -1731,7 +1777,7 @@ MQ.ui.battle = (function () {
 
     clearBtn.addEventListener('click', function () { MQ.sfx.tap(); clear(); });
 
-    return { reset: function () { resize(); clear(); }, clear: clear, resizeKeep: resizeKeep };
+    return { reset: function () { resize(); clear(); }, clear: clear, resizeKeep: resizeKeep, strokes: function () { return strokes; }, paths: function () { return paths; } };
   }
 
   /* 見た目を たしかめる ための 入口（tools/harness.html から よぶ）。
@@ -1754,5 +1800,5 @@ MQ.ui.battle = (function () {
     return it;
   }
 
-  return { start: start, startTokkun: startTokkun, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag };
+  return { start: start, startTokkun: startTokkun, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, lastJudge: function () { return lastJudge; } };
 })();

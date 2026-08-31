@@ -354,6 +354,7 @@ MQ.ui.dex = (function () {
 
     return h('div', {}, [
       termsSection(player),
+      judgeSection(),
       aiSection(),
       h('h2', { class: 'label', text: 'たんげんごとの できぐあい（じぶんの さいこう記ろく）' }),
       rows.length ? h('div', { class: 'parent' }, rows) : h('p', { class: 'note', text: 'まだ 記ろくが ありません。' }),
@@ -417,6 +418,33 @@ MQ.ui.dex = (function () {
       h('p', { class: 'note', text: 'チェックの ある 単元の 問題だけ 出ます。学期を えらぶと 教科書の じゅんに そろい、単元を 押すと 1つずつ 変えられます（学校の 進み方に 合わせて）。' }),
       btns
     ].concat(lists));
+  }
+
+  /* =======================================================
+     かん字を 書く問題の はんてい（v2.9）：きびしさ
+     ======================================================= */
+  function judgeSection() {
+    if (!MQ.handwrite) return null;
+    const cur = MQ.save.getSetting('judge', 'normal');
+    const wrap = h('div', { class: 'chips chips--tight' });
+    [['easy', 'やさしい'], ['normal', 'ふつう'], ['strict', 'きびしい']].forEach(function (t) {
+      const b = h('button', {
+        class: 'chip' + (cur === t[0] ? ' is-on' : ''), type: 'button', text: t[1],
+        onclick: function () {
+          MQ.sfx.tap();
+          MQ.save.setSetting('judge', t[0]);
+          MQ.handwrite.setLevel(t[0]);
+          wrap.querySelectorAll('.chip').forEach(function (x) { x.classList.remove('is-on'); });
+          b.classList.add('is-on');
+        }
+      });
+      wrap.appendChild(b);
+    });
+    return h('div', { class: 'terms' }, [
+      h('h2', { class: 'label', text: 'かん字を 書く問題の はんてい' }),
+      h('p', { class: 'note', text: '書いた 字の 形を おてほんと くらべて、自動で ○×を つけます（なぐりがき・画数の 足りない 字・ぬりつぶしは ×）。まよう ときだけ、おてほんと ならべて 子どもが ◯✕を えらびます。きびしさを 変えられます。' }),
+      wrap
+    ]);
   }
 
   /* =======================================================

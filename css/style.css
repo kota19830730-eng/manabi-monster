@@ -1841,6 +1841,52 @@ body {
 .ai__status--bad { color: #ffd0d8; }
 .ai__sub { margin: 12px 0 6px; font-size: 13px; color: var(--tx-sub); }
 
+/* ---- ドットを 直す（v2.9）：できあがりの 下の ボタン ---- */
+.photo__editrow { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.photo__redo { display: none; }
+.photo__edited { display: none; margin: 0; color: #ffe89a; }
+.photo__preview.is-edited .photo__row, .photo__preview.is-edited .photo__btns { display: none; }
+.photo__preview.is-edited .photo__redo { display: inline-flex; }
+.photo__preview.is-edited .photo__edited { display: block; }
+
+/* =========================================================
+   ドット絵エディタ（v2.9）：#stage に かぶせる 1枚。マス目を ゆびで 直す
+   ========================================================= */
+.pixed { position: absolute; inset: 0; z-index: 95; display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 10px; background: linear-gradient(#1a2544, var(--bg-1)); }
+.pixed__head { display: flex; align-items: center; gap: 8px; }
+.pixed__head .btn--small { margin-left: auto; min-height: 38px; }
+.pixed__title { flex: none; white-space: nowrap; font-family: var(--f-head); font-size: 19px; color: var(--gold); }
+.pixed__hint { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--tx-sub); }
+.pixed__view { position: relative; flex: none; align-self: center; overflow: hidden; border-radius: 12px; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; cursor: crosshair;
+  box-shadow: 0 0 0 3px var(--frame), 0 6px 0 var(--navy-sh);
+  background-color: #e9edf5; background-image: linear-gradient(45deg, #cfd6e6 25%, transparent 25%, transparent 75%, #cfd6e6 75%), linear-gradient(45deg, #cfd6e6 25%, transparent 25%, transparent 75%, #cfd6e6 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
+.pixed__view[data-tool="move"] { cursor: grab; }
+.pixed__cv { position: absolute; left: 0; top: 0; image-rendering: pixelated; }
+.pixed__grid { position: absolute; left: 0; top: 0; pointer-events: none; background-image: linear-gradient(rgba(0,0,0,.16) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.16) 1px, transparent 1px); }
+.pixed__chips { gap: 5px; }
+.pixed__chips .chip { min-height: 38px; padding: 0 11px; }
+.pixed__row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pixed__lbl { font-size: 12px; color: var(--tx-sub); }
+.pixed__palwrap { display: flex; align-items: center; gap: 8px; }
+.pixed__cur { flex: none; width: 46px; height: 46px; border-radius: 10px; box-shadow: 0 0 0 3px var(--gold), inset -6px 0 0 rgba(0,0,0,.18), inset 0 -6px 0 rgba(0,0,0,.18); }
+.pixed__pal { flex: 1; min-width: 0; display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 30px); grid-auto-columns: 30px; gap: 4px; overflow-x: auto; padding: 4px 3px; }
+.pixed__sw { width: 30px; height: 30px; border: 0; border-radius: 6px; cursor: pointer; padding: 0; box-shadow: inset -4px 0 0 rgba(0,0,0,.18), inset 0 -4px 0 rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.35); }
+.pixed__sw.is-on { box-shadow: 0 0 0 3px var(--gold), inset -4px 0 0 rgba(0,0,0,.18), inset 0 -4px 0 rgba(0,0,0,.18); }
+.pixed__sw--sep { margin-left: 8px; }
+.pixed__foot { display: flex; gap: 8px; margin-top: auto; }
+.pixed__foot .btn { flex: 1; min-height: 58px; }
+
+/* ---- かん字の はんてい（v2.9）：おてほん・見くらべ ---- */
+:root { --f-kanji: 'UD Digi Kyokasho N-R', 'UD Digi Kyokasho N', 'HGKyokashotai', 'BIZ UDMincho Medium', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Noto Serif CJK JP', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif; }
+.card__model { display: block; margin-top: 2px; font-family: var(--f-body); font-size: 15px; color: var(--paper-lbl); }
+.card__model b { font-family: var(--f-kanji); font-weight: 400; font-size: 44px; line-height: 1; color: var(--paper-ink); margin-left: 10px; vertical-align: middle; }
+.wcmp { display: flex; gap: 16px; justify-content: center; align-items: flex-end; margin-top: 6px; }
+.wcmp__box { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.wcmp__img, .wcmp__k { display: flex; align-items: center; justify-content: center; width: 84px; height: 84px; background: #fff; border-radius: 10px; box-shadow: inset 0 0 0 2px #dfe4f0; }
+.wcmp__img { object-fit: contain; }
+.wcmp__k { font-family: var(--f-kanji); font-size: 62px; line-height: 1; color: var(--paper-ink); }
+.wcmp__cap { font-family: var(--f-body); font-size: 12px; color: var(--paper-lbl); }
+
 /* =========================================================
    アイテム（v2.0）：たからものを たたかいの 中で 使う。モックの 部品で 組む
      .bagbtn      … バトル画面 右下の 金の 3Dボタン（光沢スイープ＋のこり数の チップ）
