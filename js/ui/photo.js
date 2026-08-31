@@ -44,7 +44,7 @@ MQ.ui.photo = (function () {
   const WORK = 320;                 // しらべる ときの 大きさ（長い ほう。たてよこの 比は そのまま）
   const SIZES = [[48, 'あらい'], [64, 'ふつう'], [96, 'こまかい']];
   let size = 96;                    // ドット絵の マス数（初期は こまかい・v3.3）
-  let autoClean = true;             // じどうで きれいに（v3.3・自動補正）
+  let cleanMode = 2;                // しあげ（v3.4）：2 = ゲームふう／1 = きれいに だけ／0 = しない
   let img = null;                   // 読みこんだ 写真
   let crop = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 };   // わく（0〜1の わりあい・長方形で OK）
   let tol = 55;                     // 「はいけいを 消す」（55 = 自動の しきい値の まま。大きいほど よく 消える）
@@ -664,6 +664,64 @@ MQ.ui.photo = (function () {
     }
   }
 
+  /* ゲームふうの しあげ（v3.4）。ユーザー「もっと ゲームっぽく」：
+       ①線の マスは ぜんぶ 同じ こい 色に（輪かくが 1本の 線に 見える）
+       ②色の マスは 色あいは 子どもの ままで、あざやかさと こさを ゲームの スプライトに そろえる
+       ③左上に ハイライト・右下に かげ（ゲームの モンスターと 同じ 立体感）
+     マスは うごかさない（形は 絵の まま） */
+  function gameStyle(cells, N) {
+    const OUT = [26, 24, 38];                       // 輪かくの 色（こい 紺black）
+    function at(g, x, y) { return (x < 0 || y < 0 || x >= N || y >= N) ? null : g[y * N + x]; }
+    function toHsl(c) {
+      const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+      if (mx === mn) return { h: 0, s: 0, l: l };
+      const d = mx - mn;
+      const sN = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      let h;
+      if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0));
+      else if (mx === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      return { h: h * 60, s: sN, l: l };
+    }
+    function fromHsl(h, sN, l) {
+      function f(n) {
+        const k = (n + h / 30) % 12;
+        const a = sN * Math.min(l, 1 - l);
+        return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+      }
+      return [f(0), f(8), f(4)];
+    }
+    for (let k = 0; k < N * N; k++) {
+      const c = cells[k];
+      if (!c) continue;
+      if (c.ink) { c.c = OUT.slice(); continue; }
+      const hsl = toHsl(c.c);
+      // 白か どうかは chroma（RGB の 差）で 見る。HSL の s は 白に 近い 色ほど 大きく 出て あてに ならない
+      const ch = (Math.max(c.c[0], c.c[1], c.c[2]) - Math.min(c.c[0], c.c[1], c.c[2])) / 255;
+      // 白っぽい ところ（ガイコツの 顔・紙いろの うすい かげ）は 白の まま
+      if (ch < 0.13 && hsl.l > 0.72) { c.c = [246, 246, 249]; continue; }
+      // ほとんど 色みが ない（うすい 茶・灰色）：あざやかに し過ぎない
+      if (ch < 0.09) { c.c = fromHsl(hsl.h, Math.min(0.25, hsl.s), Math.min(0.68, Math.max(0.42, hsl.l))); continue; }
+      // 色えんぴつの 色：色あいは そのまま、ゲームの スプライトの こさに
+      c.c = fromHsl(hsl.h, Math.min(0.92, Math.max(0.55, hsl.s * 1.4)), Math.min(0.66, Math.max(0.42, hsl.l * 0.92)));
+    }
+    // ③ 立体感：輪かく（か すけている ところ）に となりあう マスを、上・左なら 明るく、下・右なら こく
+    const src = cells.map(function (c) { return c ? { ink: c.ink, c: c.c.slice() } : null; });
+    function edge(c) { return !c || c.ink; }
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const me = at(src, x, y);
+        if (!me || me.ink) continue;
+        const hi = edge(at(src, x, y - 1)) || edge(at(src, x - 1, y));
+        const lo = edge(at(src, x, y + 1)) || edge(at(src, x + 1, y));
+        const c = cells[y * N + x].c;
+        if (hi) cells[y * N + x].c = [c[0] + (255 - c[0]) * 0.3, c[1] + (255 - c[1]) * 0.3, c[2] + (255 - c[2]) * 0.3];
+        else if (lo) cells[y * N + x].c = [c[0] * 0.72, c[1] * 0.72, c[2] * 0.72];
+      }
+    }
+  }
+
   function build() {
     if (!img) return '';
     const cv = workCanvas(img, crop);
@@ -752,8 +810,9 @@ MQ.ui.photo = (function () {
         fills.push(vc);
       }
     }
-    // じどうで きれいに（v3.3・自動補正）：ごみ・線の すきま・あな・白い ぬけ・輪かく
-    if (autoClean) cleanCells(cells, N);
+    // しあげ（v3.3〜）：ごみ・線の すきま・あな・白い ぬけ・ぬりむら・輪かく → さらに ゲームふう（v3.4）
+    if (cleanMode >= 1) cleanCells(cells, N);
+    if (cleanMode >= 2) gameStyle(cells, N);
 
     // 色を 16色に そろえる
     const pal = palette(fills, 16);
@@ -766,12 +825,12 @@ MQ.ui.photo = (function () {
     for (let k = 0; k < N * N; k++) {
       const c = cells[k];
       if (!c) continue;
-      const col = c.ink ? c.c : nearest(c.c, pal);
+      const col = c.ink || cleanMode >= 2 ? c.c : nearest(c.c, pal);   // ゲームふうは 色を 作ってあるので そのまま
       od.data[k * 4] = Math.round(col[0]); od.data[k * 4 + 1] = Math.round(col[1]); od.data[k * 4 + 2] = Math.round(col[2]); od.data[k * 4 + 3] = 255;
       drawn++;
     }
     ox2.putImageData(od, 0, 0);
-    lastInfo = { size: N, drawn: drawn, colors: pal.length, clean: autoClean, box: box, thr: { d: Math.round(thr.d * 10) / 10, s: Math.round(thr.s * 10) / 10, line: Math.round(lineD * 10) / 10 } };
+    lastInfo = { size: N, drawn: drawn, colors: pal.length, clean: cleanMode, box: box, thr: { d: Math.round(thr.d * 10) / 10, s: Math.round(thr.s * 10) / 10, line: Math.round(lineD * 10) / 10 } };
     return out.toDataURL('image/png');
   }
 
@@ -890,11 +949,11 @@ MQ.ui.photo = (function () {
       s.addEventListener('input', function () { set(Number(s.value)); refresh(); });
       return h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: label }), s]);
     }
-    const cleanChips = h('div', { class: 'chips chips--tight' }, [[true, 'する'], [false, 'しない']].map(function (cch) {
+    const cleanChips = h('div', { class: 'chips chips--tight' }, [[2, 'ゲームふう'], [1, 'きれいに'], [0, 'しない']].map(function (cch) {
       const b = h('button', {
-        class: 'chip chip--s' + (autoClean === cch[0] ? ' is-on' : ''), type: 'button', text: cch[1],
+        class: 'chip chip--s' + (cleanMode === cch[0] ? ' is-on' : ''), type: 'button', text: cch[1],
         onclick: function () {
-          autoClean = cch[0]; MQ.sfx.tap();
+          cleanMode = cch[0]; MQ.sfx.tap();
           cleanChips.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('is-on'); });
           b.classList.add('is-on');
           refresh();
@@ -1007,7 +1066,7 @@ MQ.ui.photo = (function () {
       sliderRow('はいけいを 消す', 15, 120, function () { return tol; }, function (v) { tol = v; }),
       sliderRow('線を こく', 0, 100, function () { return inkLv; }, function (v) { inkLv = v; }),
       h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'ドットの こまかさ' }), sizeChips]),
-      h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'じどうで きれいに' }), cleanChips]),
+      h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'しあげ' }), cleanChips]),
       h('div', { class: 'photo__btns' }, [
         h('button', { class: 'btn btn--small btn--cream', type: 'button', text: 'わくを 自動で', onclick: function () { MQ.sfx.tap(); autoCrop(); drawStage(); refresh(); } }),
         h('button', { class: 'btn btn--small btn--cream', type: 'button', text: '回す', onclick: function () { MQ.sfx.tap(); rotateImg(); } })
@@ -1274,6 +1333,6 @@ MQ.ui.photo = (function () {
     build: build,
     // AI（v2.8）の いまの 状態（テスト用）
     aiState: function () { return { busy: aiBusy, ai: aiUsed, error: aiError, hasOrig: !!origImg, out: outUrl.length, edited: !!edited }; },
-    setOptions: function (o) { if (o.size) size = o.size; if (o.tol != null) tol = o.tol; if (o.ink != null) inkLv = o.ink; if (o.clean != null) autoClean = !!o.clean; }
+    setOptions: function (o) { if (o.size) size = o.size; if (o.tol != null) tol = o.tol; if (o.ink != null) inkLv = o.ink; if (o.clean != null) cleanMode = Number(o.clean) || 0; }
   };
 })();
