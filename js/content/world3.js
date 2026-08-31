@@ -1,7 +1,8 @@
 /* ---------------------------------------------------------
    ワールド・エリア・ステージ
 
-   ワールド ＝ 学年（小1〜小6）。いまは 小3だけ 入れる。
+   ワールド ＝ 学年（小1〜小6）。小3 と 小1 が あそべる（v2.2）。ほかは じゅんびちゅう。
+   いま あそんでいる ワールドは activeWorld()（プレイヤーの がくねん）で 決まる。
    エリア   ＝ 教科（算数の山・国語の森・理科社会の海・英語の空）
    ステージ ＝ 単元。算数は 日本文教出版『小学算数』3年の順。
 
@@ -64,7 +65,8 @@ MQ.content = (function () {
   }
 
   // リスト型（国語・理社・英語）の ステージ用：問題リストから えらぶ
-  function listStage(getList, areaId, stageNo) {
+  function listStage(getList, areaId, stageNo, grade) {
+    const g = grade || 3;
     return function make(n, opts) {
       const all = getList().filter(function (q) { return q.stage === stageNo; });
       let picked;
@@ -78,7 +80,7 @@ MQ.content = (function () {
       }
       return picked.map(function (q) {
         return {
-          id: areaId + '3-' + stageNo + ':' + MQ.util.stripTags(q.text),
+          id: areaId + g + '-' + stageNo + ':' + MQ.util.stripTags(q.text),
           type: 'choice',
           unit: q.unit,
           prompt: q.text,
@@ -96,15 +98,16 @@ MQ.content = (function () {
      えらぶ問題の データから 自動で 作ります。
      字を 見分ける しくみは 入れられないので、正しい字を 見せて
      じぶんで ○×を つける やり方（学校の 書きとりと 同じ）。 */
-  function writeQuestion(q, areaId, stageNo) {
+  function writeQuestion(q, areaId, stageNo, grade) {
+    const g = grade || 3;
     const m = q.text.match(/「([^」]+)」を かん字で/) || q.text.match(/「([^」]+)」/);
     if (!m) return null;
     const kanji = q.choices[0];
     return {
-      id: areaId + '3-' + stageNo + ':write:' + kanji,
+      id: areaId + g + '-' + stageNo + ':write:' + kanji,
       type: 'write',
-      unit: 'かん字を書く（ゆびで）',
-      prompt: '「<b>' + m[1] + '</b>」の かん字を ゆびで 書こう',
+      unit: g === 1 ? 'かん字を かく（ゆびで）' : 'かん字を書く（ゆびで）',
+      prompt: '「<b>' + m[1] + '</b>」の かん字を ゆびで ' + (g === 1 ? 'かこう' : '書こう'),
       answer: kanji,
       hint: q.hint,
       note: q.note,
@@ -114,11 +117,11 @@ MQ.content = (function () {
   }
 
   // えらぶ問題と 書く問題を まぜる ステージ
-  function writeMixStage(getList, areaId, stageNo) {
-    const chooser = listStage(getList, areaId, stageNo);
+  function writeMixStage(getList, areaId, stageNo, grade) {
+    const chooser = listStage(getList, areaId, stageNo, grade);
     return function make(n, opts) {
       const all = getList().filter(function (q) { return q.stage === stageNo; });
-      const writes = all.map(function (q) { return writeQuestion(q, areaId, stageNo); }).filter(Boolean);
+      const writes = all.map(function (q) { return writeQuestion(q, areaId, stageNo, grade); }).filter(Boolean);
       if (!writes.length) return chooser(n, opts);
       if (opts && opts.boss) {
         // ボスは むずかしい字を 書く
@@ -142,8 +145,17 @@ MQ.content = (function () {
     };
   }
 
-  function stage(areaId, no, name, getList) {
-    return { id: areaId + '3-' + no, no: no, name: name, available: true, make: listStage(getList, areaId, no) };
+  // 小1の さんすう（sansu1.js の 生成器）。ぜんぶ 開いている
+  function sansu1Stage(no, name) {
+    return {
+      id: 'sansu1-' + no, no: no, name: name, when: '', available: true,
+      make: function (n, opts) { return MQ.sansu1.make(no, n, opts); }
+    };
+  }
+
+  function stage(areaId, no, name, getList, grade) {
+    const g = grade || 3;
+    return { id: areaId + g + '-' + no, no: no, name: name, available: true, make: listStage(getList, areaId, no, g) };
   }
 
   const kokugo = function () { return MQ.kokugo3.questions; };
@@ -272,8 +284,48 @@ MQ.content = (function () {
     ]
   };
 
+  /* =======================================================
+     小1ワールド（v2.2）
+     小1には 理科社会・英語・さいごの塔は ない（2エリア）。
+     名前は ぜんぶ ひらがな（小1が じぶんで 読める ように）。
+     ======================================================= */
+  const kokugo1 = function () { return MQ.kokugo1.questions; };
+
+  const world1 = {
+    id: 'g1', grade: 1, name: '小1ワールド', locked: false,
+    areas: [
+      {
+        id: 'sansu', name: 'さんすうの やま', short: 'さんすう', color: 'var(--c-sansu)', biome: 'mountain',
+        stages: [
+          sansu1Stage(1, '10までの かず'),
+          sansu1Stage(2, 'なんばんめ'),
+          sansu1Stage(3, 'いくつと いくつ'),
+          sansu1Stage(4, 'たしざん（1）'),
+          sansu1Stage(5, 'ひきざん（1）'),
+          sansu1Stage(6, '20までの かず'),
+          sansu1Stage(7, '3つの かずの けいさん'),
+          sansu1Stage(8, 'なんじ なんじはん'),
+          sansu1Stage(9, 'たしざん（2）'),
+          sansu1Stage(10, 'ひきざん（2）'),
+          sansu1Stage(11, '100までの かず')
+        ]
+      },
+      {
+        id: 'kokugo', name: 'こくごの もり', short: 'こくご', color: 'var(--c-kokugo)', biome: 'forest',
+        stages: [
+          stage('kokugo', 1, 'ひらがな', kokugo1, 1),
+          stage('kokugo', 2, 'かたかな', kokugo1, 1),
+          stage('kokugo', 3, 'かん字の よみ', kokugo1, 1),
+          { id: 'kokugo1-4', no: 4, name: 'かん字を かく', available: true,
+            make: writeMixStage(kokugo1, 'kokugo', 4, 1) },
+          stage('kokugo', 5, 'ことばの きまり', kokugo1, 1)
+        ]
+      }
+    ]
+  };
+
   const worlds = [
-    { id: 'g1', grade: 1, name: '小1ワールド', locked: true, areas: [] },
+    world1,
     { id: 'g2', grade: 2, name: '小2ワールド', locked: true, areas: [] },
     world3,
     { id: 'g4', grade: 4, name: '小4ワールド', locked: true, areas: [] },
@@ -286,20 +338,44 @@ MQ.content = (function () {
     return null;
   }
 
-  // がくねん（1〜6）→ ワールド。あそべるのは locked が ない ワールドだけ（いまは 小3）
+  // がくねん（1〜6）→ ワールド。あそべるのは locked が ない ワールド（小1・小3）
   function worldForGrade(grade) {
     for (let i = 0; i < worlds.length; i++) if (worlds[i].grade === grade) return worlds[i];
     return world3;
   }
 
+  /* いま あそんでいる ワールド（v2.2）。
+     プレイヤーの がくねんで 決まる。まだ 開いていない がくねんは 小3 に たおす。
+     マップ・かけら・図かん・にげた敵 は ぜんぶ ここを 見る。 */
+  let forced = null;   // テストで ワールドを 決めうちに する とき
+  function activeWorld() {
+    if (forced) return forced;
+    let p = null;
+    try { p = (MQ.save && MQ.save.current) ? MQ.save.current() : null; } catch (e) { p = null; }
+    const w = worldForGrade((p && p.grade) || 3);
+    return w.locked ? world3 : w;
+  }
+  function setActive(w) { forced = w || null; }
+
   function areaOf(areaId) {
-    for (let a = 0; a < world3.areas.length; a++) if (world3.areas[a].id === areaId) return world3.areas[a];
+    const w = activeWorld();
+    for (let a = 0; a < w.areas.length; a++) if (w.areas[a].id === areaId) return w.areas[a];
+    for (let i = 0; i < worlds.length; i++) {
+      const areas = worlds[i].areas || [];
+      for (let a = 0; a < areas.length; a++) if (areas[a].id === areaId) return areas[a];
+    }
     return null;
   }
 
   // 教科の エリアだけ（塔は のぞく）
   function subjectAreas() {
-    return world3.areas.filter(function (a) { return a.id !== 'tower'; });
+    return activeWorld().areas.filter(function (a) { return a.id !== 'tower'; });
+  }
+  // さいごの塔の エリア（小1には ない）
+  function towerArea() {
+    const areas = activeWorld().areas;
+    for (let a = 0; a < areas.length; a++) if (areas[a].id === 'tower') return areas[a];
+    return null;
   }
 
   // ステージ id から { world, area, stage } を さがす
@@ -338,7 +414,9 @@ MQ.content = (function () {
     return subjectAreas().filter(function (a) { return hasFrag(player, a.id); }).length;
   }
 
+  function hasTower() { return !!towerArea(); }
   function towerOpen(player) {
+    if (!hasTower()) return false;
     return fragCount(player) >= subjectAreas().length;
   }
 
@@ -354,7 +432,8 @@ MQ.content = (function () {
   }
 
   return {
-    worlds: worlds, world: world, world3: world3, worldForGrade: worldForGrade,
+    worlds: worlds, world: world, world3: world3, world1: world1, worldForGrade: worldForGrade,
+    activeWorld: activeWorld, setActive: setActive, hasTower: hasTower,
     areaOf: areaOf, subjectAreas: subjectAreas, findStage: findStage, isUnlocked: isUnlocked,
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,
     fragCount: fragCount, towerOpen: towerOpen,

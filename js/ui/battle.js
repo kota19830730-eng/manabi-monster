@@ -648,7 +648,7 @@ MQ.ui.battle = (function () {
       d.memo.hidden = false;
       d.spacer.hidden = true;
       d.hissan.hidden = true;
-      d.memoHint.textContent = 'ここに ゆびで かん字を 書こう';
+      d.memoHint.textContent = 'ここに ゆびで かん字を かこう';
       d.displays.hidden = true;
       d.keys.hidden = false;
       memo.reset();

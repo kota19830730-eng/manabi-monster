@@ -77,8 +77,8 @@ MQ.ui.map = (function () {
       });
       y += hgt;
 
-      // 国語の森の あとに 川を 通す
-      if (ai === 1) { riverY = y + RIVER_H / 2; y += RIVER_H; }
+      // 国語の森の あとに 川を 通す（エリアが 3つ いじょうの ときだけ。小1は 2エリアで 川なし）
+      if (ai === 1 && areas.length > 2) { riverY = y + RIVER_H / 2; y += RIVER_H; }
     });
 
     const islandTop = TOP_SEA - 16;
@@ -89,16 +89,17 @@ MQ.ui.map = (function () {
       b.scenicBottom = (i + 1 < out.length) ? out[i + 1].top - 4 : islandBottom - 8;
     });
 
-    // 道は さいごに、塔の 島が 見える きしべ まで のばす
-    path.push({ xPct: TOWER_XPCT, y: islandBottom - 22 });
+    // 塔の ある ワールドだけ：道は さいごに、塔の 島が 見える きしべ まで のばす
+    const withTower = MQ.content.hasTower();
+    if (withTower) path.push({ xPct: TOWER_XPCT, y: islandBottom - 22 });
 
     const towerY = islandBottom + STRAIT + 46;
-    const height = towerY + 44 + TOWER_PAD;
+    const height = withTower ? towerY + 44 + TOWER_PAD : islandBottom + STRAIT + 24;
 
     return {
       bands: out, height: height, riverY: riverY,
       island: { top: islandTop, bottom: islandBottom },
-      tower: { xPct: TOWER_XPCT, y: towerY },
+      tower: withTower ? { xPct: TOWER_XPCT, y: towerY } : null,
       path: path
     };
   }
@@ -363,9 +364,11 @@ MQ.ui.map = (function () {
       });
     });
 
-    /* ---- さいごの塔の 小島 ---- */
-    towerDeco(plan.tower).forEach(function (d) { layer.appendChild(d); });
-    layer.appendChild(towerEl(player, plan.tower));
+    /* ---- さいごの塔の 小島（小1には ない） ---- */
+    if (plan.tower) {
+      towerDeco(plan.tower).forEach(function (d) { layer.appendChild(d); });
+      layer.appendChild(towerEl(player, plan.tower));
+    }
 
     /* ---- 上の ヘッダー ---- */
     const top = h('div', { class: 'maptop' }, [

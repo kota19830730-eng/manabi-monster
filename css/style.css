@@ -1757,3 +1757,7 @@ body {
 .gradecell.is-prep .gradecell__g { color: #93a2c8; }
 /* プレイヤーえらびの 学年チップ */
 .player__grade { flex: none; padding: 1px 7px; border-radius: 7px; background: #0f1730; color: #8fa0c8; font-family: var(--f-head); font-size: 11px; }
+
+
+/* 小1 さんすう：●○ を ならべて かぞえる（v2.2） */
+.num.dots { letter-spacing: .08em; }

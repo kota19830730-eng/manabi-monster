@@ -49,7 +49,7 @@ function load(rel) {
  'js/core/save.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
  'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
- 'js/content/romaji3.js', 'js/content/world3.js'].forEach(load);
+ 'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kokugo1.js', 'js/content/world3.js'].forEach(load);
 
 const MQ = global.MQ;
 const TYPES = ['number', 'choice', 'divrem', 'roma', 'write'];
@@ -103,7 +103,33 @@ for (let s = 1; s <= 6; s++) {
 }
 console.log('sansu generated ok: ' + sansuCount);
 
-[['kokugo', MQ.kokugo3.questions], ['rikashakai', MQ.rikashakai3.questions], ['eigo', MQ.eigo3.questions]].forEach(function (pair) {
+/* ---- 小1 さんすう（v2.2）：11ステージ・問題文は ひらがな・12問 かぶりなし ---- */
+let sansu1Count = 0;
+for (let s = 1; s <= 11; s++) {
+  const st = MQ.sansu1.stages[s];
+  check(!!st, 'sansu1 stage ' + s + ' が ある');
+  if (!st) continue;
+  ['easy', 'normal', 'hard', 'boss'].forEach(function (t) {
+    check(Array.isArray(st[t]) && st[t].length >= 2, 'sansu1-' + s + ' の ' + t + ' が 2しゅるい いじょう: ' + (st[t] ? st[t].length : 0));
+  });
+  MQ.sansu1.make(s, 60).forEach(function (q, i) {
+    validate(q, 'sansu1-' + s + '#' + i);
+    check(typeof q.hint === 'string' && q.hint.length > 0, 'sansu1-' + s + '#' + i + ' hint');
+    check(typeof q.note === 'string' && q.note.length > 0, 'sansu1-' + s + '#' + i + ' note');
+    check(!/[一-龠]/.test(MQ.util.stripTags(q.prompt)), 'sansu1-' + s + '#' + i + ' の 問題文に かん字: ' + q.prompt);
+    sansu1Count++;
+  });
+  MQ.sansu1.make(s, 5, { boss: true }).forEach(function (q, i) { validate(q, 'sansu1boss' + s + '#' + i); check(q.lv === 3, 'sansu1boss' + s + '#' + i + ' は lv3'); });
+  const twelve = MQ.sansu1.make(s, 12);
+  const lvs = twelve.map(function (q) { return q.lv; });
+  check(levelsNonDecreasing(twelve), 'sansu1-' + s + ' の むずかしさが じゅんばん: ' + lvs.join(''));
+  check(lvs.filter(function (l) { return l === 1; }).length === 4 && lvs.filter(function (l) { return l === 3; }).length === 4, 'sansu1-' + s + ' は 4/4/4: ' + lvs.join(''));
+  check(new Set(twelve.map(function (q) { return q.id; })).size === 12, 'sansu1-' + s + ' の 12問は かぶらない');
+  check(MQ.sansu1.make(s, 1, { lv: 2 })[0].lv === 2, 'sansu1-' + s + ' lv2 だけ');
+}
+console.log('sansu1 generated ok: ' + sansu1Count);
+
+[['kokugo', MQ.kokugo3.questions], ['rikashakai', MQ.rikashakai3.questions], ['eigo', MQ.eigo3.questions], ['kokugo1', MQ.kokugo1.questions]].forEach(function (pair) {
   const name = pair[0], list = pair[1];
   const perStage = {}, perLevel = {}, bossPer = {}, texts = {};
   list.forEach(function (q, i) {
@@ -125,6 +151,22 @@ console.log('sansu generated ok: ' + sansuCount);
   const lvSummary = Object.keys(perStage).map(function (s) { return s + '=' + [1, 2, 3].map(function (l) { return perLevel[s + ':' + l] || 0; }).join('/'); }).join(' ');
   console.log(name + ': ' + list.length + ' questions ' + JSON.stringify(perStage) + ' (lv1/2/3: ' + lvSummary + ')');
 });
+
+/* ---- 小1 こくご（v2.2）：問題文は ひらがな（かん字は 「」の 中だけ）。5ステージ ---- */
+(function () {
+  const kanji = /[一-龠]/;
+  const perStage = {};
+  MQ.kokugo1.questions.forEach(function (q, i) {
+    perStage[q.stage] = (perStage[q.stage] || 0) + 1;
+    const body = q.text.replace(/「[^」]*」/g, '').replace(/字/g, '');
+    check(!kanji.test(body), 'kokugo1#' + i + ' の 問題文に かん字: ' + q.text);
+    if (q.stage === 1 || q.stage === 2 || q.stage === 5) {
+      q.choices.forEach(function (c) { check(!kanji.test(c), 'kokugo1#' + i + ' の えらぶ ことばに かん字: ' + c); });
+    }
+    if (q.stage === 4) check(/「[^」]+」を かん字で/.test(q.text), 'kokugo1#' + i + ' は「〜」を かん字で の 形: ' + q.text);
+  });
+  check(Object.keys(perStage).length === 5, 'kokugo1 は 5ステージ: ' + JSON.stringify(perStage));
+})();
 
 /* ---- ローマ字 ---- */
 check(MQ.romaji3.kunrei('さくら') === 'sakura', 'kunrei sakura');
@@ -154,8 +196,9 @@ console.log('romaji: ' + MQ.romaji3.count() + ' questions');
 
 /* ---- ワールド・ステージ ---- */
 const w3 = MQ.content.world('g3');
+const w1 = MQ.content.world('g1');
 let writeSeen = false, romaSeen = false;
-w3.areas.forEach(function (area) {
+function checkWorldStages(wld) { wld.areas.forEach(function (area) {
   area.stages.forEach(function (st) {
     if (!st.available) return;
     const qs = st.make(8, { boss: false });
@@ -180,7 +223,11 @@ w3.areas.forEach(function (area) {
       check(ch.lv === 2, st.id + ' の たからばこ問題は lv2: ' + ch.lv);
     }
   });
-});
+}); }
+checkWorldStages(w3);
+checkWorldStages(w1);
+check(w1.areas.length === 2 && w1.areas[0].stages.length === 11 && w1.areas[1].stages.length === 5, '小1は さんすう11＋こくご5');
+check(w1.areas[1].stages[3].make(8, {}).some(function (q) { return q.type === 'write' && q.prompt.indexOf('かこう') !== -1; }), '小1の かん字を かく問題は ひらがなの 言いかた');
 check(writeSeen, 'かん字を ゆびで 書く問題が 出る');
 check(romaSeen, 'ローマ字を うつ問題が 出る');
 
@@ -194,9 +241,12 @@ check(JSON.stringify(kinds) === JSON.stringify(['sansu', 'kokugo', 'romaji', 'ri
   'ラスボスは 算数→国語→ローマ字→理社→英語: ' + kinds.join(','));
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 32, 'たからもの 32個（31ステージ＋塔）: ' + MQ.treasure.total());
-w3.areas.forEach(function (a) {
-  a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
+check(MQ.treasure.total() === 48, 'たからもの 48個（小3 32＋小1 16）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 16, 'listFor: 小3 32・小1 16');
+[w3, w1].forEach(function (wld) {
+  wld.areas.forEach(function (a) {
+    a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
+  });
 });
 const trIds = MQ.treasure.list.map(function (t) { return t.id; });
 check(new Set(trIds).size === trIds.length, 'たからものの id が かぶっていない');
@@ -667,7 +717,7 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     check(!!pw, 'たからもの ' + t.id + '（' + t.shape + '）に わざが ない');
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
-  const want = { burst: 4, shield: 4, freeze: 3, guide: 7, golden: 3, chest: 3, power: 5, charge: 3 };
+  const want = { burst: 6, shield: 6, freeze: 5, guide: 12, golden: 4, chest: 4, power: 7, charge: 4 };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
     check(typeof p.desc(p.val[0]) === 'string' && p.desc(p.val[0]).length > 0 && p.short(p.val[1]).length > 0, 'わざ ' + p.id + ' の せつめい');
@@ -900,10 +950,23 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
   check(MQ.save.BAG_MAX === 3, 'もちものは 3つまで');
 })();
 
-/* ---- がくねん（v2.1：えらぶ画面。あそべるのは 小3 だけ） ---- */
+/* ---- がくねん（v2.1 えらぶ画面／v2.2 小1が あそべる） ---- */
 check(MQ.content.worlds.length === 6, 'ワールドは 6つ: ' + MQ.content.worlds.length);
-check(MQ.content.worlds.filter(function (w) { return !w.locked; }).length === 1, 'あそべる ワールドは いまは 小3 だけ');
-check(MQ.content.worldForGrade(3).id === 'g3' && MQ.content.worldForGrade(1).locked === true, 'worldForGrade');
+check(MQ.content.worlds.filter(function (w) { return !w.locked; }).length === 2, 'あそべる ワールドは 小1 と 小3');
+check(MQ.content.worldForGrade(3).id === 'g3' && MQ.content.worldForGrade(1).id === 'g1' && !MQ.content.worldForGrade(1).locked, 'worldForGrade');
+check(MQ.content.worldForGrade(2).locked === true && MQ.content.worldForGrade(6).locked === true, '小2・小6 は じゅんびちゅう');
+(function () {
+  MQ.save.createPlayer('小1テスト', null, 1);
+  check(MQ.content.activeWorld().id === 'g1', 'がくねん 1 の プレイヤーは 小1ワールド: ' + MQ.content.activeWorld().id);
+  check(MQ.content.subjectAreas().length === 2 && !MQ.content.hasTower(), '小1は 2エリアで 塔なし');
+  check(MQ.content.areaOf('sansu').name === 'さんすうの やま' && MQ.content.areaOf('eigo').id === 'eigo', '小1の areaOf（ほかの 学年の エリアも 見つかる）');
+  check(MQ.content.towerOpen(MQ.save.current()) === false, '小1では 塔は 開かない');
+  MQ.save.createPlayer('小2テスト', null, 2);
+  check(MQ.content.activeWorld().id === 'g3', 'まだ 開いていない がくねんは 小3 に たおす');
+  MQ.content.setActive(MQ.content.world1);
+  check(MQ.content.subjectAreas().length === 2, 'setActive で 決めうち');
+  MQ.content.setActive(null);
+})();
 (function () {
   const gp = MQ.save.createPlayer('がくねんテスト', null, 3);
   check(gp.grade === 3, 'つくった プレイヤーに がくねんが 入る');

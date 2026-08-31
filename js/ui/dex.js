@@ -232,7 +232,9 @@ MQ.ui.dex = (function () {
       ]);
     }
 
-    const cells = MQ.treasure.list.map(function (t) {
+    // いま あそんでいる がくねんの たからものだけ ならべる（v2.2）
+    const mine = MQ.treasure.listFor(MQ.content.activeWorld());
+    const cells = mine.map(function (t) {
       const lv = (player.treasure && player.treasure[t.id]) || 0;
       const pw = MQ.treasure.powerOf(t.id);
       const found = MQ.content.findStage(t.stage);
@@ -257,7 +259,7 @@ MQ.ui.dex = (function () {
     return h('div', {}, [
       inv,
       h('p', { class: 'note', text: 'たからものは たたかいの 中で 使える アイテム。下の たなから えらんで「もっていく」を おしてね。' }),
-      dexHead('たからもの', owned, MQ.treasure.total(), gold ? 'ぴかぴか ' + gold : ''),
+      dexHead('たからもの', owned, mine.length, gold ? 'ぴかぴか ' + gold : ''),
       h('p', { class: 'note', text: 'ステージの ボスを たおすと 1つ もらえるよ。★3で クリアすると 金色（ぴかぴか）に なって 効果アップ！' }),
       h('div', { class: 'dexgrid dexgrid--tr' }, cells),
       h('h2', { class: 'label', text: 'きんのコイン' }),

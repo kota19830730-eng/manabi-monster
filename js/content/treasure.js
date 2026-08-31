@@ -74,7 +74,25 @@ MQ.treasure = (function () {
     { stage: 'eigo3-4', id: 'tr-tenki',   name: 'てんきの ほし',          shape: 'star',      colors: c('#8FD3FF') },
 
     /* ---- さいごの塔（ラスボスを たおすと） ---- */
-    { stage: 'tower3',  id: 'tr-maou',    name: 'まおうの かんむり',      shape: 'crown',     colors: c('#8A2438', '#3A0E18') }
+    { stage: 'tower3',  id: 'tr-maou',    name: 'まおうの かんむり',      shape: 'crown',     colors: c('#8A2438', '#3A0E18') },
+
+    /* ---- 小1 さんすうの やま（11）・こくごの もり（5）（v2.2）。名前は ひらがな ---- */
+    { stage: 'sansu1-1',  id: 'tr1-kazu',    name: 'かずの たま',            shape: 'orb',       colors: c('#FF9A4A', '#A8542A') },
+    { stage: 'sansu1-2',  id: 'tr1-banme',   name: 'なんばんめの らしんばん', shape: 'compass',   colors: c('#4CD164', '#1E7A3C') },
+    { stage: 'sansu1-3',  id: 'tr1-ikutsu',  name: 'いくつの あおいし',      shape: 'gem',       colors: c('#4F8CFF', '#1F4FB0') },
+    { stage: 'sansu1-4',  id: 'tr1-tashi',   name: 'たしざんの ほん',        shape: 'book',      colors: c('#E8443A', '#8A1F18') },
+    { stage: 'sansu1-5',  id: 'tr1-hiki',    name: 'ひきざんの わ',          shape: 'ring',      colors: c('#A96BE0', '#5A2D8A') },
+    { stage: 'sansu1-6',  id: 'tr1-nijuu',   name: 'にじゅうの ほし',        shape: 'star',      colors: c('#8FD3FF') },
+    { stage: 'sansu1-7',  id: 'tr1-mittsu',  name: 'みっつの びん',          shape: 'potion',    colors: c('#4CD164', '#1E7A3C') },
+    { stage: 'sansu1-8',  id: 'tr1-tokei',   name: 'とけいの すなどけい',    shape: 'hourglass', colors: c('#FFD166', '#B8860B') },
+    { stage: 'sansu1-9',  id: 'tr1-tashi2',  name: 'たしざんの かんむり',    shape: 'crown',     colors: c('#FF6B9A', '#A8244F') },
+    { stage: 'sansu1-10', id: 'tr1-hiki2',   name: 'ひきざんの かぎ',        shape: 'key',       colors: c('#4F8CFF', '#1F4FB0') },
+    { stage: 'sansu1-11', id: 'tr1-hyaku',   name: 'ひゃくの まきもの',      shape: 'scroll',    colors: c('#F2C14E', '#B8860B') },
+    { stage: 'kokugo1-1', id: 'tr1-hira',    name: 'ひらがなの はね',        shape: 'feather',   colors: c('#FF6B9A', '#A8244F') },
+    { stage: 'kokugo1-2', id: 'tr1-kata',    name: 'かたかなの すず',        shape: 'bell',      colors: c('#8FD3FF', '#4FA3E0') },
+    { stage: 'kokugo1-3', id: 'tr1-yomi',    name: 'かん字の ほん',          shape: 'book',      colors: c('#3E9A6B', '#1E5A3C') },
+    { stage: 'kokugo1-4', id: 'tr1-kaki',    name: 'かん字の まきもの',      shape: 'scroll',    colors: c('#A96BE0', '#5A2D8A') },
+    { stage: 'kokugo1-5', id: 'tr1-kotoba',  name: 'ことばの きいろいし',    shape: 'gem',       colors: c('#FFD166', '#B8860B') }
   ];
 
   const byStage = {};
@@ -119,6 +137,12 @@ MQ.treasure = (function () {
     return Object.keys(t).filter(function (k) { return t[k] >= 2; }).length;
   }
   function total() { return list.length; }
+  // その ワールド（学年）の ステージに ついている たからものだけ（v2.2）
+  function listFor(world) {
+    const ids = {};
+    ((world && world.areas) || []).forEach(function (a) { a.stages.forEach(function (st) { ids[st.id] = true; }); });
+    return list.filter(function (t) { return ids[t.stage]; });
+  }
 
   /* =======================================================
      どうぐの わざ（v2.0）。形ごとに 1つ。
@@ -202,7 +226,7 @@ MQ.treasure = (function () {
   return {
     list: list, shapes: shapes, get: get, forStage: forStage,
     node: node, shadowNode: shadowNode, coinNode: coinNode,
-    countOwned: countOwned, countGold: countGold, total: total,
+    countOwned: countOwned, countGold: countGold, total: total, listFor: listFor,
     powers: POWERS, kindName: KIND_NAME, powerOf: powerOf, getPower: getPower, item: item, bagItems: bagItems
   };
 })();
