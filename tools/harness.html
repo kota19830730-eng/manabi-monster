@@ -76,6 +76,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/kokugo1.js"></script>
 <script src="../js/content/sansu2.js"></script>
 <script src="../js/content/kokugo2.js"></script>
+<script src="../js/content/terms.js"></script>
 <script src="../js/content/world3.js"></script>
 <script src="../js/ui/common.js"></script>
 <script src="../js/ui/look.js"></script>
@@ -288,6 +289,21 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode === 'dex') { fresh(); MQ.ui.dex.render('hero'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'treasure') { fresh(); MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'mons') { fresh(); MQ.ui.dex.render('mons'); MQ.ui.show('screen-dex'); return; }
+    // 学期（v2.6）：#term1 1学期に した 地図／#parent1 おうちの人ページ（1学期）
+    if (mode.indexOf('term1') === 0 || mode === 'parent1') {
+      fresh();
+      MQ.save.update(function (pl) { pl.term = 1; pl.units = {}; });
+      if (mode !== 'parent1') {
+        MQ.ui.goMap(); await wait(300); MQ.ui.map.paint();
+        const n = parseInt(mode.slice(6), 10);   // #term1:-1 で いちばん下
+        if (!isNaN(n)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n < 0 ? 99999 : n; }
+      }
+      else { MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); }
+      const open = [];
+      MQ.content.subjectAreas().forEach(function (a) { a.stages.forEach(function (st) { if (MQ.content.isAvailable(st)) open.push(st.id); }); });
+      say('term1 open: ' + open.join(' '));
+      return;
+    }
     if (mode === 'parent') { fresh(); MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'set') { fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'photo') { fresh(); MQ.ui.photo.render(); return; }

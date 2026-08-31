@@ -6,8 +6,11 @@
    エリア   ＝ 教科（算数の山・国語の森・理科社会の海・英語の空）
    ステージ ＝ 単元。算数は 日本文教出版『小学算数』3年の順。
 
-   算数の available: false は「まだ 学校で 習っていない」ステージ。
-   習ったら true にすると 開きます（問題は sansu3.js に 足す）。
+   算数の available: false は「問題が まだ ない」ステージ（じゅんびちゅう）。
+   問題を 作ったら true にする（sansu3.js に 足す）。
+   **学校で 習ったか** は v2.6 から 学期（js/content/terms.js）で 決まる：
+   isAvailable(st) ＝ available ＆ 学期で ならった ＆ 出せる 問題が 12問 いじょう。
+   リスト教科の 問題は 単元ごとに 出す／出さない を 切りかえる（terms.allowQ）。
 
    ★を エリアごとに 8こ あつめると「まなびの かけら」が もらえます。
    かけら4つで マップ中央の「さいごの塔」が 開きます。
@@ -68,7 +71,7 @@ MQ.content = (function () {
   function listStage(getList, areaId, stageNo, grade) {
     const g = grade || 3;
     return function make(n, opts) {
-      const all = getList().filter(function (q) { return q.stage === stageNo; });
+      const all = getList().filter(function (q) { return q.stage === stageNo && MQ.terms.allowQ(MQ.terms.current(), q, g); });
       let picked;
       if (opts && opts.boss) {
         const pool = bossPool(all);
@@ -120,7 +123,7 @@ MQ.content = (function () {
   function writeMixStage(getList, areaId, stageNo, grade) {
     const chooser = listStage(getList, areaId, stageNo, grade);
     return function make(n, opts) {
-      const all = getList().filter(function (q) { return q.stage === stageNo; });
+      const all = getList().filter(function (q) { return q.stage === stageNo && MQ.terms.allowQ(MQ.terms.current(), q, grade || 3); });
       const writes = all.map(function (q) { return writeQuestion(q, areaId, stageNo, grade); }).filter(Boolean);
       if (!writes.length) return chooser(n, opts);
       if (opts && opts.boss) {
@@ -161,9 +164,17 @@ MQ.content = (function () {
     };
   }
 
+  // いま 出せる 問題の 数（学期の チェックを 通った もの）。少なすぎる ステージは 地図で ロック
+  function listPool(getList, no, g) {
+    return function (pl) {
+      const who = pl || MQ.terms.current();
+      return getList().filter(function (q) { return q.stage === no && MQ.terms.allowQ(who, q, g); }).length;
+    };
+  }
+
   function stage(areaId, no, name, getList, grade) {
     const g = grade || 3;
-    return { id: areaId + g + '-' + no, no: no, name: name, available: true, make: listStage(getList, areaId, no, g) };
+    return { id: areaId + g + '-' + no, no: no, name: name, available: true, make: listStage(getList, areaId, no, g), pool: listPool(getList, no, g) };
   }
 
   const kokugo = function () { return MQ.kokugo3.questions; };
@@ -186,7 +197,7 @@ MQ.content = (function () {
   function openStagesOf(areaId) {
     const area = areaOf(areaId);
     if (!area) return [];
-    return area.stages.filter(function (st) { return st.available; });
+    return area.stages.filter(isAvailable);
   }
 
   function towerQuestion(slot) {
@@ -259,7 +270,7 @@ MQ.content = (function () {
         id: 'kokugo', name: '国語の森', short: '国語', color: 'var(--c-kokugo)', biome: 'forest',
         stages: [
           stage('kokugo', 1, 'かん字の 読み', kokugo),
-          { id: 'kokugo3-2', no: 2, name: 'かん字を 書く', available: true,
+          { id: 'kokugo3-2', no: 2, name: 'かん字を 書く', available: true, pool: listPool(kokugo, 2, 3),
             make: writeMixStage(kokugo, 'kokugo', 2) },
           stage('kokugo', 3, 'ことばの きまり', kokugo),
           stage('kokugo', 4, 'ことばの 意味', kokugo),
@@ -325,7 +336,7 @@ MQ.content = (function () {
           stage('kokugo', 1, 'ひらがな', kokugo1, 1),
           stage('kokugo', 2, 'かたかな', kokugo1, 1),
           stage('kokugo', 3, 'かん字の よみ', kokugo1, 1),
-          { id: 'kokugo1-4', no: 4, name: 'かん字を かく', available: true,
+          { id: 'kokugo1-4', no: 4, name: 'かん字を かく', available: true, pool: listPool(kokugo1, 4, 1),
             make: writeMixStage(kokugo1, 'kokugo', 4, 1) },
           stage('kokugo', 5, 'ことばの きまり', kokugo1, 1)
         ]
@@ -364,7 +375,7 @@ MQ.content = (function () {
         id: 'kokugo', name: 'こくごの もり', short: 'こくご', color: 'var(--c-kokugo)', biome: 'forest',
         stages: [
           stage('kokugo', 1, 'かん字の よみ', kokugo2, 2),
-          { id: 'kokugo2-2', no: 2, name: 'かん字を かく', available: true,
+          { id: 'kokugo2-2', no: 2, name: 'かん字を かく', available: true, pool: listPool(kokugo2, 2, 2),
             make: writeMixStage(kokugo2, 'kokugo', 2, 2) },
           stage('kokugo', 3, 'ことばの きまり', kokugo2, 2),
           stage('kokugo', 4, 'ことばの いみ', kokugo2, 2)
@@ -448,11 +459,16 @@ MQ.content = (function () {
     return n;
   }
 
-  function fragNeed() { return FRAG_STARS; }
+  // かけらに 必要な ★。学期で 開いている ステージが 少ない ときは ステージ×3（さいてい 3）
+  function fragNeed(area) {
+    if (!area) return FRAG_STARS;
+    const open = area.stages.filter(isAvailable).length;
+    return Math.max(3, Math.min(FRAG_STARS, open * 3));
+  }
 
   // かけらが もらえる 条件を みたしたか
   function fragReady(player, area) {
-    return starsIn(player, area) >= FRAG_STARS;
+    return starsIn(player, area) >= fragNeed(area);
   }
 
   function hasFrag(player, areaId) {
@@ -469,12 +485,43 @@ MQ.content = (function () {
     return fragCount(player) >= subjectAreas().length;
   }
 
-  // ステージが 開いているか：1つ前のステージで 星1つ以上（＋学校で習った）
+  /* ---- 学期（v2.6）：いま あそべる ステージか ---- */
+  const MIN_POOL = 12;   // 1回の たたかいに 出す ザコの 数ぶん
+  function isAvailable(st) {
+    if (!st) return false;
+    if (st.tower) return true;
+    if (!st.available) return false;                                   // 問題が まだ ない
+    if (!MQ.terms || !MQ.terms.stageLearned) return true;
+    if (!MQ.terms.stageLearned(MQ.terms.current(), st.id)) return false; // まだ ならって いない
+    if (st.pool && st.pool() < MIN_POOL) return false;                 // 出せる 問題が 少なすぎる
+    return true;
+  }
+  // 地図の「まだ」に 出す ことば
+  function lockedReason(st) {
+    if (!st) return '';
+    if (!st.available) return st.when ? st.when + 'ごろ' : 'じゅんびちゅう';
+    const term = MQ.terms ? MQ.terms.stageTerm(st.id) : 0;
+    if (term && !MQ.terms.stageLearned(MQ.terms.current(), st.id)) return MQ.terms.whenText(term);
+    // 単元で 閉じている ステージ：何学期に なれば 問題が そろうか（学期どおりに した ばあい）
+    if (st.pool) {
+      const now = MQ.terms.termOf(MQ.terms.current());
+      for (let t = Math.max(1, now + 1); t <= 3; t++) {
+        if (st.pool({ term: t, units: {} }) >= MIN_POOL) return MQ.terms.whenText(t);
+      }
+      if (st.pool({ term: 0, units: {} }) >= MIN_POOL) return MQ.terms.whenText(4);
+    }
+    return 'まだ ならって いない';
+  }
+
+  // ステージが 開いているか：1つ前の（開いている）ステージで 星1つ以上
   function isUnlocked(player, area, st) {
     if (st.tower) return towerOpen(player);
-    if (!st.available) return false;
-    if (st.no === 1) return true;
-    const prev = area.stages[st.no - 2];
+    if (!isAvailable(st)) return false;
+    // まえの ステージが 学期で 閉じている ときは、その前の 開いている ステージを 見る
+    let prev = null;
+    for (let i = area.stages.indexOf(st) - 1; i >= 0; i--) {
+      if (isAvailable(area.stages[i])) { prev = area.stages[i]; break; }
+    }
     if (!prev) return true;
     const stars = (player && player.stars && player.stars[prev.id]) || 0;
     return stars >= 1;
@@ -484,6 +531,7 @@ MQ.content = (function () {
     worlds: worlds, world: world, world3: world3, world1: world1, world2: world2, worldForGrade: worldForGrade,
     activeWorld: activeWorld, setActive: setActive, hasTower: hasTower,
     areaOf: areaOf, subjectAreas: subjectAreas, findStage: findStage, isUnlocked: isUnlocked,
+    isAvailable: isAvailable, lockedReason: lockedReason, MIN_POOL: MIN_POOL,
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,
     fragCount: fragCount, towerOpen: towerOpen,
     towerStage: towerStage, TOWER_ORDER: TOWER_ORDER

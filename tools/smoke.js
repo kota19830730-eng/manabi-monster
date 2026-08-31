@@ -49,7 +49,7 @@ function load(rel) {
  'js/core/save.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
  'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
- 'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/world3.js'].forEach(load);
+ 'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/terms.js', 'js/content/world3.js'].forEach(load);
 
 const MQ = global.MQ;
 const TYPES = ['number', 'choice', 'divrem', 'roma', 'write'];
@@ -1068,6 +1068,67 @@ const bgmErrs = MQ.bgm.validate();
 check(bgmErrs.length === 0, 'BGM の 曲データ' + (bgmErrs.length ? '：' + bgmErrs.join(' / ') : ''));
 console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
 check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょうごうが 入る');
+
+/* ---- 学期（v2.6）：ならった 単元だけ 出る ---- */
+(function () {
+  const T = MQ.terms;
+  // 小3 リスト教科の unit は ぜんぶ 表に ある
+  [['kokugo', MQ.kokugo3.questions], ['rikashakai', MQ.rikashakai3.questions], ['eigo', MQ.eigo3.questions]].forEach(function (pair) {
+    const seen = {};
+    pair[1].forEach(function (q) { seen[q.unit] = 1; });
+    Object.keys(seen).forEach(function (u) { check(!!T.unitEntryOf(u, 3), '学期の 表に ない 単元: ' + pair[0] + ' ' + u); });
+  });
+  const g3 = MQ.content.world('g3');
+  MQ.content.setActive(g3);
+  const rs = MQ.content.areaOf('rikashakai').stages;
+  const ks = MQ.content.areaOf('kokugo').stages;
+  const es = MQ.content.areaOf('eigo').stages;
+  const ss = MQ.content.areaOf('sansu').stages;
+  // ぜんぶ（いままで どおり）
+  T.forcePlayer({ grade: 3, term: 0, units: {} });
+  check(rs.every(MQ.content.isAvailable) && es.every(MQ.content.isAvailable) && ks.every(MQ.content.isAvailable), 'ぜんぶ: 小3の リスト教科は 全ステージ 開く');
+  check(MQ.content.fragNeed(MQ.content.areaOf('rikashakai')) === 8, 'ぜんぶ: かけらは ★8');
+  // 1学期
+  T.forcePlayer({ grade: 3, term: 1, units: {} });
+  check(MQ.content.isAvailable(rs[0]) && !MQ.content.isAvailable(rs[1]) && MQ.content.isAvailable(rs[2]) && !MQ.content.isAvailable(rs[3]), '1学期の 理社: 1・3 だけ 開く');
+  check(MQ.content.isAvailable(ks[0]) && MQ.content.isAvailable(ks[1]) && MQ.content.isAvailable(ks[2]) && !MQ.content.isAvailable(ks[3]) && !MQ.content.isAvailable(ks[4]), '1学期の 国語: 1・2・3 だけ 開く');
+  check(MQ.content.isAvailable(es[0]) && MQ.content.isAvailable(es[1]) && !MQ.content.isAvailable(es[2]) && !MQ.content.isAvailable(es[3]), '1学期の 英語: 1・2 だけ 開く');
+  check(ss.slice(0, 6).every(MQ.content.isAvailable) && !MQ.content.isAvailable(ss[6]), '1学期の 算数: 1〜6');
+  check(MQ.content.isUnlocked({ stars: { 'rikashakai3-1': 1 } }, MQ.content.areaOf('rikashakai'), rs[2]), '1学期: 理社2が 閉じていても 1の ★で 3が 開く');
+  check(!MQ.content.isUnlocked({ stars: {} }, MQ.content.areaOf('rikashakai'), rs[2]), '1学期: 理社1の ★が ないと 3は 開かない');
+  check(MQ.content.fragNeed(MQ.content.areaOf('rikashakai')) === 6, '1学期: 理社の かけらは ★6（2ステージ×3）: ' + MQ.content.fragNeed(MQ.content.areaOf('rikashakai')));
+  for (let i = 0; i < 60; i++) {
+    [rs[0], rs[2], ks[2], es[0], es[1]].forEach(function (st) {
+      st.make(12, {}).concat(st.make(3, { boss: true })).forEach(function (q) {
+        const e = T.unitEntryOf(q.unit, 3);
+        check(!e || e.term <= 1, '1学期に 先の 単元が 出た: ' + st.id + ' ' + q.unit);
+      });
+    });
+  }
+  // 塔も ならった ところだけ
+  for (let i = 0; i < 30; i++) MQ.content.towerStage.make(5, { index: i }).forEach(function (q) {
+    const u = String(q.unit).replace(/^さいごの もんだい ・ [^ ]+ ?/, '');
+    const e = T.unitEntryOf(u, 3);
+    check(!e || e.term <= 1, '1学期の 塔に 先の 単元が 出た: ' + q.unit);
+  });
+  // 2学期：理社2（風とゴム＋太陽とかげ＋光＋音）が 開く。3学期の じしゃくは 出ない
+  T.forcePlayer({ grade: 3, term: 2, units: {} });
+  check(MQ.content.isAvailable(rs[1]) && MQ.content.isAvailable(ks[4]) && MQ.content.isAvailable(es[2]) && !MQ.content.isAvailable(es[3]), '2学期: 理社2・ローマ字・英語3 が 開く。英語4（小4）は 閉じる');
+  for (let i = 0; i < 40; i++) rs[1].make(12, {}).forEach(function (q) { check(T.unitEntryOf(q.unit, 3).term <= 2, '2学期に 3学期の 単元: ' + q.unit); });
+  // 単元の 上書き：1学期でも「理科：電気」を ならった ことに できる／逆に こん虫を 外せる
+  T.forcePlayer({ grade: 3, term: 1, units: { 'unit:理科／こん虫': false } });
+  check(!MQ.content.isAvailable(rs[0]), '上書き: こん虫を 外すと 理社1は 閉じる（植物だけでは 少ない）');
+  T.forcePlayer({ grade: 3, term: 0, units: { 'unit:曜日': false, 'unit:月': false, 'unit:天気': false, 'unit:季節': false } });
+  check(!MQ.content.isAvailable(es[3]), '上書き: ぜんぶ でも 英語4の 単元を 外せば 閉じる');
+  // おうちの人ページの 一覧
+  const en = T.entries(3);
+  check(en.length >= 60, '小3の 単元一覧: ' + en.length);
+  check(en.filter(function (e) { return e.kind === 'stage' && e.area === 'sansu'; }).length === 18, '算数の 単元は 18');
+  check(T.entries(1).length === 17 && T.entries(2).length === 18, '小1・小2の 単元一覧: ' + T.entries(1).length + ' / ' + T.entries(2).length);
+  // 古い セーブ
+  T.forcePlayer(null);
+  MQ.content.setActive(null);
+})();
 
 console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
 process.exit(failures ? 1 : 0);

@@ -45,8 +45,11 @@ MQ.ui.result = (function () {
     const f = MQ.content.findStage(stage.id);
     if (!f || stage.tower) return null;
     const list = f.area.stages;
-    const nx = list[list.indexOf(f.stage) + 1];
-    if (!nx || !nx.available) return null;
+    // 学期で 閉じている ステージは とばして、つぎに 開いている ものを さがす
+    let i = list.indexOf(f.stage) + 1;
+    while (i < list.length && !MQ.content.isAvailable(list[i])) i++;
+    const nx = list[i];
+    if (!nx) return null;
     if (!MQ.content.isUnlocked(player, f.area, nx)) return null;
     return nx;
   }

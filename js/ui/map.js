@@ -47,15 +47,13 @@ MQ.ui.map = (function () {
     let riverY = null;
 
     areas.forEach(function (area, ai) {
-      const open = area.stages.filter(function (st) { return st.available; });
+      const open = area.stages.filter(function (st) { return MQ.content.isAvailable(st); });
       const locked = area.stages.length - open.length;
 
-      const items = open.map(function (st) { return { stage: st }; });
+      const items = open.map(function (st, i) { return { stage: st, idx: i + 1 }; });   // 番号は 開いている じゅんに 1・2・3…
       if (locked > 0) {
-        items.push({
-          fog: true, count: locked,
-          when: area.stages[open.length] ? area.stages[open.length].when : ''
-        });
+        const firstLocked = area.stages.filter(function (st) { return !MQ.content.isAvailable(st); })[0];
+        items.push({ fog: true, count: locked, when: MQ.content.lockedReason(firstLocked) });
       }
 
       const rows = Math.max(1, Math.ceil(items.length / COL_X.length));
@@ -313,7 +311,7 @@ MQ.ui.map = (function () {
 
       /* ---- ゾーン見出し（ノードの 行の 上の 余白に おく） ---- */
       const stars = MQ.content.starsIn(player, b.area);
-      const need = MQ.content.fragNeed();
+      const need = MQ.content.fragNeed(b.area);
       const got = MQ.content.hasFrag(player, b.area.id);
       layer.appendChild(h('div', {
         class: 'biome', style: { top: b.pillY + 'px' }
@@ -330,7 +328,8 @@ MQ.ui.map = (function () {
             style: { left: n.xPct + '%', top: n.y + 'px' }
           }, [
             h('span', { class: 'node__dot', text: '?' }),
-            h('span', { class: 'node__soon', text: 'あと ' + n.count + 'こ' })
+            h('span', { class: 'node__soon', text: 'あと ' + n.count + 'こ' }),
+            n.when ? h('span', { class: 'node__name', text: n.when }) : null
           ]));
           return;
         }
@@ -344,7 +343,7 @@ MQ.ui.map = (function () {
         else if (isNow) cls += ' node--now';
         else if (sc) cls += ' node--clear';
 
-        const dot = h('span', { class: 'node__dot', text: unlocked ? String(st.no) : '?' });
+        const dot = h('span', { class: 'node__dot', text: unlocked ? String(n.idx || st.no) : '?' });
         if (isNow) dot.appendChild(h('span', { class: 'node__here', text: 'いま ここ' }));
 
         layer.appendChild(h('button', {
@@ -414,7 +413,7 @@ MQ.ui.map = (function () {
     const open = [];
     MQ.content.subjectAreas().forEach(function (area) {
       area.stages.forEach(function (st) {
-        if (st.available && MQ.content.isUnlocked(player, area, st)) open.push({ area: area, stage: st });
+        if (MQ.content.isAvailable(st) && MQ.content.isUnlocked(player, area, st)) open.push({ area: area, stage: st });
       });
     });
     if (!open.length) { MQ.ui.toast('まずは ふつうに あそんでみよう'); return; }

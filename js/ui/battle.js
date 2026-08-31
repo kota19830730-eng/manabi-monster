@@ -173,7 +173,7 @@ MQ.ui.battle = (function () {
     } else {
       const escaped = MQ.util.shuffle(MQ.save.escapedIn(player, ctx.area.id)).slice(0, REVENGE_MAX);
       // 開いている ステージの 中で 何番目か → むずかしさ（0=最初 1=最後）
-      const opened = ctx.area.stages.filter(function (st) { return st.available; });
+      const opened = ctx.area.stages.filter(function (st) { return MQ.content.isAvailable(st); });
       const hard = opened.length > 1 ? Math.max(0, opened.indexOf(found.stage)) / (opened.length - 1) : 0.5;
       const enemies = MQ.enemies.pickIds(ctx.area.id, MOBS, hard);
       let rareId = null;

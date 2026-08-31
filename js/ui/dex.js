@@ -353,6 +353,7 @@ MQ.ui.dex = (function () {
     });
 
     return h('div', {}, [
+      termsSection(player),
       h('h2', { class: 'label', text: 'たんげんごとの できぐあい（じぶんの さいこう記ろく）' }),
       rows.length ? h('div', { class: 'parent' }, rows) : h('p', { class: 'note', text: 'まだ 記ろくが ありません。' }),
       h('h2', { class: 'label', text: 'いま つまずいている 問題（' + weak.length + '）' }),
@@ -363,6 +364,58 @@ MQ.ui.dex = (function () {
       log.length ? h('div', { class: 'plog' }, log) : h('p', { class: 'note', text: 'まだ ありません。' }),
       h('p', { class: 'note', style: { marginTop: '14px' }, text: 'この ページの 内よう は この タブレットの 中だけに あります。ほかの 子と くらべる 機能は ありません。' })
     ]);
+  }
+
+  /* =======================================================
+     学校で ならった ところ（v2.6・おうちの人が 決める）
+       学期ボタン（1〜3・ぜんぶ）＋ 単元ごとの チェック。表は js/content/terms.js
+     ======================================================= */
+  function termsSection(player) {
+    const grade = player.grade || 3;
+    const term = MQ.terms.termOf(player);
+    const btns = h('div', { class: 'termrow' }, [[1, '1学期まで'], [2, '2学期まで'], [3, '3学期まで'], [0, 'ぜんぶ']].map(function (t) {
+      return h('button', {
+        class: 'chip' + (term === t[0] ? ' is-on' : ''), type: 'button', text: t[1],
+        onclick: function () {
+          MQ.sfx.tap();
+          MQ.save.update(function (pl) { pl.term = t[0]; pl.units = {}; });
+          MQ.ui.toast(t[0] ? t[1] + ' ならった ところだけ 出します' : 'ぜんぶの 問題を 出します');
+          render('parent');
+        }
+      });
+    }));
+    const groups = {};
+    MQ.content.subjectAreas().forEach(function (a) { groups[a.id] = { name: a.name, items: [] }; });
+    MQ.terms.entries(grade).forEach(function (e) { if (groups[e.area]) groups[e.area].items.push(e); });
+    Object.keys(groups).forEach(function (id) { groups[id].items.sort(function (a, b) { return a.term - b.term; }); });   // 1学期 → 3学期 → 小4
+    const lists = Object.keys(groups).map(function (id) {
+      const g = groups[id];
+      if (!g.items.length) return null;
+      return h('div', { class: 'ulist' }, [
+        h('h3', { class: 'ulist__name', text: g.name }),
+        h('div', { class: 'ulist__grid' }, g.items.map(function (e) {
+          const on = e.ready && MQ.terms.learned(player, e.key);
+          return h('button', {
+            class: 'unit' + (on ? ' is-on' : '') + (e.ready ? '' : ' unit--soon'), type: 'button',
+            onclick: function () {
+              if (!e.ready) { MQ.sfx.tap(); MQ.ui.toast('この 単元の 問題は じゅんびちゅう です'); return; }
+              MQ.sfx.tap();
+              MQ.save.update(function (pl) { pl.units = pl.units || {}; pl.units[e.key] = !on; });
+              render('parent');
+            }
+          }, [
+            h('span', { class: 'unit__mark', text: on ? '✓' : '' }),
+            h('span', { class: 'unit__name', text: e.name }),
+            h('span', { class: 'unit__term', text: e.ready ? MQ.terms.TERM_NAMES[e.term] : 'じゅんびちゅう' })
+          ]);
+        }))
+      ]);
+    });
+    return h('div', { class: 'terms' }, [
+      h('h2', { class: 'label', text: '学校で ならった ところ' }),
+      h('p', { class: 'note', text: 'チェックの ある 単元の 問題だけ 出ます。学期を えらぶと 教科書の じゅんに そろい、単元を 押すと 1つずつ 変えられます（学校の 進み方に 合わせて）。' }),
+      btns
+    ].concat(lists));
   }
 
   /* =======================================================

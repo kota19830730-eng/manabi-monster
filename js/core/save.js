@@ -53,6 +53,9 @@ MQ.save = (function () {
     });
     // がくねん（1〜6）。古い セーブは 小3
     if (typeof p.grade !== 'number' || p.grade < 1 || p.grade > 6) p.grade = 3;
+    // 学期（v2.6）：0 = ぜんぶ／1〜3 = その学期まで。units は 単元ごとの 上書き
+    if ([0, 1, 2, 3].indexOf(p.term) === -1) p.term = 0;
+    if (!p.units || typeof p.units !== 'object' || Array.isArray(p.units)) p.units = {};
     if (!Array.isArray(p.gear)) p.gear = [];
     if (!Array.isArray(p.titles)) p.titles = ['t-minarai'];
     if (!p.title) p.title = 't-minarai';

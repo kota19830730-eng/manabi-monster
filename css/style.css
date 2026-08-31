@@ -1583,6 +1583,21 @@ body {
 .plog__row { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.08); font-size: 13px; }
 .plog__at { flex: none; color: var(--tx-sub); font-size: 12px; }
 .parent { font-size: 14px; }
+/* 学校で ならった ところ（v2.6・おうちの人ページ） */
+.terms { margin-bottom: 18px; }
+.termrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.termrow .chip { min-height: 40px; padding: 0 12px; font-size: 14px; }
+.ulist { margin: 10px 0 4px; }
+.ulist__name { margin: 0 0 6px; font-family: var(--f-head); font-size: 15px; color: var(--gold-lt); }
+.ulist__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.unit { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 4px 8px; border: 0; border-radius: 10px; background: rgba(255,255,255,.08); color: #c6d2ee; font-family: var(--f-body); font-size: 13px; line-height: 1.2; text-align: left; cursor: pointer; }
+.unit.is-on { background: rgba(124,249,196,.14); color: #eafff5; box-shadow: inset 0 0 0 2px rgba(124,249,196,.55); }
+.unit--soon { opacity: .45; }
+.unit__mark { flex: none; width: 18px; height: 18px; border-radius: 5px; background: rgba(255,255,255,.12); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; }
+.unit.is-on .unit__mark { background: var(--grn-1); }
+.unit__name { flex: 1; }
+.unit__term { flex: none; font-size: 11px; color: #93a0c4; }
+.unit.is-on .unit__term { color: #9fe9c4; }
 .file { display: none; }
 .slider { width: 100%; accent-color: var(--gold); }
 
