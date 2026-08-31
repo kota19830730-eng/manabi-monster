@@ -359,7 +359,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     xp: 999999, dex: dex, stars: stars, treasure: tr, coins: 50, battles: 40, defeated: 600,
     frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true },
     best: { 'sansu3-1': { correct: 13, total: 13, time: 100 } },
-    fastCount: 9, bestCombo: 14, itemUses: 12, custom: [{ id: 'c1' }]
+    fastCount: 9, bestCombo: 18, itemUses: 12, custom: [{ id: 'c1' }]
   };
   const gotAll = MQ.hero.checkTitles(rich);
   check(gotAll.length === MQ.hero.titles.length, 'ぜんぶ そろえば ぜんぶ もらえる: ' + gotAll.length + ' / ' + MQ.hero.titles.length);

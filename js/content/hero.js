@@ -739,6 +739,7 @@ MQ.hero = (function () {
     { id: 't-star30',    name: 'ほしの チャンピオン',    how: '★を 30こ あつめる',         test: function (p) { return starSum(p) >= 30; } },
     { id: 't-pika5',     name: 'ぴかぴか コレクター',    how: 'ぴかぴかを 5こ あつめる',    test: function (p) { return goldCount(p) >= 5; } },
     { id: 't-meteo',     name: 'メテオ つかい',          how: '12コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 12; } },
+    { id: 't-bigbang',   name: 'ぎんがの ゆうしゃ',      how: '16コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 16; } },
     { id: 't-frag',      name: 'かけらの もちぬし',      how: 'かけらを 4つ あつめる',      test: function (p) { return Object.keys(p.frags || {}).length >= 4; } },
     { id: 't-hikari',    name: 'ひかりの けんし',        how: 'Lv15',                     test: function (p) { return levelOf(p.xp) >= 15; } },
     { id: 't-tr20',      name: 'たからの もちぬし',      how: 'たからものを 20こ あつめる',  test: function (p) { return treasureCount(p) >= 20; } },

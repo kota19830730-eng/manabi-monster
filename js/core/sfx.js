@@ -63,6 +63,33 @@ MQ.sfx = (function () {
     src.start(t0);
   }
 
+  // ノイズの 高さを 動かす（風の ヒュー・すいこむ音・落ちてくる音）
+  function sweep(dur, vol, delay, fFrom, fTo, type) {
+    const c = context();
+    if (!c || !enabled) return;
+    const t0 = c.currentTime + (delay || 0);
+    const length = Math.floor(c.sampleRate * dur);
+    const buffer = c.createBuffer(1, length, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buffer;
+    const filter = c.createBiquadFilter();
+    filter.type = type || 'bandpass';
+    filter.Q.value = 1.2;
+    filter.frequency.setValueAtTime(fFrom, t0);
+    filter.frequency.exponentialRampToValueAtTime(fTo, t0 + dur);
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(vol || 0.3, t0 + Math.min(0.05, dur / 3));
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(c.destination);
+    src.start(t0);
+    src.stop(t0 + dur + 0.05);
+  }
+
   return {
     unlock:     function () { context(); },
     setEnabled: function (on) { enabled = !!on; },
@@ -112,37 +139,86 @@ MQ.sfx = (function () {
       base.forEach(function (f, i) { tone(f, i === base.length - 1 ? 0.45 : 0.09, 'square', 0.15, i * 0.06); });
       tone(110, 0.3, 'sawtooth', 0.2, 0, 55);
     },
-    /* ひっさつわざ。コンボが つづくほど 音も はでに なる
-       1 = ほのお ギリ／2 = いなずま おとし／3 = ひかりの メテオ */
-    special: function (level) {
+    /* ひっさつわざ（v2.5）。level＝1〜4（コンボの だんかい）、id＝わざの 名前
+       1 = 教科の わざ（fire ほのお／leaf はっぱ／ice こおり／wind かぜ）
+       2 = いなずま おとし／3 = ひかりの メテオ／4 = ぎんがの ビッグバン */
+    special: function (level, id) {
       const lv = level || 1;
-      if (lv >= 3) {
-        // メテオ：上がっていく 音 → 大きな ばくはつ
-        [1047, 1319, 1568, 1976, 2349, 2794, 3136].forEach(function (f, i) {
-          tone(f, 0.09, 'square', 0.15, i * 0.045);
-        });
-        noise(0.9, 0.5, 0.34, 700);
-        tone(3520, 0.7, 'square', 0.16, 0.34);
-        tone(70, 1.0, 'sawtooth', 0.26, 0.34, 32);
-        noise(0.5, 0.2, 0.5, 7000, 'highpass');
+      if (lv >= 4) {
+        // ビッグバン：すいこむ（下がる ヒュー）→ 一しゅん しずか → 大ばくはつ＋わおん → 虹の アルペジオ → エコー
+        sweep(0.5, 0.35, 0, 3000, 120, 'bandpass');
+        tone(1400, 0.5, 'sawtooth', 0.12, 0, 60);
+        [2093, 1760, 1568, 1319].forEach(function (f, i) { tone(f, 0.08, 'triangle', 0.1, i * 0.1); });
+        noise(1.6, 0.6, 0.56, 500);
+        tone(55, 1.4, 'sawtooth', 0.3, 0.56, 22);
+        [523, 659, 784, 1047, 1319, 1568].forEach(function (f) { tone(f, 0.9, 'square', 0.07, 0.56); });
+        [1047, 1319, 1568, 2093, 2637, 3136, 3520, 3136, 2637, 2093, 1568, 1319].forEach(function (f, i) { tone(f, 0.1, 'square', 0.13, 0.62 + i * 0.055); });
+        noise(0.8, 0.28, 1.15, 400);
+        noise(0.5, 0.15, 1.3, 8000, 'highpass');
+        return;
+      }
+      if (lv === 3) {
+        // メテオ：上がっていく 音 → 落ちてくる ヒュー → 大ばくはつ＋わおん → きらきら
+        [1047, 1319, 1568, 1976, 2349, 2794, 3136].forEach(function (f, i) { tone(f, 0.09, 'square', 0.15, i * 0.045); });
+        tone(2600, 0.32, 'triangle', 0.14, 0.18, 300);
+        sweep(0.32, 0.22, 0.18, 4000, 400, 'bandpass');
+        noise(1.1, 0.55, 0.42, 600);
+        tone(3520, 0.6, 'square', 0.15, 0.42);
+        tone(60, 1.1, 'sawtooth', 0.28, 0.42, 26);
+        [523, 659, 784, 1047].forEach(function (f) { tone(f, 0.5, 'square', 0.08, 0.44); });
+        noise(0.5, 0.2, 0.6, 7000, 'highpass');
+        [2093, 2637, 3136, 4186].forEach(function (f, i) { tone(f, 0.12, 'square', 0.1, 0.8 + i * 0.07); });
         return;
       }
       if (lv === 2) {
-        // かみなり：するどい パリッ → ゴロゴロ
-        noise(0.14, 0.5, 0, 9000, 'highpass');
-        tone(3136, 0.1, 'square', 0.2);
-        tone(2349, 0.16, 'square', 0.18, 0.07, 1175);
-        noise(0.7, 0.34, 0.1, 420);
-        tone(90, 0.7, 'sawtooth', 0.22, 0.08, 44);
+        // かみなり：チッチッ（ため）→ バリッ！→ ゴロゴロ → もう1発
+        tone(3520, 0.04, 'square', 0.12, 0);
+        tone(3520, 0.04, 'square', 0.12, 0.08);
+        noise(0.16, 0.55, 0.14, 9000, 'highpass');
+        tone(3136, 0.12, 'square', 0.22, 0.14);
+        tone(2349, 0.18, 'square', 0.2, 0.2, 1175);
+        noise(1.0, 0.4, 0.22, 380);
+        tone(90, 0.9, 'sawtooth', 0.26, 0.22, 40);
+        noise(0.1, 0.35, 0.5, 9000, 'highpass');
+        tone(2794, 0.1, 'square', 0.16, 0.5, 1400);
         return;
       }
-      // ほのお：ゴォッと もえる 音 ＋ 斬撃
-      noise(0.55, 0.45, 0, 900);
-      noise(0.3, 0.2, 0.08, 2600, 'bandpass');
+      if (id === 'ice') {
+        // こおり：キラキラ → シュッ → パリーン（われる）
+        [2093, 2637, 3136, 3951].forEach(function (f, i) { tone(f, 0.1, 'triangle', 0.14, i * 0.05); });
+        sweep(0.3, 0.25, 0.1, 1500, 6000, 'bandpass');
+        for (let i = 0; i < 4; i++) noise(0.06, 0.3, 0.34 + i * 0.05, 7000, 'highpass');
+        [4186, 3520, 4699, 3136].forEach(function (f, i) { tone(f, 0.12, 'triangle', 0.14, 0.34 + i * 0.05); });
+        tone(90, 0.5, 'sawtooth', 0.2, 0.34, 45);
+        return;
+      }
+      if (id === 'leaf') {
+        // はっぱ：ヒュルル（風）→ サササッ（はっぱ）→ ザシュッ
+        sweep(0.45, 0.3, 0, 600, 3200, 'bandpass');
+        for (let i = 0; i < 6; i++) noise(0.05, 0.22, 0.1 + i * 0.06, 3000, 'bandpass');
+        tone(2093, 0.1, 'square', 0.16, 0.36);
+        tone(2637, 0.3, 'square', 0.14, 0.44);
+        tone(100, 0.45, 'sawtooth', 0.18, 0.4, 50);
+        return;
+      }
+      if (id === 'wind') {
+        // かぜ：ゴオオ（うずまく）→ ピュー（高くなる）→ ドン
+        sweep(0.7, 0.4, 0, 300, 2400, 'bandpass');
+        tone(600, 0.6, 'triangle', 0.1, 0.05, 2400);
+        for (let i = 0; i < 5; i++) noise(0.08, 0.2, 0.15 + i * 0.09, 1200, 'bandpass');
+        noise(0.5, 0.35, 0.55, 700);
+        tone(80, 0.5, 'sawtooth', 0.22, 0.55, 40);
+        return;
+      }
+      // ほのお：ゴォッと もえる 音 → ザシュッ ザシュッ → ボワッ
+      noise(0.7, 0.5, 0, 900);
+      noise(0.35, 0.22, 0.08, 2600, 'bandpass');
       tone(2093, 0.12, 'square', 0.18);
       tone(2637, 0.12, 'square', 0.18, 0.09);
       tone(3136, 0.42, 'square', 0.15, 0.18);
-      tone(80, 0.6, 'sawtooth', 0.22, 0.1, 40);
+      noise(0.12, 0.3, 0.3, 4000, 'bandpass');
+      tone(80, 0.7, 'sawtooth', 0.24, 0.1, 36);
+      noise(0.5, 0.3, 0.45, 500);
     },
     // どうぐを 使った（atk＝ゴゥッ／def＝キィン／wis＝ポロン／luck＝チャリン）
     item: function (kind) {

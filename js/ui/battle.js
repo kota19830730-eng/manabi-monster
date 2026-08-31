@@ -26,6 +26,7 @@ MQ.ui.battle = (function () {
   let div = { q: '', r: '', active: 'q' };
   let bossOnScreen = false;
   let fxTimer = null;
+  let quakeTimer = null;
   let writeState = 'draw';     // かん字を 書く問題： 'draw' → 'check'
   let leftSec = 0;
 
@@ -105,6 +106,7 @@ MQ.ui.battle = (function () {
         d.hint = h('div', { class: 'hintbox', hidden: true }),
         d.feedback = h('p', { class: 'feedback', role: 'status' })
       ]),
+      d.fxs = h('div', { class: 'fxscreen' }),   // ひっさつの 画面ぜんたいの 演出（v2.5）
       // アイテム（v2.0）：画面ぜんたいに かぶせる モーダル（紺の カード＋金わく＋金の バナー）
       d.bag = h('div', { class: 'bag', hidden: true, onclick: function (e) { if (e.target === d.bag) closeBag(); } }, [
         h('div', { class: 'bagcard' }, [
@@ -548,7 +550,7 @@ MQ.ui.battle = (function () {
   function chargeNote(combo) {
     const sp = specialOf(combo);
     if (sp) return 'つぎの 正解で ' + sp.name;
-    const next = SPECIALS[SPECIALS.length - 1].min;
+    const next = TIER1_MIN;
     return 'ひっさつまで あと ' + Math.max(0, next - combo) + '！';
   }
 
@@ -851,7 +853,8 @@ MQ.ui.battle = (function () {
     /* ---- ザコを たおした ---- */
     if (res.outcome === 'correct') {
       markChoices(q, value);
-      attack(res.crit, false, specialOf(res.combo));
+      const spc = specialOf(res.combo);
+      attack(res.crit, false, spc);
       if (res.burst) burstHit();
       popDamage('+' + res.xp, res.crit || res.rare || !!res.multi || !!res.burst);
       comboShow(res.combo);
@@ -867,7 +870,7 @@ MQ.ui.battle = (function () {
           + (res.coins ? '　コイン ＋' + res.coins : '');
       }
       ok(res.note);
-      wait(res.multi ? 2200 : 1700, advance);
+      wait((res.multi ? 2200 : 1700) + (spc ? Math.max(0, spc.ms - 1100) : 0), advance);   // 大きな わざは 見おわるまで まつ
       return;
     }
 
@@ -1108,40 +1111,83 @@ MQ.ui.battle = (function () {
   }
 
   /* =======================================================
-     ひっさつわざ（コンボが つづくほど はでに なる）
+     ひっさつわざ（v2.5：7しゅるい。コンボが つづくほど はでに なる）
 
-       5〜7 コンボ … ほのお ギリ！   （オレンジの 炎）
-       8〜11コンボ … いなずま おとし！（青白い かみなり）
-      12 コンボ〜  … ひかりの メテオ！（金の いん石）
+       5〜7 コンボ … 教科の わざ（その問題の 教科で 変わる。塔では 問題ごと）
+                      算数＝ほのお ギリ／国語＝はっぱ カッター／
+                      理科社会＝こおりの やいば／英語＝かぜの たつまき
+       8〜11コンボ … いなずま おとし！（青白い かみなり・2本）
+      12〜15コンボ … ひかりの メテオ！（金の いん石 5つ）
+      16 コンボ〜  … ぎんがの ビッグバン！（すいこんで 虹色の 大ばくはつ）
 
      絵は ぜんぶ CSS の 四角。画像ファイルは 使いません。
+     ・敵の まわりの 絵 …… d.fx（.fx・アリーナの 中）
+     ・画面ぜんたいの 演出 … d.fxs（.fxscreen：色の 光・集中線・しょうげきの わ）
+     ・画面の ゆれ ………… d.root に is-quake-1〜4（コンボが 高いほど 大きく 長く）
+     ・敵の ふっとび ……… is-blast / is-blast-big / is-blast-max
      ======================================================= */
+  const TIER1_MIN = 5;
   const SPECIALS = [
-    { min: 12, id: 'star', name: 'ひかりの メテオ！', ms: 1250, sfx: 3 },
-    { min: 8,  id: 'bolt', name: 'いなずま おとし！', ms: 1050, sfx: 2 },
-    { min: 5,  id: 'fire', name: 'ほのお ギリ！',     ms: 900,  sfx: 1 }
+    { min: 16, tier: 4, id: 'nova', name: 'ぎんがの ビッグバン！', ms: 1900 },
+    { min: 12, tier: 3, id: 'star', name: 'ひかりの メテオ！',     ms: 1350 },
+    { min: 8,  tier: 2, id: 'bolt', name: 'いなずま おとし！',     ms: 1100 }
   ];
+  // 5〜7 コンボの わざ（教科ごと）
+  const ELEMENTS = {
+    fire: { min: 5, tier: 1, id: 'fire', name: 'ほのお ギリ！',     ms: 950 },
+    leaf: { min: 5, tier: 1, id: 'leaf', name: 'はっぱ カッター！', ms: 950 },
+    ice:  { min: 5, tier: 1, id: 'ice',  name: 'こおりの やいば！', ms: 1000 },
+    wind: { min: 5, tier: 1, id: 'wind', name: 'かぜの たつまき！', ms: 1000 }
+  };
+  // 主人公の オーラと コンボの 色
+  const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff' };
+  const NOVA_COLORS = ['#ff5e7a', '#ffd447', '#7cf9c4', '#4fd3ff', '#c48bff', '#ffffff'];
 
+  function elementOf(areaId) {
+    const a = String(areaId || '');
+    if (a.indexOf('kokugo') === 0) return 'leaf';
+    if (a.indexOf('rika') === 0) return 'ice';
+    if (a.indexOf('eigo') === 0) return 'wind';
+    return 'fire';
+  }
+  // いまの 問題の 教科の わざ（塔では 問題ごとに 教科が 変わる）
+  function currentElement() {
+    const q = MQ.battle.current ? MQ.battle.current() : null;
+    const area = (q && q.areaId) || (ctx && ctx.area && ctx.area.id) || '';
+    return elementOf(area);
+  }
   function specialOf(combo) {
     for (let i = 0; i < SPECIALS.length; i++) if (combo >= SPECIALS[i].min) return SPECIALS[i];
+    if (combo >= TIER1_MIN) return ELEMENTS[currentElement()];
     return null;
   }
+  function specialById(id) {
+    if (ELEMENTS[id]) return ELEMENTS[id];
+    for (let i = 0; i < SPECIALS.length; i++) if (SPECIALS[i].id === id) return SPECIALS[i];
+    return SPECIALS[0];
+  }
 
-  // つぶつぶ（火の粉・電気・きらきら）を n個 作る
-  function sparks(n, cls, spread) {
-    const box = h('span', { class: 'fx__sparks ' + cls });
+  // つぶつぶ（火の粉・電気・きらきら）を n個 作る。
+  // opts: delay（何秒 あとから）／dur（長さ）／colors（色を 順に）／inward（外から 中へ すいこむ）
+  function sparks(n, cls, spread, opts) {
+    opts = opts || {};
+    const box = h('span', { class: 'fx__sparks ' + cls + (opts.inward ? ' fx__sparks--in' : '') });
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + (i % 3) * 0.4;
       const r = spread * (0.55 + ((i * 7) % 5) / 8);
-      box.appendChild(h('i', {
-        style: {
-          '--x': Math.round(Math.cos(a) * r) + 'px',
-          '--y': Math.round(Math.sin(a) * r - 14) + 'px',
-          width: (4 + (i % 3) * 2) + 'px',
-          height: (4 + (i % 3) * 2) + 'px',
-          animationDelay: (i % 4) * 0.05 + 's'
-        }
-      }));
+      const st = {
+        '--x': Math.round(Math.cos(a) * r) + 'px',
+        '--y': Math.round(Math.sin(a) * r - 14) + 'px',
+        width: (4 + (i % 3) * 2) + 'px',
+        height: (4 + (i % 3) * 2) + 'px',
+        animationDelay: ((i % 4) * 0.05 + (opts.delay || 0)) + 's'
+      };
+      if (opts.colors) {
+        const c = opts.colors[i % opts.colors.length];
+        st.background = c; st.boxShadow = '0 0 8px ' + c;
+      }
+      if (opts.dur) st.animationDuration = opts.dur + 's';
+      box.appendChild(h('i', { style: st }));
     }
     return box;
   }
@@ -1149,71 +1195,214 @@ MQ.ui.battle = (function () {
   function buildFx(sp) {
     const out = [];
 
+    /* ---- ほのお ギリ：3本の 斬撃＋大きな 炎＋火の わ ---- */
     if (sp.id === 'fire') {
+      out.push(h('span', { class: 'fx__sky fx__sky--fire' }));
       out.push(h('span', { class: 'fx__slash' }));
       out.push(h('span', { class: 'fx__slash fx__slash--b' }));
+      out.push(h('span', { class: 'fx__slash fx__slash--c' }));
       const flame = h('span', { class: 'fx__flame' });
-      [40, 64, 86, 100, 84, 62, 42].forEach(function (hgt, i) {
-        flame.appendChild(h('i', {
-          style: { height: hgt + 'px', animationDelay: (i * 0.035) + 's' }
-        }, [h('b')]));
+      [40, 62, 84, 100, 88, 104, 80, 60, 42].forEach(function (hgt, i) {
+        flame.appendChild(h('i', { style: { height: hgt + 'px', animationDelay: (i * 0.03) + 's' } }, [h('b')]));
       });
       out.push(flame);
-      out.push(sparks(14, 'fx__sparks--fire', 70));
+      out.push(h('span', { class: 'fx__ring fx__ring--fire' }));
+      out.push(sparks(24, 'fx__sparks--fire', 96));
     }
 
+    /* ---- こおりの やいば：左から 5本の こおりが とんで、当たって パリーン ---- */
+    if (sp.id === 'ice') {
+      out.push(h('span', { class: 'fx__sky fx__sky--ice' }));
+      const sh = h('span', { class: 'fx__shards' });
+      [[0, -34], [0, 0], [0, 34], [-44, -17], [-44, 17]].forEach(function (p, i) {
+        sh.appendChild(h('i', { style: { marginLeft: p[0] + 'px', marginTop: p[1] + 'px', animationDelay: (i * 0.05) + 's' } }));
+      });
+      out.push(sh);
+      out.push(h('span', { class: 'fx__frost' }));
+      out.push(h('span', { class: 'fx__ring fx__ring--ice' }));
+      const cubes = h('span', { class: 'fx__cubes' });
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        cubes.appendChild(h('i', { style: {
+          '--x': Math.round(Math.cos(a) * 78) + 'px', '--y': Math.round(Math.sin(a) * 56 - 12) + 'px',
+          animationDelay: (0.32 + (i % 3) * 0.04) + 's'
+        } }));
+      }
+      out.push(cubes);
+      out.push(sparks(18, 'fx__sparks--ice', 96, { delay: 0.32 }));
+      const snow = h('span', { class: 'fx__snow' });
+      for (let i = 0; i < 12; i++) {
+        snow.appendChild(h('i', { style: { left: (i * 33) + 'px', animationDelay: ((i % 5) * 0.08) + 's', width: (4 + (i % 3) * 2) + 'px', height: (4 + (i % 3) * 2) + 'px' } }));
+      }
+      out.push(snow);
+    }
+
+    /* ---- はっぱ カッター：みどりの 斬撃＋ぐるぐる まわる はっぱの あらし ---- */
+    if (sp.id === 'leaf') {
+      out.push(h('span', { class: 'fx__sky fx__sky--leaf' }));
+      out.push(h('span', { class: 'fx__slash fx__slash--leaf' }));
+      out.push(h('span', { class: 'fx__slash fx__slash--b fx__slash--leaf' }));
+      const storm = h('span', { class: 'fx__storm' });
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * 360, r = 28 + (i % 4) * 16;
+        storm.appendChild(h('i', { style: { transform: 'rotate(' + a + 'deg) translate(' + r + 'px) rotate(' + (i * 37) + 'deg)', animationDelay: ((i % 4) * 0.05) + 's' } }));
+      }
+      out.push(storm);
+      out.push(h('span', { class: 'fx__ring fx__ring--leaf' }));
+      out.push(sparks(18, 'fx__sparks--leaf', 96, { delay: 0.2 }));
+    }
+
+    /* ---- かぜの たつまき：地面から たちのぼる たつまき＋横に はしる 風の すじ ---- */
+    if (sp.id === 'wind') {
+      out.push(h('span', { class: 'fx__sky fx__sky--wind' }));
+      const tor = h('span', { class: 'fx__tornado' });
+      [22, 34, 46, 58, 70, 84, 98].forEach(function (w, i) {
+        tor.appendChild(h('i', { style: { width: w + 'px', bottom: (i * 17) + 'px', animationDelay: (i * 0.04) + 's' } }));
+      });
+      out.push(tor);
+      const gust = h('span', { class: 'fx__gust' });
+      [24, 62, 100, 138].forEach(function (top, i) {
+        gust.appendChild(h('i', { style: { top: top + 'px', animationDelay: (i * 0.08) + 's' } }));
+      });
+      out.push(gust);
+      out.push(h('span', { class: 'fx__ring fx__ring--wind' }));
+      out.push(sparks(18, 'fx__sparks--wind', 100, { delay: 0.15 }));
+    }
+
+    /* ---- いなずま おとし：空が 2回 光る → 太い 雷＋細い 雷 → 地面に ひび ---- */
     if (sp.id === 'bolt') {
-      out.push(h('span', { class: 'fx__sky' }));
+      out.push(h('span', { class: 'fx__sky fx__sky--bolt' }));
       const bolt = h('span', { class: 'fx__bolt' });
       /* つながった ジグザグ。[左, 上, よこ, たて] を となりどうし
          かさなるように ならべて、1本の 雷に 見せる。 */
       [[30, 0, 15, 26], [16, 22, 29, 13], [16, 30, 15, 26],
        [16, 54, 32, 13], [33, 62, 15, 26], [20, 86, 28, 13],
        [20, 94, 15, 26]].forEach(function (r, i) {
-        bolt.appendChild(h('i', {
-          style: {
-            left: r[0] + 'px', top: r[1] + 'px', width: r[2] + 'px', height: r[3] + 'px',
-            animationDelay: (i * 0.018) + 's'
-          }
-        }));
+        bolt.appendChild(h('i', { style: { left: r[0] + 'px', top: r[1] + 'px', width: r[2] + 'px', height: r[3] + 'px', animationDelay: (i * 0.018) + 's' } }));
       });
       out.push(bolt);
+      const bolt2 = h('span', { class: 'fx__bolt fx__bolt--b' });
+      [[8, 0, 9, 22], [0, 18, 17, 8], [0, 22, 9, 22], [4, 40, 16, 8], [12, 44, 9, 24], [4, 64, 14, 8], [4, 68, 9, 22]].forEach(function (r, i) {
+        bolt2.appendChild(h('i', { style: { left: r[0] + 'px', top: r[1] + 'px', width: r[2] + 'px', height: r[3] + 'px', animationDelay: (0.12 + i * 0.018) + 's' } }));
+      });
+      out.push(bolt2);
       out.push(h('span', { class: 'fx__ring' }));
-      out.push(sparks(16, 'fx__sparks--bolt', 82));
+      out.push(h('span', { class: 'fx__ring fx__ring--b' }));
+      const cracks = h('span', { class: 'fx__cracks' });
+      [[-46, 0, 28], [-14, 6, 40], [26, 2, 32], [56, 8, 24], [-72, 8, 22]].forEach(function (c, i) {
+        cracks.appendChild(h('i', { style: { left: c[0] + 'px', top: c[1] + 'px', width: c[2] + 'px', animationDelay: (0.1 + i * 0.03) + 's' } }));
+      });
+      out.push(cracks);
+      out.push(sparks(28, 'fx__sparks--bolt', 100));
     }
 
+    /* ---- ひかりの メテオ：5つの いん石 → 大ばくはつ＋12本の 光 ---- */
     if (sp.id === 'star') {
       out.push(h('span', { class: 'fx__sky fx__sky--gold' }));
       const met = h('span', { class: 'fx__meteor' });
-      [[0, 0], [-46, -34], [40, -58]].forEach(function (p, i) {
-        met.appendChild(h('i', { style: { marginLeft: p[0] + 'px', marginTop: p[1] + 'px', animationDelay: (i * 0.11) + 's' } }));
+      [[0, 0], [-52, -38], [46, -62], [-90, -70], [24, -110]].forEach(function (p, i) {
+        met.appendChild(h('i', { style: { marginLeft: p[0] + 'px', marginTop: p[1] + 'px', animationDelay: (i * 0.09) + 's' } }));
       });
       out.push(met);
       const rays = h('span', { class: 'fx__rays' });
-      for (let i = 0; i < 8; i++) {
-        rays.appendChild(h('i', { style: { transform: 'rotate(' + (i * 45) + 'deg)' } }));
-      }
+      for (let i = 0; i < 12; i++) rays.appendChild(h('i', { style: { transform: 'rotate(' + (i * 30) + 'deg)' } }));
       out.push(rays);
       out.push(h('span', { class: 'fx__burst' }));
-      out.push(sparks(18, 'fx__sparks--gold', 96));
+      out.push(h('span', { class: 'fx__ring fx__ring--gold' }));
+      out.push(sparks(30, 'fx__sparks--gold', 120));
+    }
+
+    /* ---- ぎんがの ビッグバン：まっくら → 星を すいこむ → まっしろ → 虹の わ＋光＋うずまき ---- */
+    if (sp.id === 'nova') {
+      out.push(h('span', { class: 'fx__sky fx__sky--dark' }));
+      out.push(sparks(16, 'fx__sparks--nova', 120, { inward: true, colors: NOVA_COLORS, dur: 0.5 }));
+      out.push(h('span', { class: 'fx__core' }));
+      out.push(h('span', { class: 'fx__sky fx__sky--white' }));
+      const rings = h('span', { class: 'fx__nrings' });
+      NOVA_COLORS.slice(0, 4).forEach(function (c, i) {
+        rings.appendChild(h('i', { style: { borderColor: c, boxShadow: '0 0 18px ' + c, animationDelay: (0.5 + i * 0.08) + 's' } }));
+      });
+      out.push(rings);
+      const rays = h('span', { class: 'fx__rays fx__rays--nova' });
+      for (let i = 0; i < 16; i++) {
+        const c = NOVA_COLORS[i % NOVA_COLORS.length];
+        rays.appendChild(h('i', { style: { transform: 'rotate(' + (i * 22.5) + 'deg)', background: 'linear-gradient(rgba(255,255,255,0), ' + c + ')' } }));
+      }
+      out.push(rays);
+      const gal = h('span', { class: 'fx__galaxy' });
+      for (let i = 0; i < 24; i++) {
+        const arm = i % 2, t = Math.floor(i / 2);
+        const c = NOVA_COLORS[i % NOVA_COLORS.length];
+        gal.appendChild(h('i', { style: { transform: 'rotate(' + (arm * 180 + t * 28) + 'deg) translate(' + (12 + t * 9) + 'px)', background: c, boxShadow: '0 0 6px ' + c } }));
+      }
+      out.push(gal);
+      out.push(sparks(36, 'fx__sparks--nova', 170, { colors: NOVA_COLORS, delay: 0.5, dur: 0.9 }));
     }
 
     return out;
   }
 
+  /* 画面ぜんたいの 演出：色の 光（tint）＋集中線（8コンボ〜）＋しょうげきの わ（12コンボ〜）＋ゆれ */
+  function playScreenFx(sp) {
+    if (!d.fxs) return;
+    d.fxs.textContent = '';
+    d.fxs.className = 'fxscreen fxscreen--' + sp.id + ' fxscreen--t' + sp.tier;
+    if (sp.tier >= 4) d.fxs.appendChild(h('span', { class: 'fxscreen__dark' }));   // すいこむ あいだは まっくら
+    d.fxs.appendChild(h('span', { class: 'fxscreen__tint' }));
+    if (sp.tier >= 2) {
+      const lines = h('span', { class: 'fxscreen__lines' });
+      const n = sp.tier >= 4 ? 28 : sp.tier === 3 ? 20 : 14;
+      const base = sp.tier >= 4 ? 0.5 : sp.tier === 3 ? 0.42 : 0;   // 当たる しゅんかんに 合わせる
+      for (let i = 0; i < n; i++) {
+        lines.appendChild(h('i', { style: { transform: 'rotate(' + (i * 360 / n + (i % 2) * 6) + 'deg)', animationDelay: (base + (i % 3) * 0.04) + 's', height: (700 + (i % 3) * 120) + 'px' } }));
+      }
+      d.fxs.appendChild(lines);
+    }
+    if (sp.tier >= 3) d.fxs.appendChild(h('span', { class: 'fxscreen__ring' }));
+    if (sp.tier >= 4) d.fxs.appendChild(h('span', { class: 'fxscreen__ring fxscreen__ring--b' }));
+    // 技名（黒い 帯＋大きな 文字＋星）は いちばん 上に
+    d.fxs.appendChild(h('span', { class: 'fxband' }));
+    d.fxs.appendChild(h('span', { class: 'fxname' + (sp.tier >= 4 ? ' fxname--max' : sp.tier === 3 ? ' fxname--big' : ''), text: sp.name }));
+    const stars = h('span', { class: 'fxstars' });
+    [[-150, -6, 0], [148, 2, 0.08], [-112, 26, 0.16], [118, -22, 0.12]].forEach(function (s) {
+      stars.appendChild(h('i', { style: { '--x': s[0] + 'px', '--y': s[1] + 'px', animationDelay: s[2] + 's' } }));
+    });
+    d.fxs.appendChild(stars);
+    quake(sp.tier);
+  }
+
+  // 画面ぜんたいが ゆれる（1〜4。大きいほど はげしく 長く）
+  function quake(level) {
+    const el = d.root;
+    el.classList.remove('is-quake-1', 'is-quake-2', 'is-quake-3', 'is-quake-4');
+    void el.offsetWidth;
+    el.classList.add('is-quake-' + level);
+    clearTimeout(quakeTimer);
+    quakeTimer = setTimeout(function () { el.classList.remove('is-quake-' + level); }, level >= 4 ? 1600 : level === 3 ? 1000 : 700);
+  }
+
+  // 敵の ふっとび（is-hit より 強い。12コンボ〜は 大きく、16〜は すいこまれて はじける）
+  function blast(sp) {
+    if (!d.cur) return;
+    d.cur.classList.remove('is-blast', 'is-blast-big', 'is-blast-max');
+    void d.cur.offsetWidth;
+    d.cur.classList.add(sp.tier >= 4 ? 'is-blast-max' : sp.tier >= 3 ? 'is-blast-big' : 'is-blast');
+  }
+
   function playSpecial(sp) {
     if (!d.fx) return;
     d.fx.textContent = '';
-    d.fx.className = 'fx fx--' + sp.id;
-    d.fx.appendChild(h('span', { class: 'fxname', text: sp.name }));
+    d.fx.className = 'fx fx--' + sp.id + ' fx--t' + sp.tier;
     buildFx(sp).forEach(function (el) { d.fx.appendChild(el); });
-    MQ.sfx.special(sp.sfx);
+    playScreenFx(sp);
+    MQ.sfx.special(sp.tier, sp.id);
     flash(true);
     if (d.msg) d.msg.classList.add('is-quiet');   // 技名と ぶつからないように
     clearTimeout(fxTimer);
     fxTimer = setTimeout(function () {
       d.fx.textContent = '';
       d.fx.className = 'fx';
+      if (d.fxs) { d.fxs.textContent = ''; d.fxs.className = 'fxscreen'; }
       if (d.msg) d.msg.classList.remove('is-quiet');
     }, sp.ms);
   }
@@ -1224,12 +1413,14 @@ MQ.ui.battle = (function () {
     d.hero.classList.add('is-attack');
     if (sp) {
       d.hero.classList.add('is-special');
+      d.hero.style.setProperty('--el', FX_COLOR[sp.id] || '#ffd447');   // うしろの オーラの 色
       playSpecial(sp);
       setTimeout(function () { d.hero.classList.remove('is-special'); }, 900);
     } else if (crit) { MQ.sfx.crit(); flash(false); } else { MQ.sfx.hit(); }
     if (!d.cur) return;
     d.cur.classList.remove('is-appear', 'is-enrage');
     d.cur.classList.add('is-hit');
+    if (sp) blast(sp);
     stamp(true);
     shake(crit || boss || !!sp);
     setTimeout(function () {
@@ -1239,7 +1430,7 @@ MQ.ui.battle = (function () {
         d.cur.classList.add('is-down');
         MQ.sfx.defeat();
       }
-    }, 420);
+    }, sp ? (sp.tier >= 4 ? 750 : sp.tier === 3 ? 600 : 420) : 420);   // 大きな わざは 当たるのが おそい
   }
 
   function dodge() {
@@ -1492,8 +1683,7 @@ MQ.ui.battle = (function () {
      ふつうの あそびでは 使いません。 */
   function demoSpecial(id) {
     build();
-    let sp = SPECIALS[SPECIALS.length - 1];
-    for (let i = 0; i < SPECIALS.length; i++) if (SPECIALS[i].id === id) sp = SPECIALS[i];
+    const sp = specialById(id);
     comboShow(sp.min);
     playSpecial(sp);
     return sp;

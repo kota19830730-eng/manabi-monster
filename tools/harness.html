@@ -323,16 +323,16 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('note(' + (el ? el.textContent.length : 0) + '): ' + (el ? el.textContent : 'なし'));
       return;
     }
-    // ひっさつわざの エフェクト（#fx:fire / #fx:bolt / #fx:star）
+    // ひっさつわざの エフェクト（v2.5）：#fx:<わざ>[:<秒>]  わざ＝fire leaf ice wind bolt star nova、秒＝何秒めで 止めて 撮るか（0.3）
     if (mode.indexOf('fx') === 0) {
       const want = mode.split(':')[1] || 'fire';
+      const at = parseFloat(mode.split(':')[2] || '0.3');
       fresh(); MQ.ui.battle.start('rikashakai3-1'); await wait(400);
       freeze();
       const sp = MQ.ui.battle.demoSpecial(want);
-      // アニメを とちゅうで 止めて 撮る
-      const st = document.createElement('style');
-      st.textContent = '.fx, .fx *, .hero, .enemy__img, .combo { animation-delay: -.3s !important; animation-play-state: paused !important; }';
-      document.head.appendChild(st);
+      // アニメを at 秒めで 止めて 撮る（delay も ふくめた 本当の 時間）
+      void document.body.offsetWidth;   // スタイルを 確定させてから アニメを 取る（freeze 後は wait が 使えない）
+      document.getAnimations().forEach(function (a) { a.pause(); try { a.currentTime = at * 1000; } catch (e) {} });
       say('fx: ' + want + ' → ' + sp.name);
       return;
     }

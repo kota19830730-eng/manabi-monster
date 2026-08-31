@@ -717,7 +717,7 @@ body {
 /* =========================================================
    03 バトル
    ========================================================= */
-.battle { display: flex; flex-direction: column; height: 100%; background: var(--bg-1); }
+.battle { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--bg-1); }
 
 /* バトルの 絵の 高さは 画面の たてに あわせて のびちぢみ する */
 .arena { position: relative; height: clamp(158px, calc(var(--stage-h) * 0.27), 205px); flex: none; overflow: hidden; background: linear-gradient(#4fb8f5 0%, #86d6ff 55%, #b7e8ff 100%); }
@@ -772,6 +772,10 @@ body {
 /* ---- 当たった／よけた などの うごき ---- */
 .is-appear { animation: popin .22s ease-out; }
 .is-hit { animation: hitfx .3s ease-out; }
+/* ひっさつの ふっとび（is-hit より 強い。12コンボ〜は 大きく、16〜は すいこまれて はじける） */
+.is-blast { animation: blastfx .45s ease-out; }
+.is-blast-big { animation: blastbigfx .62s ease-out; }
+.is-blast-max { animation: blastmaxfx .78s ease-in-out; }
 .is-down { animation: downfx .5s ease-in forwards; }
 .is-bossdown { animation: downfx .9s ease-in forwards; }
 .is-flee { animation: fleefx .5s ease-in forwards; }
@@ -789,6 +793,9 @@ body {
 .combo--crit { color: #ffe07a; }
 .pillstat.is-hurry { background: rgba(120,20,40,.9); }
 .pillstat.is-hurry b { color: #ffd0d8; }
+@keyframes blastfx { 0% { transform: translateX(0); filter: brightness(1); } 15% { transform: translateX(-22px) rotate(-8deg); filter: brightness(3); } 50% { transform: translateX(14px) rotate(5deg); filter: brightness(1.6); } 100% { transform: translateX(0) rotate(0); filter: brightness(1); } }
+@keyframes blastbigfx { 0% { transform: translate(0,0); filter: brightness(1); } 12% { transform: translate(-30px,-16px) rotate(-14deg); filter: brightness(3.5); } 40% { transform: translate(18px,-6px) rotate(10deg); filter: brightness(2); } 70% { transform: translate(-8px,0) rotate(-4deg); } 100% { transform: translate(0,0); filter: brightness(1); } }
+@keyframes blastmaxfx { 0% { transform: scale(1) rotate(0); filter: brightness(1); } 55% { transform: scale(.55) rotate(180deg); filter: brightness(.6); } 66% { transform: scale(.3) rotate(360deg); filter: brightness(4); } 80% { transform: scale(1.5) rotate(390deg); filter: brightness(3); } 100% { transform: scale(1.3) rotate(400deg); filter: brightness(2); } }
 @keyframes hitfx { 0% { transform: translateX(0); } 30% { transform: translateX(-7px); } 60% { transform: translateX(5px); } 100% { transform: translateX(0); } }
 @keyframes downfx { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(26px) rotate(28deg); opacity: 0; } }
 @keyframes fleefx { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(60px); opacity: 0; } }
@@ -953,36 +960,75 @@ body {
 .panelspacer { height: 8px; }
 
 /* =========================================================
-   ひっさつわざの エフェクト（コンボで はでさが 変わる）
+   ひっさつわざの エフェクト（v2.5：7しゅるい。コンボで はでさが 変わる）
 
-     .fx--fire  5〜7  コンボ … ほのお ギリ！   オレンジの 炎
+     5〜7 コンボ … 教科の わざ
+       .fx--fire  ほのお ギリ！     オレンジの 炎（算数）
+       .fx--leaf  はっぱ カッター！ みどりの はっぱの あらし（国語）
+       .fx--ice   こおりの やいば！ 水色の こおりが とんで われる（理科社会）
+       .fx--wind  かぜの たつまき！ 白い たつまき（英語）
      .fx--bolt  8〜11 コンボ … いなずま おとし！青白い かみなり
-     .fx--star 12    コンボ〜 … ひかりの メテオ！金の いん石
+     .fx--star 12〜15 コンボ … ひかりの メテオ！金の いん石
+     .fx--nova 16    コンボ〜 … ぎんがの ビッグバン！虹色の 大ばくはつ
 
    ぜんぶ CSS の 四角。敵は 画面の 右がわに いるので、
-   エフェクトも 右がわ（right: 40〜60px あたり）に そろえてある。
+   エフェクトも 右がわ（right: 40〜80px あたり）に そろえてある。
+   画面ぜんたいの 演出は .fxscreen（.battle の 直下）、ゆれは .battle.is-quake-N。
    ========================================================= */
 .fx { position: absolute; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
 .fx:empty { display: none; }
 
-/* ---- 技の 名前（大きく 出て、すこし ゆれる） ---- */
+/* ---- 技の 名前（黒い 帯の 上に 大きく 出て、はねる） ---- */
+.fxband {
+  position: absolute; left: -20px; right: -20px; top: 30px; height: 48px; z-index: 2;
+  background: linear-gradient(90deg, rgba(10,14,30,0), rgba(10,14,30,.78) 18%, rgba(10,14,30,.78) 82%, rgba(10,14,30,0));
+  transform: skewX(-12deg);
+  animation: fxbandfx .9s ease-out forwards;
+}
+.fxscreen--t3 .fxband, .fxscreen--t4 .fxband { top: 26px; height: 58px; }
+@keyframes fxbandfx {
+  0%   { transform: skewX(-12deg) scaleX(0); opacity: 0; }
+  18%  { transform: skewX(-12deg) scaleX(1); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: skewX(-12deg) scaleX(1.04); opacity: 0; }
+}
 .fxname {
-  position: absolute; left: 50%; top: 30px; transform: translateX(-50%);
-  font-family: var(--f-head); font-size: 30px; color: #fff; white-space: nowrap;
+  position: absolute; left: 50%; top: 34px; transform: translateX(-50%); z-index: 3;
+  font-family: var(--f-head); font-size: 34px; color: #fff; white-space: nowrap;
   letter-spacing: 1px;
   animation: fxnamefx .9s ease-out forwards;
 }
+.fxname--big { font-size: 38px; top: 32px; }
+.fxname--max { font-size: 36px; top: 32px; animation-duration: 1.4s; }
 /* まわりを ふちどって、どんな 背景でも 読めるように */
-.fx--fire .fxname { text-shadow: -3px 0 0 #8f2406, 3px 0 0 #8f2406, 0 -3px 0 #8f2406, 0 3px 0 #8f2406, -3px -3px 0 #8f2406, 3px 3px 0 #8f2406, 0 6px 0 #4d1303, 0 0 22px rgba(255,140,60,1); }
-.fx--bolt .fxname { text-shadow: -3px 0 0 #123f78, 3px 0 0 #123f78, 0 -3px 0 #123f78, 0 3px 0 #123f78, -3px -3px 0 #123f78, 3px 3px 0 #123f78, 0 6px 0 #0a2246, 0 0 22px rgba(120,200,255,1); }
-.fx--star .fxname { color: #fff8dc; font-size: 33px; text-shadow: -3px 0 0 #8a5a08, 3px 0 0 #8a5a08, 0 -3px 0 #8a5a08, 0 3px 0 #8a5a08, -3px -3px 0 #8a5a08, 3px 3px 0 #8a5a08, 0 6px 0 #4d3103, 0 0 26px rgba(255,212,71,1); }
+.fxscreen--fire .fxname { text-shadow: -3px 0 0 #8f2406, 3px 0 0 #8f2406, 0 -3px 0 #8f2406, 0 3px 0 #8f2406, -3px -3px 0 #8f2406, 3px 3px 0 #8f2406, 0 6px 0 #4d1303, 0 0 26px rgba(255,140,60,1); }
+.fxscreen--leaf .fxname { color: #f2ffe6; text-shadow: -3px 0 0 #1f6b2a, 3px 0 0 #1f6b2a, 0 -3px 0 #1f6b2a, 0 3px 0 #1f6b2a, -3px -3px 0 #1f6b2a, 3px 3px 0 #1f6b2a, 0 6px 0 #0e3a14, 0 0 26px rgba(126,224,106,1); }
+.fxscreen--ice .fxname { color: #f4fcff; text-shadow: -3px 0 0 #1c5f8a, 3px 0 0 #1c5f8a, 0 -3px 0 #1c5f8a, 0 3px 0 #1c5f8a, -3px -3px 0 #1c5f8a, 3px 3px 0 #1c5f8a, 0 6px 0 #0c3450, 0 0 26px rgba(159,230,255,1); }
+.fxscreen--wind .fxname { color: #ffffff; text-shadow: -3px 0 0 #3f5f8a, 3px 0 0 #3f5f8a, 0 -3px 0 #3f5f8a, 0 3px 0 #3f5f8a, -3px -3px 0 #3f5f8a, 3px 3px 0 #3f5f8a, 0 6px 0 #22364f, 0 0 26px rgba(230,246,255,1); }
+.fxscreen--bolt .fxname { text-shadow: -3px 0 0 #123f78, 3px 0 0 #123f78, 0 -3px 0 #123f78, 0 3px 0 #123f78, -3px -3px 0 #123f78, 3px 3px 0 #123f78, 0 6px 0 #0a2246, 0 0 26px rgba(120,200,255,1); }
+.fxscreen--star .fxname { color: #fff8dc; text-shadow: -3px 0 0 #8a5a08, 3px 0 0 #8a5a08, 0 -3px 0 #8a5a08, 0 3px 0 #8a5a08, -3px -3px 0 #8a5a08, 3px 3px 0 #8a5a08, 0 6px 0 #4d3103, 0 0 30px rgba(255,212,71,1); }
+.fxscreen--nova .fxname { color: #fff; text-shadow: -3px 0 0 #3a1d6b, 3px 0 0 #3a1d6b, 0 -3px 0 #3a1d6b, 0 3px 0 #3a1d6b, -3px -3px 0 #3a1d6b, 3px 3px 0 #3a1d6b, 0 6px 0 #1c0b3a, 0 0 18px #ff5e7a, 0 0 34px #4fd3ff, 0 0 50px #ffd447; }
 @keyframes fxnamefx {
-  0%   { transform: translateX(-50%) scale(.35); opacity: 0; }
-  20%  { transform: translateX(-50%) scale(1.2); opacity: 1; }
-  32%  { transform: translateX(-54%) scale(1); }
-  42%  { transform: translateX(-46%) scale(1); }
-  76%  { transform: translateX(-50%) scale(1); opacity: 1; }
-  100% { transform: translateX(-50%) scale(1.05); opacity: 0; }
+  0%   { transform: translateX(-50%) scale(.3); opacity: 0; }
+  16%  { transform: translateX(-50%) scale(1.35); opacity: 1; }
+  26%  { transform: translateX(-50%) scale(.95); }
+  34%  { transform: translateX(-54%) scale(1.05); }
+  44%  { transform: translateX(-46%) scale(1); }
+  80%  { transform: translateX(-50%) scale(1); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1.1); opacity: 0; }
+}
+/* 技名の 左右で はじける 星（45度の 四角） */
+.fxstars { position: absolute; left: 50%; top: 52px; z-index: 3; }
+.fxstars i {
+  position: absolute; left: -6px; top: -6px; width: 12px; height: 12px;
+  background: #fff; box-shadow: 0 0 10px #fff, 0 0 20px rgba(255,255,255,.7);
+  transform: rotate(45deg) scale(0);
+  animation: fxstarfx .7s ease-out forwards;
+}
+@keyframes fxstarfx {
+  0%   { transform: translate(0, 0) rotate(45deg) scale(0); opacity: 0; }
+  40%  { transform: translate(var(--x), var(--y)) rotate(135deg) scale(1.3); opacity: 1; }
+  100% { transform: translate(var(--x), var(--y)) rotate(225deg) scale(.3); opacity: 0; }
 }
 
 /* ---- つぶつぶ（火の粉・電気・きらきら） ---- */
@@ -994,43 +1040,80 @@ body {
 .fx__sparks--fire i { background: #ffcf5e; box-shadow: 0 0 8px rgba(255,150,60,.95); }
 .fx__sparks--bolt i { background: #dff1ff; box-shadow: 0 0 8px rgba(120,200,255,.95); }
 .fx__sparks--gold i { background: #fff0a8; box-shadow: 0 0 10px rgba(255,212,71,1); }
+.fx__sparks--ice i  { background: #e8fbff; box-shadow: 0 0 8px rgba(159,230,255,1); }
+.fx__sparks--leaf i { background: #b8f59a; box-shadow: 0 0 8px rgba(126,224,106,1); }
+.fx__sparks--wind i { background: #ffffff; box-shadow: 0 0 8px rgba(200,235,255,1); }
 @keyframes sparkfx {
   0%   { transform: translate(0, 0) scale(1); opacity: 1; }
   100% { transform: translate(var(--x), var(--y)) scale(.25); opacity: 0; }
 }
+/* すいこむ（外から 中へ） */
+.fx__sparks--in i { animation-name: sparkinfx; animation-timing-function: ease-in; }
+@keyframes sparkinfx {
+  0%   { transform: translate(var(--x), var(--y)) scale(1.2); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translate(0, 0) scale(.3); opacity: 1; }
+}
 
-/* ---- ほのお ギリ ---- */
+/* ---- 空の 光（技ごとの 色） ---- */
+.fx__sky {
+  position: absolute; inset: 0;
+  background: radial-gradient(closest-side at 76% 62%, rgba(255,255,255,.8), rgba(150,205,255,.5) 52%, rgba(40,80,160,.28));
+  animation: skyfx .34s ease-out forwards;
+}
+.fx__sky--fire { background: radial-gradient(closest-side at 76% 62%, rgba(255,240,200,.85), rgba(255,150,60,.5) 52%, rgba(160,40,10,.3)); animation-duration: .5s; }
+.fx__sky--ice  { background: radial-gradient(closest-side at 76% 62%, rgba(255,255,255,.9), rgba(159,230,255,.55) 52%, rgba(40,120,200,.3)); animation-duration: .5s; animation-delay: .3s; opacity: 0; }
+.fx__sky--leaf { background: radial-gradient(closest-side at 76% 62%, rgba(240,255,220,.85), rgba(126,224,106,.5) 52%, rgba(20,110,40,.3)); animation-duration: .5s; }
+.fx__sky--wind { background: radial-gradient(closest-side at 76% 62%, rgba(255,255,255,.9), rgba(220,240,255,.55) 52%, rgba(120,160,200,.3)); animation-duration: .7s; }
+.fx__sky--bolt { animation: skyflickfx .6s ease-out forwards; }
+.fx__sky--gold { background: radial-gradient(closest-side at 76% 60%, rgba(255,252,225,.92), rgba(255,214,120,.55) 52%, rgba(190,120,20,.3)); animation-duration: .7s; animation-delay: .4s; opacity: 0; }
+.fx__sky--dark { background: radial-gradient(closest-side at 76% 62%, rgba(60,20,110,.6), rgba(20,8,50,.9) 60%, rgba(5,2,20,.96)); animation: skydarkfx 1.9s ease-out forwards; }
+.fx__sky--white { background: #fff; animation: skywhitefx 1.3s ease-out forwards; opacity: 0; animation-delay: .5s; }
+@keyframes skyfx { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes skyflickfx { 0% { opacity: 0; } 10% { opacity: 1; } 22% { opacity: .2; } 34% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes skydarkfx { 0% { opacity: 0; } 12% { opacity: 1; } 26% { opacity: 1; } 32% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes skywhitefx { 0% { opacity: 0; } 8% { opacity: 1; } 30% { opacity: .55; } 100% { opacity: 0; } }
+
+/* ---- 斬撃（ほのお／はっぱ で 色が 変わる） ---- */
 .fx__slash {
   position: absolute; right: 22px; bottom: 104px;
-  width: 196px; height: 16px; transform-origin: right center;
+  width: 230px; height: 18px; transform-origin: right center;
   background: linear-gradient(90deg, rgba(255,255,255,0), #fff 42%, #ffd447 70%, rgba(255,143,94,0));
-  box-shadow: 0 0 22px rgba(255,180,80,.95);
+  box-shadow: 0 0 26px rgba(255,180,80,1);
   animation: slashfx .5s ease-out forwards;
 }
-.fx__slash--b { bottom: 66px; height: 12px; animation-delay: .1s; }
+.fx__slash--b { bottom: 66px; height: 13px; animation-delay: .1s; animation-name: slashbfx; }
+.fx__slash--c { bottom: 86px; height: 10px; animation-delay: .2s; animation-name: slashcfx; }
+.fx__slash--leaf { background: linear-gradient(90deg, rgba(255,255,255,0), #fff 42%, #9df08a 70%, rgba(60,180,80,0)); box-shadow: 0 0 26px rgba(126,224,106,1); }
 @keyframes slashfx {
   0%   { transform: rotate(-22deg) scaleX(0); opacity: 0; }
   24%  { transform: rotate(-22deg) scaleX(1); opacity: 1; }
   70%  { transform: rotate(-22deg) scaleX(1); opacity: 1; }
   100% { transform: rotate(-22deg) scaleX(1); opacity: 0; }
 }
-.fx__slash--b { transform-origin: right center; }
 @keyframes slashbfx {
   0%   { transform: rotate(18deg) scaleX(0); opacity: 0; }
   24%  { transform: rotate(18deg) scaleX(1); opacity: 1; }
   70%  { transform: rotate(18deg) scaleX(1); opacity: 1; }
   100% { transform: rotate(18deg) scaleX(1); opacity: 0; }
 }
-.fx__slash--b { animation-name: slashbfx; }
+@keyframes slashcfx {
+  0%   { transform: rotate(-4deg) scaleX(0); opacity: 0; }
+  24%  { transform: rotate(-4deg) scaleX(1); opacity: 1; }
+  70%  { transform: rotate(-4deg) scaleX(1); opacity: 1; }
+  100% { transform: rotate(-4deg) scaleX(1); opacity: 0; }
+}
+
+/* ---- ほのお ギリ：炎 ---- */
 .fx__flame {
-  position: absolute; right: 24px; bottom: 56px;
+  position: absolute; right: 18px; bottom: 56px;
   display: flex; align-items: flex-end; justify-content: center; gap: 2px;
 }
 .fx__flame i {
   position: relative; width: 15px; transform-origin: bottom center;
   background: linear-gradient(#fff6c9, #ffc24d 28%, #ff7a2e 60%, #e03a12);
-  box-shadow: 0 0 20px rgba(255,140,60,1);
-  animation: flamefx .6s ease-out forwards;
+  box-shadow: 0 0 22px rgba(255,140,60,1);
+  animation: flamefx .7s ease-out forwards;
 }
 /* 先っぽの とがり（小さい 四角を 上に のせる） */
 .fx__flame i::before {
@@ -1042,46 +1125,134 @@ body {
 @keyframes flamefx {
   0%   { transform: scaleY(.08); opacity: 0; }
   22%  { transform: scaleY(1.14); opacity: 1; }
-  60%  { transform: scaleY(.86); opacity: 1; }
+  60%  { transform: scaleY(.9); opacity: 1; }
   100% { transform: scaleY(.16); opacity: 0; }
 }
 
-/* ---- いなずま おとし ---- */
-.fx__sky {
-  position: absolute; inset: 0;
-  background: radial-gradient(closest-side at 76% 62%, rgba(255,255,255,.8), rgba(150,205,255,.5) 52%, rgba(40,80,160,.28));
-  animation: skyfx .34s ease-out forwards;
+/* ---- しょうげきの わ（四角い わ。技ごとに 色） ---- */
+.fx__ring {
+  position: absolute; right: 50px; bottom: 58px;
+  width: 46px; height: 46px; margin: 0 -23px -23px 0;
+  border: 6px solid #eaf6ff; box-shadow: 0 0 18px rgba(120,200,255,.95);
+  animation: ringfx .6s ease-out forwards;
 }
-.fx__sky--gold { background: radial-gradient(closest-side at 76% 60%, rgba(255,252,225,.88), rgba(255,214,120,.5) 52%, rgba(190,120,20,.25)); animation-duration: .6s; }
-@keyframes skyfx { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+.fx__ring--b { animation-delay: .14s; border-width: 4px; }
+.fx__ring--fire { border-color: #ffb347; box-shadow: 0 0 18px rgba(255,150,60,.95); animation-delay: .12s; }
+.fx__ring--ice  { border-color: #c9f2ff; box-shadow: 0 0 18px rgba(159,230,255,1); animation-delay: .32s; }
+.fx__ring--leaf { border-color: #b8f59a; box-shadow: 0 0 18px rgba(126,224,106,1); animation-delay: .2s; }
+.fx__ring--wind { border-color: #fff; box-shadow: 0 0 18px rgba(220,240,255,1); animation-delay: .3s; }
+.fx__ring--gold { border-color: #ffe98a; box-shadow: 0 0 22px rgba(255,212,71,1); animation-delay: .46s; border-width: 8px; }
+@keyframes ringfx {
+  0%   { transform: scale(.25); opacity: 1; }
+  100% { transform: scale(3); opacity: 0; }
+}
 
+/* ---- こおりの やいば：とぶ こおり → われる ---- */
+.fx__shards { position: absolute; left: 96px; bottom: 104px; }
+.fx__shards i {
+  position: absolute; left: 0; top: 0; width: 34px; height: 10px;
+  background: linear-gradient(90deg, #ffffff, #c9f2ff 50%, #5fc8f5);
+  box-shadow: 0 0 12px rgba(159,230,255,1);
+  transform: translateX(0) rotate(-6deg);
+  animation: shardfx .36s ease-in forwards;
+}
+/* 先っぽ（45度の 小さい 四角） */
+.fx__shards i::after { content: ''; position: absolute; right: -4px; top: 1px; width: 8px; height: 8px; background: #ffffff; transform: rotate(45deg); }
+@keyframes shardfx {
+  0%   { transform: translateX(-40px) rotate(-6deg); opacity: 0; }
+  20%  { opacity: 1; }
+  92%  { transform: translateX(210px) rotate(-6deg); opacity: 1; }
+  100% { transform: translateX(216px) rotate(-6deg); opacity: 0; }
+}
+.fx__frost {
+  position: absolute; right: 74px; bottom: 84px;
+  width: 60px; height: 60px; margin: 0 -30px -30px 0;
+  background: radial-gradient(closest-side, #ffffff, #c9f2ff 45%, rgba(95,200,245,0));
+  animation: burstfx .6s ease-out .3s forwards; opacity: 0;
+}
+.fx__cubes { position: absolute; right: 78px; bottom: 96px; }
+.fx__cubes i {
+  position: absolute; left: 0; top: 0; width: 9px; height: 9px;
+  background: linear-gradient(135deg, #ffffff, #9fe6ff); box-shadow: inset -2px -2px 0 #4fa9d8, 0 0 6px rgba(159,230,255,.9);
+  animation: cubefx .6s ease-out forwards; opacity: 0;
+}
+@keyframes cubefx {
+  0%   { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--x), calc(var(--y) + 40px)) rotate(200deg); opacity: 0; }
+}
+.fx__snow { position: absolute; left: 0; right: 0; top: -10px; height: 100%; }
+.fx__snow i { position: absolute; top: 0; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,.9); animation: snowfx .9s linear forwards; opacity: 0; }
+@keyframes snowfx { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: .95; } 100% { transform: translateY(190px); opacity: 0; } }
+
+/* ---- はっぱ カッター：まわる はっぱ ---- */
+.fx__storm { position: absolute; right: 74px; bottom: 96px; animation: stormfx .85s ease-out forwards; }
+.fx__storm i {
+  position: absolute; left: -8px; top: -4px; width: 16px; height: 8px;
+  background: linear-gradient(90deg, #b8f59a, #4cbf4a 55%, #2a8f3a);
+  box-shadow: 0 0 6px rgba(126,224,106,.9);
+  animation: leaffx .85s ease-out forwards; opacity: 0;
+}
+@keyframes stormfx {
+  0%   { transform: rotate(0) scale(.3); }
+  30%  { transform: rotate(200deg) scale(1.1); }
+  100% { transform: rotate(560deg) scale(1.6); }
+}
+@keyframes leaffx { 0% { opacity: 0; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---- かぜの たつまき ---- */
+.fx__tornado { position: absolute; right: 36px; bottom: 60px; width: 110px; height: 130px; }
+.fx__tornado i {
+  position: absolute; left: 50%; height: 14px;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,.95) 0 12px, rgba(200,230,255,.55) 12px 24px);
+  box-shadow: 0 0 12px rgba(220,240,255,.9);
+  animation: torfx .8s ease-out forwards, torspinfx .22s linear infinite; opacity: 0;
+}
+@keyframes torfx {
+  0%   { opacity: 0; transform: translateX(-50%) scaleX(.2); }
+  25%  { opacity: 1; transform: translateX(-50%) scaleX(1.1); }
+  70%  { opacity: 1; transform: translateX(-46%) scaleX(1); }
+  100% { opacity: 0; transform: translateX(-50%) scaleX(1.2) translateY(-30px); }
+}
+@keyframes torspinfx { 0% { background-position: 0 0; } 100% { background-position: 24px 0; } }
+.fx__gust { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.fx__gust i {
+  position: absolute; left: 0; width: 260px; height: 5px;
+  background: linear-gradient(90deg, rgba(255,255,255,0), #fff 40%, rgba(255,255,255,0));
+  box-shadow: 0 0 8px rgba(255,255,255,.8);
+  animation: gustfx .55s ease-out forwards; opacity: 0;
+}
+@keyframes gustfx {
+  0%   { transform: translateX(-280px); opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: translateX(240px); opacity: 0; }
+}
+
+/* ---- いなずま おとし ---- */
 .fx__bolt {
   position: absolute; right: 38px; bottom: 60px; width: 64px; height: 124px;
   filter: drop-shadow(0 0 3px #1d55a8) drop-shadow(0 0 3px #1d55a8)
           drop-shadow(0 0 12px rgba(120,200,255,.95)) drop-shadow(0 0 26px rgba(80,150,255,.85));
 }
+.fx__bolt--b { right: 112px; bottom: 70px; width: 24px; height: 90px; }
 .fx__bolt i {
   position: absolute; width: 16px; height: 24px;
   background: #ffffff;
   animation: boltfx .5s steps(3, end) forwards;
 }
 @keyframes boltfx { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
-
-.fx__ring {
-  position: absolute; right: 50px; bottom: 58px;
-  width: 46px; height: 46px; margin: 0 -23px -23px 0;
-  border: 6px solid #eaf6ff; box-shadow: 0 0 18px rgba(120,200,255,.95);
-  animation: ringfx .55s ease-out forwards;
+/* 地面の ひび（黒い 横線が 光る） */
+.fx__cracks { position: absolute; right: 60px; bottom: 56px; }
+.fx__cracks i {
+  position: absolute; height: 4px; background: #0f1a33; box-shadow: 0 0 8px rgba(120,200,255,.95), inset 0 -1px 0 rgba(150,210,255,.8);
+  transform: scaleX(0); transform-origin: left center;
+  animation: crackfx .5s ease-out forwards;
 }
-@keyframes ringfx {
-  0%   { transform: scale(.25); opacity: 1; }
-  100% { transform: scale(2.1); opacity: 0; }
-}
+@keyframes crackfx { 0% { transform: scaleX(0); opacity: 0; } 30% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
 
 /* ---- ひかりの メテオ ---- */
 .fx__meteor { position: absolute; right: 74px; bottom: 96px; }
 .fx__meteor i {
-  position: absolute; left: 0; top: 0; width: 24px; height: 24px;
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px;
   background: linear-gradient(#fffdf0, #ffd447 52%, #f2932c);
   box-shadow: 0 0 22px rgba(255,212,71,1),
               20px -20px 0 -2px rgba(255,222,110,.7),
@@ -1090,7 +1261,7 @@ body {
   animation: meteorfx .62s ease-in forwards;
 }
 @keyframes meteorfx {
-  0%   { transform: translate(150px, -190px) scale(.6); opacity: 0; }
+  0%   { transform: translate(170px, -220px) scale(.6); opacity: 0; }
   18%  { opacity: 1; }
   100% { transform: translate(0, 0) scale(1.1); opacity: 0; }
 }
@@ -1098,19 +1269,19 @@ body {
   position: absolute; right: 74px; bottom: 84px;
   width: 72px; height: 72px; margin: 0 -36px -36px 0;
   background: radial-gradient(closest-side, #fffdf0, #ffd447 45%, rgba(242,147,44,0));
-  animation: burstfx .7s ease-out .42s forwards; opacity: 0;
+  animation: burstfx .8s ease-out .42s forwards; opacity: 0;
 }
 @keyframes burstfx {
   0%   { transform: scale(.2); opacity: 0; }
-  25%  { transform: scale(2.6); opacity: 1; }
-  100% { transform: scale(3.6); opacity: 0; }
+  25%  { transform: scale(3); opacity: 1; }
+  100% { transform: scale(4.2); opacity: 0; }
 }
 .fx__rays { position: absolute; right: 74px; bottom: 84px; }
 .fx__rays i {
-  position: absolute; left: -5px; top: -82px; width: 10px; height: 82px;
+  position: absolute; left: -5px; top: -110px; width: 10px; height: 110px;
   transform-origin: 50% 100%;
   background: linear-gradient(rgba(255,240,168,0), #ffe98a 60%, #ffd447);
-  animation: raysfx .7s ease-out .42s forwards; opacity: 0;
+  animation: raysfx .8s ease-out .42s forwards; opacity: 0;
 }
 @keyframes raysfx {
   0%   { opacity: 0; }
@@ -1118,10 +1289,113 @@ body {
   100% { opacity: 0; }
 }
 
+/* ---- ぎんがの ビッグバン ---- */
+.fx__core {
+  position: absolute; right: 74px; bottom: 84px;
+  width: 20px; height: 20px; margin: 0 -10px -10px 0;
+  background: #fff; box-shadow: 0 0 20px #fff, 0 0 40px #c48bff, 0 0 60px #4fd3ff;
+  animation: corefx .75s ease-in forwards;
+}
+@keyframes corefx {
+  0%   { transform: scale(.2); opacity: 0; }
+  15%  { opacity: 1; }
+  60%  { transform: scale(1.6); opacity: 1; }
+  68%  { transform: scale(.5); }
+  80%  { transform: scale(9); opacity: 1; }
+  100% { transform: scale(12); opacity: 0; }
+}
+.fx__nrings { position: absolute; right: 74px; bottom: 84px; }
+.fx__nrings i {
+  position: absolute; left: -30px; top: -30px; width: 60px; height: 60px;
+  border: 7px solid #fff;
+  animation: ringfx .9s ease-out forwards; opacity: 0;
+}
+.fx__rays--nova i { top: -150px; height: 150px; width: 12px; left: -6px; animation-delay: .5s; animation-duration: 1.2s; }
+.fx__galaxy { position: absolute; right: 74px; bottom: 84px; animation: galaxyfx 1.3s ease-out .5s forwards; opacity: 0; }
+.fx__galaxy i { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; }
+@keyframes galaxyfx {
+  0%   { transform: rotate(0) scale(.2); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: rotate(420deg) scale(2.4); opacity: 0; }
+}
+
 /* コンボ表示も 技に あわせて 色を かえる */
 .combo--fire { color: #ffd08a; text-shadow: 0 3px 0 #c0400f, 0 0 16px rgba(255,150,80,.95); }
+.combo--leaf { color: #d6ffc4; text-shadow: 0 3px 0 #1f7a2e, 0 0 16px rgba(126,224,106,.95); }
+.combo--ice  { color: #e8fbff; text-shadow: 0 3px 0 #1c6fa0, 0 0 16px rgba(159,230,255,.95); }
+.combo--wind { color: #ffffff; text-shadow: 0 3px 0 #4a6a94, 0 0 16px rgba(220,240,255,.95); }
 .combo--bolt { color: #d8f0ff; text-shadow: 0 3px 0 #1a5fb0, 0 0 18px rgba(120,200,255,.95); }
 .combo--star { color: #fff3c0; text-shadow: 0 3px 0 #b8801d, 0 0 22px rgba(255,212,71,1); }
+.combo--nova { color: #fff; text-shadow: 0 3px 0 #3a1d6b, 0 0 12px #ff5e7a, 0 0 24px #4fd3ff; }
+
+/* ---- 画面ぜんたいの 演出（.battle の 直下。z-index は アイテムの モーダルより 下） ---- */
+.fxscreen { position: absolute; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+.fxscreen:empty { display: none; }
+.fxscreen__tint {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(circle at 87% 100px, var(--fs-c1, rgba(255,255,255,.7)), var(--fs-c2, rgba(255,200,120,.35)) 30%, var(--fs-c3, rgba(0,0,0,0)) 62%);
+  animation: fstintfx .7s ease-out forwards;
+}
+.fxscreen--t2 .fxscreen__tint { animation-duration: .8s; }
+.fxscreen--t3 .fxscreen__tint { animation-duration: 1.1s; animation-delay: .4s; }
+.fxscreen--t4 .fxscreen__tint { animation: fstintmaxfx 1.4s ease-out .5s forwards; }
+/* ビッグバンの すいこむ あいだ（0〜0.5秒）は まっくら */
+.fxscreen__dark { position: absolute; inset: 0; opacity: 0; background: radial-gradient(circle at 87% 100px, rgba(80,30,140,.25), rgba(12,5,35,.9) 40%, rgba(3,1,12,.97) 75%); animation: fsdarkfx .62s ease-in forwards; }
+@keyframes fsdarkfx { 0% { opacity: 0; } 25% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fstintfx { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fstintmaxfx { 0% { opacity: 0; } 8% { opacity: 1; } 30% { opacity: .85; } 100% { opacity: 0; } }
+.fxscreen--fire { --fs-c1: rgba(255,235,190,.75); --fs-c2: rgba(255,150,60,.4); --fs-c3: rgba(120,30,0,.18); }
+.fxscreen--leaf { --fs-c1: rgba(235,255,215,.75); --fs-c2: rgba(126,224,106,.4); --fs-c3: rgba(10,90,30,.18); }
+.fxscreen--ice  { --fs-c1: rgba(255,255,255,.8);  --fs-c2: rgba(159,230,255,.45); --fs-c3: rgba(20,90,160,.2); }
+.fxscreen--wind { --fs-c1: rgba(255,255,255,.85); --fs-c2: rgba(230,246,255,.4); --fs-c3: rgba(90,130,180,.18); }
+.fxscreen--bolt { --fs-c1: rgba(255,255,255,.9);  --fs-c2: rgba(150,205,255,.5); --fs-c3: rgba(20,50,120,.3); }
+.fxscreen--star { --fs-c1: rgba(255,252,225,.95); --fs-c2: rgba(255,214,120,.55); --fs-c3: rgba(120,70,0,.3); }
+.fxscreen--nova .fxscreen__tint { background: radial-gradient(circle at 87% 100px, rgba(255,255,255,1), rgba(196,139,255,.7) 26%, rgba(79,211,255,.45) 48%, rgba(20,8,50,.85) 80%); }
+/* 集中線（8コンボ〜）：敵の ところから 画面の 外へ のびる 細い 四角 */
+.fxscreen__lines { position: absolute; left: 348px; top: 100px; }
+.fxscreen__lines i {
+  position: absolute; left: -4px; top: 0; width: 8px; height: 800px;
+  transform-origin: 50% 0;
+  background: linear-gradient(rgba(255,255,255,0) 0, rgba(255,255,255,0) 70px, var(--fs-line, rgba(255,255,255,.7)) 220px, var(--fs-line, rgba(255,255,255,.7)));
+  animation: fslinefx .55s ease-out forwards; opacity: 0;
+}
+.fxscreen--t3 .fxscreen__lines i { animation-duration: .7s; }
+.fxscreen--t4 .fxscreen__lines i { animation-duration: 1.1s; width: 10px; left: -5px; }
+.fxscreen--bolt { --fs-line: rgba(200,235,255,.75); }
+.fxscreen--star { --fs-line: rgba(255,230,140,.8); }
+.fxscreen--nova { --fs-line: rgba(255,255,255,.9); }
+@keyframes fslinefx { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+/* 大きな しょうげきの わ（12コンボ〜。画面の 外まで ひろがる） */
+.fxscreen__ring {
+  position: absolute; left: 348px; top: 100px; width: 80px; height: 80px; margin: -40px 0 0 -40px;
+  border: 10px solid var(--fs-ring, #fff); box-shadow: 0 0 24px var(--fs-ring, #fff), inset 0 0 24px var(--fs-ring, #fff);
+  animation: fsringfx .9s ease-out .46s forwards; opacity: 0;
+}
+.fxscreen__ring--b { animation-delay: .62s; border-width: 6px; }
+.fxscreen--star { --fs-ring: #ffe98a; }
+.fxscreen--nova { --fs-ring: #fff; }
+.fxscreen--nova .fxscreen__ring { animation-delay: .5s; }
+.fxscreen--nova .fxscreen__ring--b { border-color: #ff5e7a; box-shadow: 0 0 24px #ff5e7a; animation-delay: .66s; }
+@keyframes fsringfx { 0% { transform: scale(.2); opacity: 1; } 100% { transform: scale(9); opacity: 0; } }
+
+/* ---- 画面の ゆれ（コンボが 高いほど 大きく） ---- */
+.battle.is-quake-1 { animation: quake1fx .45s ease-out; }
+.battle.is-quake-2 { animation: quake2fx .6s ease-out; }
+.battle.is-quake-3 { animation: quake3fx .9s ease-out .42s; }
+.battle.is-quake-4 { animation: quake4fx 1.4s ease-out .5s; }
+@keyframes quake1fx { 0%,100% { transform: translate(0,0); } 20% { transform: translate(-6px,4px); } 40% { transform: translate(6px,-4px); } 60% { transform: translate(-4px,2px); } 80% { transform: translate(3px,-2px); } }
+@keyframes quake2fx { 0%,100% { transform: translate(0,0); } 15% { transform: translate(-9px,6px); } 30% { transform: translate(9px,-6px); } 45% { transform: translate(-7px,4px); } 60% { transform: translate(6px,-3px); } 80% { transform: translate(-3px,2px); } }
+@keyframes quake3fx { 0%,100% { transform: translate(0,0) rotate(0); } 10% { transform: translate(-12px,8px) rotate(-.6deg); } 22% { transform: translate(12px,-8px) rotate(.6deg); } 36% { transform: translate(-10px,6px); } 50% { transform: translate(9px,-5px); } 66% { transform: translate(-6px,3px); } 82% { transform: translate(4px,-2px); } }
+@keyframes quake4fx { 0%,100% { transform: translate(0,0) rotate(0); } 8% { transform: translate(-16px,10px) rotate(-1deg); } 18% { transform: translate(16px,-10px) rotate(1deg); } 28% { transform: translate(-14px,8px) rotate(-.8deg); } 40% { transform: translate(12px,-8px) rotate(.8deg); } 54% { transform: translate(-9px,5px); } 68% { transform: translate(7px,-4px); } 82% { transform: translate(-4px,2px); } 92% { transform: translate(2px,-1px); } }
+
+/* ---- 主人公：ひっさつの ときは 大きく とびこんで、うしろに 色の オーラ ---- */
+.hero.is-special { animation: specialbigfx .6s ease-out; }
+@keyframes specialbigfx { 0% { transform: translateX(0) scale(1); } 35% { transform: translateX(36px) scale(1.3); } 100% { transform: translateX(0) scale(1); } }
+.hero.is-special::before {
+  content: ''; position: absolute; left: -14px; top: -14px; right: -14px; bottom: 6px; z-index: -1;
+  background: radial-gradient(closest-side, var(--el, #ffd447), rgba(255,255,255,0));
+  animation: aurafx .7s ease-out forwards;
+}
 
 /* =========================================================
    04 けっか（v1.9 / モック準拠）
