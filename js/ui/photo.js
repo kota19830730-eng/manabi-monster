@@ -544,7 +544,7 @@ MQ.ui.photo = (function () {
        ⑤ぬりむらを 一色に：同じ 色あいで つながった マスを ひとまとまりに して、いちばん こく ぬれている 色に そろえる
        ⑥ふちの マスを こく して 輪かくの 線に（ゲームの モンスターらしく）
      子どもの 絵の 形は 変えない（マスを うごかさない・ならべ直さない） */
-  function cleanCells(cells, N) {
+  function cleanCells(cells, N, noContour) {
     function at(g, x, y) { return (x < 0 || y < 0 || x >= N || y >= N) ? null : g[y * N + x]; }
     const D8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
     function bucket(c) { return [Math.round(c[0] / 28), Math.round(c[1] / 28), Math.round(c[2] / 28)].join(','); }
@@ -652,6 +652,7 @@ MQ.ui.photo = (function () {
       members.forEach(function (k) { cells[k] = { ink: false, c: rep2.slice() }; });
     }
 
+    if (noContour) return;   // ゲームふうは 輪かくの 線を つけない（ほかの モンスターに 黒ふちは ない。立体面は gameStyle で）
     // ⑥ 輪かく：すけている ところ（か 絵の はし）に となりあう 色の マスを こく（線の マスは そのまま）
     src = cells.slice();
     for (let y = 0; y < N; y++) {
@@ -664,13 +665,292 @@ MQ.ui.photo = (function () {
     }
   }
 
-  /* ゲームふうの しあげ（v3.4）。ユーザー「もっと ゲームっぽく」：
+  /* つまった 体に する（v3.5）。ゲームの モンスターは すき間の ない べた塗り なので、
+     絵の 中の 小さな すき間・ぬり残しを 閉じる（半径 2マスの closing）→ 近くの 色の 多数決で うめる。
+     絵の そとがわは うめない（形は 絵の まま） */
+  function solidify(cells, N) {
+    const occ = new Uint8Array(N * N);
+    for (let k = 0; k < N * N; k++) if (cells[k]) occ[k] = 1;
+    const dil = dilate(occ, N, N, 2);
+    const inv = new Uint8Array(N * N);
+    for (let k = 0; k < N * N; k++) inv[k] = dil[k] ? 0 : 1;
+    const inv2 = dilate(inv, N, N, 2);
+    const closed = new Uint8Array(N * N);
+    for (let k = 0; k < N * N; k++) closed[k] = inv2[k] ? 0 : 1;
+    const D8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+    for (let it = 0; it < 4; it++) {
+      const src = cells.slice();
+      let changed = false;
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const k = y * N + x;
+          if (src[k] || !closed[k]) continue;
+          const fills = [], inks = [];
+          D8.forEach(function (d) {
+            const nx = x + d[0], ny = y + d[1];
+            if (nx < 0 || ny < 0 || nx >= N || ny >= N) return;
+            const c = src[ny * N + nx];
+            if (!c) return;
+            (c.ink ? inks : fills).push(c);
+          });
+          if (fills.length >= 2) {
+            const cnt = {};
+            let best = fills[0], bn = 0;
+            fills.forEach(function (c) {
+              const key = [Math.round(c.c[0] / 28), Math.round(c.c[1] / 28), Math.round(c.c[2] / 28)].join(',');
+              cnt[key] = (cnt[key] || 0) + 1;
+              if (cnt[key] > bn) { bn = cnt[key]; best = c; }
+            });
+            cells[k] = { ink: false, c: best.c.slice() };
+            changed = true;
+          } else if (inks.length >= 3) {
+            cells[k] = { ink: true, c: inks[0].c.slice() };
+            changed = true;
+          }
+        }
+      }
+      if (!changed) break;
+    }
+  }
+
+  /* ゲームふうの しあげ（v3.4 → v3.5）。ユーザー「もっと ゲームっぽく。ほかの モンスターと 違和感なく」：
        ①線の マスは ぜんぶ 同じ こい 色に（輪かくが 1本の 線に 見える）
        ②色の マスは 色あいは 子どもの ままで、あざやかさと こさを ゲームの スプライトに そろえる
        ③左上に ハイライト・右下に かげ（ゲームの モンスターと 同じ 立体感）
      マスは うごかさない（形は 絵の まま） */
+  /* 同じ 色の ぬりの 中に まぎれた 線の マスを、その ぬりの 色に する（v3.5）。
+     ちがう 色や すけている ところに 接する 線（絵の 輪かく・目・口）は のこす */
+  function inkThin(cells, N) {
+    const D8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+    const src = cells.slice();
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const k = y * N + x;
+        const me = src[k];
+        if (!me || !me.ink) continue;
+        let empty = 0;
+        const fills = [];
+        D8.forEach(function (d) {
+          const nx = x + d[0], ny = y + d[1];
+          if (nx < 0 || ny < 0 || nx >= N || ny >= N) { empty++; return; }
+          const c = src[ny * N + nx];
+          if (!c) { empty++; return; }
+          if (!c.ink) fills.push(c);
+        });
+        if (empty > 0 || fills.length < 5) continue;          // ふち・線の かたまりは のこす
+        const cnt = {};
+        let best = null, bn = 0;
+        fills.forEach(function (c) {
+          const key = [Math.round(c.c[0] / 28), Math.round(c.c[1] / 28), Math.round(c.c[2] / 28)].join(',');
+          cnt[key] = (cnt[key] || 0) + 1;
+          if (cnt[key] > bn) { bn = cnt[key]; best = c; }
+        });
+        if (bn >= fills.length * 0.8) cells[k] = { ink: false, c: best.c.slice() };   // まわりが ほぼ 同じ 色 → まぎれた 線
+      }
+    }
+  }
+
+  /* はなれた 小さな かたまりを 消す（v3.5）。ゲームの モンスターは 1つの かたまり なので、
+     いちばん 大きな かたまりの 8% より 小さい ものは 消す（題名の 字・となりの らくがき） */
+  function dropIslands(cells, N) {
+    const label = new Int32Array(N * N);
+    const sizes = [0];
+    const D8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    for (let k0 = 0; k0 < N * N; k0++) {
+      if (label[k0] || !cells[k0]) continue;
+      const id = sizes.length;
+      sizes.push(0);
+      const st = [k0];
+      label[k0] = id;
+      while (st.length) {
+        const k = st.pop();
+        sizes[id]++;
+        const x = k % N, y = (k - x) / N;
+        for (let i = 0; i < 8; i++) {
+          const nx = x + D8[i][0], ny = y + D8[i][1];
+          if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+          const nk = ny * N + nx;
+          if (cells[nk] && !label[nk]) { label[nk] = id; st.push(nk); }
+        }
+      }
+    }
+    let max = 0;
+    sizes.forEach(function (v) { if (v > max) max = v; });
+    for (let k = 0; k < N * N; k++) if (cells[k] && sizes[label[k]] < max * 0.08) cells[k] = null;
+  }
+
+  /* 色を 少なく する（v3.5）。ゲームの モンスターは 1体 3〜5色（＋明暗）なので、
+     ぬりの 色を k色に まとめて べた塗りに 見せる */
+  function fewColors(cells, N, k) {
+    const list = [];
+    for (let i = 0; i < N * N; i++) if (cells[i] && !cells[i].ink) list.push(cells[i].c);
+    if (list.length < 4) return;
+    const pal = palette(list, k);
+    for (let i = 0; i < N * N; i++) if (cells[i] && !cells[i].ink) cells[i].c = nearest(cells[i].c, pal).slice();
+  }
+
+  /* ぎざぎざを ととのえる（v3.5）。まわりと ちがう 1マスを まわりの 色に、
+     ほとんど すけている マス（細い ひげ）を 消し、ほとんど うまっている あなを うめる */
+  function smooth(cells, N) {
+    const D8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+    const src = cells.map(function (c) { return c ? { ink: c.ink, c: c.c.slice() } : null; });
+    function keyOf(c) { return (c.ink ? 'i' : 'f') + [Math.round(c.c[0] / 24), Math.round(c.c[1] / 24), Math.round(c.c[2] / 24)].join(','); }
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const k = y * N + x;
+        const me = src[k];
+        const around = [];
+        let empty = 0;
+        for (let i = 0; i < 8; i++) {
+          const nx = x + D8[i][0], ny = y + D8[i][1];
+          if (nx < 0 || ny < 0 || nx >= N || ny >= N) { empty++; continue; }
+          const c = src[ny * N + nx];
+          if (c) around.push(c); else empty++;
+        }
+        const cnt = {};
+        let best = null, bn = 0, myKey = me ? keyOf(me) : '', mine = 0;
+        around.forEach(function (c) {
+          const kk = keyOf(c);
+          cnt[kk] = (cnt[kk] || 0) + 1;
+          if (cnt[kk] > bn) { bn = cnt[kk]; best = c; }
+          if (kk === myKey) mine++;
+        });
+        if (!me) {
+          if (around.length >= 7 && best) cells[k] = { ink: best.ink, c: best.c.slice() };   // あな
+          continue;
+        }
+        if (empty >= 6) { cells[k] = null; continue; }                                        // 細い ひげ
+        if (mine === 0 && bn >= 5 && best) cells[k] = { ink: best.ink, c: best.c.slice() };   // ひとつだけ ちがう 色
+      }
+    }
+  }
+
+  /* 黒い ふち取りを なくす（v3.5）。ゲームの モンスターに 黒ふちは ない（STYLE_GUIDE）ので、
+     絵の ふちに ある 線の マスは、近くの ぬりの 色に かえる（立体感は あとで つける）。
+     近くに ぬりが ない 線（すじだけ）は 消す。中に ある 線（目・口・もよう）は のこす */
+  function unoutline(cells, N, rounds) {
+    for (let it = 0; it < rounds; it++) {
+      const src = cells.slice();
+      let changed = false;
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const k = y * N + x;
+          const me = src[k];
+          if (!me || !me.ink) continue;
+          const edge = (x > 0 && !src[k - 1]) || (x < N - 1 && !src[k + 1]) ||
+                       (y > 0 && !src[k - N]) || (y < N - 1 && !src[k + N]) ||
+                       x === 0 || y === 0 || x === N - 1 || y === N - 1;
+          if (!edge) continue;                      // 中の 線（目・口）は のこす
+          const cnt = {};
+          let best = null, bn = 0;
+          for (let dy = -3; dy <= 3; dy++) {
+            for (let dx = -3; dx <= 3; dx++) {
+              const nx = x + dx, ny = y + dy;
+              if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+              const c = src[ny * N + nx];
+              if (!c || c.ink) continue;
+              const key = [Math.round(c.c[0] / 26), Math.round(c.c[1] / 26), Math.round(c.c[2] / 26)].join(',');
+              cnt[key] = (cnt[key] || 0) + 1;
+              if (cnt[key] > bn) { bn = cnt[key]; best = c; }
+            }
+          }
+          cells[k] = best ? { ink: false, c: best.c.slice() } : null;
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+  }
+
+  /* 中に ある 細い 線（えんぴつの かげぬり・ハッチング）を、体の 色の こい 面に する（v3.5）。
+     ゲームの モンスターの かげは「体の 色の 暗い 面」なので、黒い すじの ままだと 浮く。
+     ほんとうに 黒く ぬりつぶした ところ（5×5 の 半分 いじょうが 線）は そのまま こい 色 */
+  function hatchToShade(cells, N) {
+    const src = cells.slice();
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const k = y * N + x;
+        const me = src[k];
+        if (!me || !me.ink) continue;
+        let inkN = 0;
+        const cnt = {};
+        let best = null, bn = 0;
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+            const c = src[ny * N + nx];
+            if (!c) continue;
+            if (c.ink) { inkN++; continue; }
+            const key = [Math.round(c.c[0] / 26), Math.round(c.c[1] / 26), Math.round(c.c[2] / 26)].join(',');
+            cnt[key] = (cnt[key] || 0) + 1;
+            if (cnt[key] > bn) { bn = cnt[key]; best = c; }
+          }
+        }
+        if (inkN >= 13) continue;                         // ぬりつぶした ところ（目・黒い 体）は そのまま
+        if (!best || bn < 4) continue;                    // まわりに ぬりが ない 線は そのまま
+        cells[k] = { ink: false, c: [best.c[0] * 0.62, best.c[1] * 0.62, best.c[2] * 0.62] };
+      }
+    }
+  }
+
+  /* 小さな 色の しみを まわりの 色に する（v3.5）。
+     同じ 色で つながった かたまりが min マスより 小さければ、まわりで いちばん 多い 色に ぬりかえる。
+     ゲームの モンスターは 大きな べた塗りの 面で できている ので、点々が あると 浮く */
+  function mergeSpecks(cells, N, min) {
+    function keyOf(c) { return (c.ink ? 'i' : 'f') + [Math.round(c.c[0] / 26), Math.round(c.c[1] / 26), Math.round(c.c[2] / 26)].join(','); }
+    const label = new Int32Array(N * N);
+    const groups = [null];
+    const D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (let k0 = 0; k0 < N * N; k0++) {
+      if (label[k0] || !cells[k0]) continue;
+      const id = groups.length;
+      const key = keyOf(cells[k0]);
+      const members = [];
+      const st = [k0];
+      label[k0] = id;
+      while (st.length) {
+        const k = st.pop();
+        members.push(k);
+        const x = k % N, y = (k - x) / N;
+        for (let i = 0; i < 4; i++) {
+          const nx = x + D4[i][0], ny = y + D4[i][1];
+          if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+          const nk = ny * N + nx;
+          if (label[nk] || !cells[nk] || keyOf(cells[nk]) !== key) continue;
+          label[nk] = id;
+          st.push(nk);
+        }
+      }
+      groups.push(members);
+    }
+    groups.forEach(function (members) {
+      if (!members || members.length >= min) return;
+      const cnt = {};
+      let best = null, bn = 0;
+      members.forEach(function (k) {
+        const x = k % N, y = (k - x) / N;
+        for (let i = 0; i < 4; i++) {
+          const nx = x + D4[i][0], ny = y + D4[i][1];
+          if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+          const nk = ny * N + nx;
+          const c = cells[nk];
+          if (!c || label[nk] === label[k]) continue;
+          const kk = keyOf(c);
+          cnt[kk] = (cnt[kk] || 0) + 1;
+          if (cnt[kk] > bn) { bn = cnt[kk]; best = c; }
+        }
+      });
+      if (!best || bn < 3) return;
+      members.forEach(function (k) { cells[k] = { ink: best.ink, c: best.c.slice() }; });
+    });
+  }
+
   function gameStyle(cells, N) {
-    const OUT = [26, 24, 38];                       // 輪かくの 色（こい 紺black）
+    inkThin(cells, N);
+    unoutline(cells, N, 3);
+    hatchToShade(cells, N);
+    const OUT = [30, 28, 44];                       // 子どもが かいた 線（目・口 など）の 色（こい 紺）
     function at(g, x, y) { return (x < 0 || y < 0 || x >= N || y >= N) ? null : g[y * N + x]; }
     function toHsl(c) {
       const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
@@ -706,7 +986,17 @@ MQ.ui.photo = (function () {
       // 色えんぴつの 色：色あいは そのまま、ゲームの スプライトの こさに
       c.c = fromHsl(hsl.h, Math.min(0.92, Math.max(0.55, hsl.s * 1.4)), Math.min(0.66, Math.max(0.42, hsl.l * 0.92)));
     }
-    // ③ 立体感：輪かく（か すけている ところ）に となりあう マスを、上・左なら 明るく、下・右なら こく
+    // ③ ほかの モンスターと 同じ 質感に：はなれた 小片を 消す → 色を 6色に → ぎざぎざを ならす
+    dropIslands(cells, N);
+    fewColors(cells, N, 5);
+    smooth(cells, N);
+    mergeSpecks(cells, N, 5);
+    smooth(cells, N);
+    mergeSpecks(cells, N, 8);
+    smooth(cells, N);
+    dropIslands(cells, N);
+
+    // ④ 立体感：輪かく（か すけている ところ）に となりあう マスを、上・左なら 明るく、下・右なら こく
     const src = cells.map(function (c) { return c ? { ink: c.ink, c: c.c.slice() } : null; });
     function edge(c) { return !c || c.ink; }
     for (let y = 0; y < N; y++) {
@@ -716,8 +1006,9 @@ MQ.ui.photo = (function () {
         const hi = edge(at(src, x, y - 1)) || edge(at(src, x - 1, y));
         const lo = edge(at(src, x, y + 1)) || edge(at(src, x + 1, y));
         const c = cells[y * N + x].c;
-        if (hi) cells[y * N + x].c = [c[0] + (255 - c[0]) * 0.3, c[1] + (255 - c[1]) * 0.3, c[2] + (255 - c[2]) * 0.3];
-        else if (lo) cells[y * N + x].c = [c[0] * 0.72, c[1] * 0.72, c[2] * 0.72];
+        // blocks.js と 同じ：下と 右は 暗い 面、上と 左は 明るい ハイライト（暗い ほうが 先）
+        if (lo) cells[y * N + x].c = [c[0] * 0.6, c[1] * 0.6, c[2] * 0.6];
+        else if (hi) cells[y * N + x].c = [c[0] + (255 - c[0]) * 0.35, c[1] + (255 - c[1]) * 0.35, c[2] + (255 - c[2]) * 0.35];
       }
     }
   }
@@ -747,7 +1038,7 @@ MQ.ui.photo = (function () {
     const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
     const ox = cx - side / 2, oy = cy - side / 2;
 
-    const N = size;
+    const N = cleanMode >= 2 ? 48 : size;   // ゲームふうは 48マス＝ゲームの モンスターと まったく 同じ ドットの 大きさ（96px 表示で 1ドット 2px）
     const cell = side / N;
     const M = 6;                                  // 1マスの 中で しらべる 点の 数（M×M）
     const cells = new Array(N * N);
@@ -811,8 +1102,8 @@ MQ.ui.photo = (function () {
       }
     }
     // しあげ（v3.3〜）：ごみ・線の すきま・あな・白い ぬけ・ぬりむら・輪かく → さらに ゲームふう（v3.4）
-    if (cleanMode >= 1) cleanCells(cells, N);
-    if (cleanMode >= 2) gameStyle(cells, N);
+    if (cleanMode >= 1) cleanCells(cells, N, cleanMode >= 2);
+    if (cleanMode >= 2) { solidify(cells, N); cleanCells(cells, N, true); gameStyle(cells, N); }
 
     // 色を 16色に そろえる
     const pal = palette(fills, 16);
@@ -954,6 +1245,7 @@ MQ.ui.photo = (function () {
         class: 'chip chip--s' + (cleanMode === cch[0] ? ' is-on' : ''), type: 'button', text: cch[1],
         onclick: function () {
           cleanMode = cch[0]; MQ.sfx.tap();
+          syncSizeRow();
           cleanChips.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('is-on'); });
           b.classList.add('is-on');
           refresh();
@@ -973,6 +1265,10 @@ MQ.ui.photo = (function () {
       });
       return b;
     }));
+
+    // ゲームふうは 48マス 固定（ゲームの モンスターと 同じ ドットの 大きさ）なので、こまかさは かくす
+    const sizeRow = h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'ドットの こまかさ' }), sizeChips]);
+    function syncSizeRow() { sizeRow.hidden = cleanMode >= 2; }
 
     /* ---- AIで かっこよく する（v2.8）。かぎが ある ときだけ 金の ボタン ---- */
     const aiCount = h('span', { class: 'btn--ai__n' });
@@ -1065,7 +1361,7 @@ MQ.ui.photo = (function () {
       emptyNote,
       sliderRow('はいけいを 消す', 15, 120, function () { return tol; }, function (v) { tol = v; }),
       sliderRow('線を こく', 0, 100, function () { return inkLv; }, function (v) { inkLv = v; }),
-      h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'ドットの こまかさ' }), sizeChips]),
+      sizeRow,
       h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'しあげ' }), cleanChips]),
       h('div', { class: 'photo__btns' }, [
         h('button', { class: 'btn btn--small btn--cream', type: 'button', text: 'わくを 自動で', onclick: function () { MQ.sfx.tap(); autoCrop(); drawStage(); refresh(); } }),
@@ -1079,6 +1375,7 @@ MQ.ui.photo = (function () {
     let refreshReq = 0;
     function scheduleRefresh() { if (refreshReq) return; refreshReq = requestAnimationFrame(function () { refreshReq = 0; refresh(); }); }
     function refresh() {
+      syncSizeRow();
       outUrl = edited || build();
       preview.src = outUrl || '';
       previewBattle.src = outUrl || '';
