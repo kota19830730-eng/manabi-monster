@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>アイコンの 実験室</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* ハッシュで 候補を えらぶ：#a スライム / #b ドラゴン / #c 勇者
+     512x512 で スクリーンショットを 撮って そのまま アイコンに する */
+  html, body { margin: 0; padding: 0; background: #222; }
+  #icon { position: relative; width: 512px; height: 512px; overflow: hidden; }
+
+  /* 空（タイトル画面と 同じ 明るい 青） */
+  .sky { position: absolute; inset: 0;
+         background: linear-gradient(180deg, #57AEEC 0%, #8ED2F7 55%, #C6EBFB 100%); }
+  .beam { position: absolute; width: 150px; height: 760px;
+          background: rgba(255,255,255,.16); transform: rotate(24deg); }
+  .beam--2 { width: 90px; background: rgba(255,255,255,.12); }
+
+  /* 地面（草 → こい草 → 土） */
+  .g-light { position: absolute; left: 0; right: 0; bottom: 86px; height: 12px; background: #8BDD75; }
+  .g-main  { position: absolute; left: 0; right: 0; bottom: 34px; height: 52px; background: #5BBB4F; }
+  .g-dark  { position: absolute; left: 0; right: 0; bottom: 26px; height: 8px;  background: #3E8A38; }
+  .soil    { position: absolute; left: 0; right: 0; bottom: 0;    height: 26px; background: #7A5230; }
+
+  /* キラキラ（CSS の 4とがり星） */
+  .sp { position: absolute; background: #fff; opacity: .9;
+        clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); }
+
+  .mon { position: absolute; }
+  #icon img.poster { position: absolute; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<div id="icon">
+  <div class="sky"></div>
+  <div class="beam" style="left:70px; top:-140px;"></div>
+  <div class="beam beam--2" style="left:300px; top:-140px;"></div>
+  <div class="sp" style="left:64px; top:70px; width:40px; height:40px;"></div>
+  <div class="sp" style="left:420px; top:120px; width:28px; height:28px; opacity:.7;"></div>
+  <div class="sp" style="left:390px; top:44px; width:20px; height:20px; opacity:.55;"></div>
+  <div class="g-light"></div>
+  <div class="g-main"></div>
+  <div class="g-dark"></div>
+  <div class="soil"></div>
+</div>
+
+<script src="../js/core/util.js"></script>
+<script src="../js/core/pixel.js"></script>
+<script src="../js/core/blocks.js"></script>
+<script src="../js/content/monsterart.js"></script>
+<script src="../js/content/face.js"></script>
+<script src="../js/content/hero.js"></script>
+<script src="../js/content/enemies.js"></script>
+<script src="../js/content/art.js"></script>
+<script>
+(function () {
+  const mode = (location.hash || '#a').slice(1);
+  const icon = document.getElementById('icon');
+  const GROUND = 512 - 86 - 12;   // 草の いちばん 上の 線（y=414）
+
+  function addMon(id, size, x, y) {
+    const n = MQ.enemies.node(id, { size: size });
+    n.classList.add('mon');
+    n.style.left = x + 'px';
+    n.style.top = y + 'px';
+    icon.appendChild(n);
+  }
+
+  if (mode === 'a') {
+    // みどりの スライム（図かん 1番の マスコット）
+    // 絵の 中で 本体の 下は y=42/48 → 8倍で 336px。草の 上に のせる
+    addMon('slime-green', 384, 64, GROUND - 336);
+  }
+  if (mode === 'b') {
+    // ナンバードラゴン（さいしょの ボス）
+    addMon('boss-dragon', 384, 64, GROUND - 360);
+  }
+  if (mode === 'c') {
+    // タイトルの 勇者（一枚絵 34×36 を 10倍）
+    const img = document.createElement('img');
+    img.className = 'poster';
+    img.src = MQ.hero.poster();
+    img.style.width = '340px';
+    img.style.left = ((512 - 340) / 2) + 'px';
+    img.style.top = (GROUND - 360 + 10) + 'px';
+    icon.appendChild(img);
+  }
+})();
+</script>
+</body>
+</html>
