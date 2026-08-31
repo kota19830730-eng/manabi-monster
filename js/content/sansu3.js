@@ -849,7 +849,7 @@ MQ.sansu3 = (function () {
       // 中心を 通らない 直線（直径では ない）
       s += '<line x1="46" y1="30" x2="124" y2="46" stroke="' + FB + '" stroke-width="3"/>';
       s += '<line x1="34" y1="60" x2="126" y2="60" stroke="' + FR + '" stroke-width="3"/>';
-      s += '<text x="30" y="26" font-size="12" fill="' + FB + '" font-weight="bold">あ</text><text x="128" y="66" font-size="12" fill="' + FR + '" font-weight="bold">い</text>';
+      s += '<text x="30" y="26" font-size="12" fill="' + FB + '" font-weight="bold">あ</text><text x="131" y="78" font-size="12" fill="' + FR + '" font-weight="bold">い</text>';
     }
     return svgBox(s);
   }
