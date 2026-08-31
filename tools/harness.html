@@ -229,14 +229,17 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     // 小1ワールド（v2.2）：#map1 マップ／#battle1 さんすう1／#kokugo1 かん字を かく／#treasure1 ずかんの たからもの
-    if (mode === 'map1' || mode.indexOf('map1:') === 0 || mode === 'battle1' || mode === 'kokugo1' || mode === 'treasure1') {
+    if (mode === 'map1' || mode.indexOf('map1:') === 0 || mode.indexOf('battle1') === 0 || mode === 'kokugo1' || mode === 'treasure1') {
       fresh({
         stars: { 'sansu1-1': 3, 'sansu1-2': 2, 'sansu1-3': 1, 'kokugo1-1': 3 },
         treasure: { 'tr1-kazu': 2, 'tr1-banme': 1, 'tr1-hira': 1 },
         frags: {}
       });
       MQ.save.update(function (pl) { pl.grade = 1; pl.best = {}; });
-      if (mode === 'battle1') { MQ.ui.battle.start('sansu1-1'); await wait(600); return; }
+      if (mode.indexOf('battle1') === 0) {   // #battle1:8 で ステージ8（とけい）
+        const bn = parseInt(mode.slice(8), 10);
+        MQ.ui.battle.start('sansu1-' + (isNaN(bn) ? 1 : bn)); await wait(600); return;
+      }
       if (mode === 'kokugo1') { MQ.ui.battle.start('kokugo1-4'); await wait(600); return; }
       if (mode === 'treasure1') { MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
       MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();

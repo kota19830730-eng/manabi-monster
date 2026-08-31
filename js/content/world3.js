@@ -307,7 +307,8 @@ MQ.content = (function () {
           sansu1Stage(8, 'なんじ なんじはん'),
           sansu1Stage(9, 'たしざん（2）'),
           sansu1Stage(10, 'ひきざん（2）'),
-          sansu1Stage(11, '100までの かず')
+          sansu1Stage(11, '100までの かず'),
+          sansu1Stage(12, 'なんじ なんぷん')
         ]
       },
       {

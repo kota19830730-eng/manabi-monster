@@ -1761,3 +1761,32 @@ body {
 
 /* 小1 さんすう：●○ を ならべて かぞえる（v2.2） */
 .num.dots { letter-spacing: .08em; }
+
+
+/* ---------------------------------------------------------
+   とけい（小1 さんすう v2.2）。画像なし・CSS だけ。
+   黒い ふち・白い 文字ばん・目もり 60・赤い はり。12 が 上。
+   数字と はりの むきは js/content/sansu1.js の clockHtml が 計算する。
+   もとの 大きさは 184px（＋外の わ 5px）。--cs で ちぢめて、問題文の 右に おく。
+   画面が 高い 端末では すこし 大きく（min-height: 820px）。
+   --------------------------------------------------------- */
+.clockq { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.clockq__t { flex: 1 1 auto; min-width: 0; }
+.clockbox { --cs: .64; position: relative; flex: 0 0 auto;
+            width: calc(194px * var(--cs)); height: calc(194px * var(--cs)); }
+@media (min-height: 820px) { .clockbox { --cs: .8; } }
+.clock { position: absolute; left: calc(5px * var(--cs)); top: calc(5px * var(--cs)); display: block;
+         width: 172px; height: 172px; margin: 0; transform: scale(var(--cs)); transform-origin: 0 0;
+         border-radius: 50%; background: #fff; border: 6px solid #1a1a1a;
+         box-shadow: 0 0 0 3px #fff, 0 0 0 5px #1a1a1a, 0 6px 0 rgba(0,0,0,.12); }
+.clock__tick { position: absolute; left: 50%; top: 3px; width: 2px; height: 8px; margin-left: -1px;
+               background: #1a1a1a; transform-origin: 50% 83px; }
+.clock__tick--big { width: 4px; height: 12px; margin-left: -2px; }
+.clock__num { position: absolute; width: 36px; height: 28px; margin: -14px 0 0 -18px; text-align: center; white-space: nowrap;
+              font-family: 'Mochiy Pop One', sans-serif; font-weight: 700; font-size: 22px; line-height: 28px; color: #1a1a1a; }
+.clock__hand { position: absolute; left: 50%; bottom: 50%; transform-origin: 50% 100%;
+               background: #d42a20; border-radius: 4px 4px 2px 2px; }
+.clock__hand--h { width: 10px; height: 50px; margin-left: -5px; }
+.clock__hand--m { width: 6px; height: 74px; margin-left: -3px; }
+.clock__center { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+                 border-radius: 50%; background: #d42a20; }

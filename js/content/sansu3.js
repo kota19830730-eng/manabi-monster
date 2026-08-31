@@ -795,12 +795,16 @@ MQ.sansu3 = (function () {
       const c = levelCounts(n);
       plan = [[st.easy, 1, c[0]], [st.normal, 2, c[1]], [st.hard, 3, c[2]]];
     }
-    const out = [];
+    // 同じ問題が 2回 出ないように 作り直す（乱数の かたよりを ふせぐ）
+    const out = [], seen = {};
+    function idOf(q) { return 'sansu3-' + stageNo + ':' + (q.key || U.stripTags(q.prompt)); }
     plan.forEach(function (p) {
       cycle(p[0], p[2]).forEach(function (maker) {
-        const q = maker();
+        let q = maker(), tries = 0;
+        while (seen[idOf(q)] && tries++ < 12) q = maker();
         q.lv = p[1];
-        q.id = 'sansu3-' + stageNo + ':' + (q.key || U.stripTags(q.prompt));
+        q.id = idOf(q);
+        seen[q.id] = true;
         out.push(q);
       });
     });

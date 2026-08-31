@@ -88,6 +88,7 @@ MQ.treasure = (function () {
     { stage: 'sansu1-9',  id: 'tr1-tashi2',  name: 'たしざんの かんむり',    shape: 'crown',     colors: c('#FF6B9A', '#A8244F') },
     { stage: 'sansu1-10', id: 'tr1-hiki2',   name: 'ひきざんの かぎ',        shape: 'key',       colors: c('#4F8CFF', '#1F4FB0') },
     { stage: 'sansu1-11', id: 'tr1-hyaku',   name: 'ひゃくの まきもの',      shape: 'scroll',    colors: c('#F2C14E', '#B8860B') },
+    { stage: 'sansu1-12', id: 'tr1-fun',     name: 'なんぷんの たま',        shape: 'orb',       colors: c('#8FD3FF', '#4FA3E0') },
     { stage: 'kokugo1-1', id: 'tr1-hira',    name: 'ひらがなの はね',        shape: 'feather',   colors: c('#FF6B9A', '#A8244F') },
     { stage: 'kokugo1-2', id: 'tr1-kata',    name: 'かたかなの すず',        shape: 'bell',      colors: c('#8FD3FF', '#4FA3E0') },
     { stage: 'kokugo1-3', id: 'tr1-yomi',    name: 'かん字の ほん',          shape: 'book',      colors: c('#3E9A6B', '#1E5A3C') },

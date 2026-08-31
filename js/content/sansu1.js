@@ -9,10 +9,11 @@
      5 ひきざん（1）          … 10までの ひきざん・「のこりは」「ちがいは」
      6 20までの かず          … 10と 5で／14は 10と □／12+3・15−3
      7 3つの かずの けいさん  … 3+2+4／9−3−2／8+2+5
-     8 なんじ なんじはん      … はりの いちを ことばで 言う → なんじ
+     8 なんじ なんじはん      … とけいの 絵（CSS で 描く）を 見て なんじ／なんじはん
      9 たしざん（2）          … くりあがり（9+4）
     10 ひきざん（2）          … くりさがり（13−8）
     11 100までの かず         … 10が 4こと 1が 3こ／つぎの かず／40+20・24+3
+    12 なんじ なんぷん        … とけいの 絵を 見て なんぷん／なんじ なんぷん（5ふんとび → 1ぷん きざみ）
 
    作りかたは sansu3.js と 同じ。easy / normal / hard / boss の 4グループに
    「問題を 1つ かえす かんすう」を ならべる。たたかいでは easy → normal → hard。
@@ -597,88 +598,185 @@ MQ.sansu1 = (function () {
   };
 
   /* =======================================================
-     ステージ8 なんじ なんじはん
-     （とけいの 絵は 出せないので、はりの いちを ことばで 言う）
+     とけいの 絵（CSS の div だけ。画像なし）
+     12 が 上・黒い ふち・白い 文字ばん・目もり 60・赤い はり 2本。
+     見た目は css/style.css の .clock。数字と はりの むきだけ ここで 計算する。
      ======================================================= */
+  function clockHtml(h, m) {
+    const hd = (h % 12) * 30 + m * 0.5;   // みじかい はり（1じかんで 30度・1ぷんで 0.5度）
+    const md = m * 6;                     // ながい はり（1ぷんで 6度）
+    let s = '<span class="clock">';
+    for (let i = 0; i < 60; i++) {
+      s += '<i class="clock__tick' + (i % 5 === 0 ? ' clock__tick--big' : '') + '" style="transform:rotate(' + (i * 6) + 'deg)"></i>';
+    }
+    for (let n = 1; n <= 12; n++) {
+      const a = n * Math.PI / 6;
+      const x = 86 + 62 * Math.sin(a), y = 86 - 62 * Math.cos(a);
+      s += '<b class="clock__num" style="left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px">' + n + '</b>';
+    }
+    s += '<i class="clock__hand clock__hand--h" style="transform:rotate(' + hd + 'deg)"></i>';
+    s += '<i class="clock__hand clock__hand--m" style="transform:rotate(' + md + 'deg)"></i>';
+    s += '<i class="clock__center"></i></span>';
+    return s;
+  }
+  // 問題文の 右に とけいを おく（カードが 高く ならない ように よこならび）
+  function clockQ(text, h, m) {
+    return '<span class="clockq"><span class="clockq__t">' + text + '</span><span class="clockbox">' + clockHtml(h, m) + '</span></span>';
+  }
   function ji(h) { return h + 'じ'; }
   function han(h) { return h + 'じはん'; }
+  function nextH(h) { return h === 12 ? 1 : h + 1; }
+  function prevH(h) { return h === 1 ? 12 : h - 1; }
+  // 「ふん」「ぷん」の つかいわけ（1ぷん・2ふん・3ぷん・4ぷん・5ふん・6ぷん・7ふん・8ぷん・9ふん・10ぷん）
+  function fun(m) { return [1, 3, 4, 6, 8, 0].indexOf(m % 10) !== -1 ? 'ぷん' : 'ふん'; }
+  function jifun(h, m) { return h + 'じ' + m + fun(m); }
+  function nearMin(m, d) { const v = m + d; return (v >= 1 && v <= 59) ? v : m - d; }
+
+  /* =======================================================
+     ステージ8 なんじ なんじはん（とけいの 絵つき）
+     ======================================================= */
   const stage8 = {
     easy: [
       function exact() {
         const h = U.randInt(1, 12);
-        return num('なんじ', 'ながい はりが 12、みじかい はりが ' + h + ' を さしています。なんじ？', h, {
-          hint: 'ながい はりが 12 の ときは「ちょうど なんじ」。みじかい はりの かずを よもう。', note: ji(h), key: 'ex:' + h
+        return num('なんじ', clockQ('なんじ？', h, 0), h, {
+          hint: 'ながい はりが 12 だから「ちょうど」。みじかい はりが さしている かずを よもう。', note: ji(h), key: 'ex:' + h
         });
       },
-      function longHand() {
+      function exactChoice() {
         const h = U.randInt(1, 12);
-        return num('ながい はり', 'ちょうど ' + h + 'じ の とき、ながい はりは どの かずを さしている？', 12, {
-          hint: 'ちょうどの ときは、ながい はりは いつも 12 だよ。', note: 'ちょうど ' + h + 'じ の ながい はりは 12', key: 'lh:' + h
+        return choice('なんじ', clockQ('なんじ？', h, 0), withDistractors(ji(h), [han(h), ji(nextH(h)), ji(prevH(h))]), {
+          hint: 'ながい はりが 12 の ときは「ちょうど なんじ」。', note: ji(h), key: 'exc:' + h
         });
       }
     ],
     normal: [
       function half() {
-        const h = U.randInt(1, 11);
-        return choice('なんじはん', 'ながい はりが 6、みじかい はりが ' + h + ' と ' + (h + 1) + ' の あいだ。なんじ？',
-          withDistractors(han(h), [han(h + 1), ji(h), ji(h + 1), han(6)]), {
-            hint: 'ながい はりが 6 の ときは「なんじはん」。みじかい はりは ' + h + ' を すぎた ところだよ。', note: han(h), key: 'half:' + h
-          });
+        const h = U.randInt(1, 12);
+        return choice('なんじはん', clockQ('なんじ？', h, 30), withDistractors(han(h), [han(nextH(h)), ji(h), ji(nextH(h))]), {
+          hint: 'ながい はりが 6 だから「なんじはん」。みじかい はりは ' + h + ' を すぎた ところ。まだ ' + nextH(h) + ' じゃないよ。', note: han(h), key: 'half:' + h
+        });
       },
       function halfLong() {
         const h = U.randInt(1, 12);
-        return num('ながい はり', h + 'じはん の とき、ながい はりは どの かずを さしている？', 6, {
-          hint: '「はん」の ときは、ながい はりは いつも 6 だよ。', note: h + 'じはん の ながい はりは 6', key: 'hl:' + h
+        return num('ながい はり', clockQ('ながい はりは どの かずを さしている？', h, 30), 6, {
+          hint: 'ながくて ほそい ほうが ながい はり。さきの かずを よもう。', note: h + 'じはん の ながい はりは 6', key: 'hl:' + h
         });
       },
-      function exactChoice() {
+      function shortHand() {
         const h = U.randInt(1, 12);
-        return choice('なんじ', 'みじかい はりが ' + h + '、ながい はりが 12。なんじ？',
-          withDistractors(ji(h), [han(h), ji(h === 12 ? 1 : h + 1), ji(12), han(12)]), {
-            hint: 'ながい はりが 12 の ときは「ちょうど」。みじかい はりを よもう。', note: ji(h), key: 'exc:' + h
-          });
+        return num('みじかい はり', clockQ('みじかい はりは どの かずを さしている？', h, 0), h, {
+          hint: 'みじかくて ふとい ほうが みじかい はり。', note: 'みじかい はりは ' + h, key: 'sh:' + h
+        });
       }
     ],
     hard: [
+      function which() {
+        const h = U.randInt(1, 12), isHalf = Math.random() < 0.5;
+        const ans = isHalf ? han(h) : ji(h);
+        return choice('なんじ', clockQ('なんじ？', h, isHalf ? 30 : 0), withDistractors(ans, [isHalf ? ji(h) : han(h), ji(nextH(h)), han(nextH(h))]), {
+          hint: 'ながい はりが 12 なら「ちょうど」、6 なら「はん」。', note: ans, key: 'wh:' + h + ':' + (isHalf ? 1 : 0)
+        });
+      },
       function hourLater() {
-        const h = U.randInt(1, 11);
-        return choice('1じかん あと', h + 'じ の 1じかん あとは？', withDistractors(ji(h + 1), [ji(h), han(h), ji(h + 2 > 12 ? 1 : h + 2)]), {
-          hint: '1じかん たつと、みじかい はりが 1つ すすむよ。', note: h + 'じ の 1じかん あとは ' + ji(h + 1), key: 'la:' + h
+        const h = U.randInt(1, 12);
+        return choice('1じかん あと', clockQ('この とけいの 1じかん あとは なんじ？', h, 0), withDistractors(ji(nextH(h)), [ji(h), han(h), ji(nextH(nextH(h)))]), {
+          hint: 'いまは ' + ji(h) + '。1じかん たつと みじかい はりが 1つ すすむよ。', note: ji(h) + ' の 1じかん あとは ' + ji(nextH(h)), key: 'la:' + h
         });
       },
       function halfLater() {
-        const h = U.randInt(1, 11);
-        return choice('1じかん あと', h + 'じはん の 1じかん あとは？', withDistractors(han(h + 1), [ji(h + 1), han(h), ji(h)]), {
-          hint: '「はん」は そのまま。みじかい はりだけ 1つ すすむよ。', note: han(h) + ' の 1じかん あとは ' + han(h + 1), key: 'hla:' + h
-        });
-      },
-      function which() {
-        const h = U.randInt(1, 11);
-        const isHalf = Math.random() < 0.5;
-        const text = isHalf ? 'ながい はりが 6、みじかい はりが ' + h + ' と ' + (h + 1) + ' の あいだ' : 'ながい はりが 12、みじかい はりが ' + h;
-        const ans = isHalf ? han(h) : ji(h);
-        return choice('なんじ', text + '。なんじ？', withDistractors(ans, [isHalf ? ji(h) : han(h), ji(h + 1), han(h + 1)]), {
-          hint: 'ながい はりが 12 なら「ちょうど」、6 なら「はん」だよ。', note: ans, key: 'wh:' + h + ':' + (isHalf ? 1 : 0)
+        const h = U.randInt(1, 12);
+        return choice('1じかん あと', clockQ('この とけいの 1じかん あとは？', h, 30), withDistractors(han(nextH(h)), [ji(nextH(h)), han(h), ji(h)]), {
+          hint: 'いまは ' + han(h) + '。「はん」は そのまま、みじかい はりだけ 1つ すすむ。', note: han(h) + ' の 1じかん あとは ' + han(nextH(h)), key: 'hla:' + h
         });
       }
     ],
     boss: [
       function hourBefore() {
-        const h = U.randInt(2, 12);
-        return choice('1じかん まえ', h + 'じ の 1じかん まえは？', withDistractors(ji(h - 1), [ji(h), han(h - 1), ji(h === 12 ? 1 : h + 1)]), {
-          hint: '1じかん まえは、みじかい はりが 1つ もどるよ。', note: h + 'じ の 1じかん まえは ' + ji(h - 1), key: 'lb:' + h
+        const h = U.randInt(1, 12);
+        return choice('1じかん まえ', clockQ('この とけいの 1じかん まえは なんじ？', h, 0), withDistractors(ji(prevH(h)), [ji(h), han(prevH(h)), ji(nextH(h))]), {
+          hint: 'いまは ' + ji(h) + '。1じかん まえは みじかい はりが 1つ もどる。', note: ji(h) + ' の 1じかん まえは ' + ji(prevH(h)), key: 'lb:' + h
         });
       },
       function halfLaterBoss() {
-        const h = U.randInt(1, 11);
-        return choice('1じかん あと', han(h) + ' の 1じかん あとは？', withDistractors(han(h + 1), [ji(h + 1), han(h), ji(h + 2 > 12 ? 1 : h + 2)]), {
-          hint: '「はん」は そのまま、みじかい はりだけ 1つ すすむ。', note: han(h) + ' の 1じかん あとは ' + han(h + 1), key: 'bhla:' + h
+        const h = U.randInt(1, 12);
+        return choice('1じかん あと', clockQ('この とけいの 1じかん あとは？', h, 30), withDistractors(han(nextH(h)), [ji(nextH(h)), han(h), han(nextH(nextH(h)))]), {
+          hint: 'いまは ' + han(h) + '。「はん」は そのまま、みじかい はりだけ 1つ すすむ。', note: han(h) + ' の 1じかん あとは ' + han(nextH(h)), key: 'bhla:' + h
         });
       },
       function whichBoss() {
-        const h = U.randInt(1, 11);
-        return choice('なんじ', 'みじかい はりが ' + h + ' と ' + (h + 1) + ' の あいだ、ながい はりが 6。なんじ？', withDistractors(han(h), [han(h + 1), ji(h), ji(h + 1)]), {
-          hint: 'みじかい はりが ' + h + ' を すぎて、ながい はりが 6 なら ' + h + 'じはん。', note: han(h), key: 'bwh:' + h
+        const h = U.randInt(1, 12);
+        return choice('なんじはん', clockQ('なんじ？', h, 30), withDistractors(han(h), [han(nextH(h)), ji(h), ji(nextH(h))]), {
+          hint: 'みじかい はりは ' + h + ' と ' + nextH(h) + ' の あいだ。すぎた ほうの かず（' + h + '）を よむ。', note: han(h), key: 'bwh:' + h
+        });
+      }
+    ]
+  };
+
+  /* =======================================================
+     ステージ12 なんじ なんぷん（とけいの 絵つき）
+     ======================================================= */
+  function fiveMin() { return U.randInt(1, 11) * 5; }
+  function oddMin() { let m = U.randInt(1, 59); while (m % 5 === 0) m = U.randInt(1, 59); return m; }
+  function readQ(unit, h, m, extraHint, key) {
+    return choice(unit, clockQ('なんじ なんぷん？', h, m),
+      withDistractors(jifun(h, m), [jifun(nextH(h), m), jifun(h, nearMin(m, 5)), jifun(h, nearMin(m, 1))]), {
+        hint: 'みじかい はりが すぎた かずが「なんじ」、ながい はりは 1めもりが 1ぷん。' + (extraHint || ''), note: jifun(h, m), key: key + ':' + h + ':' + m
+      });
+  }
+  const stage12 = {
+    easy: [
+      function minFive() {
+        const h = U.randInt(1, 12), m = fiveMin();
+        return num('なんぷん', clockQ('なんぷん？', h, m), m, {
+          hint: 'ながい はりは 1 で 5ふん、2 で 10ぷん。5、10、15… と かぞえよう。', note: m + fun(m), key: 'f5:' + h + ':' + m
+        });
+      },
+      function hourFive() {
+        const h = U.randInt(1, 12), m = fiveMin();
+        return num('なんじ', clockQ('なんじ？', h, m), h, {
+          hint: 'みじかい はりが すぎた かずが「なんじ」。まだ ' + nextH(h) + ' には なっていないよ。', note: ji(h) + m + fun(m) + ' だから ' + ji(h), key: 'h5:' + h + ':' + m
+        });
+      }
+    ],
+    normal: [
+      function minAny() {
+        const h = U.randInt(1, 12), m = oddMin();
+        return num('なんぷん', clockQ('なんぷん？', h, m), m, {
+          hint: '5、10、15… と かぞえてから、のこりの めもりを 1つずつ たそう。', note: m + fun(m), key: 'fa:' + h + ':' + m
+        });
+      },
+      function readFive() { const h = U.randInt(1, 12); return readQ('なんじ なんぷん', h, fiveMin(), '', 'r5'); },
+      function hourTrap() {
+        const h = U.randInt(1, 12), m = U.randInt(50, 59);
+        return num('なんじ', clockQ('なんじ？', h, m), h, {
+          hint: 'みじかい はりは ' + nextH(h) + ' の ちかくだけど、まだ すぎていない。すぎた かずは ' + h + '。', note: jifun(h, m) + ' だから ' + ji(h), key: 'tr:' + h + ':' + m
+        });
+      }
+    ],
+    hard: [
+      function readAny() { const h = U.randInt(1, 12); return readQ('なんじ なんぷん', h, oddMin(), '', 'ra'); },
+      function minLate() {
+        const h = U.randInt(1, 12), m = U.randInt(31, 59);
+        return num('なんぷん', clockQ('なんぷん？', h, m), m, {
+          hint: '6 で 30ぷん。そこから 35、40… と かぞえて、のこりの めもりを たそう。', note: m + fun(m), key: 'fl:' + h + ':' + m
+        });
+      },
+      function readTrap() {
+        const h = U.randInt(1, 12), m = U.randInt(46, 59);
+        return readQ('なんじ なんぷん', h, m, 'みじかい はりは ' + nextH(h) + ' の てまえ。', 'rt');
+      }
+    ],
+    boss: [
+      function bossRead() { const h = U.randInt(1, 12); return readQ('なんじ なんぷん', h, oddMin(), '', 'br'); },
+      function bossTrap() {
+        const h = U.randInt(1, 12), m = U.randInt(51, 59);
+        return readQ('なんじ なんぷん', h, m, 'みじかい はりは ' + nextH(h) + ' の すぐ てまえ。', 'bt');
+      },
+      function bossMin() {
+        const h = U.randInt(1, 12), m = oddMin();
+        return num('なんぷん', clockQ('なんぷん？', h, m), m, {
+          hint: '5とびで かぞえてから、のこりの めもりを 1つずつ。', note: m + fun(m), key: 'bm:' + h + ':' + m
         });
       }
     ]
@@ -766,7 +864,7 @@ MQ.sansu1 = (function () {
     ]
   };
 
-  const stages = { 1: stage1, 2: stage2, 3: stage3, 4: stage4, 5: stage5, 6: stage6, 7: stage7, 8: stage8, 9: stage9, 10: stage10, 11: stage11 };
+  const stages = { 1: stage1, 2: stage2, 3: stage3, 4: stage4, 5: stage5, 6: stage6, 7: stage7, 8: stage8, 9: stage9, 10: stage10, 11: stage11, 12: stage12 };
 
   // maker を かたよらないように じゅんばんに 使う
   function cycle(list, n) {

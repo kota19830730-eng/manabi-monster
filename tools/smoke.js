@@ -105,7 +105,7 @@ console.log('sansu generated ok: ' + sansuCount);
 
 /* ---- 小1 さんすう（v2.2）：11ステージ・問題文は ひらがな・12問 かぶりなし ---- */
 let sansu1Count = 0;
-for (let s = 1; s <= 11; s++) {
+for (let s = 1; s <= 12; s++) {
   const st = MQ.sansu1.stages[s];
   check(!!st, 'sansu1 stage ' + s + ' が ある');
   if (!st) continue;
@@ -226,7 +226,16 @@ function checkWorldStages(wld) { wld.areas.forEach(function (area) {
 }); }
 checkWorldStages(w3);
 checkWorldStages(w1);
-check(w1.areas.length === 2 && w1.areas[0].stages.length === 11 && w1.areas[1].stages.length === 5, '小1は さんすう11＋こくご5');
+check(w1.areas.length === 2 && w1.areas[0].stages.length === 12 && w1.areas[1].stages.length === 5, '小1は さんすう12＋こくご5');
+// とけいの 絵：はりの むきが 正しい（8じ47ふん → みじかい はり 263.5度・ながい はり 282度）
+(function () {
+  const q = MQ.sansu1.make(12, 20).filter(function (x) { return x.prompt.indexOf('class="clock"') !== -1; })[0];
+  check(!!q, 'なんじ なんぷんに とけいの 絵が 出る');
+  const p8 = MQ.sansu1.make(8, 20).filter(function (x) { return x.prompt.indexOf('class="clock"') !== -1; }).length;
+  check(p8 >= 18, 'なんじ なんじはんは ほぼ ぜんぶ とけいの 絵つき: ' + p8);
+  const html = MQ.sansu1.make(12, 1, { lv: 2 })[0].prompt;
+  check(/clock__hand--h" style="transform:rotate\([0-9.]+deg\)/.test(html) && /clock__num/.test(html) && (html.match(/class="clock__tick/g) || []).length === 60, 'とけいの 絵の 部品（はり2本・数字・目もり60）');
+})();
 check(w1.areas[1].stages[3].make(8, {}).some(function (q) { return q.type === 'write' && q.prompt.indexOf('かこう') !== -1; }), '小1の かん字を かく問題は ひらがなの 言いかた');
 check(writeSeen, 'かん字を ゆびで 書く問題が 出る');
 check(romaSeen, 'ローマ字を うつ問題が 出る');
@@ -241,8 +250,8 @@ check(JSON.stringify(kinds) === JSON.stringify(['sansu', 'kokugo', 'romaji', 'ri
   'ラスボスは 算数→国語→ローマ字→理社→英語: ' + kinds.join(','));
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 48, 'たからもの 48個（小3 32＋小1 16）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 16, 'listFor: 小3 32・小1 16');
+check(MQ.treasure.total() === 49, 'たからもの 49個（小3 32＋小1 17）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 17, 'listFor: 小3 32・小1 17');
 [w3, w1].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -717,7 +726,7 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     check(!!pw, 'たからもの ' + t.id + '（' + t.shape + '）に わざが ない');
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
-  const want = { burst: 6, shield: 6, freeze: 5, guide: 12, golden: 4, chest: 4, power: 7, charge: 4 };
+  const want = { burst: 6, shield: 6, freeze: 5, guide: 12, golden: 4, chest: 4, power: 8, charge: 4 };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
     check(typeof p.desc(p.val[0]) === 'string' && p.desc(p.val[0]).length > 0 && p.short(p.val[1]).length > 0, 'わざ ' + p.id + ' の せつめい');
