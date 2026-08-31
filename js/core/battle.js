@@ -52,6 +52,7 @@ window.MQ = window.MQ || {};
 
 MQ.battle = (function () {
   const XP = {
+    revenge: 15,        // リベンジ（にげた敵を たおす）の ボーナス（v3.1）
     mob: 10, mobRetry: 5,          // ザコ
     bossHit: 15, bossHitRetry: 8,  // ボスへの 1ダメージ
     bossBonus: 15,                 // ボスを たおしたら さらに
@@ -258,6 +259,7 @@ MQ.battle = (function () {
       defeated: [],
       escapedNow: [],
       revengeBeaten: [],
+      typeOk: {},                  // 種類ごとの 正解数（ミッション「かん字を 3もん」用）
       multiKO: [],
       chestOpened: false,
       bossBeaten: false,
@@ -410,10 +412,13 @@ MQ.battle = (function () {
       }
       if (q.groupPos === 0) s.groupClean = !wasRetry;
 
+      // リベンジ（にげた敵が もどってきた）を たおしたら ボーナス（v3.1）
+      if (q.revenge) xp += XP.revenge;
       // ばくれつ こうげき：この 1体ぶんの けいけんちが ばいに
       let burst = 0;
       if (s.buff.dmg > 1) { burst = s.buff.dmg; xp *= burst; s.buff.dmg = 1; }
       xp = gain(xp);
+      s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
       // ゴールデンスライムは コインを 落とす
       let coins = 0;
       if (q.enemyId === goldenId()) { coins = 1; s.coins += 1; }
@@ -421,7 +426,7 @@ MQ.battle = (function () {
       if (q.revenge) s.revengeBeaten.push(q.id);
       return {
         outcome: 'correct', xp: xp, crit: crit, combo: s.combo, rare: !!q.rare,
-        multi: multi, note: q.note, burst: burst, coins: coins
+        multi: multi, note: q.note, burst: burst, coins: coins, revenge: !!q.revenge
       };
     }
 
@@ -703,6 +708,8 @@ MQ.battle = (function () {
         };
       }),
       revengeBeaten: s.revengeBeaten,
+      revengeBonus: s.revengeBeaten.length * XP.revenge,
+      typeOk: Object.assign({}, s.typeOk),
       itemsUsed: s.itemsUsed.slice()
     };
   }

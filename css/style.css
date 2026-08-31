@@ -698,6 +698,24 @@ body {
 
 /* ---- 上下の バー ---- */
 .maptop { flex: none; }
+/* きょうの ミッション（v3.1） */
+.missions { margin: 0 12px 6px; border-radius: 12px; background: linear-gradient(var(--navy-1), var(--navy-2)); box-shadow: 0 4px 0 var(--navy-sh); overflow: hidden; }
+.missions__head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px; border: 0; background: transparent; color: #fff; cursor: pointer; font-family: var(--f-head); font-size: 15px; text-align: left; }
+.missions__title { flex: 1; color: var(--gold); }
+.missions__count { font-size: 14px; color: #fff; }
+.missions__arrow { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid var(--gold); transition: transform .2s; }
+.missions.is-open .missions__arrow { transform: rotate(180deg); }
+.missions__list { display: none; padding: 0 10px 8px; }
+.missions.is-open .missions__list { display: block; }
+.mission { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid rgba(255,255,255,.08); font-family: var(--f-body); font-size: 14px; color: #dbe4ff; }
+.mission__check { flex: none; width: 22px; height: 22px; border-radius: 6px; background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); display: inline-flex; align-items: center; justify-content: center; font-family: var(--f-head); font-size: 14px; color: #fff; }
+.mission.is-done .mission__check { background: linear-gradient(var(--grn-1), var(--grn-2)); box-shadow: 0 2px 0 var(--grn-sh); }
+.mission.is-done .mission__text { color: #9fb2dd; text-decoration: line-through; }
+.mission__text { flex: 1; min-width: 0; }
+.mission__prog { flex: none; font-size: 12px; color: var(--gold); }
+.missions__all { margin-top: 4px; font-size: 11px; color: var(--tx-sub); text-align: right; }
+.missions.is-all .missions__all { color: var(--gold); }
+.missions.is-all .missions__head { color: var(--gold); }
 .maptop__row { display: flex; gap: 8px; padding: 8px 12px; background: var(--bg-2); border-bottom: 3px solid var(--hd-edge); }
 .maptop__row .btn { flex: 1; min-height: 46px; padding: 0 6px; font-size: 13px; white-space: nowrap; }
 .mapbottom { flex: none; }
@@ -759,6 +777,10 @@ body {
 .enemy--boss .shadow--foe { width: 80px; }
 .enemy--r3 .shadow--foe { width: 72px; }
 .enemy--rare .enemy__img { filter: drop-shadow(0 0 10px rgba(255,212,71,.95)) drop-shadow(0 4px 4px rgba(10,10,40,.45)); }
+/* リベンジ（v3.1）：赤い オーラ＋リボン */
+.enemy--revenge .enemy__img { filter: drop-shadow(0 0 10px rgba(255,70,70,.95)) drop-shadow(0 4px 4px rgba(10,10,40,.45)); }
+.enemy--revenge .enemy__name { background: linear-gradient(#c62828, #8e1f1f); color: #fff; }
+.enemy__ribbon { position: absolute; top: -14px; right: -2px; padding: 2px 8px; border-radius: 6px; background: linear-gradient(#ff5e3a, #c62828); color: #fff; font-family: var(--f-head); font-size: 11px; white-space: nowrap; box-shadow: 0 2px 0 #7d1f1f; animation: pulse 1.2s ease-in-out infinite; z-index: 3; }
 .enemy__img .bx { pointer-events: none; }
 .enemy--done { opacity: .28; filter: grayscale(1); }
 .enemy--waiting { opacity: .82; }
@@ -1505,6 +1527,7 @@ body {
 .rs__barfill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4fd3ff, #7cf9c4); transition: width .8s ease-out; }
 
 .rs__best { margin: -2px 0 0; text-align: center; font-size: 13px; color: #7cf9c4; white-space: nowrap; }
+.rs__mission { margin: -2px 0 0; padding: 4px 10px; border-radius: 10px; text-align: center; font-size: 12px; line-height: 1.35; color: #ffe89a; background: rgba(255,212,71,.12); box-shadow: inset 0 0 0 2px var(--gold); }
 
 /* ---- 4. ボーナスチップ ---- */
 .rs__chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }

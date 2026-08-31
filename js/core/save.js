@@ -83,6 +83,10 @@ MQ.save = (function () {
     if (typeof p.itemUses !== 'number') p.itemUses = 0;     // アイテムを 使った 回数
     if (typeof p.fastCount !== 'number') p.fastCount = 0;   // はやとき ボーナスを とった 回数
     if (typeof p.bestCombo !== 'number') p.bestCombo = 0;   // いちばん 長い コンボ
+    // きょうの ミッション（v3.1）：中身は missions.js が 作る
+    if (!p.missions || typeof p.missions !== 'object') p.missions = null;
+    if (typeof p.missionsDone !== 'number') p.missionsDone = 0;   // クリアした ミッションの 数
+    if (typeof p.missionDays !== 'number') p.missionDays = 0;     // 3つ ぜんぶ クリアした 日の 数
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい20点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {
@@ -210,6 +214,18 @@ MQ.save = (function () {
     return escapedIn(player, areaId).length;
   }
 
+  /* リベンジ（v3.1）：にげた敵は すぐには もどらず、時間が たってから 通常バトルに 出る。
+     とっくんは いつでも できる。at が ない 古い entry は「もう 時間が たった」と 見なす */
+  const REVENGE_AFTER_MS = 20 * 60 * 60 * 1000;   // 約1日（20時間）
+  function revengeReady(player, areaId, nowMs) {
+    const t = nowMs || Date.now();
+    return escapedIn(player, areaId).filter(function (e) {
+      if (!e.at) return true;
+      const a = Date.parse(e.at);
+      return isNaN(a) || t - a >= REVENGE_AFTER_MS;
+    });
+  }
+
   // ぜんぶの エリアの にげた敵（とっくんバトル用）
   function allEscaped(player) {
     const out = [];
@@ -245,6 +261,9 @@ MQ.save = (function () {
   }
 
   /* ---- ひかえ（バックアップ）用 ---- */
+  // テスト用
+  function revengeAfterMs() { return REVENGE_AFTER_MS; }
+
   function exportText() {
     return JSON.stringify(get());
   }
@@ -260,7 +279,7 @@ MQ.save = (function () {
     load: load, get: get, persist: persist,
     createPlayer: createPlayer, current: current, setCurrent: setCurrent, update: update, deletePlayer: deletePlayer,
     getSetting: getSetting, setSetting: setSetting,
-    escapedIn: escapedIn, addEscaped: addEscaped, removeEscaped: removeEscaped, countEscaped: countEscaped,
+    escapedIn: escapedIn, revengeReady: revengeReady, revengeAfterMs: revengeAfterMs, addEscaped: addEscaped, removeEscaped: removeEscaped, countEscaped: countEscaped,
     allEscaped: allEscaped, countAllEscaped: countAllEscaped,
     addLog: addLog, addCustom: addCustom, removeCustom: removeCustom,
     exportText: exportText, importText: importText,

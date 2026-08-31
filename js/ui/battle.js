@@ -174,7 +174,9 @@ MQ.ui.battle = (function () {
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0
       });
     } else {
-      const escaped = MQ.util.shuffle(MQ.save.escapedIn(player, ctx.area.id)).slice(0, REVENGE_MAX);
+      // リベンジ（v3.1）：にげてから 時間が たった 敵だけ（古い ものから）。にげた その日は とっくんで
+      const ready = MQ.save.revengeReady(player, ctx.area.id).slice().sort(function (a, b) { return Date.parse(a.at || 0) - Date.parse(b.at || 0); });
+      const escaped = ready.slice(0, REVENGE_MAX);
       // 開いている ステージの 中で 何番目か → むずかしさ（0=最初 1=最後）
       const opened = ctx.area.stages.filter(function (st) { return MQ.content.isAvailable(st); });
       const hard = opened.length > 1 ? Math.max(0, opened.indexOf(found.stage)) / (opened.length - 1) : 0.5;
@@ -260,6 +262,7 @@ MQ.ui.battle = (function () {
       else if ((e.rank || 2) === 3) { cls += ' enemy--r3'; size = 86; }   // 強そうなのは 大きく
       else if ((e.rank || 2) === 1) { cls += ' enemy--r1'; size = 60; }   // よわそうなのは 小さく
       if (q.rare && i === pos) cls += ' enemy--rare';
+      if (q.revenge && i === pos) cls += ' enemy--revenge';   // リベンジ：赤い オーラ＋リボン（v3.1）
       if (i < pos) cls += ' enemy--done';
       else if (i > pos) cls += ' enemy--waiting';
 
@@ -267,6 +270,7 @@ MQ.ui.battle = (function () {
         MQ.enemies.node(id, { size: size, cls: 'enemy__img', enrage: enraged }),
         h('div', { class: 'shadow shadow--foe' }),
         h('span', { class: 'enemy__name', text: (boss ? (last ? 'ラスボス ' : 'ボス ') : '') + e.name }),
+        q.revenge && i === pos && !boss ? h('span', { class: 'enemy__ribbon', text: 'リベンジ' }) : null,
         boss ? h('div', { class: 'bosshp' }) : null
       ]);
       d.foes.appendChild(box);
@@ -394,7 +398,7 @@ MQ.ui.battle = (function () {
     } else if (q.groupIds && q.groupPos === 0) {
       d.msg.textContent = q.groupSize + '体 まとめて あらわれた！';
     } else {
-      d.msg.textContent = q.revenge ? 'にげた ' + e.name + ' が もどってきた！'
+      d.msg.textContent = q.revenge ? 'リベンジ！ にげた ' + e.name + ' が もどってきた！ たおせば ボーナス！'
         : q.rare ? e.name + ' が あらわれた！ けいけんち 3ばい！'
         : e.name + ' が あらわれた！';
     }
@@ -909,8 +913,8 @@ MQ.ui.battle = (function () {
         d.msg.textContent = res.multi >= 3 ? 'トリプル KO！！ ぜんぶ 一発で たおした！' : 'ダブル KO！ 2体 まとめて たおした！';
         d.foes.querySelectorAll('.enemy').forEach(function (el) { el.classList.add('is-down'); });
       } else {
-        d.msg.textContent = (res.burst ? 'ばくれつ！ ' : res.crit ? 'クリティカル！ ' : '') + e.name + ' を たおした！'
-          + (res.burst ? '　けいけんち ' + res.burst + 'ばい！' : res.rare ? '　3ばいだ！' : '')
+        d.msg.textContent = (res.revenge ? 'リベンジ せいこう！ ' : res.burst ? 'ばくれつ！ ' : res.crit ? 'クリティカル！ ' : '') + e.name + ' を たおした！'
+          + (res.revenge ? '　ボーナス ＋' + MQ.battle.XP.revenge : res.burst ? '　けいけんち ' + res.burst + 'ばい！' : res.rare ? '　3ばいだ！' : '')
           + (res.coins ? '　コイン ＋' + res.coins : '');
       }
       ok(res.note);
@@ -1536,7 +1540,8 @@ MQ.ui.battle = (function () {
     const out = {
       levelBefore: before, levelAfter: before, leveledUp: false,
       gear: null, densetsu: [], treasure: null, gold: false,
-      frags: [], titles: [], best: null, fullSet: null
+      frags: [], titles: [], best: null, fullSet: null,
+      missions: null
     };
 
     MQ.save.update(function (p) {
@@ -1548,6 +1553,9 @@ MQ.ui.battle = (function () {
       p.itemUses = (p.itemUses || 0) + ((sum.itemsUsed || []).length);
       if (sum.fastBonus) p.fastCount = (p.fastCount || 0) + 1;
       if ((sum.maxCombo || 0) > (p.bestCombo || 0)) p.bestCombo = sum.maxCombo;
+      p.revengeWins = (p.revengeWins || 0) + (sum.revengeBeaten || []).length;
+      // きょうの ミッション（v3.1）：進めて、クリアぶんの コイン・けいけんちは その場で
+      if (MQ.missions) out.missions = MQ.missions.progress(p, sum, { areaId: ctx.tokkun ? null : ctx.area.id, stageId: ctx.stage.id });
       if (!p.dexNew) p.dexNew = {};
       sum.defeated.forEach(function (id) {
         if (id === 'chest') return;
@@ -1634,6 +1642,7 @@ MQ.ui.battle = (function () {
       /* ---- きろく ---- */
       const name = ctx.tokkun ? 'とっくん' : ctx.stage.name;
       MQ.save.addLog(p, name + '：' + sum.correct + '/' + sum.total + '　★' + sum.stars + '　' + MQ.ui.fmtTime(sum.time));
+      if (out.missions && out.missions.completed.length) MQ.save.addLog(p, 'ミッション クリア：' + out.missions.completed.map(function (m) { return m.text; }).join('・') + (out.missions.allDone ? '（きょうの 3つ ぜんぶ！）' : ''));
     });
 
     const p2 = MQ.save.current();

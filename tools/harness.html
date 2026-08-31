@@ -61,6 +61,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/save.js"></script>
 <script src="../js/core/ai.js"></script>
 <script src="../js/core/handwrite.js"></script>
+<script src="../js/core/missions.js"></script>
 <script src="../js/core/battle.js"></script>
 <script src="../js/content/monsterart.js"></script>
 <script src="../js/content/face.js"></script>
@@ -817,6 +818,62 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'battle') { fresh(); MQ.ui.battle.start('sansu3-6'); await wait(600); return; }
+    // きょうの ミッション（v3.1）：#missions = 地図の パネル／#missions:all = ぜんぶ クリア（たたんである）／#missions2 = ミッションを かならず クリアする たたかい → けっか画面
+    if (mode.indexOf('missions') === 0) {
+      fresh();
+      MQ.missions.setNow(new Date(2026, 8, 5));
+      if (mode === 'missions:all') {
+        MQ.save.update(function (pl) { const ms = MQ.missions.ensure(pl); ms.list.forEach(function (m) { m.done = true; m.count = m.target; }); ms.claimedAll = true; });
+      }
+      if (mode === 'missions2') {
+        // かならず クリアできる 3つに 入れかえて、1回 たたかう
+        MQ.save.update(function (pl) {
+          pl.missions = { day: MQ.missions.dayKey(), claimedAll: false, list: [
+            { id: 'battle', target: 1, count: 0, done: false, text: 'バトルを 1かい する' },
+            { id: 'correct', target: 10, count: 0, done: false, text: 'もんだいに 10もん せいかいする' },
+            { id: 'boss', target: 1, count: 0, done: false, text: 'ボスを 1たい たおす' }
+          ] };
+        });
+        MQ.ui.battle.start('sansu3-6'); await wait(400);
+        await playBattle('missions2');
+        await wait(900);
+        const p = MQ.save.current();
+        say('missions2: done=' + p.missions.list.filter(function (m) { return m.done; }).length + ' claimedAll=' + p.missions.claimedAll + ' coins=' + p.coins + ' missionsDone=' + p.missionsDone + ' line=' + ($('.rs__mission') ? $('.rs__mission').textContent : 'MISSING'));
+        dump();
+        return;
+      }
+      MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
+      const p = MQ.save.current();
+      say('missions: ' + JSON.stringify(p.missions.list.map(function (m) { return m.id + ':' + m.target; })) + ' panel=' + ($('.missions') ? ($('.missions').classList.contains('is-open') ? 'open' : 'closed') : 'MISSING') + ' rows=' + document.querySelectorAll('.mission').length);
+      dump();
+      return;
+    }
+    // リベンジ（v3.1）：#revenge = 2日前に にげた敵が 1体目に もどってくる／#revenge:fresh = きょう にげた敵は もどらない
+    if (mode.indexOf('revenge') === 0) {
+      fresh();
+      const old = mode === 'revenge:fresh' ? new Date() : new Date(Date.now() - 2 * 24 * 3600 * 1000);
+      MQ.save.update(function (pl) {
+        MQ.save.addEscaped(pl, 'sansu', { key: 'sansu3-6:rev:test', q: { type: 'number', prompt: '<span class="num">7 × 8</span>', answer: 56, unit: 'かけ算', hint: '7のだん', lv: 1 }, enemyId: 'slime-green', stageId: 'sansu3-6', areaId: 'sansu', at: old.toISOString() });
+      });
+      say('revenge ready: ' + MQ.save.revengeReady(MQ.save.current(), 'sansu').length + ' / escaped ' + MQ.save.countEscaped(MQ.save.current(), 'sansu'));
+      MQ.ui.battle.start('sansu3-6'); await wait(600);
+      // リベンジの 敵まで 進める（さいしょの 4問の どこかに いる）
+      let found = null;
+      for (let i = 0; i < 6 && !found; i++) {
+        const q = MQ.battle.current();
+        if (q && q.revenge) { found = q; break; }
+        answerViaUI(true); await wait(3400);
+      }
+      const q = MQ.battle.current();
+      say('revenge q: ' + (q ? q.id + ' revenge=' + !!q.revenge : 'none') + ' msg=' + $('.arena__msg').textContent + ' ribbon=' + !!$('.enemy__ribbon') + ' cls=' + ($('.enemy') ? $('.enemy').className : ''));
+      if (found && mode === 'revenge:win') {
+        answerViaUI(true); await wait(200);
+        say('revenge win: msg=' + $('.arena__msg').textContent);
+        freeze();
+      }
+      dump();
+      return;
+    }
     // 小3 算数 2学期（v3.0）：#battle3:N で ステージN（7 大きい数・8 長さ・9 円と球・10 筆算・11 小数・12 重さ・13 分数）／#battle3:N:lv で その むずかしさ だけ
     if (mode.indexOf('battle3') === 0) {
       fresh();

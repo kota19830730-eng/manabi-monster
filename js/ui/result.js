@@ -129,6 +129,15 @@ MQ.ui.result = (function () {
       best = h('p', { class: 'rs__best', text: 'タイム しんきろく！　' + MQ.ui.fmtTime(rw.best.wasTime) + ' → ' + MQ.ui.fmtTime(rw.best.nowTime) });
     }
 
+    /* ---- ミッション（v3.1・クリアした ときだけ 1行） ---- */
+    let mission = null;
+    if (rw.missions && rw.missions.completed.length) {
+      const m = rw.missions;
+      mission = h('p', { class: 'rs__mission', text: m.allDone
+        ? 'きょうの ミッション ぜんぶ クリア！　コイン +' + m.coins + '・EXP +' + m.xp
+        : 'ミッション クリア！ ' + m.completed.map(function (x) { return x.text; }).join('・') + '　コイン +' + m.coins });
+    }
+
     /* ---- 4. ボーナスチップ ---- */
     const chips = h('div', { class: 'rs__chips' }, [
       chip('はやとき', sum.fastBonus ? '+' + sum.fastBonus : 'なし', sum.fastBonus ? 'rs__chip--on' : ''),
@@ -151,6 +160,9 @@ MQ.ui.result = (function () {
     });
     if (rw.gear) cards.push(itemCard(MQ.hero.gearSprite(rw.gear.id), rw.gear.name, { text: 'NEW', cls: 'rs__badge--new' }));
     if (sum.coins) cards.push(itemCard(MQ.ui.coinNode(40), 'きんのコイン', { text: '+' + sum.coins, cls: 'rs__badge--gold' }));
+    if (!tokkun && sum.revengeBeaten && sum.revengeBeaten.length) {
+      cards.push(itemCard(null, 'リベンジ ' + sum.revengeBeaten.length + '体', { text: '+' + sum.revengeBonus + ' EXP', cls: 'rs__badge--new' }, 'rs__item--text'));
+    }
     if (sum.multiKO.length) {
       cards.push(itemCard(null, sum.multiKO.map(function (n) { return n + '体'; }).join('・') + ' まとめて', { text: 'KO', cls: 'rs__badge--new' }, 'rs__item--text'));
     }
@@ -201,7 +213,7 @@ MQ.ui.result = (function () {
 
     const panel = h('div', { class: 'rs ' + mood }, [
       h('div', { class: 'rs__fx' }),
-      banner, bossCard, lvBand, best, chips, items, ttl, btns
+      banner, bossCard, lvBand, best, mission, chips, items, ttl, btns
     ]);
     MQ.ui.mount('screen-result', panel);
 

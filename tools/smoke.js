@@ -46,7 +46,7 @@ function load(rel) {
   vm.runInThisContext(code, { filename: rel });
 }
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
  'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
  'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kakusu.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/terms.js', 'js/content/world3.js'].forEach(load);
@@ -383,7 +383,8 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     xp: 999999, dex: dex, stars: stars, treasure: tr, coins: 50, battles: 40, defeated: 600,
     frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true },
     best: { 'sansu3-1': { correct: 13, total: 13, time: 100 } },
-    fastCount: 9, bestCombo: 18, itemUses: 12, custom: [{ id: 'c1' }]
+    fastCount: 9, bestCombo: 18, itemUses: 12, custom: [{ id: 'c1' }],
+    missionsDone: 12, revengeWins: 6   // v3.1 の しょうごう
   };
   const gotAll = MQ.hero.checkTitles(rich);
   check(gotAll.length === MQ.hero.titles.length, 'ぜんぶ そろえば ぜんぶ もらえる: ' + gotAll.length + ' / ' + MQ.hero.titles.length);
@@ -1109,6 +1110,59 @@ check(MQ.content.worldForGrade(4).locked === true && MQ.content.worldForGrade(6)
   const thick = HW.matchThickness(thin.g, 0.3);
   check(HW.fillOf(thick) > HW.fillOf(thin.g) * 1.5, 'handwrite: matchThickness');
   check(HW.thresholds().ok > HW.thresholds().ng, 'handwrite: しきい値');
+})();
+
+// ---- きょうの ミッション（v3.1）と リベンジの 出番 ----
+(function () {
+  const M = MQ.missions;
+  M.setNow(new Date(2026, 8, 5));
+  const p = MQ.save.current();
+  const ms = M.ensure(p);
+  check(ms && ms.day === '2026-9-5' && ms.list.length === 3, 'missions: きょうの 3つ');
+  const groups = ms.list.map(function (m) { return M.KINDS.filter(function (k) { return k.id === m.id; })[0].group; });
+  check(groups.join('') === 'abc', 'missions: a/b/c から 1つずつ ' + groups.join(''));
+  check(ms.list.every(function (m) { return typeof m.text === 'string' && m.text.length > 3 && m.target >= 1 && !m.done; }), 'missions: 文と 目あて');
+  check(M.ensure(p) === ms, 'missions: 同じ日は 作り直さない');
+  // 決めた 3つで 進める
+  p.missions = { day: M.dayKey(), claimedAll: false, list: [
+    { id: 'battle', target: 2, count: 0, done: false, text: 'x' }, { id: 'correct', target: 15, count: 0, done: false, text: 'y' }, { id: 'combo', target: 5, count: 0, done: false, text: 'z' }
+  ] };
+  const coins0 = p.coins, xp0 = p.xp;
+  const r1 = M.progress(p, { mode: 'normal', correct: 9, total: 12, maxCombo: 3, bossBeaten: true }, { areaId: 'sansu' });
+  check(r1.completed.length === 0 && p.missions.list[0].count === 1 && p.missions.list[1].count === 9 && p.coins === coins0, 'missions: 途中 ' + JSON.stringify(p.missions.list.map(function (m) { return m.count; })));
+  const r2 = M.progress(p, { mode: 'normal', correct: 8, total: 12, maxCombo: 6 }, { areaId: 'sansu' });
+  check(r2.completed.length === 3 && r2.allDone && r2.coins === 3 * M.REWARD_EACH + M.REWARD_ALL_COINS && r2.xp === M.REWARD_ALL_XP, 'missions: 3つ クリア ' + JSON.stringify(r2));
+  check(p.coins === coins0 + 5 && p.xp === xp0 + M.REWARD_ALL_XP && p.missionsDone === 3 && p.missionDays === 1, 'missions: ごほうびが 入る');
+  const r3 = M.progress(p, { mode: 'normal', correct: 12, total: 12, maxCombo: 12 }, { areaId: 'sansu' });
+  check(r3.completed.length === 0 && r3.coins === 0 && !r3.allDone, 'missions: 2回目は もらえない');
+  // 日が 変わると 作り直す
+  M.setNow(new Date(2026, 8, 6));
+  const ms2 = M.ensure(p);
+  check(ms2.day === '2026-9-6' && ms2.list.every(function (m) { return !m.done && m.count === 0; }), 'missions: つぎの日');
+  // かん字・とっくん・エリア・アイテム の 数え方
+  p.missions = { day: M.dayKey(), claimedAll: false, list: [
+    { id: 'write', target: 2, count: 0, done: false, text: 'w' }, { id: 'area', target: 1, count: 0, done: false, text: 'a', param: 'kokugo' }, { id: 'tokkun', target: 1, count: 0, done: false, text: 't' }
+  ] };
+  M.progress(p, { mode: 'normal', correct: 5, total: 12, typeOk: { write: 1 } }, { areaId: 'sansu' });
+  check(p.missions.list[0].count === 1 && p.missions.list[1].count === 0 && p.missions.list[2].count === 0, 'missions: かん字 1・エリア ちがい');
+  M.progress(p, { mode: 'tokkun', correct: 3, total: 3, typeOk: { write: 2 } }, { areaId: null });
+  check(p.missions.list[0].done && p.missions.list[2].done && !p.missions.list[1].done, 'missions: かん字 2・とっくん');
+  M.progress(p, { mode: 'normal', correct: 1, total: 12 }, { areaId: 'kokugo' });
+  check(p.missions.list[1].done && p.missions.claimedAll, 'missions: エリア → ぜんぶ');
+  M.setNow(null);
+  // 出せない ものは 出ない（にげた敵 0 → revenge/tokkun なし・アイテム 0 → item なし）
+  const p0 = { grade: 3, bag: [], escaped: {}, coins: 0, xp: 0 };   // にげた敵 0・アイテム 0 の 子
+  let bad = 0;
+  for (let i = 0; i < 40; i++) M.generate(p0).forEach(function (m) { if (m.id === 'revenge' || m.id === 'tokkun' || m.id === 'item') bad++; });
+  check(bad === 0, 'missions: できない ミッションは 出ない ' + bad);
+  // リベンジの 出番：にげた その日は 出ない・1日 たてば 出る・at が ない 古い entry は 出る
+  const q = { type: 'number', prompt: '1+1', answer: 2 };
+  MQ.save.addEscaped(p0, 'sansu', { key: 'a', q: q, enemyId: 'slime-green', at: new Date().toISOString() });
+  MQ.save.addEscaped(p0, 'sansu', { key: 'b', q: q, enemyId: 'slime-green', at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString() });
+  MQ.save.addEscaped(p0, 'sansu', { key: 'c', q: q, enemyId: 'slime-green' });
+  const ready = MQ.save.revengeReady(p0, 'sansu').map(function (e) { return e.key; }).sort().join('');
+  check(ready === 'bc' && MQ.save.countEscaped(p0, 'sansu') === 3, 'revenge: 出番 ' + ready);
+  check(MQ.battle.XP.revenge === 15, 'revenge: ボーナス 15');
 })();
 
 // ---- 画数の 表（v2.9）と 線の ならびの ルール ----

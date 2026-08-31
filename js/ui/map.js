@@ -369,9 +369,13 @@ MQ.ui.map = (function () {
       layer.appendChild(towerEl(player, plan.tower));
     }
 
+    /* ---- きょうの ミッション（v3.1）：HUD の 下。3つ ぜんぶ おわったら たたむ ---- */
+    const missionPanel = missionsPanel(player);
+
     /* ---- 上の ヘッダー ---- */
     const top = h('div', { class: 'maptop' }, [
       MQ.ui.hud(player),
+      missionPanel,
       h('div', { class: 'maptop__row' }, [
         h('button', { class: 'btn btn--stone', type: 'button', text: '図かん', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
         h('button', { class: 'btn btn--stone', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
@@ -404,6 +408,40 @@ MQ.ui.map = (function () {
       const sc = document.querySelector('#screen-map .map__scroll');
       if (el && sc) sc.scrollTop = Math.max(0, el.offsetTop - sc.clientHeight * 0.45);
     }, 0);
+  }
+
+  /* =======================================================
+     きょうの ミッション（v3.1）：3つの 目あて。押すと たたむ／ひらく
+     ======================================================= */
+  let missionsOpen = null;   // null = まだ 決めていない（ぜんぶ おわっていれば たたむ）
+  function missionsPanel(player) {
+    if (!MQ.missions) return null;
+    let ms = null;
+    MQ.save.update(function (p) { ms = MQ.missions.ensure(p); });
+    if (!ms) return null;
+    const doneN = ms.list.filter(function (m) { return m.done; }).length;
+    const all = doneN === ms.list.length;
+    if (missionsOpen === null) missionsOpen = !all;
+    const panel = h('div', { class: 'missions' + (missionsOpen ? ' is-open' : '') + (all ? ' is-all' : '') });
+    panel.appendChild(h('button', {
+      class: 'missions__head', type: 'button',
+      onclick: function () { MQ.sfx.tap(); missionsOpen = !missionsOpen; panel.classList.toggle('is-open', missionsOpen); }
+    }, [
+      h('span', { class: 'missions__title', text: 'きょうの ミッション' }),
+      h('span', { class: 'missions__count', text: doneN + ' / ' + ms.list.length }),
+      h('span', { class: 'missions__arrow' })
+    ]));
+    panel.appendChild(h('div', { class: 'missions__list' }, ms.list.map(function (m) {
+      const once = MQ.missions.isOnce(m);
+      return h('div', { class: 'mission' + (m.done ? ' is-done' : '') }, [
+        h('span', { class: 'mission__check', text: m.done ? '✓' : '' }),
+        h('span', { class: 'mission__text', text: m.text }),
+        h('span', { class: 'mission__prog', text: m.done ? 'コイン +' + MQ.missions.REWARD_EACH : (m.target > 1 && !once ? m.count + ' / ' + m.target : '') })
+      ]);
+    }).concat([
+      h('div', { class: 'missions__all', text: all ? 'ぜんぶ クリア！ コイン +' + MQ.missions.REWARD_ALL_COINS + '・EXP +' + MQ.missions.REWARD_ALL_XP + ' もらった' : '3つ ぜんぶで コイン +' + MQ.missions.REWARD_ALL_COINS + '・EXP +' + MQ.missions.REWARD_ALL_XP })
+    ])));
+    return panel;
   }
 
   /* =======================================================

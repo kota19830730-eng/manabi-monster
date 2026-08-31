@@ -712,7 +712,7 @@ MQ.hero = (function () {
     return Object.keys(b).some(function (k) { return b[k] && b[k].total >= 10 && b[k].correct === b[k].total; });
   }
 
-  /* 31しゅるい（v2.0 で 23 ふやした）。ならびは だいたい 手に入る 順。
+  /* 34しゅるい（v2.0 で 23・v2.5 で 1・v3.1 で 2 ふやした）。ならびは だいたい 手に入る 順。
      新しく もらった ものが 自動で つくので、あとの ほうほど「えらい」しょうごうに してある。 */
   const titles = [
     { id: 't-minarai',   name: 'みならい ぼうけんしゃ', how: 'さいしょから',              test: function () { return true; } },
@@ -730,6 +730,8 @@ MQ.hero = (function () {
     { id: 't-fast5',     name: 'はやわざ けんし',        how: 'はやとき ボーナスを 5回',    test: function (p) { return (p.fastCount || 0) >= 5; } },
     { id: 't-inazuma',   name: 'いなずま つかい',        how: '8コンボ',                  test: function (p) { return (p.bestCombo || 0) >= 8; } },
     { id: 't-item10',    name: 'アイテム マスター',      how: 'アイテムを 10回 つかう',     test: function (p) { return (p.itemUses || 0) >= 10; } },
+    { id: 't-mission10', name: 'ミッションの たつじん',   how: 'ミッションを 10こ クリア',   test: function (p) { return (p.missionsDone || 0) >= 10; } },
+    { id: 't-revenge5',  name: 'リベンジ マスター',      how: 'リベンジを 5回 せいこう',    test: function (p) { return (p.revengeWins || 0) >= 5; } },
     { id: 't-coin20',    name: 'コイン もちぬし',        how: 'コインを 20まい あつめる',   test: function (p) { return (p.coins || 0) >= 20; } },
     { id: 't-creator',   name: 'モンスターの 生みのおや', how: 'じぶんの モンスターを つくる', test: function (p) { return (p.custom || []).length >= 1; } },
     { id: 't-honoo',     name: 'ほのおの けんし',        how: 'Lv10',                     test: function (p) { return levelOf(p.xp) >= 10; } },
