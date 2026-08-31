@@ -656,6 +656,30 @@ MQ.sansu2 = (function () {
         line(hidden, [x0 + d, y0 - d], true) + line(hidden, [x0 + w + d, y0 + h - d], true) + line(hidden, [x0, y0 + h], true));
     }
   };
+  // むきや 大きさの ちがう 図（バリエーション）
+  FIGS.rectTall = function () {
+    const pts = [[42, 12], [118, 12], [118, 108], [42, 108]];
+    return svgWrap(poly(pts) + raMark(pts[0], 1, 0, 0, 1) + raMark(pts[1], -1, 0, 0, 1) + raMark(pts[2], -1, 0, 0, -1) + raMark(pts[3], 1, 0, 0, -1));
+  };
+  FIGS.squareSmall = function () {
+    const pts = [[50, 30], [110, 30], [110, 90], [50, 90]];
+    return svgWrap(poly(pts) + raMark(pts[0], 1, 0, 0, 1) + raMark(pts[1], -1, 0, 0, 1) + raMark(pts[2], -1, 0, 0, -1) + raMark(pts[3], 1, 0, 0, -1));
+  };
+  FIGS.rtriFlip = function () { return svgWrap(poly([[132, 104], [22, 104], [132, 16]]) + raMark([132, 104], -1, 0, 0, -1)); };
+  FIGS.triWide = function () { return svgWrap(poly([[10, 102], [150, 102], [56, 20]])); };
+  FIGS.quad2 = function () { return svgWrap(poly([[24, 96], [136, 104], [130, 30], [50, 20]])); };
+  // 図を 180度 まわす
+  function rotSvg(svg, deg) {
+    if (!deg) return svg;
+    return svg.replace('aria-hidden="true">', 'aria-hidden="true"><g transform="rotate(' + deg + ' 80 60)">').replace('</svg>', '</g></svg>');
+  }
+  function figR(kind, deg, arg) { return '<span class="figbox">' + rotSvg(FIGS[kind](arg), deg) + '</span>'; }
+  function figQR(text, kind, deg, arg) { return '<span class="figq"><span class="figq__t">' + text + '</span>' + figR(kind, deg, arg) + '</span>'; }
+  // 図を 2つ ならべる（a, b = [かたち, まわす角度, 引数]）
+  function figPair2(text, a, b) {
+    function one(label, f) { return '<span class="fig"><b>' + label + '</b>' + rotSvg(FIGS[f[0]](f[2]), f[1]) + '</span>'; }
+    return text + '<span class="figpair">' + one('あ', a) + one('い', b) + '</span>';
+  }
   function fig(kind, arg) { return '<span class="figbox">' + FIGS[kind](arg) + '</span>'; }
   // 問題文の 右に 図を おく（とけいと 同じ よこならび）
   function figQ(text, kind, arg) { return '<span class="figq"><span class="figq__t">' + text + '</span>' + fig(kind, arg) + '</span>'; }
@@ -708,6 +732,43 @@ MQ.sansu2 = (function () {
     fn('さんかくけい', figQ('てんせんで わけた 2つの さんかくけいを あわせると、ちょうてんは いくつ？', 'rect', true), 4, 'あわせると ちょうほうけい。ちょうてんは 4つ。', 'できあがった かたちは しかくけい。', 'rect-join'),
     fn('はこの かたち', figQ('この さいころの かたちの へんは なんぼん？', 'box', true), 12, 'さいころの かたちも へんは 12ほん。', 'はこの かたちと おなじ。', 'cube-e')
   ];
+  // バリエーション（v2.4：むき・大きさ・組み合わせを 変えて 問題を ふやす）
+  SHAPE_EASY.push(
+    fn('さんかくけい', figQR('この さんかくけいの へんは なんぼん？', 'triWide', 180), 3, 'さんかくけいは どんな むきでも へんは 3ぼん。', 'まわりの まっすぐな せんを かぞえよう。', 'tri-e2'),
+    fn('しかくけい', figQR('この しかくけいの ちょうてんは いくつ？', 'quad2', 180), 4, 'しかくけいは どんな かたちでも ちょうてんは 4つ。', 'かどを かぞえよう。', 'quad-v2'),
+    fq('かたちの なまえ', figQ('この かたちの なまえは？', 'triWide'), ['さんかくけい', 'しかくけい', 'まる', 'はこの かたち'], 'さんかくけい。ほそながくても へんが 3ぼんなら さんかくけい。', 'へんを かぞえよう。', 'name-tri2'),
+    fq('かたちの なまえ', figQ('この かたちの なまえは？', 'quad2'), ['しかくけい', 'さんかくけい', 'まる', 'ぼうの かたち'], 'しかくけい。へんが 4ほん。', 'へんを かぞえよう。', 'name-quad2'),
+    fq('かたちの なまえ', figPair2('しかくけいは どっち？', ['quad', 0], ['tri', 0]), ['あ', 'い'], 'あ が しかくけい（へん 4ほん）。', 'まわりの せんを かぞえよう。', 'pair-quad2'),
+    fq('かたちの なまえ', figPair2('さんかくけいは どっち？', ['quad2', 0], ['triWide', 180]), ['い', 'あ'], 'い が さんかくけい（へん 3ぼん）。', 'まわりの せんを かぞえよう。', 'pair-tri2'),
+    fn('ちょっかくさんかくけい', figQ('この かたちの へんは なんぼん？', 'rtri'), 3, 'ちょっかくさんかくけいも さんかくけい。へんは 3ぼん。', 'まわりの せんを かぞえよう。', 'rtri-e'),
+    fn('ちょうほうけい', figQ('この かたちの ちょうてんは いくつ？', 'rect'), 4, 'ちょうほうけいの ちょうてんは 4つ。', 'かどを かぞえよう。', 'rect-v')
+  );
+  SHAPE_NORMAL.push(
+    fq('ちょうほうけい', figQ('この かたちの なまえは？（かどは みんな ちょっかく）', 'rectTall'), nameChoices('ちょうほうけい'), 'たてに ながくても ちょうほうけい。', 'かどが みんな ちょっかくで、へんの ながさが ちがう。', 'name-rect2'),
+    fq('せいほうけい', figQ('この かたちの なまえは？（かどは みんな ちょっかく・へんは みんな おなじ ながさ）', 'squareSmall'), nameChoices('せいほうけい'), 'ちいさくても せいほうけい。', 'へんが みんな おなじ ながさ。', 'name-square2'),
+    fq('ちょっかくさんかくけい', figQ('この かたちの なまえは？（赤い しるしは ちょっかく）', 'rtriFlip'), nameChoices('ちょっかくさんかくけい'), 'ちょっかくが みぎに あっても ちょっかくさんかくけい。', 'ちょっかくの かどが 1つ ある さんかくけい。', 'name-rtri2'),
+    fn('ちょっかく', figQ('この かたちに ちょっかくの かどは いくつ？（赤い しるし）', 'square'), 4, 'せいほうけいの かどは 4つ とも ちょっかく。', '赤い しるしを かぞえよう。', 'ra-square'),
+    fn('ちょっかく', figQ('この さんかくけいに ちょっかくの かどは いくつ？（ない ときは 0）', 'tri'), 0, 'この さんかくけいには ちょっかくは ない（0）。', '赤い しるしが ない ときは 0。', 'ra-tri0'),
+    fq('かたちの なまえ', figPair2('ちょっかくさんかくけいは どっち？', ['tri', 0], ['rtriFlip', 0]), ['い', 'あ'], 'い に ちょっかくの しるしが ある。', '赤い しるしを さがそう。', 'pair-rtri'),
+    fq('かたちの なまえ', figPair2('ちょうほうけいは どっち？', ['rect', 0], ['quad2', 0]), ['あ', 'い'], 'あ は かどが みんな ちょっかく。い は ちがう。', 'かどを 見よう。', 'pair-rect'),
+    fq('かたちの なまえ', figPair2('せいほうけいは どっち？', ['squareSmall', 0], ['rectTall', 0]), ['あ', 'い'], 'あ は へんが みんな おなじ ながさ。', 'へんの ながさを くらべよう。', 'pair-square2')
+  );
+  SHAPE_HARD.push(
+    fn('さいころの かたち', figQ('この さいころの かたちの めんは いくつ？', 'box', true), 6, 'さいころの めんは 6つ。', '見えない めんも かぞえよう。', 'cube-f'),
+    fn('さいころの かたち', figQ('この さいころの かたちの ちょうてんは いくつ？', 'box', true), 8, 'さいころの ちょうてんは 8つ。', 'うえに 4つ、したに 4つ。', 'cube-v'),
+    fq('さいころの かたち', figPair2('さいころの かたちは どっち？', ['box', 0, false], ['box', 0, true]), ['い', 'あ'], 'い は めんが ぜんぶ せいほうけい。あ は ちょうほうけいの めんが ある。', 'めんの かたちを くらべよう。', 'pair-cube'),
+    fq('はこの かたち', figPair2('はこの かたちは どっち？', ['square', 0], ['box', 0]), ['い', 'あ'], 'い が はこの かたち（たてに たかさが ある）。あ は せいほうけい（ぺったんこ）。', 'あつみが ある ほう。', 'pair-box'),
+    fn('はこの かたち', figQ('この はこの 見えている めんは いくつ？', 'box'), 3, 'まえ・うえ・みぎの 3つが 見えている。', 'いろが ついている ところを かぞえよう。', 'box-vis'),
+    fn('はこの かたち', figQ('この はこの てんせんの へんは なんぼん？', 'box'), 3, 'うしろに かくれた へんが 3ぼん。', 'てんせんを かぞえよう。', 'box-hid')
+  );
+  SHAPE_BOSS.push(
+    fn('さいころの かたち', figQ('この さいころの かたちの めんの かずと ちょうてんの かずを たすと？', 'box', true), 14, 'めん 6 ＋ ちょうてん 8 = 14。', 'めんは 6つ、ちょうてんは 8つ。', 'cube-sum'),
+    fq('ちょっかくさんかくけい', figQ('この ちょっかくさんかくけいを 2つ あわせると できる かたちは？', 'rtri'), ['ちょうほうけい', 'まる', 'ほし', 'ろっかくけい'], 'ちょっかくさんかくけいを 2つ あわせると ちょうほうけい（か せいほうけい）。', 'ななめの へんどうしを くっつけよう。', 'rtri-join'),
+    fn('しかくけい', figQ('この かたちの へんの かずから ちょうてんの かずを ひくと？', 'quad2'), 0, 'へん 4 − ちょうてん 4 = 0。', 'しかくけいは へんも ちょうてんも 4。', 'quad-sub'),
+    fq('ちょうほうけい', figPair2('かどが ぜんぶ ちょっかくの かたちは どっち？', ['quad', 0], ['rectTall', 0]), ['い', 'あ'], 'い（ちょうほうけい）は 4つの かどが みんな ちょっかく。', '赤い しるしを さがそう。', 'pair-ra'),
+    fn('さいころの かたち', figQ('この さいころの かたちの めんは ぜんぶで いくつ？（見えない ぶんも）', 'box', true), 6, '見えている 3つ ＋ 見えない 3つ = 6。', '見えない めんも 3つ ある。', 'cube-all')
+  );
+
   const stage9 = {
     easy: [fixed(SHAPE_EASY), fixed(SHAPE_EASY)],
     normal: [fixed(SHAPE_NORMAL), fixed(SHAPE_NORMAL)],

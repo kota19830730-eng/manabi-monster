@@ -49,7 +49,7 @@ function load(rel) {
  'js/core/save.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
  'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
- 'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/world3.js'].forEach(load);
+ 'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/world3.js'].forEach(load);
 
 const MQ = global.MQ;
 const TYPES = ['number', 'choice', 'divrem', 'roma', 'write'];
@@ -159,6 +159,11 @@ console.log('sansu2 generated ok: ' + sansu2Count);
 check(MQ.sansu2.make(7, 30).some(function (q) { return q.prompt.indexOf('class="clock"') !== -1; }), '小2の とけいにも 絵が 出る');
 check(MQ.sansu2.make(2, 12).some(function (q) { return q.layout === 'vertical'; }), '小2の ひっさんは たての ならび');
 check(MQ.sansu2.make(9, 12).filter(function (q) { return q.prompt.indexOf('<svg') !== -1; }).length >= 10, '小2の かたちは ほぼ ぜんぶ 図つき');
+(function () {
+  const ids = new Set();
+  for (let k = 0; k < 200; k++) { MQ.sansu2.make(9, 12).forEach(function (q) { ids.add(q.id); }); MQ.sansu2.make(9, 5, { boss: true }).forEach(function (q) { ids.add(q.id); }); }
+  check(ids.size >= 50, '小2の かたちは 50しゅるい いじょう: ' + ids.size);
+})();
 check(MQ.sansu2.make(14, 12).some(function (q) { return q.prompt.indexOf('<svg') !== -1; }), '小2の ぶんすうに 図が 出る');
 
 [['kokugo', MQ.kokugo3.questions], ['rikashakai', MQ.rikashakai3.questions], ['eigo', MQ.eigo3.questions], ['kokugo1', MQ.kokugo1.questions], ['kokugo2', MQ.kokugo2.questions]].forEach(function (pair) {
@@ -214,6 +219,18 @@ check(MQ.sansu2.make(14, 12).some(function (q) { return q.prompt.indexOf('<svg')
   });
   check(Object.keys(perStage).length === 4, 'kokugo2 は 4ステージ: ' + JSON.stringify(perStage));
 })();
+
+/* ---- かん字の 表（v2.4）：小1 80字・小2 160字 ぜんぶ。よみ・かく の 両方 ---- */
+check(MQ.kokugo1.kanji.length === 80, '小1の かん字は 80字: ' + MQ.kokugo1.kanji.length);
+check(MQ.kokugo2.kanji.length === 160, '小2の かん字は 160字: ' + MQ.kokugo2.kanji.length);
+[['kokugo1', MQ.kokugo1.kanji], ['kokugo2', MQ.kokugo2.kanji]].forEach(function (p) {
+  const errs = MQ.kanjiQ.validate(p[1]);
+  check(errs.length === 0, p[0] + ' の かん字の 表: ' + errs.join(' / '));
+});
+function stageCount(qs, s) { return qs.filter(function (q) { return q.stage === s; }).length; }
+check(stageCount(MQ.kokugo1.questions, 3) === 80 && stageCount(MQ.kokugo1.questions, 4) === 80, '小1 かん字は よみ 80・かく 80');
+check(stageCount(MQ.kokugo2.questions, 1) === 160 && stageCount(MQ.kokugo2.questions, 2) === 160, '小2 かん字は よみ 160・かく 160');
+check(MQ.kokugo1.kotoba.length >= 140 && MQ.kokugo2.kotoba.length >= 100, 'ことばの 問題を ふやした: ' + MQ.kokugo1.kotoba.length + ' / ' + MQ.kokugo2.kotoba.length);
 
 /* ---- ローマ字 ---- */
 check(MQ.romaji3.kunrei('さくら') === 'sakura', 'kunrei sakura');
