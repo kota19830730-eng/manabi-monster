@@ -620,7 +620,9 @@ MQ.ui.battle = (function () {
   /* ---- 答える ところ ---- */
   function fitPrompt() {
     const n = (d.prompt.textContent || '').replace(/s/g, '').length;
-    d.prompt.className = 'card__q' + (n > 30 ? ' card__q--s' : (n > 14 ? ' card__q--m' : ''));
+    const q = MQ.battle.current();
+    const vert = !!(q && q.layout === 'vertical');   // ひっさん：メモ欄に 数字が あるので カードは 小さめ
+    d.prompt.className = 'card__q' + (n > 30 ? ' card__q--s' : (n > 14 || vert ? ' card__q--m' : ''));
   }
 
   function renderAnswerArea(q) {
@@ -1602,34 +1604,52 @@ MQ.ui.battle = (function () {
      ゆびで 書く メモ欄
      ======================================================= */
   function makeMemo(canvas, clearBtn) {
+    /* v2.7.1 で 作り直し（息子さん「ひっさんの ところで 字が 書けない」）
+         ・iPad などは touch-action だけでは 画面が スクロールしようとして 線が 切れる（pointercancel）
+           → touchstart / touchmove を passive:false で preventDefault
+         ・キャンバスの 大きさが 画面と ずれていたら、書く 前に 合わせる（線が 指から ずれない）
+         ・ResizeObserver で、画面が 出た とき・ひろげた とき・向きを 変えた ときも 合わせる
+         ・書いている 指だけを 見る（手のひらや 2本目の 指は むし）
+         ・線の 太さは 画面の 拡大に 合わせる（大きい タブレットでも 細く ならない）
+         ・getCoalescedEvents で 速く 動かしても なめらかに */
     const c = canvas.getContext('2d');
     let drawing = false;
+    let activeId = null;
     let last = null;
 
+    function lineWidth() {
+      const st = (MQ.stage && MQ.stage.size) ? MQ.stage.size().scale : 1;
+      return Math.max(4, 4.5 * st);
+    }
     function setup() {
-      c.lineWidth = 4;
+      c.lineWidth = lineWidth();
       c.lineCap = 'round';
       c.lineJoin = 'round';
       c.strokeStyle = '#1F2D3A';
     }
-
+    // いまの 大きさに 合っているか
+    function fits() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      return rect.width > 0 && Math.abs(canvas.width - rect.width * dpr) < 2 && Math.abs(canvas.height - rect.height * dpr) < 2;
+    }
     function resize() {
       const rect = canvas.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
+      if (!rect.width || !rect.height) return false;
       const dpr = window.devicePixelRatio || 1;
       canvas.width = Math.round(rect.width * dpr);
       canvas.height = Math.round(rect.height * dpr);
       c.setTransform(dpr, 0, 0, dpr, 0, 0);
       setup();
+      return true;
     }
-
     // 大きさを 変えても 書いたものを のこす
     function resizeKeep() {
+      if (fits()) return;
       let data = null;
-      try { data = canvas.toDataURL(); } catch (e) {}
-      const oldW = canvas.getBoundingClientRect().width;
-      resize();
-      if (data && oldW) {
+      try { data = (canvas.width && canvas.height) ? canvas.toDataURL() : null; } catch (e) {}
+      if (!resize()) return;
+      if (data) {
         const img = new Image();
         img.onload = function () {
           const r = canvas.getBoundingClientRect();
@@ -1638,20 +1658,30 @@ MQ.ui.battle = (function () {
         img.src = data;
       }
     }
-
     function clear() {
-      const r = canvas.getBoundingClientRect();
-      c.clearRect(0, 0, r.width + 10, r.height + 10);
+      c.save();
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      c.restore();
     }
-
     function point(e) {
       const rect = canvas.getBoundingClientRect();
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     }
+    function segment(p) {
+      c.beginPath();
+      c.moveTo(last.x, last.y);
+      c.lineTo(p.x, p.y);
+      c.stroke();
+      last = p;
+    }
 
     canvas.addEventListener('pointerdown', function (e) {
+      if (drawing && activeId !== null && e.pointerId !== activeId) return;   // 2本目の 指は むし
       e.preventDefault();
+      if (!fits()) resizeKeep();   // 大きさが ずれていたら 先に 直す
       drawing = true;
+      activeId = e.pointerId;
       last = point(e);
       try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
       c.beginPath();
@@ -1660,21 +1690,46 @@ MQ.ui.battle = (function () {
       c.stroke();
     });
     canvas.addEventListener('pointermove', function (e) {
-      if (!drawing) return;
-      const p = point(e);
-      c.beginPath();
-      c.moveTo(last.x, last.y);
-      c.lineTo(p.x, p.y);
-      c.stroke();
-      last = p;
+      if (!drawing || e.pointerId !== activeId) return;
+      e.preventDefault();
+      let evs = null;
+      try { evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null; } catch (err) { evs = null; }
+      if (!evs || !evs.length) evs = [e];
+      for (let i = 0; i < evs.length; i++) segment(point(evs[i]));
     });
-    function stop() { drawing = false; }
+    function stop(e) {
+      if (e && activeId !== null && e.pointerId !== undefined && e.pointerId !== activeId) return;
+      drawing = false;
+      activeId = null;
+    }
     canvas.addEventListener('pointerup', stop);
     canvas.addEventListener('pointercancel', stop);
-    canvas.addEventListener('pointerleave', stop);
+    canvas.addEventListener('lostpointercapture', stop);
+    // iPad などで 画面が スクロールしようとして 線が 切れるのを ふせぐ
+    ['touchstart', 'touchmove', 'touchend'].forEach(function (t) {
+      canvas.addEventListener(t, function (e) { if (e.cancelable) e.preventDefault(); }, { passive: false });
+    });
+    // PointerEvent が ない 古い 端末は touch で 書く（保険）
+    if (!window.PointerEvent) {
+      canvas.addEventListener('touchstart', function (e) {
+        const t = e.touches[0]; if (!t) return;
+        if (!fits()) resizeKeep();
+        drawing = true; last = point(t);
+        c.beginPath(); c.moveTo(last.x, last.y); c.lineTo(last.x + 0.1, last.y + 0.1); c.stroke();
+      }, { passive: false });
+      canvas.addEventListener('touchmove', function (e) {
+        const t = e.touches[0]; if (!drawing || !t) return;
+        segment(point(t));
+      }, { passive: false });
+      canvas.addEventListener('touchend', function () { drawing = false; }, { passive: false });
+    }
+    // 大きさが 変わったら（画面が 出た・ひろげた・向きを 変えた）合わせる
+    if (window.ResizeObserver) {
+      try { new ResizeObserver(function () { resizeKeep(); }).observe(canvas); } catch (e) {}
+    }
+    window.addEventListener('resize', function () { resizeKeep(); });
 
     clearBtn.addEventListener('click', function () { MQ.sfx.tap(); clear(); });
-    window.addEventListener('resize', function () { resizeKeep(); });
 
     return { reset: function () { resize(); clear(); }, clear: clear, resizeKeep: resizeKeep };
   }

@@ -438,6 +438,43 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'bagdex') { fresh(); MQ.ui.dex.pick('tr-wari'); MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
+    // メモ欄に ゆびで 書く（v2.7.1）：#memo ふつう／#memo2 ひろげた あと／#memo3 ひろげて もどした あと
+    if (mode.indexOf('memo') === 0) {
+      const memoRect = mode.indexOf(':rect') > 0;   // #memo:rect＝赤い 四角も 描く（headless で canvas が 写るか）
+      const mm = mode.split(':')[0];
+      fresh({ stars: { 'sansu2-1': 3 }, treasure: {}, frags: {} });
+      MQ.save.update(function (pl) { pl.grade = 2; pl.best = {}; });
+      MQ.ui.battle.start('sansu2-2'); await wait(400);
+      if (mm !== 'memo') { $('.memo__btn').click(); await wait(120); }
+      if (mm === 'memo3') { $('.memo__btn').click(); await wait(120); }
+      const cv = $('.memo__canvas'); const r = cv.getBoundingClientRect();
+      function pe(type, x, y) { cv.dispatchEvent(new PointerEvent(type, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: r.left + x, clientY: r.top + y, bubbles: true, cancelable: true })); }
+      // 「2」のような 線を 書く
+      const pts = [[0.3, 0.25], [0.45, 0.15], [0.6, 0.3], [0.45, 0.55], [0.3, 0.85], [0.65, 0.85]];
+      pe('pointerdown', r.width * pts[0][0], r.height * pts[0][1]);
+      for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i]; for (let t = 0.1; t <= 1.001; t += 0.1) pe('pointermove', r.width * (a[0] + (b[0] - a[0]) * t), r.height * (a[1] + (b[1] - a[1]) * t)); }
+      pe('pointerup', r.width * 0.65, r.height * 0.85);
+      // 書いた ところに 線が あるか（画面px → ビットマップ）
+      const cx = cv.getContext('2d'); const sx = cv.width / r.width, sy = cv.height / r.height;
+      let inked = 0;
+      pts.forEach(function (p) { const dd = cx.getImageData(Math.round(r.width * p[0] * sx), Math.round(r.height * p[1] * sy), 1, 1).data; if (dd[3] > 0) inked++; });
+      say('memo: inked ' + inked + '/' + pts.length + ' bitmap=' + cv.width + 'x' + cv.height + ' rect=' + Math.round(r.width) + 'x' + Math.round(r.height) + ' scale=' + MQ.stage.size().scale.toFixed(2));
+      // 少し あとでも 線が のこっているか（大きさ合わせで 消えていないか）。結果は ふきだしにも 出す（スクショで 見える）
+      await wait(400);
+      let inked2 = 0;
+      pts.forEach(function (p) { const dd = cx.getImageData(Math.round(r.width * p[0] * cv.width / r.width), Math.round(r.height * p[1] * cv.height / r.height), 1, 1).data; if (dd[3] > 0) inked2++; });
+      say('memo after: inked ' + inked2 + '/' + pts.length + ' bitmap=' + cv.width + 'x' + cv.height);
+      $('.arena__msg').textContent = 'memo ' + inked + '→' + inked2 + ' / ' + cv.width + 'x' + cv.height;
+      if (memoRect) {
+        /* headless Chrome（virtual-time）では、あとから 描いた canvas の 中身が スクショに 写らない（新しく 作った canvas でも 同じ）。
+           そこで ビットマップの 写し（img・緑わく）を おいて、線が どう 書けたかを 目で 見られる ように する。線の 有無は 上の inked で 検査ずみ。 */
+        cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0); cx.fillStyle = '#e8443a'; cx.fillRect(10, 10, 140, 60); cx.restore();
+        const im = document.createElement('img'); im.src = cv.toDataURL(); im.style.cssText = 'position:absolute;left:150px;top:6px;width:120px;height:32px;z-index:5;outline:3px solid #4caf50;';
+        cv.parentNode.appendChild(im);
+      }
+      dump();
+      return;
+    }
     // メモを ひろげる（v2.4.1）：#wide 小2 ひっさん／#wide3 小3 わりざん
     if (mode === 'wide' || mode === 'wide3') {
       if (mode === 'wide') {
