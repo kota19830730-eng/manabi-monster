@@ -458,20 +458,57 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode === 'parent') { fresh(); MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'set') { fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'photo') { fresh(); MQ.ui.photo.render(); return; }
-    // 写真から モンスター（v2.7）：#photo2 = 子どもの 絵に 見せかけた 画像／#photo3:<file URL> = 本物の 画像
+    // 写真から モンスター（v2.7）：#photo2 = 子どもの 絵に 見せかけた 画像／#photo3:<file URL>[:<マス数>[:<x,y,w[,h]>[:<消す,こく>]]] = 本物の 画像
+    //   x,y,w,h は わくの 場所（写真に 対する わりあい 0〜1。h を 書かなければ 写真の px で 正方形）。子どもが 指で わくを 動かした のと 同じに PointerEvent で 動かす
     if (mode.indexOf('photo2') === 0 || mode.indexOf('photo3:') === 0) {
       fresh();
-      const sz = parseInt(mode.split(':')[mode.indexOf('photo2') === 0 ? 1 : 2] || '0', 10);
+      const parts = mode.split(':');
+      const sz = parseInt(parts[mode.indexOf('photo2') === 0 ? 1 : 2] || '0', 10);
+      const frameSpec = mode.indexOf('photo3:') === 0 ? (parts[3] || '') : '';
       if (sz) MQ.ui.photo.setOptions({ size: sz });
+      // parts[4] = "<はいけいを 消す>,<線を こく>"（スライダーの 値。子どもが 動かした のと 同じ）
+      if (mode.indexOf('photo3:') === 0 && parts[4]) { const tk = parts[4].split(',').map(Number); MQ.ui.photo.setOptions({ tol: tk[0], ink: tk[1] }); say('sliders: tol=' + tk[0] + ' ink=' + tk[1]); }
       MQ.ui.photo.render();
       let url = null;
       if (mode.indexOf('photo2') === 0) url = fakeDrawing();
       else {
-        const blob = await fetch(decodeURIComponent(mode.slice(7))).then(function (r) { return r.blob(); });
+        const blob = await fetch(decodeURIComponent(parts[1])).then(function (r) { return r.blob(); });
         url = await new Promise(function (res) { const fr = new FileReader(); fr.onload = function () { res(String(fr.result)); }; fr.readAsDataURL(blob); });
       }
       await new Promise(function (res) { MQ.ui.photo.render.load(url, function (info, out) { say('photo: ' + JSON.stringify(info) + ' png=' + (out ? out.length : 0) + ' crop=' + JSON.stringify(MQ.ui.photo.crop())); res(); }); });
       await wait(200);
+      if (frameSpec) {
+        // わくを 指で うごかす：① 小さく → ② 絵の 場所へ → ③ 大きさを 合わせる（photo.js の move/size と 同じ 計算）
+        const f = frameSpec.split(',').map(Number);
+        const el = $('.photo__img'), box = $('.photo__crop'), handle = $('.photo__handle');
+        const r = el.getBoundingClientRect();
+        function drag(target, dx, dy) {
+          function ev(type, x, y) { return new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true, cancelable: true }); }
+          target.dispatchEvent(ev('pointerdown', 200, 200));
+          window.dispatchEvent(ev('pointermove', 200 + dx, 200 + dy));
+          window.dispatchEvent(ev('pointerup', 200 + dx, 200 + dy));
+        }
+        const iw = el.naturalWidth, ih = el.naturalHeight;
+        const fh = f.length > 3 ? f[3] : f[2] * iw / ih;
+        let c = MQ.ui.photo.crop();
+        drag(handle, (0.05 - c.w) * r.width, (0.05 * iw / ih - c.h) * r.height);
+        c = MQ.ui.photo.crop();
+        drag(box, (f[0] - c.x) * r.width, (f[1] - c.y) * r.height);
+        c = MQ.ui.photo.crop();
+        drag(handle, (f[2] - c.w) * r.width, (fh - c.h) * r.height);
+        await wait(100);
+        say('frame: ' + JSON.stringify(MQ.ui.photo.crop()) + ' info=' + JSON.stringify(MQ.ui.photo.info()));
+      }
+      if (parts[5] === 'down') { const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__preview'); if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 90; }   // :down = できあがりまで スクロール
+      // できあがり（PNG）と わくの 中の 写真（JPEG）を ログに 出す（外の 道具で ならべて 見る ため）
+      say('png:' + ($('.photo__out').src || ''));
+      try { const dbg = MQ.ui.photo.debug(); if (dbg) { say('norm:' + dbg.norm); say('cls:' + dbg.cls); } } catch (e) { say('debug: ' + e); }
+      try {
+        const c2 = MQ.ui.photo.crop(), im = $('.photo__img');
+        const cv = document.createElement('canvas'); cv.width = 320; cv.height = 320;
+        cv.getContext('2d').drawImage(im, c2.x * im.naturalWidth, c2.y * im.naturalHeight, c2.w * im.naturalWidth, c2.h * im.naturalHeight, 0, 0, 320, 320);
+        say('cut:' + cv.toDataURL('image/jpeg', 0.85));
+      } catch (e) { say('cut: ' + e); }
       dump();
       return;
     }

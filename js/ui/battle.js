@@ -261,6 +261,7 @@ MQ.ui.battle = (function () {
       else if (ids.length > 1) { cls += ' enemy--small'; size = 54; }
       else if ((e.rank || 2) === 3) { cls += ' enemy--r3'; size = 86; }   // 強そうなのは 大きく
       else if ((e.rank || 2) === 1) { cls += ' enemy--r1'; size = 60; }   // よわそうなのは 小さく
+      if (e.by === 'photo' && !boss && ids.length === 1) size = 96;          // じぶんの 絵の モンスターは 大きく（64マスの ドットが つぶれない・v3.2）
       if (q.rare && i === pos) cls += ' enemy--rare';
       if (q.revenge && i === pos) cls += ' enemy--revenge';   // リベンジ：赤い オーラ＋リボン（v3.1）
       if (i < pos) cls += ' enemy--done';
