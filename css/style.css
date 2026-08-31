@@ -1788,7 +1788,22 @@ body {
 .photo__crop { position: absolute; border: 3px solid var(--gold); box-shadow: 0 0 0 9999px rgba(6,10,22,.6); }
 .photo__handle { position: absolute; right: -10px; bottom: -10px; width: 26px; height: 26px; border-radius: 8px; background: var(--gold); box-shadow: 0 3px 0 var(--gold-sh); }
 .photo__preview { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 14px; background: rgba(16,24,48,.7); }
-.photo__out { width: 84px; height: 84px; }
+/* できあがり（v2.7）：大きな みほん＋バトルでの 見え方＋スライダー */
+.photo__preview { flex-direction: column; align-items: stretch; }
+.photo__views { display: flex; gap: 12px; justify-content: center; }
+.photo__view { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.photo__out { width: 128px; height: 128px; image-rendering: pixelated; object-fit: contain; border-radius: 10px; background-color: #e9edf5; background-image: linear-gradient(45deg, #cfd6e6 25%, transparent 25%, transparent 75%, #cfd6e6 75%), linear-gradient(45deg, #cfd6e6 25%, transparent 25%, transparent 75%, #cfd6e6 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
+.photo__sky { position: relative; width: 128px; height: 128px; border-radius: 10px; overflow: hidden; background: linear-gradient(#4fb8f5 0%, #86d6ff 55%, #b7e8ff 100%); }
+.photo__sky::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30px; background: repeating-linear-gradient(90deg, #8f9aa8 0 16px, #848f9d 16px 32px); box-shadow: inset 0 4px 0 #6fcf4a; }
+.photo__outb { position: absolute; left: 50%; bottom: 30px; width: 76px; height: 76px; transform: translateX(-50%); z-index: 2; image-rendering: pixelated; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)); }
+.photo__shadow { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 1; }
+.photo__cap { font-size: 12px; color: var(--tx-sub); }
+.photo__row { display: flex; align-items: center; gap: 10px; }
+.photo__lbl { flex: none; width: 100px; font-size: 13px; color: #dbe4ff; }
+.photo__btns { display: flex; gap: 8px; justify-content: center; }
+.chips--tight { gap: 6px; }
+.chip--s { min-height: 36px; padding: 0 10px; font-size: 13px; }
+.photo__empty { color: #ffd0d8; margin: 0; }
 
 /* =========================================================
    アイテム（v2.0）：たからものを たたかいの 中で 使う。モックの 部品で 組む

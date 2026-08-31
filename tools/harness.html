@@ -203,6 +203,33 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
   /* いま 画面に 出ている 一瞬（ふきだし・ひっさつの エフェクト）を
      スクリーンショットに のこす ため、これいじょう タイマーを 進めない。 */
   function freeze() { window.setTimeout = function () { return 0; }; }
+  function fakeDrawing() {
+    const W = 900, H = 1200;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d');
+    const g = x.createRadialGradient(380, 480, 80, 450, 600, 900);
+    g.addColorStop(0, '#f7f4ec'); g.addColorStop(1, '#c9c4b6');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 6000; i++) { x.fillStyle = 'rgba(0,0,0,' + (Math.random() * 0.06) + ')'; x.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+    x.fillStyle = '#6f6a60'; x.fillRect(0, 1130, W, 70);   // つくえの ふち
+    const d = document.createElement('canvas'); d.width = W; d.height = H;
+    const y = d.getContext('2d');
+    y.lineJoin = 'round'; y.lineCap = 'round';
+    function blob(cx, cy, rx, ry, fill) { y.beginPath(); y.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); y.fillStyle = fill; y.fill(); y.lineWidth = 3.2; y.strokeStyle = '#2a2622'; y.stroke(); }
+    blob(450, 620, 210, 190, 'rgba(242,162,58,.85)');   // 体（オレンジの マーカー）
+    y.fillStyle = 'rgba(255,200,120,.5)'; for (let i = 0; i < 40; i++) y.fillRect(300 + Math.random() * 300, 480 + Math.random() * 280, 30, 6);
+    [[300, 440], [400, 400], [500, 400], [600, 440]].forEach(function (p) { y.beginPath(); y.moveTo(p[0] - 30, p[1] + 20); y.lineTo(p[0], p[1] - 90); y.lineTo(p[0] + 30, p[1] + 20); y.closePath(); y.fillStyle = 'rgba(76,175,80,.9)'; y.fill(); y.lineWidth = 3; y.strokeStyle = '#2a2622'; y.stroke(); });
+    blob(380, 590, 38, 42, '#fbfbf7'); blob(520, 590, 38, 42, '#fbfbf7');
+    y.fillStyle = '#1e1c1a'; y.beginPath(); y.arc(388, 598, 14, 0, 7); y.fill(); y.beginPath(); y.arc(528, 598, 14, 0, 7); y.fill();
+    y.beginPath(); y.moveTo(380, 690); y.quadraticCurveTo(450, 760, 520, 690); y.lineWidth = 4; y.strokeStyle = '#c2322d'; y.stroke();
+    for (let i = 0; i < 4; i++) { y.beginPath(); y.moveTo(395 + i * 36, 700 + (i % 2) * 6); y.lineTo(413 + i * 36, 728); y.lineTo(431 + i * 36, 700 + (i % 2) * 6); y.closePath(); y.fillStyle = '#fff'; y.fill(); y.lineWidth = 1.5; y.strokeStyle = '#2a2622'; y.stroke(); }
+    [[360, 800], [520, 800]].forEach(function (p) { y.fillStyle = 'rgba(63,127,214,.9)'; y.fillRect(p[0], p[1], 60, 110); y.lineWidth = 3; y.strokeStyle = '#2a2622'; y.strokeRect(p[0], p[1], 60, 110); });
+    y.beginPath(); y.moveTo(650, 640); y.bezierCurveTo(760, 600, 780, 720, 700, 760); y.lineWidth = 1.6; y.strokeStyle = '#4a4540'; y.stroke();   // えんぴつの 細い しっぽ
+    y.lineWidth = 1.2; y.strokeStyle = '#7a746c'; y.beginPath(); y.moveTo(230, 950); y.lineTo(300, 990); y.lineTo(250, 1010); y.stroke();   // よこの らくがき（小さい）
+    try { x.filter = 'blur(0.9px)'; } catch (e) {}
+    x.drawImage(d, 0, 0);
+    return c.toDataURL('image/jpeg', 0.82);
+  }
 
   async function playBattle(label, opts) {
     opts = opts || {};
@@ -307,6 +334,23 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode === 'parent') { fresh(); MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'set') { fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'photo') { fresh(); MQ.ui.photo.render(); return; }
+    // 写真から モンスター（v2.7）：#photo2 = 子どもの 絵に 見せかけた 画像／#photo3:<file URL> = 本物の 画像
+    if (mode.indexOf('photo2') === 0 || mode.indexOf('photo3:') === 0) {
+      fresh();
+      const sz = parseInt(mode.split(':')[mode.indexOf('photo2') === 0 ? 1 : 2] || '0', 10);
+      if (sz) MQ.ui.photo.setOptions({ size: sz });
+      MQ.ui.photo.render();
+      let url = null;
+      if (mode.indexOf('photo2') === 0) url = fakeDrawing();
+      else {
+        const blob = await fetch(decodeURIComponent(mode.slice(7))).then(function (r) { return r.blob(); });
+        url = await new Promise(function (res) { const fr = new FileReader(); fr.onload = function () { res(String(fr.result)); }; fr.readAsDataURL(blob); });
+      }
+      await new Promise(function (res) { MQ.ui.photo.render.load(url, function (info, out) { say('photo: ' + JSON.stringify(info) + ' png=' + (out ? out.length : 0) + ' crop=' + JSON.stringify(MQ.ui.photo.crop())); res(); }); });
+      await wait(200);
+      dump();
+      return;
+    }
 
     // 正解の ふきだし（いちばん 長い 補足）。画面に おさまるか 見る
     if (mode === 'note') {
