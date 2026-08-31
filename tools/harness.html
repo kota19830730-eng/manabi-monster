@@ -467,7 +467,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const frameSpec = mode.indexOf('photo3:') === 0 ? (parts[3] || '') : '';
       if (sz) MQ.ui.photo.setOptions({ size: sz });
       // parts[4] = "<はいけいを 消す>,<線を こく>"（スライダーの 値。子どもが 動かした のと 同じ）
-      if (mode.indexOf('photo3:') === 0 && parts[4]) { const tk = parts[4].split(',').map(Number); MQ.ui.photo.setOptions({ tol: tk[0], ink: tk[1] }); say('sliders: tol=' + tk[0] + ' ink=' + tk[1]); }
+      if (mode.indexOf('photo3:') === 0 && parts[4]) { const tk = parts[4].split(',').map(Number); MQ.ui.photo.setOptions({ tol: tk[0], ink: tk[1], clean: tk.length > 2 ? tk[2] : null }); say('sliders: tol=' + tk[0] + ' ink=' + tk[1] + (tk.length > 2 ? ' clean=' + tk[2] : '')); }
       MQ.ui.photo.render();
       let url = null;
       if (mode.indexOf('photo2') === 0) url = fakeDrawing();

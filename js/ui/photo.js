@@ -43,7 +43,8 @@ MQ.ui.photo = (function () {
   const h = MQ.util.h;
   const WORK = 320;                 // しらべる ときの 大きさ（長い ほう。たてよこの 比は そのまま）
   const SIZES = [[48, 'あらい'], [64, 'ふつう'], [96, 'こまかい']];
-  let size = 64;                    // ドット絵の マス数
+  let size = 96;                    // ドット絵の マス数（初期は こまかい・v3.3）
+  let autoClean = true;             // じどうで きれいに（v3.3・自動補正）
   let img = null;                   // 読みこんだ 写真
   let crop = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 };   // わく（0〜1の わりあい・長方形で OK）
   let tol = 55;                     // 「はいけいを 消す」（55 = 自動の しきい値の まま。大きいほど よく 消える）
@@ -535,6 +536,134 @@ MQ.ui.photo = (function () {
     return cv;
   }
 
+  /* じどうで きれいに（v3.3・自動補正）。ドット絵の マス目を そうじする：
+       ①ぽつんと ある マスを 消す（ごみ）
+       ②線の 1マスの すきまを つなぐ（上下 or 左右 が 線）
+       ③まわりを 6マス いじょう かこまれた あなを うめる（多数決の 色）×2
+       ④ぬりの 中の 白い ぬけを まわりの 色に（色えんぴつの すじの あいだ）×2
+       ⑤ぬりむらを 一色に：同じ 色あいで つながった マスを ひとまとまりに して、いちばん こく ぬれている 色に そろえる
+       ⑥ふちの マスを こく して 輪かくの 線に（ゲームの モンスターらしく）
+     子どもの 絵の 形は 変えない（マスを うごかさない・ならべ直さない） */
+  function cleanCells(cells, N) {
+    function at(g, x, y) { return (x < 0 || y < 0 || x >= N || y >= N) ? null : g[y * N + x]; }
+    const D8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+    function bucket(c) { return [Math.round(c[0] / 28), Math.round(c[1] / 28), Math.round(c[2] / 28)].join(','); }
+    function majority(list) {
+      const cnt = {};
+      let best = null, bn = 0;
+      list.forEach(function (c) { const k = bucket(c.c); cnt[k] = (cnt[k] || 0) + 1; if (cnt[k] > bn) { bn = cnt[k]; best = c; } });
+      return best;
+    }
+    function isWhite(c) { return !c.ink && lumOf(c.c[0], c.c[1], c.c[2]) > 232 && Math.max(c.c[0], c.c[1], c.c[2]) - Math.min(c.c[0], c.c[1], c.c[2]) < 22; }
+    // ① ごみ
+    let src = cells.slice();
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const c = at(src, x, y);
+        if (!c) continue;
+        let n = 0;
+        D8.forEach(function (d) { if (at(src, x + d[0], y + d[1])) n++; });
+        if (n <= 1) cells[y * N + x] = null;
+      }
+    }
+    // ② 線を つなぐ
+    src = cells.slice();
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        if (at(src, x, y)) continue;
+        const u = at(src, x, y - 1), d = at(src, x, y + 1), l = at(src, x - 1, y), r = at(src, x + 1, y);
+        let pair = null;
+        if (u && d && u.ink && d.ink) pair = [u, d];
+        else if (l && r && l.ink && r.ink) pair = [l, r];
+        if (pair) cells[y * N + x] = { ink: true, c: [(pair[0].c[0] + pair[1].c[0]) / 2, (pair[0].c[1] + pair[1].c[1]) / 2, (pair[0].c[2] + pair[1].c[2]) / 2] };
+      }
+    }
+    // ③ あな ④ 白い ぬけ（2回ずつ）
+    for (let it = 0; it < 2; it++) {
+      src = cells.slice();
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const me = at(src, x, y);
+          const around = [];
+          D8.forEach(function (d) { const c = at(src, x + d[0], y + d[1]); if (c) around.push(c); });
+          if (!me) {
+            // ③ あな：まわり 6マス いじょう。色（線でない）が あれば その 多数決、なければ 線
+            if (around.length >= 6) {
+              const fillsN = around.filter(function (c) { return !c.ink; });
+              cells[y * N + x] = fillsN.length >= 3 ? { ink: false, c: majority(fillsN).c.slice() } : { ink: true, c: majority(around).c.slice() };
+            }
+            continue;
+          }
+          // ④ 白い ぬけ：白っぽい マスの まわりに 色（白でも 線でも ない）が 5マス いじょう → その 色
+          if (isWhite(me)) {
+            const colored = around.filter(function (c) { return !c.ink && !isWhite(c); });
+            if (colored.length >= 5) cells[y * N + x] = { ink: false, c: majority(colored).c.slice() };
+          }
+        }
+      }
+    }
+    // ⑤ ぬりむらを 一色に：色あいが 近くて つながっている マスを ひとまとまりに して、
+    //    「いちばん こく ぬれている ほうの 半分」の 平均色に そろえる（子どもが えらんだ 色に 寄せる）
+    function hueOf(c) {
+      const r = c[0], g = c[1], b = c[2];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), ch = mx - mn;
+      if (ch < 1) return { h: 0, ch: 0, lum: lumOf(r, g, b) };
+      let h;
+      if (mx === r) h = ((g - b) / ch + 6) % 6;
+      else if (mx === g) h = (b - r) / ch + 2;
+      else h = (r - g) / ch + 4;
+      return { h: h * 60, ch: ch, lum: lumOf(r, g, b) };
+    }
+    function similar(a, b) {
+      const A = hueOf(a.c), B = hueOf(b.c);
+      if (A.ch < 22 && B.ch < 22) return Math.abs(A.lum - B.lum) < 45;    // 白・うすい 灰色 どうし
+      if (A.ch < 22 || B.ch < 22) return false;
+      let dh = Math.abs(A.h - B.h); if (dh > 180) dh = 360 - dh;
+      return dh < 45;
+    }
+    const region = new Int32Array(N * N);
+    let rid = 0;
+    for (let k0 = 0; k0 < N * N; k0++) {
+      if (region[k0] || !cells[k0] || cells[k0].ink) continue;
+      rid++;
+      const members = [];
+      const st = [k0];
+      region[k0] = rid;
+      while (st.length) {
+        const k = st.pop();
+        members.push(k);
+        const x = k % N, y = (k - x) / N;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+          const nx = x + d[0], ny = y + d[1];
+          if (nx < 0 || ny < 0 || nx >= N || ny >= N) return;
+          const nk = ny * N + nx;
+          if (region[nk] || !cells[nk] || cells[nk].ink) return;
+          if (!similar(cells[k], cells[nk])) return;
+          region[nk] = rid;
+          st.push(nk);
+        });
+      }
+      if (members.length < 4) continue;
+      const byCh = members.slice().sort(function (a, b) { return hueOf(cells[b].c).ch - hueOf(cells[a].c).ch; });
+      const top = byCh.slice(0, Math.max(1, Math.floor(byCh.length / 2)));
+      let r = 0, g = 0, bl = 0;
+      top.forEach(function (k) { r += cells[k].c[0]; g += cells[k].c[1]; bl += cells[k].c[2]; });
+      const rep2 = [r / top.length, g / top.length, bl / top.length];
+      members.forEach(function (k) { cells[k] = { ink: false, c: rep2.slice() }; });
+    }
+
+    // ⑥ 輪かく：すけている ところ（か 絵の はし）に となりあう 色の マスを こく（線の マスは そのまま）
+    src = cells.slice();
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const me = at(src, x, y);
+        if (!me || me.ink) continue;
+        const open = !at(src, x, y - 1) || !at(src, x, y + 1) || !at(src, x - 1, y) || !at(src, x + 1, y);
+        if (open) cells[y * N + x] = { ink: true, c: [me.c[0] * 0.55, me.c[1] * 0.55, me.c[2] * 0.55] };
+      }
+    }
+  }
+
   function build() {
     if (!img) return '';
     const cv = workCanvas(img, crop);
@@ -623,6 +752,9 @@ MQ.ui.photo = (function () {
         fills.push(vc);
       }
     }
+    // じどうで きれいに（v3.3・自動補正）：ごみ・線の すきま・あな・白い ぬけ・輪かく
+    if (autoClean) cleanCells(cells, N);
+
     // 色を 16色に そろえる
     const pal = palette(fills, 16);
 
@@ -639,7 +771,7 @@ MQ.ui.photo = (function () {
       drawn++;
     }
     ox2.putImageData(od, 0, 0);
-    lastInfo = { size: N, drawn: drawn, colors: pal.length, box: box, thr: { d: Math.round(thr.d * 10) / 10, s: Math.round(thr.s * 10) / 10, line: Math.round(lineD * 10) / 10 } };
+    lastInfo = { size: N, drawn: drawn, colors: pal.length, clean: autoClean, box: box, thr: { d: Math.round(thr.d * 10) / 10, s: Math.round(thr.s * 10) / 10, line: Math.round(lineD * 10) / 10 } };
     return out.toDataURL('image/png');
   }
 
@@ -758,6 +890,18 @@ MQ.ui.photo = (function () {
       s.addEventListener('input', function () { set(Number(s.value)); refresh(); });
       return h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: label }), s]);
     }
+    const cleanChips = h('div', { class: 'chips chips--tight' }, [[true, 'する'], [false, 'しない']].map(function (cch) {
+      const b = h('button', {
+        class: 'chip chip--s' + (autoClean === cch[0] ? ' is-on' : ''), type: 'button', text: cch[1],
+        onclick: function () {
+          autoClean = cch[0]; MQ.sfx.tap();
+          cleanChips.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('is-on'); });
+          b.classList.add('is-on');
+          refresh();
+        }
+      });
+      return b;
+    }));
     const sizeChips = h('div', { class: 'chips chips--tight' }, SIZES.map(function (s) {
       const b = h('button', {
         class: 'chip chip--s' + (size === s[0] ? ' is-on' : ''), type: 'button', text: s[1],
@@ -863,6 +1007,7 @@ MQ.ui.photo = (function () {
       sliderRow('はいけいを 消す', 15, 120, function () { return tol; }, function (v) { tol = v; }),
       sliderRow('線を こく', 0, 100, function () { return inkLv; }, function (v) { inkLv = v; }),
       h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'ドットの こまかさ' }), sizeChips]),
+      h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'じどうで きれいに' }), cleanChips]),
       h('div', { class: 'photo__btns' }, [
         h('button', { class: 'btn btn--small btn--cream', type: 'button', text: 'わくを 自動で', onclick: function () { MQ.sfx.tap(); autoCrop(); drawStage(); refresh(); } }),
         h('button', { class: 'btn btn--small btn--cream', type: 'button', text: '回す', onclick: function () { MQ.sfx.tap(); rotateImg(); } })
@@ -1129,6 +1274,6 @@ MQ.ui.photo = (function () {
     build: build,
     // AI（v2.8）の いまの 状態（テスト用）
     aiState: function () { return { busy: aiBusy, ai: aiUsed, error: aiError, hasOrig: !!origImg, out: outUrl.length, edited: !!edited }; },
-    setOptions: function (o) { if (o.size) size = o.size; if (o.tol != null) tol = o.tol; if (o.ink != null) inkLv = o.ink; }
+    setOptions: function (o) { if (o.size) size = o.size; if (o.tol != null) tol = o.tol; if (o.ink != null) inkLv = o.ink; if (o.clean != null) autoClean = !!o.clean; }
   };
 })();
