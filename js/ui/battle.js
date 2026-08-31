@@ -90,6 +90,7 @@ MQ.ui.battle = (function () {
         ]),
         d.choices = h('div', { class: 'choices' }),
         d.memo = h('div', { class: 'memo' }, [
+          d.memoQ = h('div', { class: 'memo__q' }),
           d.hissan = h('div', { class: 'hissan', hidden: true }),
           d.canvas = h('canvas', { class: 'memo__canvas' }),
           h('div', { class: 'memo__btns' }, [
@@ -130,6 +131,7 @@ MQ.ui.battle = (function () {
   function toggleWide() {
     MQ.sfx.tap();
     const wide = d.memo.classList.toggle('memo--wide');
+    d.panel.classList.toggle('is-wide', wide);   // 下に かくれた 部品（金の 光など）が はみ出ないように
     d.memoWide.textContent = wide ? 'もどす' : 'ひろげる';
     memo.resizeKeep();
   }
@@ -137,6 +139,7 @@ MQ.ui.battle = (function () {
   function closeWide() {
     if (d.memo.classList.contains('memo--wide')) {
       d.memo.classList.remove('memo--wide');
+      d.panel.classList.remove('is-wide');
       d.memoWide.textContent = 'ひろげる';
     }
   }
@@ -649,6 +652,7 @@ MQ.ui.battle = (function () {
       d.spacer.hidden = true;
       d.hissan.hidden = true;
       d.memoHint.textContent = 'ここに ゆびで かん字を かこう';
+      d.memoQ.innerHTML = d.prompt.innerHTML;
       d.displays.hidden = true;
       d.keys.hidden = false;
       memo.reset();
@@ -667,11 +671,13 @@ MQ.ui.battle = (function () {
       d.memoHint.textContent = 'ここに ゆびで ひっさんが かけるよ';
       if (q.layout === 'vertical') {
         d.hissan.hidden = false;
+        d.memoQ.innerHTML = '';          // ひっさんの 数字が メモの 中に あるので 問題文は いらない
         d.hissan.innerHTML =
           '<span class="hissan__row">' + q.a + '</span>' +
           '<span class="hissan__row"><span class="hissan__sign">' + q.sign + '</span>' + q.b + '</span>';
       } else {
         d.hissan.hidden = true;
+        d.memoQ.innerHTML = d.prompt.innerHTML;
       }
       memo.reset();
     }

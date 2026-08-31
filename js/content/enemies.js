@@ -124,11 +124,11 @@ MQ.enemies = (function () {
 
     /* ---- 息子さんの モンスター（エリアごとの レア敵。けいけんち3倍） ---- */
     { id: 'skullhorse', name: 'スカルホース', shape: 'skullhorse', area: 'sansu', rare: true, by: 'son',
-      colors: { w: '#F4F4F4', r: '#E8443A', k: '#1A1A22', K: '#2B2B3A', A: '#DCA463', B: '#8A5A2B' } },
+      colors: { A: '#F4F4F4', B: '#B9BFCC', w: '#FFFFFF', r: '#FF4D4D', k: '#1A1A22', s: '#8FA0BC', y: '#F2C14E' } },
     { id: 'sameoni', name: 'サメオニ', shape: 'sameoni', area: 'rikashakai', rare: true, by: 'son',
       colors: { A: '#5FA8DC', B: '#2E5F8A', r: '#FF9A4A', w: '#FFFFFF' } },
     { id: 'zukan', name: 'ずかんの あくま', shape: 'zukan', area: 'kokugo', rare: true, by: 'son',
-      colors: { A: '#C4762E', w: '#FBF4DF', r: '#E8443A', k: '#2B2438', B: '#8A4B12' } },
+      colors: { A: '#C4762E', w: '#FBF4DF', r: '#E8443A', k: '#2B2438', B: '#8A4B12', W: '#4A2D6B' } },
 
     /* ABC3きょうだい … 英語の空に 3体まとめて 出てくる */
     { id: 'abc-a', name: 'エー', shape: 'letterA', area: 'eigo', rare: true, by: 'son', trio: 'abc',

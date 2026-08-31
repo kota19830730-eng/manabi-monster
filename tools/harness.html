@@ -378,6 +378,19 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'bagdex') { fresh(); MQ.ui.dex.pick('tr-wari'); MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
+    // メモを ひろげる（v2.4.1）：#wide 小2 ひっさん／#wide3 小3 わりざん
+    if (mode === 'wide' || mode === 'wide3') {
+      if (mode === 'wide') {
+        fresh({ stars: { 'sansu2-1': 3 }, treasure: {}, frags: {} });
+        MQ.save.update(function (pl) { pl.grade = 2; pl.best = {}; });
+        MQ.ui.battle.start('sansu2-2');
+      } else { fresh(); MQ.ui.battle.start('sansu3-6'); }
+      await wait(600);
+      const b = $('.memo__btn'); b.click(); await wait(200);
+      const m = $('.memo');
+      say('wide: ' + m.classList.contains('memo--wide') + ' memo=' + Math.round(m.getBoundingClientRect().height) + 'px btn=' + b.textContent);
+      return;
+    }
     if (mode === 'battle') { fresh(); MQ.ui.battle.start('sansu3-6'); await wait(600); return; }
     if (mode === 'graph')  { fresh(); MQ.ui.battle.start('sansu3-5'); await wait(600); return; }  // ぼうグラフ（せの高い 問題）
     if (mode === 'roma') {
