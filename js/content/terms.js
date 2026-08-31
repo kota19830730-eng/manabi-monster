@@ -155,6 +155,15 @@ MQ.terms = (function () {
 
   /* おうちの人ページ用：その学年の 単元の 一覧
        { key, name, area, term, kind: 'stage'|'unit', ready }  ready=false は 問題が まだ ない ステージ */
+  /* いまの 月から おすすめの 学期（4〜8月=1・9〜12月=2・1〜3月=3）。おうちの人ページが「2学期に しますか？」と 聞く（v3.0）。
+     テスト用に 日付を 入れかえられる（setNow） */
+  let NOW = null;
+  function now() { return NOW || new Date(); }
+  function suggested(date) {
+    const m = (date || now()).getMonth() + 1;
+    return m >= 9 ? 2 : m <= 3 ? 3 : 1;
+  }
+
   function entries(grade) {
     const g = grade || 3;
     const out = [];
@@ -189,6 +198,7 @@ MQ.terms = (function () {
     unitEntryOf: unitEntryOf, stageTerm: stageTerm, termOf: termOf,
     stageLearned: stageLearned, unitLearned: unitLearned, allowQ: allowQ, learned: learned,
     entries: entries, whenText: whenText,
+    suggested: suggested, now: now, setNow: function (d) { NOW = d || null; },
     current: current, forcePlayer: forcePlayer
   };
 })();

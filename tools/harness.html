@@ -817,6 +817,42 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'battle') { fresh(); MQ.ui.battle.start('sansu3-6'); await wait(600); return; }
+    // 小3 算数 2学期（v3.0）：#battle3:N で ステージN（7 大きい数・8 長さ・9 円と球・10 筆算・11 小数・12 重さ・13 分数）／#battle3:N:lv で その むずかしさ だけ
+    if (mode.indexOf('battle3') === 0) {
+      fresh();
+      const parts = mode.split(':');
+      const bn = parseInt(parts[1], 10) || 7;
+      MQ.ui.battle.start('sansu3-' + bn); await wait(600);
+      const q = MQ.battle.current();
+      say('battle3: ' + q.id + ' type=' + q.type + ' lv=' + q.lv + ' decimal=' + !!q.decimal + ' keys=' + document.querySelectorAll('#screen-battle .key').length + ' answer=' + JSON.stringify(q.answer));
+      dump();
+      return;
+    }
+    // 2学期の 図を ならべて 見る
+    if (mode === 'figs3') {
+      const F = MQ.sansu3.figs3;
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;z-index:99;align-content:start;';
+      [F.circleSvg('radius', '4cm'), F.circleSvg('diameter', '10cm'), F.circleSvg('chord', ''), F.circleSvg('two', '16cm'), F.ballsSvg(3, '6cm', '？cm'), F.ballsSvg(4, '？cm', '24cm'), F.dialSvg(340), F.dialSvg(1240, 2000)].forEach(function (svg) { const d = document.createElement('div'); d.innerHTML = svg; box.appendChild(d); });
+      [F.lineSvg(10000, 10, 3, 5, function (v) { return v >= 10000 ? '1万' : String(v); }), F.lineSvg(2, 20, 7, 10), F.lineSvg(1, 5, 2, 5, function (v) { return v ? '1' : '0'; })].forEach(function (svg) { const d = document.createElement('div'); d.style.gridColumn = '1 / -1'; d.innerHTML = svg; box.appendChild(d); });
+      document.getElementById('stage').appendChild(box);
+      return;
+    }
+    // 学期の おすすめ（v3.0）：9月に した ときの おうちの人ページ
+    if (mode === 'parent2') {
+      fresh();
+      MQ.terms.setNow(new Date(2026, 8, 5));
+      MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex');
+      await wait(100);
+      say('parent2: sug=' + ($('.termsug') ? $('.termsug').textContent : 'MISSING'));
+      const b = $('.termsug .btn'); if (b) { b.click(); await wait(100); }
+      say('parent2 after: term=' + MQ.save.current().term + ' sug=' + ($('.termsug') ? 'still' : 'gone'));
+      MQ.terms.setNow(new Date(2026, 8, 5));
+      MQ.save.update(function (pl) { pl.term = 0; });
+      MQ.ui.dex.render('parent');
+      dump();
+      return;
+    }
     if (mode === 'graph')  { fresh(); MQ.ui.battle.start('sansu3-5'); await wait(600); return; }  // ぼうグラフ（せの高い 問題）
     if (mode === 'roma') {
       fresh();

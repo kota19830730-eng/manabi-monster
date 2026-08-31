@@ -62,7 +62,8 @@ function validate(q, where) {
   check(typeof q.id === 'string' && q.id.length > 0, where + ': id');
   check(TYPES.indexOf(q.type) !== -1, where + ': type ' + q.type);
   if (q.type === 'number') {
-    check(Number.isInteger(q.answer) && q.answer >= 0, where + ': integer answer ' + JSON.stringify(q.answer) + ' ' + q.prompt);
+    if (q.decimal) check(typeof q.answer === 'number' && q.answer >= 0 && Math.abs(q.answer * 10 - Math.round(q.answer * 10)) < 1e-9, where + ': decimal answer ' + JSON.stringify(q.answer) + ' ' + q.prompt);
+    else check(Number.isInteger(q.answer) && q.answer >= 0, where + ': integer answer ' + JSON.stringify(q.answer) + ' ' + q.prompt);
     if (q.layout === 'vertical') check(q.a != null && q.b != null && q.sign, where + ': vertical fields');
   }
   if (q.type === 'choice') {
@@ -87,8 +88,10 @@ function levelsNonDecreasing(qs) {
   for (let i = 1; i < qs.length; i++) if ((qs[i].lv || 2) < (qs[i - 1].lv || 2)) return false;
   return true;
 }
-for (let s = 1; s <= 6; s++) {
+for (let s = 1; s <= 13; s++) {
   const st = MQ.sansu3.stages[s];
+  check(!!st, 'sansu3 stage ' + s + ' が ある');
+  if (!st) continue;
   ['easy', 'normal', 'hard', 'boss'].forEach(function (t) {
     check(Array.isArray(st[t]) && st[t].length >= 2, 'sansu' + s + ' の ' + t + ' が 2しゅるい いじょう: ' + (st[t] ? st[t].length : 0));
   });
@@ -100,7 +103,28 @@ for (let s = 1; s <= 6; s++) {
   check(levelsNonDecreasing(twelve), 'sansu' + s + ' の むずかしさが じゅんばん: ' + lvs.join(''));
   check(lvs.filter(function (l) { return l === 1; }).length === 4 && lvs.filter(function (l) { return l === 3; }).length === 4, 'sansu' + s + ' は 4/4/4: ' + lvs.join(''));
   check(MQ.sansu3.make(s, 1, { lv: 2 })[0].lv === 2, 'sansu' + s + ' lv2 だけ');
+  // 12問 かぶりなし（2学期の ステージも）
+  for (let r = 0; r < 3; r++) {
+    const ids = MQ.sansu3.make(s, 12).map(function (q) { return q.id; });
+    check(new Set(ids).size === 12, 'sansu' + s + ' 12問 かぶりなし: ' + ids.filter(function (x, i) { return ids.indexOf(x) !== i; }).join(' | '));
+  }
+  // 問題の 種類が じゅうぶん（60問 作って 30種類 いじょう）
+  const kinds = new Set(MQ.sansu3.make(s, 60).map(function (q) { return q.id; })).size;
+  check(kinds >= 30, 'sansu' + s + ' 種類 ' + kinds);
 }
+// 2学期の 道具（v3.0）
+(function () {
+  const F = MQ.sansu3.figs3;
+  check(F.kanjiNum(23500) === '二万三千五百' && F.kanjiNum(100000000) === '一億' && F.kanjiNum(10000000) === '千万' && F.kanjiNum(15000) === '一万五千' && F.kanjiNum(120500) === '十二万五百' && F.kanjiNum(250000000) === '二億五千万', 'kanjiNum: ' + [23500, 100000000, 10000000, 15000, 120500, 250000000].map(F.kanjiNum).join(' '));
+  check(F.dialSvg(340).indexOf('<svg') >= 0 && F.circleSvg('radius', '4cm').indexOf('<circle') >= 0 && F.ballsSvg(3, '6cm', '？cm').split('<circle').length === 4 && F.lineSvg(10000, 10, 3, 5).indexOf('？') >= 0, '2学期の 図');
+  // 小数の 問題は decimal つき・小数の 答え
+  const s11 = MQ.sansu3.make(11, 60);
+  check(s11.some(function (q) { return q.decimal && !Number.isInteger(q.answer); }), 'sansu11 に 小数の 答えが ある');
+  check(s11.every(function (q) { return !q.decimal || (q.answer * 10) % 1 < 1e-9; }), 'sansu11 の 小数は 0.1 きざみ');
+  // 学期の おすすめ
+  const Tm = MQ.terms;
+  check(Tm.suggested(new Date(2026, 8, 1)) === 2 && Tm.suggested(new Date(2026, 3, 10)) === 1 && Tm.suggested(new Date(2027, 0, 10)) === 3 && Tm.suggested(new Date(2026, 7, 31)) === 1 && Tm.suggested(new Date(2026, 11, 20)) === 2, '学期の おすすめ');
+})();
 console.log('sansu generated ok: ' + sansuCount);
 
 /* ---- 小1 さんすう（v2.2）：11ステージ・問題文は ひらがな・12問 かぶりなし ---- */

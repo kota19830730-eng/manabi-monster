@@ -386,6 +386,21 @@ MQ.ui.dex = (function () {
         }
       });
     }));
+    // いまの 月と ちがう 学期に なっていたら すすめる（v3.0）
+    const sug = MQ.terms.suggested ? MQ.terms.suggested() : 0;
+    const month = (MQ.terms.now ? MQ.terms.now() : new Date()).getMonth() + 1;
+    const sugRow = sug && term !== sug ? h('div', { class: 'termsug' }, [
+      h('span', { class: 'termsug__t', text: 'いまは ' + month + '月。学校は ' + sug + '学期の ころです。' + (term === 0 ? '「' + sug + '学期まで」に すると、まだ ならっていない 単元は 出ません。' : '') }),
+      h('button', {
+        class: 'btn btn--small', type: 'button', text: sug + '学期まで に する',
+        onclick: function () {
+          MQ.sfx.tap();
+          MQ.save.update(function (pl) { pl.term = sug; pl.units = {}; });
+          MQ.ui.toast(sug + '学期まで ならった ところだけ 出します');
+          render('parent');
+        }
+      })
+    ]) : null;
     const groups = {};
     MQ.content.subjectAreas().forEach(function (a) { groups[a.id] = { name: a.name, items: [] }; });
     MQ.terms.entries(grade).forEach(function (e) { if (groups[e.area]) groups[e.area].items.push(e); });
@@ -416,7 +431,8 @@ MQ.ui.dex = (function () {
     return h('div', { class: 'terms' }, [
       h('h2', { class: 'label', text: '学校で ならった ところ' }),
       h('p', { class: 'note', text: 'チェックの ある 単元の 問題だけ 出ます。学期を えらぶと 教科書の じゅんに そろい、単元を 押すと 1つずつ 変えられます（学校の 進み方に 合わせて）。' }),
-      btns
+      btns,
+      sugRow
     ].concat(lists));
   }
 

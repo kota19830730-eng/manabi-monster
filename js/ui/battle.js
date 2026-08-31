@@ -727,10 +727,13 @@ MQ.ui.battle = (function () {
   }
 
   function renderNumKeys() {
-    d.keys.className = 'keys';
+    const q = MQ.battle.current();
+    const decimal = !!(q && q.decimal);   // 小数（v3.0）：「.」の キーが 出て、こたえる が 1行 ぜんぶ
+    d.keys.className = 'keys' + (decimal ? ' keys--dec' : '');
     d.keys.innerHTML = '';
-    ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'けす', '0', 'こたえる'].forEach(function (label) {
-      const cls = 'key' + (label === 'けす' ? ' key--del' : '') + (label === 'こたえる' ? ' key--go' : '');
+    const labels = decimal ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'けす', 'こたえる'] : ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'けす', '0', 'こたえる'];
+    labels.forEach(function (label) {
+      const cls = 'key' + (label === 'けす' ? ' key--del' : '') + (label === 'こたえる' ? ' key--go' + (decimal ? ' key--go3' : '') : '') + (label === '.' ? ' key--dot' : '');
       d.keys.appendChild(h('button', { class: cls, type: 'button', text: label, onclick: function () { pressKey(label); } }));
     });
   }
@@ -849,8 +852,9 @@ MQ.ui.battle = (function () {
     }
 
     if (label === 'けす') input = input.slice(0, -1);
-    else if (label === 'こたえる') { if (input === '') return; submit(parseInt(input, 10)); return; }
-    else if (input.length < 5) input += label;
+    else if (label === 'こたえる') { if (input === '' || input === '.' || input === '0.') return; submit(q.decimal ? parseFloat(input) : parseInt(input, 10)); return; }
+    else if (label === '.') { if (!q.decimal || input.indexOf('.') >= 0) return; input = (input === '' ? '0' : input) + '.'; }
+    else if (input.length < (q.maxLen || (q.decimal ? 6 : 5))) input += label;   // 大きい数は maxLen: 9
     renderDisplays();
   }
 
