@@ -720,7 +720,7 @@ body {
 .battle { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--bg-1); }
 
 /* バトルの 絵の 高さは 画面の たてに あわせて のびちぢみ する */
-.arena { position: relative; height: clamp(158px, calc(var(--stage-h) * 0.27), 205px); flex: none; overflow: hidden; background: linear-gradient(#4fb8f5 0%, #86d6ff 55%, #b7e8ff 100%); }
+.arena { position: relative; height: clamp(176px, calc(var(--stage-h) * 0.30), 232px);   /* v2.7.2：少し 高く。タイムと モンスターが かぶらない ように */ flex: none; overflow: hidden; background: linear-gradient(#4fb8f5 0%, #86d6ff 55%, #b7e8ff 100%); }
 /* ---- バトルの 背景（CSS の しきつめ。画像ファイルは 使わない） ---- */
 .arena__bg { position: absolute; inset: 0; }
 .arena__sky { position: absolute; inset: 0; background: linear-gradient(#4fb8f5 0%, #86d6ff 55%, #b7e8ff 100%); }
@@ -808,10 +808,10 @@ body {
 @keyframes runfx { 0% { transform: translateX(0); } 100% { transform: translateX(-30px); } }
 
 .arena__field { position: absolute; inset: 0; }
-.arena__top { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; align-items: center; gap: 8px; z-index: 3; }
+.arena__top { position: absolute; top: 10px; left: 10px; width: 256px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; z-index: 3; }   /* 右がわは あけて モンスターと かぶらない */
 .arena__msg.is-quiet { opacity: 0; }
 .arena__msg {
-  position: absolute; top: 34px; left: 94px; max-width: 190px;   /* 勇者に かぶらない ところ */
+  position: absolute; top: 70px; left: 94px; max-width: 190px;   /* バーの 下・勇者の 右・モンスターの 左 */
   padding: 5px 10px; border-radius: 12px; background: #fff; color: #1c2647;
   font-size: 13px; box-shadow: 0 5px 0 rgba(0,0,0,.22); z-index: 3;
 }
@@ -825,7 +825,7 @@ body {
 .dmg { position: absolute; font-family: var(--f-head); font-size: 22px; color: #fff; text-shadow: 0 2px 0 #d6491f; z-index: 4; }
 
 .tag--hp { display: flex; align-items: center; }
-.hpbar { flex: 1; height: 14px; border-radius: 999px; background: rgba(16,24,48,.7); padding: 3px; }
+.hpbar { flex: 1 1 100%; order: 3; height: 14px; border-radius: 999px; background: rgba(16,24,48,.7); padding: 3px; }
 .hpbar__fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--hp-1), #ffb14f); transition: width .3s ease; }
 .pillstat { padding: 6px 12px; border-radius: 10px; background: rgba(16,24,48,.94); font-size: 15px; color: #fff; white-space: nowrap; }
 .pillstat b { color: var(--gold); }
@@ -1352,7 +1352,7 @@ body {
 .fxscreen--star { --fs-c1: rgba(255,252,225,.95); --fs-c2: rgba(255,214,120,.55); --fs-c3: rgba(120,70,0,.3); }
 .fxscreen--nova .fxscreen__tint { background: radial-gradient(circle at 87% 100px, rgba(255,255,255,1), rgba(196,139,255,.7) 26%, rgba(79,211,255,.45) 48%, rgba(20,8,50,.85) 80%); }
 /* 集中線（8コンボ〜）：敵の ところから 画面の 外へ のびる 細い 四角 */
-.fxscreen__lines { position: absolute; left: 348px; top: 100px; }
+.fxscreen__lines { position: absolute; left: 348px; top: 112px; }
 .fxscreen__lines i {
   position: absolute; left: -4px; top: 0; width: 8px; height: 800px;
   transform-origin: 50% 0;
@@ -1367,7 +1367,7 @@ body {
 @keyframes fslinefx { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
 /* 大きな しょうげきの わ（12コンボ〜。画面の 外まで ひろがる） */
 .fxscreen__ring {
-  position: absolute; left: 348px; top: 100px; width: 80px; height: 80px; margin: -40px 0 0 -40px;
+  position: absolute; left: 348px; top: 112px; width: 80px; height: 80px; margin: -40px 0 0 -40px;
   border: 10px solid var(--fs-ring, #fff); box-shadow: 0 0 24px var(--fs-ring, #fff), inset 0 0 24px var(--fs-ring, #fff);
   animation: fsringfx .9s ease-out .46s forwards; opacity: 0;
 }
