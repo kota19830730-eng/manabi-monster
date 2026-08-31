@@ -354,6 +354,7 @@ MQ.ui.dex = (function () {
 
     return h('div', {}, [
       termsSection(player),
+      aiSection(),
       h('h2', { class: 'label', text: 'たんげんごとの できぐあい（じぶんの さいこう記ろく）' }),
       rows.length ? h('div', { class: 'parent' }, rows) : h('p', { class: 'note', text: 'まだ 記ろくが ありません。' }),
       h('h2', { class: 'label', text: 'いま つまずいている 問題（' + weak.length + '）' }),
@@ -416,6 +417,116 @@ MQ.ui.dex = (function () {
       h('p', { class: 'note', text: 'チェックの ある 単元の 問題だけ 出ます。学期を えらぶと 教科書の じゅんに そろい、単元を 押すと 1つずつ 変えられます（学校の 進み方に 合わせて）。' }),
       btns
     ].concat(lists));
+  }
+
+  /* =======================================================
+     AIで モンスターを かっこよく（v2.8・おうちの人が かぎを 入れる）
+       かぎは js/core/ai.js が この タブレットの 中だけに ほぞんする。
+       かぎが ある ときだけ、写真の 画面に「AIで かっこよく する」が 出る。
+     ======================================================= */
+  function aiSection() {
+    if (!MQ.ai) return null;
+    const c = MQ.ai.config();
+    const keyIn = h('input', {
+      class: 'input ai__key', type: 'password', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false',
+      placeholder: 'AIの かぎ（AIza… で はじまる 文字）', value: c.key || ''
+    });
+    const status = h('p', { class: 'ai__status' });
+    function paintStatus(text, kind) {
+      status.textContent = text;
+      status.className = 'ai__status' + (kind ? ' ai__status--' + kind : '');
+    }
+    function showState() {
+      if (MQ.ai.ready()) paintStatus('いま: つかえます（きょう ' + MQ.ai.usedToday() + ' / ' + MQ.ai.config().limit + ' 回・' + MQ.ai.modelName() + '）', 'ok');
+      else paintStatus('いま: かぎが 入っていません（子どもの 画面に AIの ボタンは 出ません）', '');
+    }
+    function saveKey(quiet) {
+      MQ.ai.setConfig({ key: keyIn.value });
+      if (!quiet) MQ.ui.toast(MQ.ai.ready() ? 'かぎを ほぞんしました' : 'かぎを 消しました');
+      showState();
+    }
+    const showBtn = h('button', {
+      class: 'btn btn--small btn--stone', type: 'button', text: '見せる',
+      onclick: function () {
+        MQ.sfx.tap();
+        const hide = keyIn.type === 'text';
+        keyIn.type = hide ? 'password' : 'text';
+        showBtn.textContent = hide ? '見せる' : 'かくす';
+      }
+    });
+    const checkBtn = h('button', {
+      class: 'btn btn--small btn--cream', type: 'button', text: 'しらべる',
+      onclick: function () {
+        MQ.sfx.tap();
+        saveKey(true);
+        paintStatus('しらべています…', '');
+        checkBtn.disabled = true;
+        MQ.ai.check().then(function (r) {
+          checkBtn.disabled = false;
+          paintStatus(r.text, r.ok ? 'ok' : 'bad');
+        });
+      }
+    });
+    const chips = function (list, isOn, onPick) {
+      const wrap = h('div', { class: 'chips chips--tight' });
+      list.forEach(function (it) {
+        const b = h('button', {
+          class: 'chip chip--s' + (isOn(it) ? ' is-on' : ''), type: 'button', text: it.label,
+          onclick: function () {
+            MQ.sfx.tap();
+            onPick(it);
+            wrap.querySelectorAll('.chip').forEach(function (x) { x.classList.remove('is-on'); });
+            b.classList.add('is-on');
+            showState();
+          }
+        });
+        wrap.appendChild(b);
+      });
+      return wrap;
+    };
+    const modelChips = chips(
+      MQ.ai.MODELS.map(function (m) { return { id: m.id, label: m.name + '（' + m.note + '）' }; }),
+      function (it) { return it.id === c.model; },
+      function (it) { MQ.ai.setConfig({ model: it.id }); }
+    );
+    const limitChips = chips(
+      MQ.ai.LIMITS.map(function (n) { return { n: n, label: n + '回' }; }),
+      function (it) { return it.n === c.limit; },
+      function (it) { MQ.ai.setConfig({ limit: it.n }); }
+    );
+    showState();
+    return h('div', { class: 'ai' }, [
+      h('h2', { class: 'label', text: 'AIで モンスターを かっこよく' }),
+      h('p', { class: 'note', text: '「じぶんの モンスターを つくる」で とった 絵を、AI（Google の Gemini）に 送って、絵に 忠実な まま ゲームの モンスターらしく かき直します。かぎを 入れた ときだけ、子どもの 画面に「AIで かっこよく する」の ボタンが 出ます。' }),
+      h('p', { class: 'note', text: '送るのは 切りぬいた 絵の 部分だけです（なまえ・きろくは 送りません）。かぎは この タブレットの 中だけに ほぞんされ、「きろくの ほぞん」の ファイルには 入りません。' }),
+      h('ol', { class: 'ai__steps' }, [
+        h('li', {}, ['Google の ', h('a', { class: 'ai__link', href: 'https://aistudio.google.com/apikey', target: '_blank', rel: 'noopener', text: 'aistudio.google.com/apikey' }), ' を ひらいて ログインする']),
+        h('li', { text: '「APIキーを 作成」を 押して、出てきた 文字（AIza… で はじまる）を コピーする' }),
+        h('li', { text: '下の わくに はりつけて「しらべる」。OK が 出たら つかえます' }),
+        h('li', { text: 'おかね：1まい 約5〜20円（Google に はらいます）。無料わくの ない AIなので、Google AI Studio で Billing（お支払い）の 設定が いります。上限は「1日に つかえる 回数」で' })
+      ]),
+      keyIn,
+      h('div', { class: 'ai__row' }, [
+        h('button', { class: 'btn btn--small', type: 'button', text: 'ほぞん', onclick: function () { MQ.sfx.tap(); saveKey(false); } }),
+        checkBtn,
+        showBtn,
+        h('button', {
+          class: 'btn btn--small btn--danger', type: 'button', text: 'けす',
+          onclick: function () {
+            if (!window.confirm('AIの かぎを 消します。いいですか？')) return;
+            MQ.ai.clearKey();
+            keyIn.value = '';
+            MQ.ui.toast('AIの かぎを 消しました');
+            showState();
+          }
+        })
+      ]),
+      status,
+      h('p', { class: 'ai__sub', text: 'AIの しゅるい' }),
+      modelChips,
+      h('p', { class: 'ai__sub', text: '1日に つかえる 回数（この タブレット）' }),
+      limitChips
+    ]);
   }
 
   /* =======================================================

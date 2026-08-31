@@ -59,6 +59,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/sfx.js"></script>
 <script src="../js/core/bgm.js"></script>
 <script src="../js/core/save.js"></script>
+<script src="../js/core/ai.js"></script>
 <script src="../js/core/battle.js"></script>
 <script src="../js/content/monsterart.js"></script>
 <script src="../js/content/face.js"></script>
@@ -231,6 +232,42 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     return c.toDataURL('image/jpeg', 0.82);
   }
 
+  /* AIが かえしそうな 絵（太い 線・ベタ塗り・白い 背景）。#ai の にせの こたえ */
+  function fakeAiArt() {
+    const S = 1024;
+    const c = document.createElement('canvas'); c.width = S; c.height = S;
+    const y = c.getContext('2d');
+    y.fillStyle = '#fff'; y.fillRect(0, 0, S, S);
+    y.lineJoin = 'round'; y.lineCap = 'round';
+    function blob(cx, cy, rx, ry, fill) { y.beginPath(); y.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); y.fillStyle = fill; y.fill(); y.lineWidth = 16; y.strokeStyle = '#1c1a18'; y.stroke(); }
+    // あし
+    [[380, 700], [560, 700]].forEach(function (p) { y.fillStyle = '#3f7fd6'; y.fillRect(p[0], p[1], 90, 170); y.lineWidth = 16; y.strokeStyle = '#1c1a18'; y.strokeRect(p[0], p[1], 90, 170); y.fillStyle = '#2b5aa0'; y.fillRect(p[0] + 8, p[1] + 120, 74, 40); });
+    // つの
+    [[300, 330], [420, 280], [560, 280], [680, 330]].forEach(function (p) { y.beginPath(); y.moveTo(p[0] - 44, p[1] + 40); y.lineTo(p[0], p[1] - 130); y.lineTo(p[0] + 44, p[1] + 40); y.closePath(); y.fillStyle = '#4caf50'; y.fill(); y.lineWidth = 16; y.strokeStyle = '#1c1a18'; y.stroke(); });
+    blob(500, 520, 250, 220, '#f2a23a');
+    y.fillStyle = '#c9782a'; y.beginPath(); y.ellipse(560, 600, 150, 90, 0, 0, Math.PI); y.fill();   // かげ（セルシェード）
+    blob(410, 480, 52, 58, '#fff'); blob(590, 480, 52, 58, '#fff');
+    y.fillStyle = '#1c1a18'; y.beginPath(); y.arc(420, 490, 22, 0, 7); y.fill(); y.beginPath(); y.arc(600, 490, 22, 0, 7); y.fill();
+    y.beginPath(); y.moveTo(400, 610); y.quadraticCurveTo(500, 700, 600, 610); y.lineWidth = 16; y.strokeStyle = '#1c1a18'; y.stroke();
+    y.fillStyle = '#c2322d'; y.beginPath(); y.moveTo(408, 614); y.quadraticCurveTo(500, 690, 592, 614); y.closePath(); y.fill();
+    for (let i = 0; i < 4; i++) { y.beginPath(); y.moveTo(420 + i * 44, 620); y.lineTo(442 + i * 44, 656); y.lineTo(464 + i * 44, 620); y.closePath(); y.fillStyle = '#fff'; y.fill(); y.lineWidth = 6; y.strokeStyle = '#1c1a18'; y.stroke(); }
+    y.beginPath(); y.moveTo(740, 540); y.bezierCurveTo(880, 480, 900, 660, 790, 700); y.lineWidth = 26; y.strokeStyle = '#1c1a18'; y.stroke(); y.lineWidth = 12; y.strokeStyle = '#f2a23a'; y.stroke();   // しっぽ
+    return c.toDataURL('image/png');
+  }
+  // にせの AI（transport）。kind = ok / wait / err / safety / busy
+  function fakeAi(kind) {
+    return function (url, init) {
+      say('ai call: ' + url.replace(/^.*\/v1beta\//, '') + ' ' + (init.method || 'GET') + ' key=' + (init.headers['x-goog-api-key'] || '') + ' body=' + (init.body ? init.body.length : 0));
+      if (kind === 'wait') return new Promise(function () {});
+      if (kind === 'err') return Promise.resolve({ status: 400, json: { error: { code: 400, message: 'API key not valid. Please pass a valid API key.', status: 'INVALID_ARGUMENT' } } });
+      if (kind === 'busy') return Promise.resolve({ status: 429, json: { error: { code: 429, message: 'You exceeded your current quota, please check your plan and billing details.', status: 'RESOURCE_EXHAUSTED' } } });
+      if (kind === 'safety') return Promise.resolve({ status: 200, json: { candidates: [{ finishReason: 'IMAGE_SAFETY', content: { parts: [{ text: 'no' }] } }] } });
+      if ((init.method || 'GET') === 'GET') return Promise.resolve({ status: 200, json: { name: 'models/x' } });
+      const png = fakeAiArt().split(',')[1];
+      return Promise.resolve({ status: 200, json: { candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'Here is your monster.' }, { inlineData: { mimeType: 'image/png', data: png } }] } }] } });
+    };
+  }
+
   async function playBattle(label, opts) {
     opts = opts || {};
     let guard = 0;
@@ -348,6 +385,49 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       }
       await new Promise(function (res) { MQ.ui.photo.render.load(url, function (info, out) { say('photo: ' + JSON.stringify(info) + ' png=' + (out ? out.length : 0) + ' crop=' + JSON.stringify(MQ.ui.photo.crop())); res(); }); });
       await wait(200);
+      dump();
+      return;
+    }
+
+    // AIで かっこよく（v2.8）：#ai = にせの AIで できあがりまで／#ai:wait = まっている 幕／#ai:err = かぎが ちがう／
+    //   #ai:safety = AIが かけない／#ai:busy = 無料わくが ない／#ai:off = かぎ なし（ボタンが 出ない）／#ai:back = もどした あと
+    if (mode.indexOf('ai') === 0 && mode !== 'aiparent') {
+      fresh();
+      const parts = mode.split(':');
+      const kind = parts[1] || 'ok';
+      const down = parts[2] === 'down';   // #ai:ok:down = できあがりの みほんまで スクロール
+      MQ.ai._reset();
+      if (kind !== 'off') MQ.ai.setConfig({ key: 'AIzaTEST', limit: 20 });
+      MQ.ai.transport = fakeAi(kind === 'back' ? 'ok' : kind);
+      MQ.ui.photo.render();
+      await new Promise(function (res) { MQ.ui.photo.render.load(fakeDrawing(), function () { res(); }); });
+      say('ai before: btn=' + ($('.photo__ai') && !$('.photo__ai').hidden ? 'shown' : 'hidden') + ' note=' + ($('.photo__ainote') && !$('.photo__ainote').hidden ? 'shown' : 'hidden') + ' left=' + MQ.ai.left());
+      if (kind === 'off') { dump(); return; }
+      MQ.ui.photo.render.askAi();
+      let n = 0;
+      while (MQ.ui.photo.aiState().busy && n < 40 && kind !== 'wait') { await wait(50); n++; }
+      if (kind === 'wait') { await wait(50); freeze(); }
+      const st = MQ.ui.photo.aiState();
+      say('ai after: ' + JSON.stringify(st) + ' info=' + JSON.stringify(MQ.ui.photo.info()) + ' used=' + MQ.ai.usedToday() + ' left=' + MQ.ai.left());
+      say('ai ui: btn=' + ($('.photo__ai').hidden ? 'hidden' : 'shown') + ' row=' + ($('.photo__airow').hidden ? 'hidden' : 'shown') + ' err=' + ($('.photo__empty:not([hidden])') ? $('.photo__empty:not([hidden])').textContent : '') + ' wait=' + ($('.photo__wait').hidden ? 'hidden' : 'shown'));
+      if (kind === 'back') { MQ.ui.photo.render.restore(); await wait(50); say('ai back: ' + JSON.stringify(MQ.ui.photo.aiState()) + ' info=' + JSON.stringify(MQ.ui.photo.info())); }
+      if (down) { const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__preview'); if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 90; }
+      await wait(200);
+      dump();
+      return;
+    }
+    if (mode === 'aiparent') {
+      fresh();
+      MQ.ai._reset();
+      MQ.ai.setConfig({ key: 'AIzaTESTTESTTESTTESTTESTTESTTESTTESTTES', limit: 20 });
+      MQ.ai.transport = fakeAi('ok');
+      MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex');
+      await wait(100);
+      const sec = $('.ai');
+      say('aiparent: ' + (sec ? 'ok' : 'MISSING') + ' status=' + ($('.ai__status') ? $('.ai__status').textContent : ''));
+      const chk = Array.prototype.filter.call(document.querySelectorAll('.ai__row .btn'), function (b) { return b.textContent === 'しらべる'; })[0];
+      if (chk) { chk.click(); await wait(100); say('aiparent check: ' + $('.ai__status').textContent); }
+      if (sec) { const wrap = $('#screen-dex .wrap'); wrap.scrollTop = sec.offsetTop - 8; }
       dump();
       return;
     }

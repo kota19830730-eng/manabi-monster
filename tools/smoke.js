@@ -46,7 +46,7 @@ function load(rel) {
   vm.runInThisContext(code, { filename: rel });
 }
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/ai.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
  'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
  'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/terms.js', 'js/content/world3.js'].forEach(load);
@@ -1056,6 +1056,77 @@ check(MQ.content.worldForGrade(4).locked === true && MQ.content.worldForGrade(6)
 })();
 
 /* ---- セーブの 引きつぎ（v1.1の データでも 動く） ---- */
+// ---- AI（v2.8）：せってい・回数・こたえの 読みとり・まちがいの 分け方（通信は しない） ----
+(function () {
+  const ai = MQ.ai;
+  ai._reset();
+  localStorage.removeItem('manabi-monster-ai-v1');
+  check(!ai.ready() && !ai.canUse(), 'ai: はじめは かぎ なし');
+  check(ai.config().model === 'gemini-3.1-flash-image' && ai.config().limit === 20, 'ai: 初期の しゅるい・回数');
+  ai.setConfig({ key: '  AIzaTEST  ', model: 'nope', limit: 7 });
+  check(ai.config().key === 'AIzaTEST' && ai.config().model === 'gemini-3.1-flash-image' && ai.config().limit === 20, 'ai: 変な しゅるい・回数は 初期値に もどる');
+  ai.setConfig({ model: 'gemini-3-pro-image', limit: 5 });
+  check(ai.config().model === 'gemini-3-pro-image' && ai.config().limit === 5 && ai.modelName() === 'きれい', 'ai: しゅるい・回数を 変えられる');
+  ai._reset();
+  check(ai.config().key === 'AIzaTEST' && ai.config().limit === 5, 'ai: localStorage から もどる');
+  check(ai.left() === 5 && ai.canUse(), 'ai: のこり回数');
+  const okJson = { candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'hi' }, { inlineData: { mimeType: 'image/png', data: 'QUJD' } }] } }] };
+  check(ai.parse(okJson) === 'data:image/png;base64,QUJD', 'ai: こたえから 絵を とりだす');
+  check(ai.parse({ candidates: [{ content: { parts: [{ inline_data: { mime_type: 'image/jpeg', data: 'Zg==' } }] } }] }) === 'data:image/jpeg;base64,Zg==', 'ai: snake_case でも 読める');
+  function codeOf(fn) { try { fn(); return 'none'; } catch (e) { return e.code; } }
+  check(codeOf(function () { ai.parse({ promptFeedback: { blockReason: 'SAFETY' } }); }) === 'safety', 'ai: 送った 絵が だめ → safety');
+  check(codeOf(function () { ai.parse({ candidates: [{ finishReason: 'IMAGE_SAFETY', content: { parts: [{ text: 'no' }] } }] }); }) === 'safety', 'ai: かけない → safety');
+  check(codeOf(function () { ai.parse({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'only text' }] } }] }); }) === 'noimage', 'ai: 文字だけ → noimage');
+  check(codeOf(function () { ai.parse(null); }) === 'noimage', 'ai: 空 → noimage');
+  check(ai.fromStatus(400, { error: { message: 'API key not valid. Please pass a valid API key.', status: 'INVALID_ARGUMENT' } }).code === 'key', 'ai: 400 かぎ → key');
+  check(ai.fromStatus(403, { error: { message: 'Permission denied', status: 'PERMISSION_DENIED' } }).code === 'billing', 'ai: 403 → billing');
+  check(ai.fromStatus(404, { error: { message: 'models/x is not found', status: 'NOT_FOUND' } }).code === 'model', 'ai: 404 → model');
+  check(ai.fromStatus(429, { error: { message: 'You exceeded your current quota, please check your plan and billing details.', status: 'RESOURCE_EXHAUSTED' } }).code === 'quota', 'ai: 429 quota → quota');
+  check(ai.fromStatus(429, { error: { message: 'Resource has been exhausted (e.g. check quota).', status: 'RESOURCE_EXHAUSTED' } }).code === 'quota', 'ai: 429 exhausted → quota');
+  check(ai.fromStatus(503, { error: { message: 'The model is overloaded.', status: 'UNAVAILABLE' } }).code === 'busy', 'ai: 503 → busy');
+  check(ai.message('limit').indexOf('あした') >= 0 && ai.message({ code: 'key' }, true).indexOf('AIza') >= 0 && ai.message('zzz') === ai.message('unknown'), 'ai: ことば');
+  // にせの 通信で generate：回数が ふえる・まちがいが ことばに なる
+  let calls = [];
+  const done = [];
+  ai.transport = function (url, init) {
+    calls.push({ url: url, init: init });
+    if (calls.length === 1) return Promise.resolve({ status: 200, json: okJson });
+    if (calls.length === 2) return Promise.resolve({ status: 400, json: { error: { message: 'API key not valid', status: 'INVALID_ARGUMENT' } } });
+    return Promise.reject(new TypeError('Failed to fetch'));
+  };
+  const img = 'data:image/jpeg;base64,/9j/AAAA';
+  const chain = ai.generate(img).then(function (url) {
+    done.push(url === 'data:image/png;base64,QUJD' && ai.usedToday() === 1 && ai.left() === 4);
+    const body = JSON.parse(calls[0].init.body);
+    done.push(calls[0].url.indexOf('models/gemini-3-pro-image:generateContent') > 0 && calls[0].init.headers['x-goog-api-key'] === 'AIzaTEST'
+      && body.contents[0].parts[0].text === ai.PROMPT && body.contents[0].parts[1].inlineData.mimeType === 'image/jpeg' && body.contents[0].parts[1].inlineData.data === '/9j/AAAA'
+      && body.generationConfig.imageConfig.aspectRatio === '1:1');
+    return ai.generate(img);
+  }).then(function () { done.push(false); }, function (e) {
+    done.push(e.code === 'key' && ai.usedToday() === 1);   // まちがいは 数えない
+    ai.transport = null;
+    ai.setConfig({ limit: 5 });
+    // のこり 0 なら 送らない
+    ai.transport = function () { return Promise.resolve({ status: 200, json: okJson }); };
+    return ai.generate(img).then(function () { return ai.generate(img); }).then(function () { return ai.generate(img); }).then(function () { return ai.generate(img); });
+  }).then(function () {
+    done.push(ai.left() === 0 && !ai.canUse());
+    return ai.generate(img);
+  }).then(function () { done.push(false); }, function (e) {
+    done.push(e.code === 'limit');
+    ai.transport = null;
+    ai.clearKey();
+    done.push(!ai.ready());
+    return ai.check();
+  }).then(function (r) {
+    done.push(r.ok === false && r.code === 'nokey');
+    check(done.every(Boolean), 'ai: generate の 流れ ' + JSON.stringify(done));
+    localStorage.removeItem('manabi-monster-ai-v1');
+    ai._reset();
+  }).catch(function (e) { check(false, 'ai: generate で 例外 ' + (e && (e.code || e.message || e))); });
+  (global.__pending = global.__pending || []).push(chain);
+})();
+
 const old = { version: 1, currentId: 'x', settings: { sound: false }, players: [{ id: 'x', name: '古', xp: 300, gear: ['sword-wood'], equipped: { weapon: 'sword-wood', shield: null }, stars: { 'sansu3-1': 2 }, dex: { 'slime-green': 3 }, escaped: {} }] };
 MQ.save.importText(JSON.stringify(old));
 const migrated = MQ.save.current();
@@ -1130,5 +1201,8 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   MQ.content.setActive(null);
 })();
 
-console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
-process.exit(failures ? 1 : 0);
+// 非同期の 検査（AI の generate など）が おわってから まとめる
+Promise.all(global.__pending || []).then(function () {
+  console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
+  process.exit(failures ? 1 : 0);
+});

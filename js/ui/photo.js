@@ -20,6 +20,12 @@
 
    写真は 外に 送りません。小さな ドット絵だけを タブレットの 中に
    ほぞんします（1体 数キロバイト）。
+
+   v2.8「AIで かっこよく する」：おうちの人が おうちの人ページで AIの かぎを
+   入れた ときだけ、金の ボタンが 出る。切りぬいた 絵を Google の 画像AI に
+   送って「絵に 忠実な まま ゲームの モンスターらしく」かき直して もらい、
+   その 絵を 上の しくみで ドット絵に する（js/core/ai.js）。
+   「もとの しゃしんに もどす」で AI前に もどれる。
    --------------------------------------------------------- */
 window.MQ = window.MQ || {};
 MQ.ui = MQ.ui || {};
@@ -35,6 +41,13 @@ MQ.ui.photo = (function () {
   let inkLv = 50;                   // 線の こさ（大きいほど 線を ひろう）
   let outUrl = '';
   let lastInfo = null;              // できあがりの 情報（テスト用）
+  // AI（v2.8）
+  const SEND = 640;                 // AIに 送る 絵の 大きさ（正方形）
+  let origImg = null;               // AIに 送る 前の 写真（もどす 用）
+  let origCrop = null;
+  let aiBusy = false;               // AIに たのんで まっている
+  let aiUsed = false;               // いまの 絵は AIが かいた もの
+  let aiError = '';
 
   /* =======================================================
      しらべる 道具
@@ -205,6 +218,22 @@ MQ.ui.photo = (function () {
     const sw = Math.max(1, Math.round(src.naturalWidth * c.w));
     const sh = Math.max(1, Math.round(src.naturalHeight * c.h));
     x.drawImage(src, sx, sy, sw, sh, 0, 0, WORK, WORK);
+    return cv;
+  }
+
+  /* AIに 送る 絵（わくの 中だけ・白い 下地の JPEG） */
+  function sendCanvas(src, c) {
+    const cv = document.createElement('canvas');
+    cv.width = SEND; cv.height = SEND;
+    const x = cv.getContext('2d');
+    x.fillStyle = '#fff';
+    x.fillRect(0, 0, SEND, SEND);
+    x.imageSmoothingEnabled = true;
+    const sx = Math.round(src.naturalWidth * c.x);
+    const sy = Math.round(src.naturalHeight * c.y);
+    const sw = Math.max(1, Math.round(src.naturalWidth * c.w));
+    const sh = Math.max(1, Math.round(src.naturalHeight * c.h));
+    x.drawImage(src, sx, sy, sw, sh, 0, 0, SEND, SEND);
     return cv;
   }
 
@@ -412,6 +441,79 @@ MQ.ui.photo = (function () {
       return b;
     }));
 
+    /* ---- AIで かっこよく する（v2.8）。かぎが ある ときだけ 金の ボタン ---- */
+    const aiCount = h('span', { class: 'btn--ai__n' });
+    const aiBtn = h('button', { class: 'btn btn--ai photo__ai', type: 'button', hidden: 'hidden', onclick: function () { askAi(); } }, [
+      h('span', { class: 'btn--ai__t', text: 'AIで かっこよく する' }),
+      aiCount,
+      h('span', { class: 'btn__shine' })
+    ]);
+    const aiAgain = h('button', { class: 'btn btn--small btn--cream', type: 'button', text: 'もう1回 AIに たのむ', onclick: function () { askAi(); } });
+    const aiRow = h('div', { class: 'photo__airow', hidden: 'hidden' }, [
+      aiAgain,
+      h('button', { class: 'btn btn--small btn--stone', type: 'button', text: 'もとの しゃしんに もどす', onclick: function () { MQ.sfx.tap(); restoreOrig(); } })
+    ]);
+    const aiNote = h('p', { class: 'note photo__ainote', hidden: 'hidden', text: 'おうちの人ページで AIの かぎを 入れると、絵を AIが ゲームの モンスターみたいに かっこよく してくれるよ。' });
+    const aiErr = h('p', { class: 'note photo__empty', hidden: 'hidden' });
+    const aiWait = h('div', { class: 'photo__wait', hidden: 'hidden' }, [
+      h('div', { class: 'photo__waitbox' }, [
+        h('div', { class: 'photo__waiticon' }, [h('span'), h('span'), h('span')]),
+        h('div', { class: 'photo__waitt', text: 'AIが かいて いるよ…' }),
+        h('div', { class: 'photo__waits', text: '10〜30びょう くらい まってね' })
+      ])
+    ]);
+    function paintAi() {
+      const on = !!(MQ.ai && MQ.ai.ready());
+      const n = on ? MQ.ai.left() : 0;
+      aiBtn.hidden = !(img && on && !aiUsed);
+      aiBtn.disabled = aiBusy || n <= 0;
+      aiCount.textContent = n > 0 ? 'きょう あと ' + n + '回' : 'きょうは もう つかえないよ';
+      aiRow.hidden = !(img && aiUsed);
+      aiAgain.disabled = aiBusy || n <= 0;
+      aiNote.hidden = !(img && !on);
+      aiWait.hidden = !aiBusy;
+      aiErr.hidden = !aiError;
+      aiErr.textContent = aiError;
+    }
+    function askAi() {
+      if (!img || aiBusy || !MQ.ai) return;
+      if (!MQ.ai.canUse()) { MQ.ui.toast(MQ.ai.message(MQ.ai.ready() ? 'limit' : 'nokey')); return; }
+      MQ.sfx.tap();
+      // いつも「AI前の 写真」を 送る（AIの 絵を もう一度 AIに 送らない）
+      const src = origImg || img;
+      const c = origImg ? origCrop : crop;
+      let send = '';
+      try { send = sendCanvas(src, c).toDataURL('image/jpeg', 0.85); } catch (e) { send = ''; }
+      if (!send) { aiError = MQ.ai.message('unknown'); paintAi(); return; }
+      aiBusy = true; aiError = '';
+      paintAi();
+      MQ.ai.generate(send).then(function (url) {
+        const im = new Image();
+        im.onload = function () {
+          if (!origImg) { origImg = img; origCrop = Object.assign({}, crop); }
+          img = im;
+          aiUsed = true; aiBusy = false;
+          crop = { x: 0, y: 0, w: 1, h: 1 };
+          autoCrop();
+          drawStage(); refresh(); paintAi();
+          MQ.sfx.rare();
+        };
+        im.onerror = function () { aiBusy = false; aiError = MQ.ai.message('noimage'); paintAi(); };
+        im.src = url;
+      }, function (e) {
+        aiBusy = false;
+        aiError = MQ.ai.message(e);
+        paintAi();
+      });
+    }
+    function restoreOrig() {
+      if (!origImg) return;
+      img = origImg; crop = origCrop;
+      origImg = null; origCrop = null;
+      aiUsed = false; aiError = '';
+      drawStage(); refresh(); paintAi();
+    }
+
     // できあがりの みほん。しゃしんを とるまでは かくしておく
     const previewRow = h('div', { class: 'photo__preview', hidden: 'hidden' }, [
       h('div', { class: 'photo__views' }, [
@@ -502,10 +604,12 @@ MQ.ui.photo = (function () {
 
     function useImage(im) {
       img = im;
+      origImg = null; origCrop = null; aiUsed = false; aiError = '';
       crop = defaultCrop();
       autoCrop();
       drawStage();
       refresh();
+      paintAi();
     }
     onImage = function () { drawStage(); refresh(); };
 
@@ -527,14 +631,17 @@ MQ.ui.photo = (function () {
       const name = (nameIn.value || '').trim();
       if (!name) { MQ.ui.toast('なまえを 入れてね'); return; }
       const mon = { id: 'my-' + MQ.util.uid(), name: name, area: areaId, png: outUrl };
+      if (aiUsed) mon.ai = true;
+      const byAi = aiUsed;
       MQ.save.update(function (p) {
         MQ.save.addCustom(p, mon);
-        MQ.save.addLog(p, 'じぶんの モンスター「' + name + '」を つくった');
+        MQ.save.addLog(p, 'じぶんの モンスター「' + name + '」を つくった' + (byAi ? '（AIで かっこよく）' : ''));
       });
       MQ.ui.syncCustom();
       MQ.sfx.rare();
       MQ.ui.toast(name + ' が なかまに なった！ バトルに 出てくるよ');
       img = null; outUrl = '';
+      origImg = null; origCrop = null; aiUsed = false; aiError = '';
       MQ.ui.dex.render('mons');
       MQ.ui.show('screen-dex');
     }
@@ -565,7 +672,12 @@ MQ.ui.photo = (function () {
         stage,
         h('button', { class: 'btn', type: 'button', text: '📷 しゃしんを とる', onclick: function () { MQ.sfx.tap(); fileIn.click(); } }),
         fileIn,
+        aiBtn,
+        aiRow,
+        aiErr,
+        aiNote,
         previewRow,
+        aiWait,
         nameIn,
         h('p', { class: 'note', style: { margin: '0' }, text: 'どの エリアに 出す？' }),
         areaChips,
@@ -581,13 +693,16 @@ MQ.ui.photo = (function () {
     ]));
     MQ.ui.show('screen-dex');
     drawStage();
+    paintAi();
 
-    // テスト用（tools/harness.html）：写真の かわりに 画像を わたす
+    // テスト用（tools/harness.html）：写真の かわりに 画像を わたす／AIの ボタンを 押す
     render.load = function (dataUrl, cb) {
       const im = new Image();
       im.onload = function () { useImage(im); if (cb) cb(lastInfo, outUrl); };
       im.src = dataUrl;
     };
+    render.askAi = askAi;
+    render.restore = restoreOrig;
   }
 
   return {
@@ -596,6 +711,8 @@ MQ.ui.photo = (function () {
     info: function () { return lastInfo; },
     crop: function () { return crop; },
     build: build,
+    // AI（v2.8）の いまの 状態（テスト用）
+    aiState: function () { return { busy: aiBusy, ai: aiUsed, error: aiError, hasOrig: !!origImg, out: outUrl.length }; },
     setOptions: function (o) { if (o.size) size = o.size; if (o.tol != null) tol = o.tol; if (o.ink != null) inkLv = o.ink; }
   };
 })();
