@@ -47,7 +47,7 @@ function load(rel) {
 }
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
  'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/battle.js',
- 'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
+ 'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/monstergen.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
  'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
  'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kakusu.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/terms.js', 'js/content/world3.js'].forEach(load);
 
@@ -1341,6 +1341,44 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   // 古い セーブ
   T.forcePlayer(null);
   MQ.content.setActive(null);
+})();
+
+/* ---------- 絵から モンスターを 組み立てる（v3.6・monstergen.js） ---------- */
+(function () {
+  const G = MQ.monsterGen;
+  check(!!G, 'monsterGen が ある');
+  // にせの 絵：よこ長の オレンジの かたまり＋目 2つ
+  function fake(N, w, h, col) {
+    const cells = new Array(N * N).fill(null);
+    const x0 = Math.round((N - w) / 2), y0 = Math.round((N - h) / 2);
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) cells[y * N + x] = { ink: false, c: col.slice() };
+    // 目（こい かたまり）2つ
+    [[x0 + 4, y0 + 4], [x0 + w - 8, y0 + 4]].forEach(function (p) {
+      for (let y = p[1]; y < p[1] + 3; y++) for (let x = p[0]; x < p[0] + 3; x++) cells[y * N + x] = { ink: true, c: [30, 28, 40] };
+    });
+    return cells;
+  }
+  const N = 64;
+  const f1 = G.analyze(fake(N, 40, 24, [230, 140, 60]), N);
+  check(!!f1, 'よこ長の 絵から 特徴が 読める');
+  check(f1.wide === true && f1.tall === false, 'よこ長と わかる（ratio ' + f1.ratio.toFixed(2) + '）');
+  check(f1.main[0] > f1.main[2], '主な 色は オレンジ（赤 > 青）');
+  check(f1.eyes >= 1 && f1.eyes <= 3, '目の 数は 1〜3（' + f1.eyes + '）');
+  const m1 = G.make(f1);
+  check(!!m1 && m1.shape.length >= 8, '四角の ならびが できる（' + (m1 ? m1.shape.length : 0) + '個）');
+  check(['beast', 'fish', 'stand', 'round'].indexOf(m1.kind) >= 0, 'かたちは 4しゅるいの どれか（' + m1.kind + '）');
+  check(/^#[0-9a-f]{6}$/.test(m1.colors.A), '色 A が #xxxxxx（' + m1.colors.A + '）');
+  // 48×48 に おさまる（はみ出しは blocks.js と 同じ ルール）
+  const over = m1.shape.filter(function (p) { return p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48; });
+  check(over.length === 0, '48マスから はみ出さない');
+  // たて長は 立ちすがた
+  const f2 = G.analyze(fake(N, 20, 40, [90, 150, 230]), N);
+  check(f2.tall === true, 'たて長と わかる');
+  check(G.make(f2).kind === 'stand', 'たて長は 立ちすがた');
+  // 同じ 絵なら いつも 同じ すがた
+  check(G.make(G.analyze(fake(N, 40, 24, [230, 140, 60]), N)).kind === m1.kind, '同じ 絵なら 同じ かたち');
+  // 小さすぎる 絵は null
+  check(G.analyze(new Array(N * N).fill(null), N) === null, '絵が なければ null');
 })();
 
 // 非同期の 検査（AI の generate など）が おわってから まとめる

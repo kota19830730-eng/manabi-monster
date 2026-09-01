@@ -44,7 +44,7 @@ MQ.ui.photo = (function () {
   const WORK = 320;                 // しらべる ときの 大きさ（長い ほう。たてよこの 比は そのまま）
   const SIZES = [[48, 'あらい'], [64, 'ふつう'], [96, 'こまかい']];
   let size = 96;                    // ドット絵の マス数（初期は こまかい・v3.3）
-  let cleanMode = 2;                // しあげ（v3.4）：2 = ゲームふう／1 = きれいに だけ／0 = しない
+  let cleanMode = 3;                // しあげ：3 = モンスター（絵を 参考に 組み立てる・v3.6）／2 = ゲームふう／1 = 絵の まま／0 = しない
   let img = null;                   // 読みこんだ 写真
   let crop = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 };   // わく（0〜1の わりあい・長方形で OK）
   let tol = 55;                     // 「はいけいを 消す」（55 = 自動の しきい値の まま。大きいほど よく 消える）
@@ -1038,7 +1038,7 @@ MQ.ui.photo = (function () {
     const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
     const ox = cx - side / 2, oy = cy - side / 2;
 
-    const N = cleanMode >= 2 ? 48 : size;   // ゲームふうは 48マス＝ゲームの モンスターと まったく 同じ ドットの 大きさ（96px 表示で 1ドット 2px）
+    const N = cleanMode === 3 ? 64 : cleanMode === 2 ? 48 : size;   // モンスターは 特徴を 読む ため 64／ゲームふうは 48（もとの てきと 同じ ドットの 大きさ）
     const cell = side / N;
     const M = 6;                                  // 1マスの 中で しらべる 点の 数（M×M）
     const cells = new Array(N * N);
@@ -1103,7 +1103,17 @@ MQ.ui.photo = (function () {
     }
     // しあげ（v3.3〜）：ごみ・線の すきま・あな・白い ぬけ・ぬりむら・輪かく → さらに ゲームふう（v3.4）
     if (cleanMode >= 1) cleanCells(cells, N, cleanMode >= 2);
-    if (cleanMode >= 2) { solidify(cells, N); cleanCells(cells, N, true); gameStyle(cells, N); }
+    if (cleanMode === 2) { solidify(cells, N); cleanCells(cells, N, true); gameStyle(cells, N); }
+    if (cleanMode === 3) {
+      // 絵からは 特徴（色・形・つの・目の数）だけ 読んで、ゲームの 部品で 組み立てる（v3.6）
+      solidify(cells, N);
+      const gen = MQ.monsterGen && MQ.monsterGen.fromCells(cells, N);
+      if (gen) {
+        lastInfo = { size: 48, drawn: gen.shape.length, colors: Object.keys(gen.colors).length, clean: 3, kind: gen.kind, features: gen.features, box: box };
+        return gen.png;
+      }
+      gameStyle(cells, N);   // 特徴が 読めない ほど 小さい 絵の ときは ゲームふうで
+    }
 
     // 色を 16色に そろえる
     const pal = palette(fills, 16);
@@ -1240,7 +1250,7 @@ MQ.ui.photo = (function () {
       s.addEventListener('input', function () { set(Number(s.value)); refresh(); });
       return h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: label }), s]);
     }
-    const cleanChips = h('div', { class: 'chips chips--tight' }, [[2, 'ゲームふう'], [1, 'きれいに'], [0, 'しない']].map(function (cch) {
+    const cleanChips = h('div', { class: 'chips chips--tight' }, [[3, 'モンスター'], [2, 'ゲームふう'], [1, '絵の まま']].map(function (cch) {
       const b = h('button', {
         class: 'chip chip--s' + (cleanMode === cch[0] ? ' is-on' : ''), type: 'button', text: cch[1],
         onclick: function () {

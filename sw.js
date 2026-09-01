@@ -6,7 +6,7 @@
    ※ファイルを 増やしたら FILES にも 足してください。
    --------------------------------------------------------- */
 
-const CACHE_NAME = 'manabi-monster-v49';
+const CACHE_NAME = 'manabi-monster-v50';
 
 const FILES = [
   './',
@@ -26,6 +26,7 @@ const FILES = [
   './js/core/missions.js',
   './js/core/battle.js',
   './js/content/monsterart.js',
+  './js/content/monstergen.js',
   './js/content/face.js',
   './js/content/enemies.js',
   './js/content/hero.js',
