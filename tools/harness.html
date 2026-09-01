@@ -500,9 +500,20 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         await wait(100);
         say('frame: ' + JSON.stringify(MQ.ui.photo.crop()) + ' info=' + JSON.stringify(MQ.ui.photo.info()));
       }
+      // :let=ABC = もじを えらぶ ボタンを じゅんに おす（v4.0）
+      if (parts[6] && parts[6].indexOf('let=') === 0) {
+        parts[6].slice(4).split('').forEach(function (ch) {
+          const b = Array.prototype.filter.call(document.querySelectorAll('.photo__lbtn'), function (e) { return e.textContent === ch; })[0];
+          if (b) b.click();
+        });
+        await wait(200);
+        say('letters: ' + JSON.stringify(MQ.ui.photo.info()));
+      }
       if (parts[5] === 'down') { const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__preview'); if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 90; }   // :down = できあがりまで スクロール
       // できあがり（PNG）と わくの 中の 写真（JPEG）を ログに 出す（外の 道具で ならべて 見る ため）
       say('png:' + ($('.photo__out').src || ''));
+      try { const ft = MQ.monsterGen.features(); if (ft) say('feat: letters=' + JSON.stringify(ft.letters || null) + ' lscore=' + (ft.letterScore || 0).toFixed(2) + ' ldbg=' + (ft.letterDbg || '-') + ' rider=' + (ft.riderScore || 0).toFixed(2) + ' eyes=' + ft.eyes + ' skull=' + ft.skull + ' boxish=' + ft.boxish + ' wide=' + ft.wide + ' legs=' + ft.legs + ' parts=' + ft.parts + ' | ' + (ft.letterHue || '')); } catch (e) { say('feat: ' + e); }
+      try { const pi = MQ.ui.photo.partsImg && MQ.ui.photo.partsImg(); if (pi) { say('partsbox: ' + JSON.stringify(pi.boxes)); say('parts:' + pi.png); } } catch (e) { say('partsimg: ' + e); }
       try { (MQ.ui.photo.picks() || []).forEach(function (p, i) { say('pick' + i + ':' + p.kind + ':' + p.png); }); } catch (e) {}
       try { const dbg = MQ.ui.photo.debug(); if (dbg) { say('norm:' + dbg.norm); say('cls:' + dbg.cls); } } catch (e) { say('debug: ' + e); }
       try {

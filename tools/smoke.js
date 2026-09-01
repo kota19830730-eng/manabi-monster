@@ -1410,6 +1410,58 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(G.analyze(new Array(N * N).fill(null), N) === null, '絵が なければ null');
   // 同じ 絵なら いつも 同じ すがた
   check(G.make(G.analyze(blobArt(32, 32, 22, 11, [230, 140, 60], [[18, 26], [26, 26]]), N)).kind === m.kind, '同じ 絵なら 同じ かたち');
+
+  /* ---------- 字（A〜Z）と 馬に のった きし（v4.0） ---------- */
+  check(G.letterList.length === 36, '字は A〜Z と 0〜9 の 36こ（' + G.letterList.length + '）');
+  check(G.letterList[0] === 'A' && G.letterList[25] === 'Z', 'A が さいしょ・Z が 26ばんめ');
+  let lbad = 0, lsmall = 0, noEye = 0;
+  G.letterList.forEach(function (ch) {
+    const sp = G.letterBody([ch], ['#e8544e']);
+    if (sp.length < 3) lsmall++;
+    sp.forEach(function (p) { if (p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48) lbad++; });
+    if (!sp.some(function (p) { return p[4] === 'w'; })) noEye++;     // 白目が ある＝目が ついて いる
+  });
+  check(lbad === 0, '字は 48マスから はみ出さない（はみ出し ' + lbad + '個）');
+  check(lsmall === 0, 'どの 字も 四角が 3つ いじょう（少ない 字 ' + lsmall + '）');
+  check(noEye === 0, 'どの 字にも 目が ある（目なし ' + noEye + '）');
+  let mbad = 0;
+  [['A', 'B', 'C'], ['M', 'Q'], ['K', 'O', 'T', 'A']].forEach(function (list) {
+    G.letterBody(list, ['#e8544e', '#4fbf6a', '#f2c93b', '#4f9bf0']).forEach(function (p) {
+      if (p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48) mbad++;
+    });
+  });
+  check(mbad === 0, 'ならべた 字も はみ出さない（' + mbad + '個）');
+  [true, false].forEach(function (sk) {
+    const sp = G.riderBody(sk);
+    let bad2 = 0;
+    sp.forEach(function (p) { if (p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48) bad2++; });
+    check(bad2 === 0 && sp.length >= 25, '馬に のった きし（' + (sk ? 'ガイコツ' : 'かぶと') + '）は 部品 ' + sp.length + '個・はみ出し ' + bad2);
+  });
+  // 色ごとの かたまり：赤・緑・黄の 字が よこに ならんだ 絵 → 3つに 分かれて「ならんで いる」と わかる
+  (function () {
+    const cells = new Array(N * N).fill(null);
+    const cols = [[220, 70, 70], [70, 190, 90], [230, 200, 60]];
+    cols.forEach(function (c, i) {
+      const x0 = 6 + i * 18;
+      for (let y = 14; y < 50; y++) for (let x = x0; x < x0 + 12; x++) cells[y * N + x] = { ink: false, c: c.slice() };
+      for (let y = 24; y < 34; y++) for (let x = x0 + 3; x < x0 + 9; x++) cells[y * N + x] = null;   // まん中に あな
+    });
+    const parts = G.drawParts(cells, N);
+    check(parts.length === 3, '赤・緑・黄の 3つに 分かれる（' + parts.length + '）');
+    const lg = G.letterGuess(cells, N);
+    check(!!lg && lg.row === true && lg.chars.length === 3, '字が よこに ならんで いると わかる（' + (lg ? lg.chars.join('') + ' row=' + lg.row : 'なし') + '）');
+  })();
+  // まん中に 山が ある よこ長の 絵 → 何かが 乗って いる
+  (function () {
+    const cells = new Array(N * N).fill(null);
+    for (let y = 34; y < 46; y++) for (let x = 6; x < 58; x++) cells[y * N + x] = { ink: false, c: [200, 150, 90] };   // 体
+    for (let y = 12; y < 34; y++) for (let x = 26; x < 38; x++) cells[y * N + x] = { ink: false, c: [180, 180, 190] };  // 上に のって いる もの
+    const rg = G.riderGuess(cells, N);
+    check(!!rg && rg.score >= 0.62, '上に 乗って いると わかる（' + (rg ? rg.score.toFixed(2) : 'なし') + '）');
+    // ただの まる（乗って いない）は ちがう
+    const rg2 = G.riderGuess(blobArt(32, 32, 20, 14, [200, 150, 90], []), N);
+    check(!rg2 || rg2.score < 0.62, 'ただの まるは 乗って いない（' + (rg2 ? rg2.score.toFixed(2) : 'なし') + '）');
+  })();
 })();
 
 // 非同期の 検査（AI の generate など）が おわってから まとめる

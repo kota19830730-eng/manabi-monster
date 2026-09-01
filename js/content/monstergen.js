@@ -20,6 +20,8 @@ window.MQ = window.MQ || {};
 
 MQ.monsterGen = (function () {
 
+  let lastF = null, lastHue = '';          // さいごに 読んだ 特徴（テスト・harness 用）
+
   /* =======================================================
      ① 絵から 特徴を 読む
      ======================================================= */
@@ -371,8 +373,27 @@ MQ.monsterGen = (function () {
     }
 
     /* 本・はこ：**大きくて 四角い「かこまれた ところ」**が ある（ずかんの あくま の 本） */
+    /* 四すみが うまって いる か（本・はこの 絵は 四角い）。3つ いじょうで はこ */
+    function corners() {
+      const cw = Math.max(2, Math.round(bw * 0.16)), chh = Math.max(2, Math.round(bh * 0.16));
+      let ok = 0;
+      [[x0, y0], [x1 - cw + 1, y0], [x0, y1 - chh + 1], [x1 - cw + 1, y1 - chh + 1]].forEach(function (p) {
+        let hit = 0, tot = 0;
+        for (let y = p[1]; y < p[1] + chh; y++) {
+          for (let x = p[0]; x < p[0] + cw; x++) {
+            if (x < x0 || y < y0 || x > x1 || y > y1) continue;
+            tot++;
+            if (occ[y * N + x]) hit++;
+          }
+        }
+        if (tot && hit / tot >= 0.6) ok++;
+      });
+      return ok;
+    }
+
     function isBox() {
       const area = bw * bh;
+      if (corners() >= 3 && n / area >= 0.55) return true;
       return allLoops.some(function (l) {
         const ar = l.w / l.h;
         return l.n >= area * 0.09 && l.w >= bw * 0.28 && l.h >= bh * 0.28 &&
@@ -649,6 +670,717 @@ MQ.monsterGen = (function () {
     return out;
   }
 
+  /* =======================================================
+     ①-b アルファベットの 形（v4.0）
+
+     息子さんの「ABC3きょうだい」は **A・B・C の 字**そのもの。
+     けもの・さかな の 型に はめても ぜったいに 合わない ので、
+     **字の 形を 部品として もつ**。5×7 の 点で 26文字＋数字を 書いて、
+     となりあう 点を 大きな 四角に まとめる（もとから いる てきと 同じ つくり）。
+     ======================================================= */
+
+  const FONT5 = {
+    A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+    B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+    C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+    D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
+    E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
+    F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+    G: ['01111', '10000', '10000', '10011', '10001', '10001', '01111'],
+    H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'],
+    I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+    J: ['00111', '00010', '00010', '00010', '00010', '10010', '01100'],
+    K: ['10001', '10010', '10100', '11000', '10100', '10010', '10001'],
+    L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+    M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
+    N: ['10001', '11001', '10101', '10101', '10011', '10001', '10001'],
+    O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+    P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
+    Q: ['01110', '10001', '10001', '10001', '10101', '10010', '01101'],
+    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+    S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
+    T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
+    U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'],
+    V: ['10001', '10001', '10001', '10001', '10001', '01010', '00100'],
+    W: ['10001', '10001', '10001', '10101', '10101', '11011', '10001'],
+    X: ['10001', '10001', '01010', '00100', '01010', '10001', '10001'],
+    Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'],
+    Z: ['11111', '00001', '00010', '00100', '01000', '10000', '11111'],
+    '0': ['01110', '10011', '10101', '10101', '10101', '11001', '01110'],
+    '1': ['00100', '01100', '00100', '00100', '00100', '00100', '01110'],
+    '2': ['01110', '10001', '00001', '00010', '00100', '01000', '11111'],
+    '3': ['11111', '00010', '00100', '00010', '00001', '10001', '01110'],
+    '4': ['00010', '00110', '01010', '10010', '11111', '00010', '00010'],
+    '5': ['11111', '10000', '11110', '00001', '00001', '10001', '01110'],
+    '6': ['00110', '01000', '10000', '11110', '10001', '10001', '01110'],
+    '7': ['11111', '00001', '00010', '00100', '01000', '01000', '01000'],
+    '8': ['01110', '10001', '10001', '01110', '10001', '10001', '01110'],
+    '9': ['01110', '10001', '10001', '01111', '00001', '00010', '01100']
+  };
+  const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+
+  /* 5×7 の 点を 2ばいに して 少し ふとらせた マス目（11×15）。
+     もとから いる てきの 字（letterA/B/C）と 同じ くらいの 太さに なる */
+  const GW = 11, GH = 15;
+  function glyphGrid(ch) {
+    const rows = FONT5[ch];
+    if (!rows) return null;
+    const base = new Uint8Array(GW * GH);
+    for (let j = 0; j < 7; j++) {
+      for (let i = 0; i < 5; i++) {
+        if (rows[j].charAt(i) !== '1') continue;
+        for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) base[(j * 2 + dy) * GW + i * 2 + dx] = 1;
+      }
+    }
+    const g = base.slice();
+    for (let y = 0; y < GH; y++) {
+      for (let x = 0; x < GW; x++) {
+        if (!base[y * GW + x]) continue;
+        if (x + 1 < GW) g[y * GW + x + 1] = 1;
+        if (y + 1 < GH) g[(y + 1) * GW + x] = 1;
+      }
+    }
+    return g;
+  }
+
+  /* マス目 → 大きな 四角の ならび（x,y,w,h の わくの 中に 入れる） */
+  function glyphRects(ch, x, y, w, h, key, flags) {
+    const g = glyphGrid(ch);
+    if (!g) return [];
+    const ex = [], ey = [];
+    for (let i = 0; i <= GW; i++) ex.push(x + Math.round(i * w / GW));
+    for (let j = 0; j <= GH; j++) ey.push(y + Math.round(j * h / GH));
+    const used = new Uint8Array(GW * GH);
+    const out = [];
+    for (let j = 0; j < GH; j++) {
+      for (let i = 0; i < GW; i++) {
+        const k = j * GW + i;
+        if (used[k] || !g[k]) continue;
+        let ww = 1;
+        while (i + ww < GW && g[k + ww] && !used[k + ww]) ww++;
+        let hh = 1;
+        for (;;) {
+          const nj = j + hh;
+          if (nj >= GH) break;
+          let ok = true;
+          for (let d = 0; d < ww; d++) { const kk = nj * GW + i + d; if (!g[kk] || used[kk]) { ok = false; break; } }
+          if (!ok) break;
+          hh++;
+        }
+        for (let dj = 0; dj < hh; dj++) for (let di = 0; di < ww; di++) used[(j + dj) * GW + i + di] = 1;
+        const rx = ex[i], ry = ey[j];
+        out.push([rx, ry, ex[i + ww] - rx, ey[j + hh] - ry, key, flags || '']);
+      }
+    }
+    return out;
+  }
+
+  /* 字の どこに 目を つけるか。
+     上の ほうの 行を 見て ①2本の 線に 分かれて いれば その 2本に ②1本でも 太ければ よこに 2つ
+     ③細ければ たてに 2つ（C や L の ような 字） */
+  function glyphEyes(ch, x, y, w, h) {
+    const g = glyphGrid(ch);
+    if (!g) return [];
+    const cw = w / GW, chh = h / GH;
+    const es = Math.max(4, Math.round(w * 0.18));            // 小さい 字でも 目が 見える 大きさに
+    function runsAt(j) {
+      const rs = [];
+      let a = -1;
+      for (let i = 0; i < GW; i++) {
+        const on = !!g[j * GW + i];
+        if (on && a < 0) a = i;
+        if ((!on || i === GW - 1) && a >= 0) { rs.push([a, on ? i : i - 1]); a = -1; }
+      }
+      return rs;
+    }
+    let best = null;
+    for (let j = 2; j <= Math.floor(GH * 0.45); j++) {
+      const rs = runsAt(j);
+      if (!rs.length) continue;
+      const two = rs.length >= 2 && rs[rs.length - 1][0] - rs[0][1] >= 2;
+      const sc = (two ? 20 : 0) + (rs[0][1] - rs[0][0] >= 3 ? 6 : 0) - j;
+      if (!best || sc > best.sc) best = { sc: sc, j: j, rs: rs };
+    }
+    if (!best) return [];
+    const cy = Math.round(y + best.j * chh);
+    function mid(run) { return Math.round(x + (run[0] + run[1] + 1) / 2 * cw - es / 2); }
+    const rs = best.rs;
+    if (rs.length >= 2 && rs[rs.length - 1][0] - rs[0][1] >= 2) {
+      return eye(mid(rs[0]), cy, es).concat(eye(mid(rs[rs.length - 1]), cy, es));
+    }
+    const run = rs[0];
+    const rw = (run[1] - run[0] + 1) * cw;
+    if (rw >= es * 2 + 3) {                                   // 太い 線（C の 上の ぼう など）は よこに 2つ
+      const left = Math.round(x + run[0] * cw + rw * 0.25 - es / 2);
+      const right = Math.round(x + run[0] * cw + rw * 0.75 - es / 2);
+      return eye(left, cy, es).concat(eye(right, cy, es));
+    }
+    return eye(mid(run), cy, es).concat(eye(mid(run), Math.round(cy + es + Math.max(2, chh)), es));
+  }
+
+  /* 字の モンスター。1〜4文字を よこに ならべる（色は 字ごと） */
+  function letterBody(chars, cols) {
+    const list = (chars && chars.length ? chars : ['A']).slice(0, 4);
+    const n = list.length;
+    const gap = n >= 3 ? 2 : 4;
+    const total = 46 - gap * (n - 1);
+    const w = Math.floor(total / n);
+    const x0 = Math.round((48 - (w * n + gap * (n - 1))) / 2);
+    const y = n === 1 ? 3 : 7;
+    const h = n === 1 ? 42 : 34;
+    let out = [];
+    list.forEach(function (ch, i) {
+      const x = x0 + i * (w + gap);
+      const key = cols && cols[i] ? cols[i] : (i === 0 ? 'A' : i === 1 ? 'C' : 'B');
+      out = out.concat(glyphRects(ch, x, y, w, h, key, ''));
+      out = out.concat(glyphEyes(ch, x, y, w, h));
+    });
+    return out;
+  }
+
+  /* =======================================================
+     ①-c 馬に のった ガイコツの きし（v4.0）
+
+     息子さんの「スカルホース」は **馬の 上に ガイコツの きしが のって いる**。
+     体 1つの 型では ぜったいに 出ない ので、乗りものと 乗り手を 組み立てる 部品を もつ。
+       うま … 頭・首・体・あし4本・しっぽ
+       きし … よろい・うで・けん・たて・ガイコツ（か かぶと）の 頭
+     ======================================================= */
+
+  function horsePart() {
+    return [
+      [4, 13, 3, 4, 'A'], [9, 13, 3, 4, 'A'],                      // 耳
+      [2, 17, 14, 10, 'A', 'h'],                                   // 頭
+      [5, 20, 5, 4, 'k', 'n'], [6, 21, 3, 2, 'r', 'g'],            // 目
+      [0, 24, 10, 5, 'A'],                                         // 鼻づら
+      [0, 29, 10, 3, 'k', 'n'], [1, 29, 2, 2, 'w', 'n'], [5, 29, 2, 2, 'w', 'n'],  // 口＋歯
+      [0, 32, 11, 4, 'A'],                                         // 下あご
+      [13, 20, 7, 9, 'A'],                                         // 首
+      [17, 27, 26, 11, 'A', 'h'],                                  // 体
+      [43, 25, 5, 3, 'A'], [45, 28, 3, 6, 'A'],                    // しっぽ
+      [18, 38, 4, 10, 'A'], [24, 38, 4, 10, 'A'], [33, 38, 4, 10, 'A'], [40, 38, 4, 10, 'A'],  // あし
+      [18, 45, 4, 3, 'B', 'n'], [24, 45, 4, 3, 'B', 'n'], [33, 45, 4, 3, 'B', 'n'], [40, 45, 4, 3, 'B', 'n']  // ひづめ
+    ];
+  }
+
+  function knightPart(skull) {
+    const body = [
+      [28, 27, 4, 10, 's'], [28, 37, 5, 3, 'k', 'n'],              // あし＋くつ
+      [26, 16, 12, 11, 's', 'h'], [30, 19, 4, 4, 'y', 'n'],        // よろい＋金の むねかざり
+      [20, 17, 6, 8, 'C', 'h'], [22, 20, 2, 2, 'y', 'n'],          // たて
+      [37, 19, 5, 4, 's'], [39, 17, 6, 2, 'y', 'n'], [41, 2, 3, 15, 'w', 'g']  // うで＋つば＋けん
+    ];
+    if (skull) {
+      return body.concat([
+        [25, 4, 13, 12, 'w', 'h'],                                 // ガイコツの 頭
+        [24, 2, 15, 4, 's'], [29, 0, 5, 3, 'r'],                   // かぶと＋赤い かざり
+        [27, 8, 4, 4, 'k', 'n'], [33, 8, 4, 4, 'k', 'n'],          // 目のあな
+        [28, 9, 2, 2, 'r', 'g'], [34, 9, 2, 2, 'r', 'g'],          // 赤い 光
+        [27, 13, 10, 2, 'k', 'n'], [28, 13, 2, 2, 'w', 'n'], [32, 13, 2, 2, 'w', 'n']  // 歯
+      ]);
+    }
+    return body.concat([
+      [25, 4, 13, 12, 'C', 'h'],                                   // 顔
+      [24, 2, 15, 4, 's'], [29, 0, 5, 3, 'r'],                     // かぶと＋かざり
+      [26, 9, 5, 5, 'w'], [32, 9, 5, 5, 'w'],
+      [27, 10, 3, 3, 'k', 'n'], [33, 10, 3, 3, 'k', 'n']
+    ]);
+  }
+
+  function riderBody(skull) {
+    return horsePart().concat(knightPart(skull !== false));
+  }
+
+  /* =======================================================
+     ①-d 絵を 読む（v4.0）
+
+     「けもの か さかな か」を 当てるのは むずかしいが、
+     **字か どうか**と **馬に のって いるか**は 形に はっきり 出る ので 読める。
+
+       drawParts  … 絵を 色ごとの かたまりに 分ける（A＝赤・B＝緑・C＝黄 の ように）
+       letterOf   … かたまりの 形を 26文字の おてほんと 見くらべて 字を 当てる
+       riderGuess … 下が よこ長で 上に 細い 山が ある＝何かが 乗って いる
+     ======================================================= */
+
+  function bboxOf(cells, N) {
+    let x0 = N, y0 = N, x1 = -1, y1 = -1, n = 0;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        if (!cells[y * N + x]) continue;
+        n++;
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+    if (x1 < 0) return null;
+    return { x0: x0, y0: y0, x1: x1, y1: y1, w: x1 - x0 + 1, h: y1 - y0 + 1, n: n };
+  }
+
+  function hueOf(c) {
+    const r = c[0], g = c[1], b = c[2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (d < 1) return -1;
+    let hh;
+    if (mx === r) hh = ((g - b) / d) % 6;
+    else if (mx === g) hh = (b - r) / d + 2;
+    else hh = (r - g) / d + 4;
+    hh *= 60;
+    return hh < 0 ? hh + 360 : hh;
+  }
+  function hueGap(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+
+  /* 絵を 色ごとの かたまりに 分ける。かえり値は 左から 右の じゅん */
+  function drawParts(cells, N) {
+    const bb = bboxOf(cells, N);
+    if (!bb) return [];
+    // 色の ついた マスを 色あいで まとめる
+    const bins = new Array(24).fill(0);
+    const sums = [];
+    for (let i = 0; i < 24; i++) sums.push([0, 0, 0]);
+    const pts = [];
+    for (let k = 0; k < N * N; k++) {
+      const c = cells[k];
+      if (!c || c.ink) continue;
+      const ch = Math.max(c.c[0], c.c[1], c.c[2]) - Math.min(c.c[0], c.c[1], c.c[2]);
+      if (ch < 26) continue;
+      const hu = hueOf(c.c);
+      if (hu < 0) continue;
+      const b = Math.floor(hu / 15) % 24;
+      bins[b]++; sums[b][0] += c.c[0]; sums[b][1] += c.c[1]; sums[b][2] += c.c[2];
+      pts.push({ k: k, h: hu });
+    }
+    if (pts.length < bb.n * 0.1) return [];
+    // 山（多い 色あい）を さがす。近い 山は 1つに
+    const order = bins.map(function (v, i) { return { i: i, n: v }; }).sort(function (a, b) { return b.n - a.n; });
+    const peaks = [];
+    order.forEach(function (o) {
+      if (o.n < pts.length * 0.08) return;
+      const hu = o.i * 15 + 7.5;
+      if (peaks.some(function (p) { return hueGap(p.h, hu) < 34; })) return;
+      peaks.push({ h: hu, n: o.n, c: [sums[o.i][0] / o.n, sums[o.i][1] / o.n, sums[o.i][2] / o.n] });
+    });
+    lastHue = 'bins[' + bins.map(function (v, i) { return v ? (i * 15) + ':' + v : ''; }).filter(Boolean).join(',') + '] peaks[' + peaks.map(function (p) { return Math.round(p.h) + '@' + p.n; }).join(',') + ']';
+    if (!peaks.length) return [];
+    // 色あいごとの マス
+    const lab = new Int32Array(N * N).fill(-1);
+    pts.forEach(function (p) {
+      let bi = 0, bd = 1e9;
+      peaks.forEach(function (q, i) { const d = hueGap(q.h, p.h); if (d < bd) { bd = d; bi = i; } });
+      lab[p.k] = bi;
+    });
+    // 色あいごとに いちばん 大きな かたまり
+    const D8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    const parts = [];
+    peaks.forEach(function (pk, pi) {
+      const seen = new Uint8Array(N * N);
+      let best = null;
+      for (let k0 = 0; k0 < N * N; k0++) {
+        if (seen[k0] || lab[k0] !== pi) continue;
+        const list = [];
+        const st = [k0];
+        seen[k0] = 1;
+        while (st.length) {
+          const k = st.pop();
+          list.push(k);
+          const x = k % N, y = (k - x) / N;
+          for (let d = 0; d < 8; d++) {
+            const nx = x + D8[d][0], ny = y + D8[d][1];
+            if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+            const j = ny * N + nx;
+            if (!seen[j] && lab[j] === pi) { seen[j] = 1; st.push(j); }
+          }
+        }
+        if (!best || list.length > best.length) best = list;
+      }
+      if (best && best.length >= Math.max(8, pts.length * 0.06)) parts.push({ core: best, col: pk.c });
+    });
+    if (!parts.length) return [];
+    // 線（えんぴつ）や 色の ない マスを いちばん 近い かたまりに くばる
+    const owner = new Int32Array(N * N).fill(-1);
+    const q = [];
+    parts.forEach(function (p, i) { p.core.forEach(function (k) { owner[k] = i; q.push(k); }); });
+    let head = 0;
+    while (head < q.length) {
+      const k = q[head++];
+      const x = k % N, y = (k - x) / N;
+      for (let d = 0; d < 8; d++) {
+        const nx = x + D8[d][0], ny = y + D8[d][1];
+        if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+        const j = ny * N + nx;
+        if (owner[j] >= 0 || !cells[j]) continue;
+        owner[j] = owner[k];
+        q.push(j);
+      }
+    }
+    // かたまりごとの わく（mask＝ぜんぶ／core＝ぬった 色だけ）
+    const out = parts.map(function (p, i) {
+      return { id: i, col: p.col, mask: new Uint8Array(N * N), core: new Uint8Array(N * N), coreN: 0, cx0: N, cy0: N, cx1: -1, cy1: -1, x0: N, y0: N, x1: -1, y1: -1, n: 0 };
+    });
+    for (let k = 0; k < N * N; k++) {
+      const o = owner[k];
+      if (o < 0) continue;
+      const g = out[o];
+      const x = k % N, y = (k - x) / N;
+      g.mask[k] = 1; g.n++;
+      if (x < g.x0) g.x0 = x; if (x > g.x1) g.x1 = x;
+      if (y < g.y0) g.y0 = y; if (y > g.y1) g.y1 = y;
+    }
+    parts.forEach(function (p, i) {
+      const g = out[i];
+      p.core.forEach(function (k) {
+        const x = k % N, y = (k - x) / N;
+        g.core[k] = 1; g.coreN++;
+        if (x < g.cx0) g.cx0 = x; if (x > g.cx1) g.cx1 = x;
+        if (y < g.cy0) g.cy0 = y; if (y > g.cy1) g.cy1 = y;
+      });
+    });
+    return out.filter(function (g) { return g.n >= bb.n * 0.06; })
+      .sort(function (a, b) { return a.x0 - b.x0; });
+  }
+
+  /* ---------- 字の おてほん（5×7 → 12×16・かこまれた ところを うめた もの） ---------- */
+  const TW = 12, TH = 16;
+  let TPL = null;
+  function fillHoles(g, w, h) {
+    const out = g.slice();
+    const seen = new Uint8Array(w * h);
+    const st = [];
+    for (let x = 0; x < w; x++) { [0, h - 1].forEach(function (y) { const k = y * w + x; if (!g[k] && !seen[k]) { seen[k] = 1; st.push(k); } }); }
+    for (let y = 0; y < h; y++) { [0, w - 1].forEach(function (x) { const k = y * w + x; if (!g[k] && !seen[k]) { seen[k] = 1; st.push(k); } }); }
+    while (st.length) {
+      const k = st.pop();
+      const x = k % w, y = (k - x) / w;
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+        const nx = x + d[0], ny = y + d[1];
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+        const j = ny * w + nx;
+        if (!g[j] && !seen[j]) { seen[j] = 1; st.push(j); }
+      });
+    }
+    for (let k = 0; k < w * h; k++) if (!g[k] && !seen[k]) out[k] = 1;
+    return out;
+  }
+  /* かこまれた ところ（あな）の 数。小さすぎる あなは 数えない */
+  function holeCount(g, w, h, minCells) {
+    const seen = new Uint8Array(w * h);
+    const st = [];
+    for (let x = 0; x < w; x++) { [0, h - 1].forEach(function (y) { const k = y * w + x; if (!g[k] && !seen[k]) { seen[k] = 1; st.push(k); } }); }
+    for (let y = 0; y < h; y++) { [0, w - 1].forEach(function (x) { const k = y * w + x; if (!g[k] && !seen[k]) { seen[k] = 1; st.push(k); } }); }
+    while (st.length) {
+      const k = st.pop();
+      const x = k % w, y = (k - x) / w;
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+        const nx = x + d[0], ny = y + d[1];
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+        const j = ny * w + nx;
+        if (!g[j] && !seen[j]) { seen[j] = 1; st.push(j); }
+      });
+    }
+    let n = 0;
+    for (let k0 = 0; k0 < w * h; k0++) {
+      if (seen[k0] || g[k0]) continue;
+      let cnt = 0;
+      const q = [k0];
+      seen[k0] = 1;
+      while (q.length) {
+        const k = q.pop();
+        cnt++;
+        const x = k % w, y = (k - x) / w;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+          const nx = x + d[0], ny = y + d[1];
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+          const j = ny * w + nx;
+          if (!g[j] && !seen[j]) { seen[j] = 1; q.push(j); }
+        });
+      }
+      if (cnt >= (minCells || 1)) n++;
+    }
+    return n;
+  }
+
+  function templates() {
+    if (TPL) return TPL;
+    TPL = {};
+    LETTERS.forEach(function (ch) {
+      const gg = glyphGrid(ch);
+      const st = new Uint8Array(TW * TH);
+      for (let y = 0; y < TH; y++) {
+        for (let x = 0; x < TW; x++) {
+          const gx = Math.min(GW - 1, Math.floor(x * GW / TW)), gy = Math.min(GH - 1, Math.floor(y * GH / TH));
+          if (gg[gy * GW + gx]) st[y * TW + x] = 1;
+        }
+      }
+      // 線を 1マス ふとらせた もの（えんぴつの 線が 少し ずれても よい ように）
+      const wide = st.slice();
+      for (let y = 0; y < TH; y++) {
+        for (let x = 0; x < TW; x++) {
+          if (!st[y * TW + x]) continue;
+          [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+            const nx = x + d[0], ny = y + d[1];
+            if (nx < 0 || ny < 0 || nx >= TW || ny >= TH) return;
+            wide[ny * TW + nx] = 1;
+          });
+        }
+      }
+      TPL[ch] = { raw: st, stroke: wide, fill: fillHoles(st, TW, TH), holes: holeCount(glyphGrid(ch), GW, GH, 2) };
+    });
+    return TPL;
+  }
+
+  /* 絵の 中の あな（線で かこまれた ところ）を 数える。
+     子どもは 字の 中に 目も かく ので、**小さい 丸は 数えない**（あなは 字の あな だけ） */
+  function partHoles(part, cells, N, box, src) {
+    const bx = box || part;
+    const x0 = bx.x0, y0 = bx.y0;
+    const w = bx.x1 - x0 + 1, h = bx.y1 - y0 + 1;
+    const area = w * h;
+    const wall = new Uint8Array(area);
+    for (let y = y0; y <= bx.y1; y++) {
+      for (let x = x0; x <= bx.x1; x++) {
+        const k = y * N + x;
+        const inWall = src ? !!src[k] : (!part.mask[k] || (cells[k] && cells[k].ink));
+        if (!inWall) continue;
+        const i = (y - y0) * w + (x - x0);
+        wall[i] = 1;
+      }
+    }
+    // 線を 1マス ふとらせて 切れ目を ふさぐ
+    const wide = wall.slice();
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (!wall[y * w + x]) continue;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+          const nx = x + d[0], ny = y + d[1];
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+          wide[ny * w + nx] = 1;
+        });
+      }
+    }
+    // 外から とどかない ところ＝あな。大きさを はかる
+    const seen = new Uint8Array(area);
+    const st = [];
+    for (let x = 0; x < w; x++) { [0, h - 1].forEach(function (y) { const k = y * w + x; if (!wide[k] && !seen[k]) { seen[k] = 1; st.push(k); } }); }
+    for (let y = 0; y < h; y++) { [0, w - 1].forEach(function (x) { const k = y * w + x; if (!wide[k] && !seen[k]) { seen[k] = 1; st.push(k); } }); }
+    while (st.length) {
+      const k = st.pop();
+      const x = k % w, y = (k - x) / w;
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+        const nx = x + d[0], ny = y + d[1];
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+        const j = ny * w + nx;
+        if (!wide[j] && !seen[j]) { seen[j] = 1; st.push(j); }
+      });
+    }
+    const sizes = [];
+    for (let k0 = 0; k0 < area; k0++) {
+      if (seen[k0] || wide[k0]) continue;
+      let cnt = 0;
+      const q = [k0];
+      seen[k0] = 1;
+      while (q.length) {
+        const k = q.pop();
+        cnt++;
+        const x = k % w, y = (k - x) / w;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+          const nx = x + d[0], ny = y + d[1];
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+          const j = ny * w + nx;
+          if (!wide[j] && !seen[j]) { seen[j] = 1; q.push(j); }
+        });
+      }
+      sizes.push(cnt / area);
+    }
+    sizes.sort(function (a, b) { return b - a; });
+    return sizes;
+  }
+
+  /* かたまりを TW×TH の マスに して、字の おてほんと 見くらべる。
+
+     子どもは 字の 線を えんぴつで かいて、その 中を 色で ぬる。
+     つまり **ぬった 色の 形＝字の 線その もの**。だから 色の マス（core）を
+     おてほんの 線と 見くらべる のが いちばん よく 当たる。
+     色で ぬって いない 絵（えんぴつだけ）の ときは、外の 形ぜんたいで 見くらべる */
+  function letterOf(part, cells, N) {
+    const useCore = !!(part.core && part.coreN >= Math.max(24, part.n * 0.22) && part.cx1 > part.cx0 + 2);
+    const box = useCore ? { x0: part.cx0, y0: part.cy0, x1: part.cx1, y1: part.cy1 } : { x0: part.x0, y0: part.y0, x1: part.x1, y1: part.y1 };
+    const src = useCore ? part.core : part.mask;
+    const w = box.x1 - box.x0 + 1, h = box.y1 - box.y0 + 1;
+    if (w < 4 || h < 6) return null;
+    const on = new Float32Array(TW * TH), ink = new Float32Array(TW * TH), tot = new Float32Array(TW * TH);
+    for (let y = box.y0; y <= box.y1; y++) {
+      for (let x = box.x0; x <= box.x1; x++) {
+        const gx = Math.min(TW - 1, Math.floor((x - box.x0) * TW / w));
+        const gy = Math.min(TH - 1, Math.floor((y - box.y0) * TH / h));
+        const g = gy * TW + gx;
+        tot[g]++;
+        const k = y * N + x;
+        if (src[k]) on[g]++;
+        if (part.mask[k] && cells[k] && cells[k].ink) ink[g]++;
+      }
+    }
+    const F = new Uint8Array(TW * TH), I = new Uint8Array(TW * TH);
+    for (let g = 0; g < TW * TH; g++) {
+      if (!tot[g]) continue;
+      if (on[g] / tot[g] >= 0.4) F[g] = 1;
+      if (ink[g] / tot[g] >= 0.18) I[g] = 1;
+    }
+    let inkN = 0;
+    for (let g = 0; g < TW * TH; g++) if (I[g]) inkN++;
+    // 絵の あな（大きい ものだけ。目の 丸は 数えない）
+    const hs = partHoles(part, cells, N, box, useCore ? src : null).filter(function (v) { return v >= 0.035; });
+    const holes = Math.min(2, hs.length);
+    const tpl = templates();
+    const out = LETTERS.map(function (ch) {
+      const t = tpl[ch];
+      const shape = useCore ? t.raw : t.fill;
+      let inter = 0, uni = 0, hit = 0;
+      for (let g = 0; g < TW * TH; g++) {
+        if (F[g] && shape[g]) inter++;
+        if (F[g] || shape[g]) uni++;
+        if (I[g] && t.stroke[g]) hit++;
+      }
+      const iou = uni ? inter / uni : 0;
+      const prec = inkN >= 6 ? hit / inkN : iou;
+      const dh = Math.abs(t.holes - holes);
+      const hsc = dh === 0 ? 1 : dh === 1 ? 0.35 : 0;
+      return { ch: ch, score: iou * 0.5 + prec * 0.22 + hsc * 0.28, iou: iou, prec: prec, holes: t.holes };
+    }).sort(function (a, b) { return b.score - a.score; });
+    out.holes = holes;
+    out.hs = hs;
+    out.inkN = inkN;
+    out.core = useCore;
+    return out;
+  }
+
+  /* しらべた ところを 図に する（テスト用）。
+     こい 色＝ぬった 色（core・字の 線と 見なす ところ）／うすい 色＝その かたまり／黒＝えんぴつの 線 */
+  function partsImg(cells, N) {
+    const parts = drawParts(cells, N);
+    const cv = document.createElement('canvas');
+    cv.width = N; cv.height = N;
+    const g = cv.getContext('2d');
+    const d = g.createImageData(N, N);
+    const HUES = [[240, 70, 70], [70, 210, 110], [240, 210, 70], [90, 150, 250], [220, 120, 240]];
+    for (let k = 0; k < N * N; k++) {
+      let c = null;
+      parts.forEach(function (p, i) {
+        const h = HUES[i % HUES.length];
+        if (p.core[k]) c = h;
+        else if (p.mask[k] && !c) c = [h[0] * 0.35 + 40, h[1] * 0.35 + 40, h[2] * 0.35 + 40];
+      });
+      if (cells[k] && cells[k].ink) c = [20, 20, 30];
+      const o = k * 4;
+      if (!c) { d.data[o + 3] = 0; continue; }
+      d.data[o] = c[0]; d.data[o + 1] = c[1]; d.data[o + 2] = c[2]; d.data[o + 3] = 255;
+    }
+    g.putImageData(d, 0, 0);
+    return { png: cv.toDataURL('image/png'), n: parts.length, boxes: parts.map(function (p) { return [p.x0, p.y0, p.x1, p.y1, p.cx0, p.cy0, p.cx1, p.cy1, p.coreN, p.n]; }) };
+  }
+
+  /* 絵ぜんたい（か かたまりごと）を 字として 読む */
+  function letterGuess(cells, N) {
+    const bb = bboxOf(cells, N);
+    if (!bb) return null;
+    let parts = drawParts(cells, N);
+    // 色で 分かれない 絵は ぜんたいを 1文字として 読む
+    if (parts.length < 2) {
+      const one = { mask: new Uint8Array(N * N), x0: bb.x0, y0: bb.y0, x1: bb.x1, y1: bb.y1, n: bb.n, col: null };
+      for (let k = 0; k < N * N; k++) if (cells[k]) one.mask[k] = 1;
+      parts = [one];
+    }
+    // 字は よこに ならんで いて、それぞれ たてに 長い
+    const use = parts.filter(function (p) {
+      const w = p.x1 - p.x0 + 1, h = p.y1 - p.y0 + 1;
+      return h >= bb.h * 0.4 && w >= 3 && w / h <= 2.2;
+    });
+    if (!use.length) return null;
+    const guesses = use.map(function (p) {
+      const r = letterOf(p, cells, N);
+      return r ? { ch: r[0].ch, score: r[0].score, col: p.col, alt: r[1] ? r[1].ch : null, top: r.slice(0, 4), holes: r.holes, hs: r.hs, inkN: r.inkN, core: r.core } : null;
+    }).filter(Boolean);
+    if (!guesses.length) return null;
+    const mean = guesses.reduce(function (s, g) { return s + g.score; }, 0) / guesses.length;
+    /* 字が よこに ならんで いるか。
+       ぬった 色の わく（なければ かたまりの わく）が **かさならずに 左から 右へ ならぶ** ときだけ
+       「字が ならんで いる 絵」と 見る。サメの 目（体の 中に ある）や 水の らくがき（体と かさなる）は ここで はじく */
+    const boxes = use.map(function (p) {
+      const core = p.coreN > 0 && p.cx1 > p.cx0;
+      return core ? { a: p.cx0, b: p.cx1, h: p.cy1 - p.cy0 + 1 } : { a: p.x0, b: p.x1, h: p.y1 - p.y0 + 1 };
+    }).sort(function (a, b) { return a.a - b.a; });
+    // 字は たてに 長い（サメの 目や 水の らくがきは ひくい）
+    const hs2 = boxes.map(function (b) { return b.h; });
+    const meanH = hs2.reduce(function (a, b) { return a + b; }, 0) / hs2.length;
+    let row = boxes.length >= 2 && meanH >= bb.h * 0.38 && Math.max.apply(null, hs2) >= bb.h * 0.48;
+    for (let i = 1; i < boxes.length && row; i++) {
+      const A = boxes[i - 1], B = boxes[i];
+      const ov = Math.min(A.b, B.b) - Math.max(A.a, B.a) + 1;
+      const narrow = Math.min(A.b - A.a + 1, B.b - B.a + 1);
+      if (ov > narrow * 0.45) row = false;
+    }
+    return {
+      row: row,
+      chars: guesses.map(function (g) { return g.ch; }),
+      alts: guesses.map(function (g) { return g.alt; }),
+      colors: guesses.map(function (g) { return g.col ? hex(pop(g.col)) : null; }),
+      score: mean,
+      parts: use.length,
+      hue: lastHue,
+      dbg: use.map(function (p, i) {
+        const g = guesses[i];
+        if (!g) return '[?]';
+        return '[' + (p.col ? hex(p.col) : '-') + (g.core ? ' 色' : ' 形') + ' あな' + g.holes + '(' + g.hs.map(function (v) { return (v * 100).toFixed(0); }).join('/') + ') ink' + g.inkN + ' ' +
+          g.top.map(function (t) { return t.ch + t.score.toFixed(2) + '(i' + t.iou.toFixed(2) + 'p' + t.prec.toFixed(2) + 'h' + t.holes + ')'; }).join(' ') + ']';
+      }).join(' ')
+    };
+  }
+
+  /* 何かが 上に 乗って いるか（馬＋きし）。
+     下は よこ長の 体、上に **細い 山**が 1つ あり、その 左右に 体が つづく */
+  function riderGuess(cells, N) {
+    const bb = bboxOf(cells, N);
+    if (!bb) return null;
+    const top = [];
+    for (let x = bb.x0; x <= bb.x1; x++) {
+      let v = -1, cnt = 0;
+      for (let y = bb.y0; y <= bb.y1; y++) if (cells[y * N + x]) { if (v < 0) v = y; cnt++; }
+      top.push(cnt >= 3 ? v : -1);
+    }
+    const on = top.filter(function (v) { return v >= 0; }).slice().sort(function (a, b) { return a - b; });
+    if (on.length < 10) return null;
+    const mid = on[Math.floor(on.length * 0.6)];          // 体の 上の へり（下がわ 寄りの 中央値）
+    const need = bb.h * 0.16;
+    // 山（体より 上に 出て いる ところ）を さがす。2マスまでの 切れ目は つなぐ
+    const runs = [];
+    let cur = null, gap = 0;
+    for (let i = 0; i < top.length; i++) {
+      const v = top[i];
+      const up = v >= 0 && mid - v >= need;
+      if (up) {
+        if (!cur) cur = { i0: i, i1: i, hi: v };
+        else { cur.i1 = i; if (v < cur.hi) cur.hi = v; }
+        gap = 0;
+      } else if (cur) {
+        gap++;
+        if (gap > 2) { runs.push(cur); cur = null; }
+      }
+    }
+    if (cur) runs.push(cur);
+    if (!runs.length) return null;
+    runs.sort(function (a, b) { return (b.i1 - b.i0) - (a.i1 - a.i0); });
+    const r = runs[0];
+    const w = r.i1 - r.i0 + 1;
+    const high = mid - r.hi;
+    const leftN = r.i0, rightN = top.length - 1 - r.i1;
+    const ratioW = w / bb.w;
+    // 山が 細すぎ／太すぎ、左右に 体が ない、高さが たりない → ちがう
+    if (ratioW < 0.1 || ratioW > 0.62) return null;
+    if (leftN < bb.w * 0.12 || rightN < bb.w * 0.12) return null;
+    if (high < bb.h * 0.2) return null;
+    let score = 0.45 + Math.min(0.25, high / bb.h * 0.5) + (ratioW < 0.45 ? 0.15 : 0);
+    if (bb.w / bb.h >= 1.15) score += 0.12;               // 下が よこ長（馬・のりもの）
+    return { score: Math.min(1, score), w: +ratioW.toFixed(2), high: +(high / bb.h).toFixed(2) };
+  }
+
   /* しゅるいごとの「合う 度合い」。絵から わかる ことは かぎられる ので、
      いちばん 合う 1つに 決めうちせず、上位 3つを 候補に して 子どもに えらんで もらう */
   function kindScores(f) {
@@ -693,6 +1425,23 @@ MQ.monsterGen = (function () {
   function make(f, forceKind) {
     if (!f) return null;
     const kind = forceKind || pickKind(f);
+    /* 字（A〜Z）と 馬に のった きし は 体の 型を つかわず、専用の 部品で 組み立てる（v4.0） */
+    if (kind === 'letters' || kind === 'letter') {
+      const chars = f.letters && f.letters.length ? f.letters : ['A'];
+      const list = kind === 'letter' ? chars.slice(0, 1) : chars.slice(0, 4);
+      const base = hex(f.main);
+      const acc = f.accent ? hex(f.accent) : base;
+      const cols = list.map(function (ch, i) {
+        const c = (f.letterColors || [])[i];
+        return c || (i % 2 ? acc : base);
+      });
+      return { shape: letterBody(list, cols), colors: { A: base }, kind: kind, letters: list, cols: cols };
+    }
+    if (kind === 'rider' || kind === 'knight') {
+      const cl = { A: hex(f.main) };
+      if (f.accent) cl.C = hex(f.accent);
+      return { shape: riderBody(kind === 'rider'), colors: cl, kind: kind };
+    }
     let shape = BODIES[kind]();
     if (f.horns >= 2) shape = horns(kind, f.horns).concat(shape);
     if (f.wings && kind !== 'bird') shape = wings(kind).concat(shape);
@@ -728,6 +1477,7 @@ MQ.monsterGen = (function () {
     if (!p.C) p.C = mix(p.A, [255, 255, 255], 0.34);
     if (!p.D) p.D = mix(p.B, [0, 0, 0], 0.3);
     if (!p.P) p.P = mix(p.A, [0, 0, 0], 0.55);
+    p.s = [186, 196, 214];
     p.w = [246, 246, 249];
     p.k = [28, 26, 38];
     p.r = [226, 62, 62];
@@ -1100,48 +1850,77 @@ MQ.monsterGen = (function () {
     return { png: paint(list, c, eyes), blocks: list.length, gw: c.gw, gh: c.gh, eyes: eyes.length };
   }
 
-  /* 絵から 候補を n体（初期 3体）作る。子どもが えらぶ */
+  /* 絵から 候補を n体（初期 6体）作る。子どもが えらぶ（v4.0）
+
+     ならべる じゅん：**はっきり 読めた もの（字・のりもの）→ 形が 合う もの**。
+     読めなかった ときも 下の ほうに 出す ので、まちがえても 子どもが えらび直せる */
   function variants(cells, N, n) {
     const f = analyze(cells, N);
     if (!f) return [];
-    const want = n || 3;
+    const want = n || 8;
+    const lt = letterGuess(cells, N);
+    const rd = riderGuess(cells, N);
+    if (lt) { f.letters = lt.chars; f.letterColors = lt.colors; f.letterScore = lt.score; f.letterDbg = lt.dbg; f.letterHue = lt.hue; }
+    if (rd) f.riderScore = rd.score;
+    lastF = f;
     const order = kindScores(f);
     const out = [];
-    function add(feat, kind, tag) {
-      if (out.length >= want) return;
-      const m = make(feat, kind);
+    const done = {};
+    function add(kind, tag, feat) {
+      if (out.length >= want || done[tag || kind]) return;
+      const m = make(feat || f, kind);
       if (!m) return;
-      out.push({ png: png(m.shape, m.colors), kind: m.kind, tag: tag || m.kind, shape: m.shape, colors: m.colors });
+      done[tag || kind] = 1;
+      out.push({ png: png(m.shape, m.colors), kind: m.kind, tag: tag || m.kind, shape: m.shape, colors: m.colors, letters: m.letters || null, cols: m.cols || null });
     }
-    // ① いちばん 合う すがた
-    add(f, order[0].kind);
-    // ② ドクロ頭の すがた（目が 2つの とき。スカルホースの ような 絵）
-    if (f.eyes === 2 && !f.skull) {
+    const skullF = (function () {
       const g = {};
       Object.keys(f).forEach(function (k) { g[k] = f[k]; });
       g.skull = true;
-      add(g, order[0].kind, 'skull');
-    }
-    // ③ はこ（本・宝箱の ような 絵）
-    if (!f.boxish) add(f, 'box', 'box');
-    // ④ のこりは つぎに 合う すがた
-    for (let i = 1; i < order.length && out.length < want; i++) add(f, order[i].kind);
+      return g;
+    })();
+    // 字が よこに ならんで いる 絵（ABC3きょうだい）だけ 字を 先に 出す
+    const rowOk = !!(lt && lt.row && lt.score >= 0.5 && lt.chars.length >= 2);
+    const tall1 = !!(lt && !lt.row && lt.chars.length === 1 && lt.score >= 0.78 && f.tall);
+    const riderOk = !!(rd && rd.score >= 0.62);
+    const plan = [];
+    if (rowOk) plan.push(['letters', 'letters']);
+    if (tall1) plan.push(['letter', 'letter']);
+    if (riderOk) plan.push(['rider', 'rider']);
+    plan.push([order[0].kind, order[0].kind]);
+    if (f.eyes === 2 && !f.skull) plan.push([order[0].kind, 'skull', skullF]);
+    plan.push([order[1].kind, order[1].kind]);
+    if (!riderOk) plan.push(['rider', 'rider']);                 // のりものは いつでも えらべる ように
+    plan.push([order[2].kind, order[2].kind]);
+    plan.push(['letters', 'letters']);                           // 字も いつでも えらべる（もじは あとから 直せる）
+    if (!f.boxish) plan.push(['box', 'box']);
+    for (let i = 3; i < order.length; i++) plan.push([order[i].kind, order[i].kind]);
+    plan.forEach(function (p) { add(p[0], p[1], p[2]); });
     return out.slice(0, want);
   }
 
-  /* 絵（cells）から いっきに PNG まで */
+  /* 絵（cells）から いっきに PNG まで（候補の 1番め と 同じ） */
   function fromCells(cells, N) {
-    // 絵から 読んだ 特徴で、ゲームの 部品を 組み合わせて 作る
-    const f = analyze(cells, N);
-    const m = make(f);
-    if (!m) return null;
-    return { png: png(m.shape, m.colors), shape: m.shape, colors: m.colors, kind: m.kind, features: f };
+    const v = variants(cells, N, 1);
+    if (!v.length) return null;
+    return { png: v[0].png, shape: v[0].shape, colors: v[0].colors, kind: v[0].kind, features: lastF };
   }
 
   return {
     analyze: analyze,
     fromDrawing: fromDrawing,
     variants: variants,
+    letterGuess: letterGuess,
+    letterPng: function (chars, cols) { return png(letterBody(chars, cols), {}); },
+    letterList: LETTERS,
+    partsImg: partsImg,
+    riderGuess: riderGuess,
+    drawParts: drawParts,
+    letterOf: letterOf,
+    letterBody: letterBody,
+    riderBody: riderBody,
+    fonts: FONT5,
+    features: function () { return lastF; },
     kindScores: kindScores,
     coarse: coarse,
     make: make,

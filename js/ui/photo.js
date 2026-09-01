@@ -45,7 +45,9 @@ MQ.ui.photo = (function () {
   const SIZES = [[48, 'あらい'], [64, 'ふつう'], [96, 'こまかい']];
   let size = 96;                    // ドット絵の マス数（初期は こまかい・v3.3）
   let cleanMode = 3;                // しあげ：3 = モンスター（絵を 参考に 組み立てる・v3.6）／2 = ゲームふう／1 = 絵の まま／0 = しない
-  let picks = [];                   // モンスターの 候補 3体（v3.8）
+  let picks = [];                   // モンスターの 候補（v3.8）
+  let lastCells = null;             // さいごに 読んだ マス目（テスト用）
+  let letterPick = [];              // 字の モンスターの もじ（子どもが えらんだ もの・v4.0）
   let pickAt = 0;                   // えらんで いる 候補
   let img = null;                   // 読みこんだ 写真
   let crop = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 };   // わく（0〜1の わりあい・長方形で OK）
@@ -1108,12 +1110,18 @@ MQ.ui.photo = (function () {
     if (cleanMode === 2) { solidify(cells, N); cleanCells(cells, N, true); gameStyle(cells, N); }
     if (cleanMode === 3) {
       // 絵から 特徴（色・かたち・つの・目の数）を 読んで、ゲームの 部品で 3体の 候補を 作る（v3.8）
-      const list = MQ.monsterGen ? MQ.monsterGen.variants(cells, N, 3) : [];
+      lastCells = { cells: cells, N: N };
+      const list = MQ.monsterGen ? MQ.monsterGen.variants(cells, N, 8) : [];
       if (list.length) {
         picks = list;
         if (pickAt >= picks.length) pickAt = 0;
-        lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, kinds2: list.map(function (v) { return v.tag; }), box: box };
-        return picks[pickAt].png;
+        const cur = picks[pickAt];
+        lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, kinds2: list.map(function (v) { return v.tag; }), letters: letterPick.join(''), box: box };
+        // 字の モンスター：子どもが えらんだ もじが あれば その もじで（絵から 読んだ もじは 目やす）
+        if (cur.letters && letterPick.length && MQ.monsterGen.letterPng) {
+          return MQ.monsterGen.letterPng(letterPick, cur.cols || null);
+        }
+        return cur.png;
       }
       picks = [];
       gameStyle(cells, N);   // 絵が 小さすぎる ときは ゲームふうで
@@ -1365,6 +1373,11 @@ MQ.ui.photo = (function () {
 
     // 候補 3体の タイル（v3.8）。タップで えらぶ
     const pickRow = h('div', { class: 'photo__picks', hidden: 'hidden' });
+    // 字の 候補は 子どもが えらんだ もじで 見せる
+    function pickPng(p) {
+      if (p.letters && letterPick.length && MQ.monsterGen.letterPng) return MQ.monsterGen.letterPng(letterPick, p.cols || null);
+      return p.png;
+    }
     function paintPicks() {
       pickRow.innerHTML = '';
       pickRow.hidden = !(cleanMode === 3 && picks.length > 1 && !edited);
@@ -1378,10 +1391,50 @@ MQ.ui.photo = (function () {
             pickAt = i; MQ.sfx.tap();
             refresh();
           }
-        }, [h('img', { class: 'photo__pickimg', src: p.png, alt: '' })]);
+        }, [h('img', { class: 'photo__pickimg', src: pickPng(p), alt: '' })]);
         pickRow.appendChild(b);
       });
     }
+    /* もじを えらぶ（v4.0）。
+       絵から もじを 当てるのは むずかしい ので、**子どもが タップで 直せる** ように する。
+       じぶんの 名前の かしら文字で モンスターを 作る ことも できる */
+    const letterCur = h('span', { class: 'photo__lcur', text: '' });
+    const letterGrid = h('div', { class: 'photo__lgrid' });
+    const letterRow = h('div', { class: 'photo__letters', hidden: 'hidden' }, [
+      h('div', { class: 'photo__lhead' }, [
+        h('span', { class: 'photo__lbl', text: 'もじを えらぶ' }),
+        letterCur,
+        h('button', {
+          class: 'btn btn--small btn--stone photo__lclear', type: 'button', text: '1つ けす',
+          onclick: function () { MQ.sfx.tap(); letterPick = letterPick.slice(0, -1); refresh(); }
+        })
+      ]),
+      letterGrid,
+      h('p', { class: 'note', text: 'タップした じゅんに ならぶよ。じぶんの 名前の 字でも いいね。' })
+    ]);
+    (MQ.monsterGen && MQ.monsterGen.letterList ? MQ.monsterGen.letterList : []).forEach(function (ch) {
+      letterGrid.appendChild(h('button', {
+        class: 'photo__lbtn', type: 'button', text: ch,
+        onclick: function () {
+          MQ.sfx.tap();
+          if (letterPick.length >= 4) letterPick = [];      // 4つ そろったら いちど まっさらに
+          letterPick = letterPick.concat(ch);
+          refresh();
+        }
+      }));
+    });
+    function paintLetters() {
+      const cur = picks[pickAt];
+      const on = cleanMode === 3 && !edited && cur && !!cur.letters;
+      letterRow.hidden = !on;
+      if (!on) return;
+      const now = letterPick.length ? letterPick : cur.letters;
+      letterCur.textContent = now.join(' ');
+      Array.prototype.forEach.call(letterGrid.children, function (b) {
+        b.classList.toggle('is-on', now.indexOf(b.textContent) >= 0);
+      });
+    }
+
     // できあがりの みほん。しゃしんを とるまでは かくしておく
     const previewRow = h('div', { class: 'photo__preview', hidden: 'hidden' }, [
       h('div', { class: 'photo__views' }, [
@@ -1393,6 +1446,7 @@ MQ.ui.photo = (function () {
       ]),
       emptyNote,
       pickRow,
+      letterRow,
       sliderRow('はいけいを 消す', 15, 120, function () { return tol; }, function (v) { tol = v; }),
       sliderRow('線を こく', 0, 100, function () { return inkLv; }, function (v) { inkLv = v; }),
       sizeRow,
@@ -1412,6 +1466,7 @@ MQ.ui.photo = (function () {
       syncSizeRow();
       outUrl = edited || build();
       paintPicks();
+      paintLetters();
       preview.src = outUrl || '';
       previewBattle.src = outUrl || '';
       previewRow.hidden = !(img || edited);   // しゃしんも 直した 絵も ない ときは かくす
@@ -1505,6 +1560,7 @@ MQ.ui.photo = (function () {
     function useImage(im) {
       img = im;
       pickAt = 0;
+      letterPick = [];
       origImg = null; origCrop = null; aiUsed = false; aiError = ''; edited = '';
       crop = defaultCrop();
       autoCrop();
@@ -1663,7 +1719,9 @@ MQ.ui.photo = (function () {
     info: function () { return lastInfo; },
     debug: debugImages,
     crop: function () { return crop; },
-    picks: function () { return picks.map(function (p) { return { kind: p.kind, png: p.png }; }); },   // テスト用：候補 3体
+    picks: function () { return picks.map(function (p) { return { kind: p.kind, png: p.png, letters: p.letters || null }; }); },   // テスト用：候補
+    setLetters: function (a) { letterPick = a ? a.slice() : []; },   // テスト用：もじを えらぶ
+    partsImg: function () { return lastCells && MQ.monsterGen.partsImg ? MQ.monsterGen.partsImg(lastCells.cells, lastCells.N) : null; },
     build: build,
     // AI（v2.8）の いまの 状態（テスト用）
     aiState: function () { return { busy: aiBusy, ai: aiUsed, error: aiError, hasOrig: !!origImg, out: outUrl.length, edited: !!edited }; },

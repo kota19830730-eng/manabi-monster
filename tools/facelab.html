@@ -23,6 +23,7 @@
 <script src="../js/core/pixel.js"></script>
 <script src="../js/core/blocks.js"></script>
 <script src="../js/content/monsterart.js"></script>
+<script src="../js/content/monstergen.js"></script>
 <script src="../js/content/face.js"></script>
 <script src="../js/content/hero.js"></script>
 <script src="../js/content/enemies.js"></script>
@@ -85,6 +86,24 @@
   } else if (mode.indexOf('zoom:') === 0) {
     const ids = mode.slice(5).split(',');
     blockNode('ズーム', 'big', ids.map(function (id) { return { name: id, node: MQ.enemies.node(id, { size: 200 }) }; }));
+  } else if (mode === 'letters') {
+    // 写真から 作る モンスターの 部品（v4.0）：字 A〜Z・0〜9 と 馬に のった きし
+    const G = MQ.monsterGen;
+    const cols = ['#e8544e', '#4fbf6a', '#f2c93b', '#4f9bf0'];
+    block('字（1文字）', 'face', G.letterList.map(function (ch, i) {
+      return { name: ch, src: G.letterPng([ch], [cols[i % cols.length]]) };
+    }));
+    block('字（ならべる）', 'full', [
+      { name: 'ABC', src: G.letterPng(['A', 'B', 'C'], cols) },
+      { name: 'MQ', src: G.letterPng(['M', 'Q'], cols) },
+      { name: 'KOTA', src: G.letterPng(['K', 'O', 'T', 'A'], cols) },
+      { name: '3', src: G.letterPng(['3'], ['#f2c93b']) }
+    ]);
+    block('馬に のった きし', 'full', [
+      { name: 'ガイコツ', src: G.png(G.riderBody(true), { A: '#e0a15a', C: '#c8433f' }) },
+      { name: 'かぶと', src: G.png(G.riderBody(false), { A: '#8fa2c0', C: '#c8433f' }) },
+      { name: '白い ほね', src: G.png(G.riderBody(true), { A: '#e8e4d8', C: '#4f9bf0' }) }
+    ]);
   } else if (mode === 'poster') {
     block('タイトルの 勇者', 'big', [{ name: 'ポスター', src: MQ.hero.poster() }]);
   } else if (mode === 'mons') {
