@@ -487,7 +487,14 @@ MQ.monsterGen = (function () {
     humanoid: { y: 10, size: 7, xs: [17, 25], cx: 19 },
     bug:      { y: 9, size: 6, xs: [19, 27], cx: 21 },
     box:      { y: 20, size: 7, xs: [15, 27], cx: 20 },
-    triple:   { y: 21, size: 5, xs: [6, 35], cx: 22 }
+    triple:   { y: 21, size: 5, xs: [6, 35], cx: 22 },
+    dragon:   { y: 10, size: 7, xs: [13, 28], cx: 20 },
+    robot:    { y: 8, size: 7, xs: [15, 26], cx: 20 },
+    snake:    { y: 6, size: 5, xs: [25, 33], cx: 28 },
+    squid:    { y: 12, size: 8, xs: [14, 27], cx: 20 },
+    ghost:    { y: 12, size: 8, xs: [13, 27], cx: 20 },
+    vehicle:  { y: 11, size: 7, xs: [14, 24], cx: 18 },
+    spider:   { y: 9, size: 5, xs: [18, 26], cx: 21 }
   };
 
   function eyesFor(kind, n) {
@@ -590,6 +597,91 @@ MQ.monsterGen = (function () {
         [33, 15, 14, 21, 'B', 'h'],
         [3, 36, 10, 8, 'B'], [19, 36, 10, 8, 'A'], [35, 36, 10, 8, 'A']
       ];
+    },
+    // ドラゴン（はね・つの・しっぽ つき。はねと しっぽは 体に 入って いる）
+    dragon: function () {
+      return [
+        [0, 5, 12, 19, 'C', 'h'], [36, 5, 12, 19, 'C', 'h'],           // はね
+        [9, 0, 6, 9, 'C'], [33, 0, 6, 9, 'C'],                         // つの
+        [10, 5, 28, 16, 'A', 'h'],                                     // 頭
+        [16, 18, 16, 8, 'A'],                                          // 鼻づら
+        [17, 22, 14, 3, 'k', 'n'],                                     // 口
+        [18, 22, 2, 2, 'w', 'n'], [22, 22, 2, 2, 'w', 'n'], [26, 22, 2, 2, 'w', 'n'],  // きば
+        [13, 26, 22, 12, 'A', 'h'],                                    // 体
+        [18, 29, 12, 7, 'C', 'n'],                                     // おなか
+        [35, 32, 9, 4, 'A'], [42, 35, 6, 4, 'A'],                      // しっぽ
+        [15, 38, 8, 9, 'B'], [25, 38, 8, 9, 'B']                       // あし
+      ];
+    },
+    // ロボット
+    robot: function () {
+      return [
+        [23, 2, 3, 4, 'B'], [21, 0, 7, 3, 'r', 'g'],                   // アンテナ＋ランプ
+        [12, 4, 24, 15, 'A', 'h'],                                     // 頭
+        [17, 15, 14, 3, 'k', 'n'], [18, 15, 2, 3, 'w', 'n'], [22, 15, 2, 3, 'w', 'n'], [26, 15, 2, 3, 'w', 'n'],  // 口
+        [21, 19, 6, 3, 'B', 'n'],                                      // 首
+        [11, 22, 26, 15, 'A', 'h'],                                    // 体
+        [17, 26, 14, 8, 'C', 'n'], [22, 28, 4, 4, 'y', 'g'],           // むねの パネル＋ボタン
+        [1, 22, 10, 5, 'B'], [37, 22, 10, 5, 'B'],                     // うで
+        [0, 27, 7, 7, 's'], [41, 27, 7, 7, 's'],                       // 手
+        [14, 37, 8, 8, 'B'], [26, 37, 8, 8, 'B'],                      // あし
+        [12, 44, 11, 4, 's', 'n'], [25, 44, 11, 4, 's', 'n']           // くつ
+      ];
+    },
+    // へび（とぐろを まいて 頭を もたげる）
+    snake: function () {
+      return [
+        [4, 33, 40, 11, 'A', 'h'],                                     // 下の とぐろ
+        [8, 25, 30, 9, 'B'],                                           // 中の とぐろ
+        [10, 36, 28, 5, 'C', 'n'],                                     // おなかの もよう
+        [26, 13, 11, 13, 'A'],                                         // 首
+        [22, 4, 18, 11, 'A', 'h'],                                     // 頭
+        [16, 9, 7, 3, 'r', 'n'], [12, 8, 5, 2, 'r', 'n'], [12, 11, 5, 2, 'r', 'n'],  // した
+        [22, 12, 10, 2, 'k', 'n']                                      // 口
+      ];
+    },
+    // タコ・イカ
+    squid: function () {
+      return [
+        [15, 0, 18, 5, 'C'],                                           // 上の ひれ
+        [11, 4, 26, 22, 'A', 'h'],                                     // あたま
+        [9, 26, 30, 6, 'B'],                                           // ふち
+        [5, 32, 7, 14, 'A'], [13, 32, 7, 16, 'A'], [21, 32, 7, 13, 'A'], [29, 32, 7, 16, 'A'], [37, 32, 6, 14, 'A'],   // あし
+        [3, 42, 6, 4, 'B', 'n'], [39, 42, 6, 4, 'B', 'n']              // あしの さき
+      ];
+    },
+    // ゆうれい
+    ghost: function () {
+      return [
+        [14, 2, 20, 6, 'A'],                                           // あたまの てっぺん
+        [9, 6, 30, 27, 'A', 'h'],                                      // 体
+        [3, 14, 7, 11, 'A'], [38, 14, 7, 11, 'A'],                     // うで
+        [9, 33, 8, 7, 'A'], [20, 33, 8, 10, 'A'], [31, 33, 8, 7, 'A'], // ひらひらの すそ
+        [20, 22, 8, 6, 'k', 'n']                                       // 口
+      ];
+    },
+    // くるま・せんしゃ
+    vehicle: function () {
+      return [
+        [30, 12, 18, 5, 's'], [44, 10, 4, 9, 's'],                     // ほうしん
+        [11, 8, 22, 13, 'C', 'h'],                                     // うんてんせき
+        [3, 20, 42, 14, 'A', 'h'],                                     // 車体
+        [6, 24, 36, 5, 'B', 'n'],                                      // ライン
+        [5, 33, 11, 11, 'k', 'n'], [18, 33, 11, 11, 'k', 'n'], [31, 33, 11, 11, 'k', 'n'],   // タイヤ
+        [8, 36, 5, 5, 's', 'n'], [21, 36, 5, 5, 's', 'n'], [34, 36, 5, 5, 's', 'n']          // ホイール
+      ];
+    },
+    // クモ（あし 8本）
+    spider: function () {
+      return [
+        [1, 12, 15, 3, 'B'], [0, 18, 16, 3, 'B'], [0, 26, 16, 3, 'B'], [1, 32, 15, 3, 'B'],      // 左の あし
+        [32, 12, 15, 3, 'B'], [32, 18, 16, 3, 'B'], [32, 26, 16, 3, 'B'], [32, 32, 15, 3, 'B'],  // 右の あし
+        [0, 8, 4, 6, 'B'], [44, 8, 4, 6, 'B'],                          // あしの つけね
+        [16, 16, 16, 18, 'A', 'h'],                                     // おなか
+        [19, 22, 10, 9, 'C', 'n'],                                      // もよう
+        [17, 6, 14, 11, 'A', 'h'],                                      // あたま
+        [18, 15, 3, 4, 'w', 'n'], [27, 15, 3, 4, 'w', 'n']              // きば
+      ];
     }
   };
 
@@ -598,7 +690,9 @@ MQ.monsterGen = (function () {
   const SKULL_AT = {
     beast: [0, 7, 18, 17], fish: [1, 15, 12, 17], blob: [13, 12, 22, 20],
     humanoid: [13, 3, 22, 19], bird: [15, 2, 18, 15], bug: [16, 3, 16, 14],
-    box: [13, 13, 22, 20], triple: [16, 11, 16, 18]
+    box: [13, 13, 22, 20], triple: [16, 11, 16, 18],
+    dragon: [10, 5, 28, 16], robot: [12, 4, 24, 15], snake: [22, 4, 18, 11], squid: [13, 6, 22, 18],
+    ghost: [11, 6, 26, 20], vehicle: [13, 8, 18, 12], spider: [17, 6, 14, 11]
   };
   function skullHead(kind) {
     const a = SKULL_AT[kind] || SKULL_AT.blob;
@@ -621,7 +715,14 @@ MQ.monsterGen = (function () {
     humanoid: [[14, 0, 5, 6], [29, 0, 5, 6], [21, 0, 5, 5]],
     bug: [[13, 2, 4, 6], [31, 2, 4, 6], [22, 0, 4, 5]],
     box: [[9, 3, 5, 8], [34, 3, 5, 8], [21, 2, 5, 8]],
-    triple: [[4, 9, 4, 8], [37, 9, 4, 8], [21, 5, 4, 8]]
+    triple: [[4, 9, 4, 8], [37, 9, 4, 8], [21, 5, 4, 8]],
+    dragon: [[19, 0, 4, 7], [25, 0, 4, 7], [22, 0, 4, 6]],
+    robot: [[12, 1, 4, 6], [32, 1, 4, 6], [22, 0, 4, 5]],
+    snake: [[24, 0, 4, 6], [34, 0, 4, 6], [29, 0, 4, 5]],
+    squid: [[13, 0, 4, 5], [31, 0, 4, 5], [22, 0, 4, 4]],
+    ghost: [[11, 0, 5, 7], [32, 0, 5, 7], [22, 0, 4, 5]],
+    vehicle: [[12, 3, 4, 6], [28, 3, 4, 6], [20, 2, 4, 6]],
+    spider: [[16, 1, 4, 6], [28, 1, 4, 6], [22, 0, 4, 5]]
   };
   function horns(kind, n) {
     const a = HORN_AT[kind] || HORN_AT.blob;
@@ -638,7 +739,12 @@ MQ.monsterGen = (function () {
     humanoid: [[0, 12, 11, 16], [37, 12, 11, 16]],
     bug: [[0, 14, 11, 14], [37, 14, 11, 14]],
     box: [[0, 12, 8, 16], [40, 12, 8, 16]],
-    triple: [[0, 12, 6, 14], [42, 12, 6, 14]]
+    triple: [[0, 12, 6, 14], [42, 12, 6, 14]],
+    dragon: null,                                    // はねは 体に 入って いる
+    robot: [[0, 12, 10, 13], [38, 12, 10, 13]],
+    snake: null, squid: null,
+    ghost: [[0, 9, 9, 14], [39, 9, 9, 14]],
+    vehicle: null, spider: null
   };
   function wings(kind) {
     const a = WING_AT[kind];
@@ -654,7 +760,9 @@ MQ.monsterGen = (function () {
     humanoid: [[37, 30, 8, 5], [43, 26, 5, 6]],
     bug: [[38, 30, 8, 5], [43, 26, 5, 6]],
     box: null,
-    triple: null
+    triple: null,
+    dragon: null,                                    // しっぽは 体に 入って いる
+    robot: null, snake: null, squid: null, ghost: null, vehicle: null, spider: null
   };
   function tail(kind) {
     const a = TAIL_AT[kind];
@@ -662,7 +770,10 @@ MQ.monsterGen = (function () {
     return [a[0].concat('C'), a[1].concat('C')];
   }
   // きば（口の ところに 白い ギザギザ）
-  const TEETH_AT = { blob: [17, 30], beast: [1, 20], fish: [2, 27], bird: [31, 12], humanoid: [18, 17], bug: [19, 14], box: [17, 29], triple: [18, 30] };
+  const TEETH_AT = {
+    blob: [17, 30], beast: [1, 20], fish: [2, 27], bird: [31, 12], humanoid: [18, 17], bug: [19, 14], box: [17, 29], triple: [18, 30],
+    dragon: [18, 22], robot: [18, 15], snake: [23, 12], squid: [16, 20], ghost: [21, 22], vehicle: [14, 17], spider: [18, 15]
+  };
   function teeth(kind) {
     const a = TEETH_AT[kind] || TEETH_AT.blob;
     const out = [];
@@ -1386,13 +1497,20 @@ MQ.monsterGen = (function () {
   function kindScores(f) {
     const sc = {
       blob: 3,
-      beast: (f.wide ? 3 : 0) + (f.legs >= 3 ? 3 : f.legs >= 2 ? 1 : 0),
-      fish: (f.wide ? 3 : 0) + (f.sideOut ? 2 : 0),
+      beast: (f.wide ? 4 : 0) + (f.legs >= 3 ? 3 : f.legs >= 2 ? 1 : 0),
+      fish: (f.wide ? 4 : 0) + (f.sideOut ? 2 : 0),
       bird: (f.wings ? 4 : 0) + 1,
       humanoid: (f.tall ? 4 : 0) + (f.legs >= 2 ? 1 : 0) + 1,
       bug: (f.legs >= 4 ? 4 : 0) + (f.horns >= 2 ? 1 : 0),
       box: (f.boxish ? 5 : 0) + (f.rectness >= 0.9 ? 3 : f.rectness >= 0.82 ? 1 : 0),   // 四すみが うまって いれば 本・はこ
-      triple: (f.parts >= 3 ? 6 : 0)
+      triple: (f.parts >= 3 ? 8 : 0),
+      dragon: (f.wings ? 4 : 0) + (f.horns >= 2 ? 2 : 0) + (f.wide ? 1 : 0) + 1,
+      robot: (f.rectness >= 0.72 ? 3 : 0) + (f.tall ? 2 : 0) + (f.legs >= 2 ? 1 : 0),
+      snake: (f.legs === 0 ? 2 : 0) + (f.rectness <= 0.58 ? 3 : 0) + (f.ratio >= 1.6 || f.tall ? 1 : 0),   // ほそ長く くねる 絵
+      squid: (f.legs >= 3 ? 3 : 0) + (f.tall ? 2 : 0),
+      ghost: (f.legs === 0 ? 2 : 0) + (f.tall ? 3 : 0) + 1,
+      vehicle: (f.wide ? 2 : 0) + (f.rectness >= 0.86 ? 5 : 0),                     // 四角い よこ長＝のりもの
+      spider: (f.legs >= 4 ? 4 : 0) + (f.sideOut ? 2 : 0)
     };
     // 同じ 点数の ときは 絵の ゆびもんで 順番を 変える（絵ごとに ちがう 顔ぶれに なる）
     const seed = f.seed || 0;
@@ -1910,6 +2028,7 @@ MQ.monsterGen = (function () {
     analyze: analyze,
     fromDrawing: fromDrawing,
     variants: variants,
+    bodies: BODIES,
     letterGuess: letterGuess,
     letterPng: function (chars, cols) { return png(letterBody(chars, cols), {}); },
     letterList: LETTERS,
