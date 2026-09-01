@@ -45,6 +45,8 @@ MQ.ui.photo = (function () {
   const SIZES = [[48, 'あらい'], [64, 'ふつう'], [96, 'こまかい']];
   let size = 96;                    // ドット絵の マス数（初期は こまかい・v3.3）
   let cleanMode = 3;                // しあげ：3 = モンスター（絵を 参考に 組み立てる・v3.6）／2 = ゲームふう／1 = 絵の まま／0 = しない
+  let picks = [];                   // モンスターの 候補 3体（v3.8）
+  let pickAt = 0;                   // えらんで いる 候補
   let img = null;                   // 読みこんだ 写真
   let crop = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 };   // わく（0〜1の わりあい・長方形で OK）
   let tol = 55;                     // 「はいけいを 消す」（55 = 自動の しきい値の まま。大きいほど よく 消える）
@@ -1105,14 +1107,16 @@ MQ.ui.photo = (function () {
     if (cleanMode >= 1) cleanCells(cells, N, cleanMode >= 2);
     if (cleanMode === 2) { solidify(cells, N); cleanCells(cells, N, true); gameStyle(cells, N); }
     if (cleanMode === 3) {
-      // 絵からは 特徴（色・形・つの・目の数）だけ 読んで、ゲームの 部品で 組み立てる（v3.6）
-      solidify(cells, N);
-      const gen = MQ.monsterGen && MQ.monsterGen.fromCells(cells, N);
-      if (gen) {
-        lastInfo = { size: 48, drawn: gen.shape.length, colors: Object.keys(gen.colors).length, clean: 3, kind: gen.kind, features: gen.features, box: box };
-        return gen.png;
+      // 絵から 特徴（色・かたち・つの・目の数）を 読んで、ゲームの 部品で 3体の 候補を 作る（v3.8）
+      const list = MQ.monsterGen ? MQ.monsterGen.variants(cells, N, 3) : [];
+      if (list.length) {
+        picks = list;
+        if (pickAt >= picks.length) pickAt = 0;
+        lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, drawn: list[pickAt].shape.length, box: box };
+        return picks[pickAt].png;
       }
-      gameStyle(cells, N);   // 特徴が 読めない ほど 小さい 絵の ときは ゲームふうで
+      picks = [];
+      gameStyle(cells, N);   // 絵が 小さすぎる ときは ゲームふうで
     }
 
     // 色を 16色に そろえる
@@ -1359,6 +1363,25 @@ MQ.ui.photo = (function () {
       h('button', { class: 'btn btn--small btn--stone photo__redo', type: 'button', text: '写真から やり直す', onclick: function () { MQ.sfx.tap(); edited = ''; drawStage(); refresh(); } })
     ]);
 
+    // 候補 3体の タイル（v3.8）。タップで えらぶ
+    const pickRow = h('div', { class: 'photo__picks', hidden: 'hidden' });
+    function paintPicks() {
+      pickRow.innerHTML = '';
+      pickRow.hidden = !(cleanMode === 3 && picks.length > 1 && !edited);
+      if (pickRow.hidden) return;
+      pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'どれに する？' }));
+      picks.forEach(function (p, i) {
+        const b = h('button', {
+          class: 'photo__pick' + (i === pickAt ? ' is-on' : ''), type: 'button',
+          onclick: function () {
+            if (pickAt === i) return;
+            pickAt = i; MQ.sfx.tap();
+            refresh();
+          }
+        }, [h('img', { class: 'photo__pickimg', src: p.png, alt: '' })]);
+        pickRow.appendChild(b);
+      });
+    }
     // できあがりの みほん。しゃしんを とるまでは かくしておく
     const previewRow = h('div', { class: 'photo__preview', hidden: 'hidden' }, [
       h('div', { class: 'photo__views' }, [
@@ -1369,6 +1392,7 @@ MQ.ui.photo = (function () {
         ])
       ]),
       emptyNote,
+      pickRow,
       sliderRow('はいけいを 消す', 15, 120, function () { return tol; }, function (v) { tol = v; }),
       sliderRow('線を こく', 0, 100, function () { return inkLv; }, function (v) { inkLv = v; }),
       sizeRow,
@@ -1387,6 +1411,7 @@ MQ.ui.photo = (function () {
     function refresh() {
       syncSizeRow();
       outUrl = edited || build();
+      paintPicks();
       preview.src = outUrl || '';
       previewBattle.src = outUrl || '';
       previewRow.hidden = !(img || edited);   // しゃしんも 直した 絵も ない ときは かくす
@@ -1479,6 +1504,7 @@ MQ.ui.photo = (function () {
 
     function useImage(im) {
       img = im;
+      pickAt = 0;
       origImg = null; origCrop = null; aiUsed = false; aiError = ''; edited = '';
       crop = defaultCrop();
       autoCrop();
@@ -1637,6 +1663,7 @@ MQ.ui.photo = (function () {
     info: function () { return lastInfo; },
     debug: debugImages,
     crop: function () { return crop; },
+    picks: function () { return picks.map(function (p) { return { kind: p.kind, png: p.png }; }); },   // テスト用：候補 3体
     build: build,
     // AI（v2.8）の いまの 状態（テスト用）
     aiState: function () { return { busy: aiBusy, ai: aiUsed, error: aiError, hasOrig: !!origImg, out: outUrl.length, edited: !!edited }; },

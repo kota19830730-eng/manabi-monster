@@ -1832,6 +1832,11 @@ body {
 .photo__cap { font-size: 12px; color: var(--tx-sub); }
 .photo__row { display: flex; align-items: center; gap: 10px; }
 .photo__lbl { flex: none; width: 100px; font-size: 13px; color: #dbe4ff; }
+/* モンスターの 候補 3体（v3.8）。タップで えらぶ */
+.photo__picks { display: flex; align-items: center; gap: 8px; }
+.photo__pick { flex: none; width: 62px; height: 62px; padding: 0; border: 3px solid var(--frame); border-radius: 12px; background: rgba(16,24,48,.85); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.photo__pick.is-on { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(245,197,66,.35), 0 3px 0 var(--gold-sh); }
+.photo__pickimg { width: 52px; height: 52px; image-rendering: pixelated; object-fit: contain; }
 .photo__btns { display: flex; gap: 8px; justify-content: center; }
 .chips--tight { gap: 6px; }
 .chip--s { min-height: 36px; padding: 0 10px; font-size: 13px; }

@@ -503,6 +503,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (parts[5] === 'down') { const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__preview'); if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 90; }   // :down = できあがりまで スクロール
       // できあがり（PNG）と わくの 中の 写真（JPEG）を ログに 出す（外の 道具で ならべて 見る ため）
       say('png:' + ($('.photo__out').src || ''));
+      try { (MQ.ui.photo.picks() || []).forEach(function (p, i) { say('pick' + i + ':' + p.kind + ':' + p.png); }); } catch (e) {}
       try { const dbg = MQ.ui.photo.debug(); if (dbg) { say('norm:' + dbg.norm); say('cls:' + dbg.cls); } } catch (e) { say('debug: ' + e); }
       try {
         const c2 = MQ.ui.photo.crop(), im = $('.photo__img');

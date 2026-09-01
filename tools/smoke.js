@@ -1343,42 +1343,73 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   MQ.content.setActive(null);
 })();
 
-/* ---------- 絵から モンスターを 組み立てる（v3.6・monstergen.js） ---------- */
+/* ---------- 絵から モンスターを 組み立てる（v3.6〜・monstergen.js） ---------- */
 (function () {
   const G = MQ.monsterGen;
   check(!!G, 'monsterGen が ある');
-  // にせの 絵：よこ長の オレンジの かたまり＋目 2つ
-  function fake(N, w, h, col) {
+  const KINDS = ['blob', 'beast', 'fish', 'bird', 'humanoid', 'bug', 'box', 'triple'];
+  const N = 64;
+  // まる／たまご形の 絵を 作る（目 2つ つき）
+  function blobArt(cx, cy, rx, ry, col, eyes) {
     const cells = new Array(N * N).fill(null);
-    const x0 = Math.round((N - w) / 2), y0 = Math.round((N - h) / 2);
-    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) cells[y * N + x] = { ink: false, c: col.slice() };
-    // 目（こい かたまり）2つ
-    [[x0 + 4, y0 + 4], [x0 + w - 8, y0 + 4]].forEach(function (p) {
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const dx = (x - cx) / rx, dy = (y - cy) / ry;
+        if (dx * dx + dy * dy <= 1) cells[y * N + x] = { ink: false, c: col.slice() };
+      }
+    }
+    (eyes || []).forEach(function (p) {
       for (let y = p[1]; y < p[1] + 3; y++) for (let x = p[0]; x < p[0] + 3; x++) cells[y * N + x] = { ink: true, c: [30, 28, 40] };
     });
     return cells;
   }
-  const N = 64;
-  const f1 = G.analyze(fake(N, 40, 24, [230, 140, 60]), N);
-  check(!!f1, 'よこ長の 絵から 特徴が 読める');
-  check(f1.wide === true && f1.tall === false, 'よこ長と わかる（ratio ' + f1.ratio.toFixed(2) + '）');
-  check(f1.main[0] > f1.main[2], '主な 色は オレンジ（赤 > 青）');
-  check(f1.eyes >= 1 && f1.eyes <= 3, '目の 数は 1〜3（' + f1.eyes + '）');
-  const m1 = G.make(f1);
-  check(!!m1 && m1.shape.length >= 8, '四角の ならびが できる（' + (m1 ? m1.shape.length : 0) + '個）');
-  check(['beast', 'fish', 'stand', 'round'].indexOf(m1.kind) >= 0, 'かたちは 4しゅるいの どれか（' + m1.kind + '）');
-  check(/^#[0-9a-f]{6}$/.test(m1.colors.A), '色 A が #xxxxxx（' + m1.colors.A + '）');
-  // 48×48 に おさまる（はみ出しは blocks.js と 同じ ルール）
-  const over = m1.shape.filter(function (p) { return p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48; });
-  check(over.length === 0, '48マスから はみ出さない');
-  // たて長は 立ちすがた
-  const f2 = G.analyze(fake(N, 20, 40, [90, 150, 230]), N);
-  check(f2.tall === true, 'たて長と わかる');
-  check(G.make(f2).kind === 'stand', 'たて長は 立ちすがた');
-  // 同じ 絵なら いつも 同じ すがた
-  check(G.make(G.analyze(fake(N, 40, 24, [230, 140, 60]), N)).kind === m1.kind, '同じ 絵なら 同じ かたち');
-  // 小さすぎる 絵は null
+  function rectArt(x0, y0, w, h, col) {
+    const cells = new Array(N * N).fill(null);
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) cells[y * N + x] = { ink: false, c: col.slice() };
+    return cells;
+  }
+  // ① たて長の たまご → 立ちすがた
+  const fTall = G.analyze(blobArt(32, 32, 11, 22, [90, 150, 230], [[26, 16], [34, 16]]), N);
+  check(!!fTall, 'たて長の 絵から 特徴が 読める');
+  check(fTall.tall === true && fTall.wide === false, 'たて長と わかる（ratio ' + fTall.ratio.toFixed(2) + '）');
+  check(fTall.main[2] > fTall.main[0], '主な 色は 青（青 > 赤）');
+  const mTall = G.make(fTall);
+  check(mTall.kind === 'humanoid' || mTall.kind === 'blob', 'たて長は 立ちすがた か まる（' + mTall.kind + '）');
+  // ② よこ長の たまご → よこ長の しゅるい
+  const fWide = G.analyze(blobArt(32, 32, 22, 11, [230, 140, 60], [[18, 26], [26, 26]]), N);
+  check(fWide.wide === true, 'よこ長と わかる');
+  check(fWide.main[0] > fWide.main[2], '主な 色は オレンジ（赤 > 青）');
+  check(['fish', 'beast', 'bug'].indexOf(G.make(fWide).kind) >= 0, 'よこ長は さかな／けもの／むし（' + G.make(fWide).kind + '）');
+  // ③ 四角い 絵 → はこ
+  check(G.make(G.analyze(rectArt(18, 16, 28, 26, [200, 120, 70]), N)).kind === 'box', '四角い 絵は はこ');
+  // ④ 3つに 分かれた 絵 → 3つご
+  (function () {
+    const cells = new Array(N * N).fill(null);
+    [[10, 24], [27, 24], [44, 24]].forEach(function (p, i) {
+      for (let y = p[1]; y < p[1] + 16; y++) for (let x = p[0]; x < p[0] + 10; x++) cells[y * N + x] = { ink: false, c: [200, 80 + i * 60, 90] };
+    });
+    const f3 = G.analyze(cells, N);
+    check(f3.parts === 3, '3つに 分かれて いると わかる（' + f3.parts + '）');
+    check(G.make(f3).kind === 'triple', '3つに 分かれた 絵は 3つご');
+  })();
+  // ⑤ できあがりの きまりごと
+  const m = G.make(fWide);
+  check(m.shape.length >= 8, '四角の ならびが できる（' + m.shape.length + '個）');
+  check(KINDS.indexOf(m.kind) >= 0, 'しゅるいは 8つの どれか');
+  check(/^#[0-9a-f]{6}$/.test(m.colors.A), '色 A が #xxxxxx（' + m.colors.A + '）');
+  const over = m.shape.filter(function (p) { return p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48; });
+  check(over.length === 0, '48マスから はみ出さない（はみ出し ' + over.length + '個）');
+  // ぜんぶの しゅるいで はみ出さないか
+  let bad = 0;
+  KINDS.forEach(function (k) {
+    const f = { main: [200, 120, 60], accent: [80, 160, 220], eyes: 3, horns: 3, wings: true, skull: true, teeth: true, legs: 4, wide: true, tall: false, parts: k === 'triple' ? 3 : 1, rectness: k === 'box' ? 0.9 : 0.5, sideOut: true };
+    const sp = G.make(f).shape;
+    sp.forEach(function (p) { if (p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48) bad++; });
+  });
+  check(bad === 0, 'おまけを ぜんぶ つけても はみ出さない（' + bad + '個）');
   check(G.analyze(new Array(N * N).fill(null), N) === null, '絵が なければ null');
+  // 同じ 絵なら いつも 同じ すがた
+  check(G.make(G.analyze(blobArt(32, 32, 22, 11, [230, 140, 60], [[18, 26], [26, 26]]), N)).kind === m.kind, '同じ 絵なら 同じ かたち');
 })();
 
 // 非同期の 検査（AI の generate など）が おわってから まとめる
