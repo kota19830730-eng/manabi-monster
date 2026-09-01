@@ -1112,7 +1112,7 @@ MQ.ui.photo = (function () {
       if (list.length) {
         picks = list;
         if (pickAt >= picks.length) pickAt = 0;
-        lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, drawn: list[pickAt].shape.length, box: box };
+        lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, kinds2: list.map(function (v) { return v.tag; }), box: box };
         return picks[pickAt].png;
       }
       picks = [];

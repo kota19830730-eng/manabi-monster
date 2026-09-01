@@ -120,7 +120,131 @@ MQ.monsterGen = (function () {
       return cnt;
     }
 
-    // 目：上の ほうに ある 小さな こい かたまり（大きすぎ・小さすぎは 数えない）
+    /* 子どもが かいた「丸」を さがす（v3.9）。
+       目は かならず **線で かこまれた ところ**として かかれる（中が 白でも 色でも いい）。
+       線（こい ところ）の 外がわから ぬりつぶして いき、たどりつけなかった ところ＝丸の 中。
+       かえり値：[{ n:大きさ, x, y, w, h }]（大きい じゅん） */
+    function loops() {
+      const inkM = new Uint8Array(N * N);
+      for (let k = 0; k < N * N; k++) if (cells[k] && cells[k].ink) inkM[k] = 1;
+      // 線を ふとらせて すきまを ふさぐ（えんぴつの 線は よく 切れて いる。半径 2 まで うめる）
+      const R = 1;   // 線を ふとらせすぎると 小さな 丸（目）が つぶれる。1 が ちょうど よい
+      const wall = new Uint8Array(N * N);
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          if (!inkM[y * N + x]) continue;
+          for (let dy = -R; dy <= R; dy++) {
+            for (let dx = -R; dx <= R; dx++) {
+              const nx = x + dx, ny = y + dy;
+              if (nx < x0 || ny < y0 || nx > x1 || ny > y1) continue;
+              wall[ny * N + nx] = 1;
+            }
+          }
+        }
+      }
+      // 外がわから ぬる
+      const out = new Uint8Array(N * N);
+      const st = [];
+      for (let x = x0; x <= x1; x++) { [y0, y1].forEach(function (y) { const k = y * N + x; if (!wall[k] && !out[k]) { out[k] = 1; st.push(k); } }); }
+      for (let y = y0; y <= y1; y++) { [x0, x1].forEach(function (x) { const k = y * N + x; if (!wall[k] && !out[k]) { out[k] = 1; st.push(k); } }); }
+      while (st.length) {
+        const k = st.pop();
+        const x = k % N, y = (k - x) / N;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+          const nx = x + d[0], ny = y + d[1];
+          if (nx < x0 || ny < y0 || nx > x1 || ny > y1) return;
+          const nk = ny * N + nx;
+          if (!wall[nk] && !out[nk]) { out[nk] = 1; st.push(nk); }
+        });
+      }
+      // たどりつけなかった ところ＝丸の 中。かたまりに 分ける
+      const seen = new Uint8Array(N * N);
+      const found = [];
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const k0 = y * N + x;
+          if (seen[k0] || wall[k0] || out[k0]) continue;
+          let cnt = 0, ax0 = x, ay0 = y, ax1 = x, ay1 = y, sx = 0, sy = 0;
+          const q = [k0];
+          seen[k0] = 1;
+          while (q.length) {
+            const k = q.pop();
+            const qx = k % N, qy = (k - qx) / N;
+            cnt++; sx += qx; sy += qy;
+            if (qx < ax0) ax0 = qx; if (qx > ax1) ax1 = qx;
+            if (qy < ay0) ay0 = qy; if (qy > ay1) ay1 = qy;
+            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+              const nx = qx + d[0], ny = qy + d[1];
+              if (nx < x0 || ny < y0 || nx > x1 || ny > y1) return;
+              const nk = ny * N + nx;
+              if (!seen[nk] && !wall[nk] && !out[nk]) { seen[nk] = 1; q.push(nk); }
+            });
+          }
+          found.push({ n: cnt, x: sx / cnt, y: sy / cnt, w: ax1 - ax0 + 1, h: ay1 - ay0 + 1 });
+        }
+      }
+      return found.sort(function (a, b) { return b.n - a.n; });
+    }
+
+    /* 色の ついた 小さな かたまり（赤い 目・オレンジの 目 など）。
+       線で かこまれて いなくても、まわりと ちがう こい 色で 小さく まとまって いれば 目 */
+    function colorSpots() {
+      const area = bw * bh;
+      const seen = new Uint8Array(N * N);
+      const out = [];
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const k = y * N + x;
+          const c = cells[k];
+          if (seen[k] || !c || c.ink) continue;
+          const ch = Math.max(c.c[0], c.c[1], c.c[2]) - Math.min(c.c[0], c.c[1], c.c[2]);
+          if (ch < 45) { seen[k] = 1; continue; }              // 色みが うすい ところは 目に しない
+          const key = [Math.round(c.c[0] / 40), Math.round(c.c[1] / 40), Math.round(c.c[2] / 40)].join(',');
+          let cnt = 0, sx = 0, sy = 0, ax0 = x, ay0 = y, ax1 = x, ay1 = y;
+          const st = [k];
+          seen[k] = 1;
+          while (st.length) {
+            const q = st.pop();
+            const qx = q % N, qy = (q - qx) / N;
+            cnt++; sx += qx; sy += qy;
+            if (qx < ax0) ax0 = qx; if (qx > ax1) ax1 = qx;
+            if (qy < ay0) ay0 = qy; if (qy > ay1) ay1 = qy;
+            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+              const nx = qx + d[0], ny = qy + d[1];
+              if (nx < x0 || ny < y0 || nx > x1 || ny > y1) return;
+              const nk = ny * N + nx;
+              const c2 = cells[nk];
+              if (seen[nk] || !c2 || c2.ink) return;
+              const k2 = [Math.round(c2.c[0] / 40), Math.round(c2.c[1] / 40), Math.round(c2.c[2] / 40)].join(',');
+              if (k2 !== key) return;
+              seen[nk] = 1;
+              st.push(nk);
+            });
+          }
+          const w = ax1 - ax0 + 1, h = ay1 - ay0 + 1;
+          const ar = w / h;
+          if (cnt >= area * 0.002 && cnt <= area * 0.05 && ar >= 0.45 && ar <= 2.2 &&
+              cnt >= w * h * 0.45 && (sy / cnt - y0) < bh * 0.7) {
+            out.push({ n: cnt, x: sx / cnt, y: sy / cnt, w: w, h: h });
+          }
+        }
+      }
+      return out.sort(function (a, b) { return b.n - a.n; });
+    }
+
+    /* 丸の 中で「目」らしい もの：まるっこくて、大きすぎず、上の ほうに ある */
+    function eyeLoops(all) {
+      const area = bw * bh;
+      return all.filter(function (l) {
+        const ar = l.w / l.h;
+        return l.n >= area * 0.002 && l.n <= area * 0.16 &&
+               ar >= 0.45 && ar <= 2.2 &&
+               l.n >= l.w * l.h * 0.42 &&                       // すきまだらけの ものは のぞく
+               (l.y - y0) < bh * 0.72;                          // 顔は 上の ほう
+      });
+    }
+
+    // 目：上の ほうに ある 小さな こい かたまり（v3.9 からは 丸を 見て 数える）
     function eyes() {
       const seen = new Int32Array(N * N);
       const sizes = [];
@@ -190,7 +314,73 @@ MQ.monsterGen = (function () {
     }
 
     const ratio = bw / bh;
-    const eyeN = eyes();
+    const allLoops = loops();
+    const spots = [];   // 色の かたまりは つながりやすく、目の 数を まちがえる ので つかわない
+    // 丸と 色の かたまりを あわせる（同じ 場所は 1つに）
+    const eLoops = eyeLoops(allLoops).slice();
+    spots.forEach(function (sp) {
+      const dup = eLoops.some(function (l) { return Math.abs(l.x - sp.x) < bw * 0.06 && Math.abs(l.y - sp.y) < bh * 0.08; });
+      if (!dup) eLoops.push(sp);
+    });
+    eLoops.sort(function (a, b) { return b.n - a.n; });
+
+    /* 目の 数：丸で 数える。近い 大きさの 丸が よこに ならんで いれば その 数（1〜3）。
+       丸が 見つからない ときだけ 昔の やり方（こい かたまり）で 数える */
+    function eyeCount() {
+      if (!eLoops.length) return eyes();
+      const big = eLoops[0].n;
+      const same = eLoops.filter(function (l) { return l.n >= big * 0.25; });
+      if (same.length >= 3) return 3;
+      if (same.length === 2) return 2;
+      return 1;
+    }
+
+    /* ドクロの 頭：**上の ほうに ある 白い まるい 顔の 中に、目のあなの 丸が 2つ ならぶ**。
+       絵ぜんたいが 白っぽい だけの もの（サメ など）は ドクロに しない */
+    function isSkull() {
+      if (eLoops.length < 2) return false;
+      const a = eLoops[0], b = eLoops[1];
+      if (b.n < a.n * 0.35) return false;
+      if (Math.abs(a.y - b.y) > bh * 0.18) return false;                 // よこに ならんで いる
+      const dx = Math.abs(a.x - b.x);
+      if (dx < Math.max(a.w, b.w) * 0.6 || dx > bw * 0.45) return false; // ちかすぎ・はなれすぎ は ちがう
+      const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+      if (cy - y0 > bh * 0.5) return false;                              // 顔は 上の ほう
+      // 目の まわりが 白い か
+      const r = Math.round(Math.max(dx * 1.2, Math.max(a.w, b.w) * 2.2));
+      let light = 0, tot = 0;
+      for (let y = Math.round(cy) - r; y <= Math.round(cy) + r; y++) {
+        for (let x = Math.round(cx) - r; x <= Math.round(cx) + r; x++) {
+          if (x < x0 || y < y0 || x > x1 || y > y1) continue;
+          const c = cells[y * N + x];
+          if (!c || c.ink) continue;
+          tot++;
+          if (lum(c.c) > 198) light++;
+        }
+      }
+      if (tot < 25 || light / tot < 0.55) return false;
+      // 絵ぜんたいが 白っぽい ときは「白い 顔」に ならない（サメ・紙の 色）
+      let lightAll = 0, fill = 0;
+      for (let k = 0; k < N * N; k++) {
+        const c = cells[k];
+        if (!c || c.ink) continue;
+        fill++;
+        if (lum(c.c) > 198) lightAll++;
+      }
+      return fill > 0 && lightAll / fill < 0.62;
+    }
+
+    /* 本・はこ：**大きくて 四角い「かこまれた ところ」**が ある（ずかんの あくま の 本） */
+    function isBox() {
+      const area = bw * bh;
+      return allLoops.some(function (l) {
+        const ar = l.w / l.h;
+        return l.n >= area * 0.09 && l.w >= bw * 0.28 && l.h >= bh * 0.28 &&
+               l.n >= l.w * l.h * 0.6 && ar >= 0.55 && ar <= 2.4;
+      });
+    }
+
+    const eyeN = eyeCount();
     const so = sideOut();
     const ct = contrast();
     const rectness = n / (bw * bh);
@@ -234,10 +424,14 @@ MQ.monsterGen = (function () {
       dense: n / (bw * bh),
       area: n,
       parts: parts(),
+      loops: eLoops.length,
+      dbg: { all: allLoops.slice(0, 6).map(function (l) { return { n: +(l.n / (bw * bh) * 100).toFixed(1), x: +((l.x - x0) / bw).toFixed(2), y: +((l.y - y0) / bh).toFixed(2), w: +(l.w / bw).toFixed(2), h: +(l.h / bh).toFixed(2), fill: +(l.n / (l.w * l.h)).toFixed(2) }; }), eye: eLoops.slice(0, 4).map(function (l) { return { n: +(l.n / (bw * bh) * 100).toFixed(1), x: +((l.x - x0) / bw).toFixed(2), y: +((l.y - y0) / bh).toFixed(2) }; }) },
+      loopBig: eLoops.length ? Math.round(eLoops[0].n / (bw * bh) * 1000) / 10 : 0,
       rectness: rectness,
       sideOut: so >= 0.22,
       wings: so >= 0.34,
-      skull: ct.light >= 0.3 && ct.dark >= 0.2 && lum(pop(main)) > 150 && (Math.max(main[0], main[1], main[2]) - Math.min(main[0], main[1], main[2])) < 45,
+      skull: isSkull(),
+      boxish: isBox(),
       teeth: jag >= 4,
       // ゆびもん：同じ 絵なら いつも 同じ すがた、ちがう 絵なら ちがう すがたに なる ための 数
       seed: Math.abs(Math.round(main[0] * 7 + main[1] * 13 + main[2] * 17 + n * 3 + ratio * 991 + bw * 5 + bh * 11))
@@ -465,7 +659,7 @@ MQ.monsterGen = (function () {
       bird: (f.wings ? 4 : 0) + 1,
       humanoid: (f.tall ? 4 : 0) + (f.legs >= 2 ? 1 : 0) + 1,
       bug: (f.legs >= 4 ? 4 : 0) + (f.horns >= 2 ? 1 : 0),
-      box: (f.rectness >= 0.9 ? 5 : f.rectness >= 0.82 ? 2 : 0),     // まる（だ円）でも 0.79 に なる ので、四角は 0.9 いじょう
+      box: (f.boxish ? 5 : 0) + (f.rectness >= 0.9 ? 3 : f.rectness >= 0.82 ? 1 : 0),   // 四すみが うまって いれば 本・はこ
       triple: (f.parts >= 3 ? 6 : 0)
     };
     // 同じ 点数の ときは 絵の ゆびもんで 順番を 変える（絵ごとに ちがう 顔ぶれに なる）
@@ -910,14 +1104,29 @@ MQ.monsterGen = (function () {
   function variants(cells, N, n) {
     const f = analyze(cells, N);
     if (!f) return [];
+    const want = n || 3;
     const order = kindScores(f);
     const out = [];
-    for (let i = 0; i < order.length && out.length < (n || 3); i++) {
-      const m = make(f, order[i].kind);
-      if (!m) continue;
-      out.push({ png: png(m.shape, m.colors), kind: m.kind, shape: m.shape, colors: m.colors });
+    function add(feat, kind, tag) {
+      if (out.length >= want) return;
+      const m = make(feat, kind);
+      if (!m) return;
+      out.push({ png: png(m.shape, m.colors), kind: m.kind, tag: tag || m.kind, shape: m.shape, colors: m.colors });
     }
-    return out;
+    // ① いちばん 合う すがた
+    add(f, order[0].kind);
+    // ② ドクロ頭の すがた（目が 2つの とき。スカルホースの ような 絵）
+    if (f.eyes === 2 && !f.skull) {
+      const g = {};
+      Object.keys(f).forEach(function (k) { g[k] = f[k]; });
+      g.skull = true;
+      add(g, order[0].kind, 'skull');
+    }
+    // ③ はこ（本・宝箱の ような 絵）
+    if (!f.boxish) add(f, 'box', 'box');
+    // ④ のこりは つぎに 合う すがた
+    for (let i = 1; i < order.length && out.length < want; i++) add(f, order[i].kind);
+    return out.slice(0, want);
   }
 
   /* 絵（cells）から いっきに PNG まで */
