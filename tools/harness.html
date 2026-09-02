@@ -32,7 +32,7 @@
     #flow    ぜんぶ 自動で 通す（ログを #log に 出す）
     #map4 #battle4:N #figs4 #treasure4 #parent4 … 小4ワールド（v4.4・算数 15ステージ）
     #kokugo4 #koku4:N … 小4 国語（v4.5・かん字 219字＋ことば。N=1〜4）
-    #rika4:N #shakai4:N … 小4 理科・社会（v4.6・N=1〜4）
+    #rika4:N #shakai4:N #eigo4:N … 小4 理科・社会・英語（v4.6/v4.7・N=1〜4）
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -89,6 +89,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/kokugo4.js"></script>
 <script src="../js/content/rika4.js"></script>
 <script src="../js/content/shakai4.js"></script>
+<script src="../js/content/eigo4.js"></script>
 <script src="../js/content/terms.js"></script>
 <script src="../js/content/world3.js"></script>
 <script src="../js/ui/common.js"></script>
@@ -435,7 +436,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     // 小4ワールド（v4.4）：#map4(:-1) マップ／#battle4:N 算数N／#treasure4／#parent4 おうちの人ページ
-    if (mode === 'map4' || mode.indexOf('map4:') === 0 || mode.indexOf('battle4') === 0 || mode === 'treasure4' || mode === 'parent4' || mode === 'kokugo4' || mode.indexOf('koku4') === 0 || mode.indexOf('rika4') === 0 || mode.indexOf('shakai4') === 0) {
+    if (mode === 'map4' || mode.indexOf('map4:') === 0 || mode.indexOf('battle4') === 0 || mode === 'treasure4' || mode === 'parent4' || mode === 'kokugo4' || mode.indexOf('koku4') === 0 || mode.indexOf('rika4') === 0 || mode.indexOf('shakai4') === 0 || mode.indexOf('eigo4') === 0) {
       fresh({
         stars: { 'sansu4-1': 3, 'sansu4-2': 2, 'sansu4-3': 3, 'sansu4-4': 1 },
         treasure: { 'tr4-oku': 2, 'tr4-graph': 1, 'tr4-wari1': 2 },
@@ -451,6 +452,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       // 小4 理科・社会（v4.6）：#rika4:3 #shakai4:1
       if (mode.indexOf('rika4') === 0) { const rn = parseInt(mode.slice(6), 10); MQ.ui.battle.start('rika4-' + (isNaN(rn) ? 1 : rn)); await wait(600); return; }
       if (mode.indexOf('shakai4') === 0) { const sn = parseInt(mode.slice(8), 10); MQ.ui.battle.start('shakai4-' + (isNaN(sn) ? 1 : sn)); await wait(600); return; }
+      if (mode.indexOf('eigo4') === 0) { const en = parseInt(mode.slice(6), 10); MQ.ui.battle.start('eigo4-' + (isNaN(en) ? 1 : en)); await wait(600); return; }
       if (mode === 'treasure4') { MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
       if (mode === 'parent4') { MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
       MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
@@ -1241,9 +1243,28 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await playBattle('shakai4');
     await wait(700);
     say('社会の ボス: ' + (MQ.enemies.bossFor('shakai').name === 'グランドタイタン' ? 'ok' : 'MISSING'));
+
+    say('--- 小4 英語（v4.7） ---');
+    for (const en of [1, 2, 3, 4]) {
+      MQ.ui.battle.start('eigo4-' + en);
+      await wait(400);
+      const eq = MQ.battle.current();
+      say('eigo4-' + en + ': ' + (eq && $('.card__q') ? 'ok ' + MQ.util.stripTags(eq.prompt).slice(0, 18) : 'MISSING'));
+    }
     MQ.ui.goMap();
     await wait(400);
-    say('小4の ゾーン: ' + $$('#screen-map .biome__name').length + ($$('#screen-map .biome__name').length === 4 ? ' ok' : ' MISSING'));
+    say('小4の ゾーン: ' + $$('#screen-map .biome__name').length + ($$('#screen-map .biome__name').length === 5 ? ' ok' : ' MISSING'));
+    say('理科の 湖: ' + ($$('#screen-map .biome__name').filter(function (e) { return e.textContent.indexOf('理科の 湖') >= 0; }).length ? 'ok' : 'MISSING'));
+
+    say('--- 学年ごとの 地図（v4.7） ---');
+    for (const g of [1, 2, 3, 4]) {
+      MQ.save.setPlayGrade(g);
+      MQ.ui.goMap();
+      await wait(300);
+      const el = $('#screen-map .map');
+      say('小' + g + ' の 地図: ' + (el && el.className.indexOf('map--g' + g) >= 0 ? 'ok ' + el.className : 'MISSING'));
+    }
+    MQ.save.setPlayGrade(4);
 
     say('--- 学年の きりかえ（v4.5） ---');
     MQ.ui.goMap();

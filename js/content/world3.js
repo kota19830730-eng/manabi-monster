@@ -401,6 +401,7 @@ MQ.content = (function () {
      ======================================================= */
   const kokugo4 = function () { return MQ.kokugo4.questions; };
   const rika4 = function () { return MQ.rika4.questions; };
+  const eigo4 = function () { return MQ.eigo4.questions; };
   const shakai4 = function () { return MQ.shakai4.questions; };
 
   const world4 = {
@@ -438,7 +439,7 @@ MQ.content = (function () {
       },
       /* 小4から 理科と 社会は べつの エリア（ユーザー決定 2026-09-02・v4.6） */
       {
-        id: 'rika', name: '理科の 山', short: '理科', color: 'var(--c-rika)', biome: 'hill',
+        id: 'rika', name: '理科の 湖', short: '理科', color: 'var(--c-rika)', biome: 'lake',
         stages: [
           stage('rika', 1, '天気と 生き物', rika4, 4),
           stage('rika', 2, '電気・空気と 水', rika4, 4),
@@ -453,6 +454,16 @@ MQ.content = (function () {
           stage('shakai', 2, '水と ごみ', shakai4, 4),
           stage('shakai', 3, 'くらしを 守る', shakai4, 4),
           stage('shakai', 4, 'きょう土と 地いき', shakai4, 4)
+        ]
+      },
+      /* 小4 英語（Let's Try! 2）v4.7 */
+      {
+        id: 'eigo', name: '英語の空', short: '英語', color: 'var(--c-eigo)', biome: 'sky',
+        stages: [
+          stage('eigo', 1, 'あいさつと 天気', eigo4, 4),
+          stage('eigo', 2, '曜日と 時こく', eigo4, 4),
+          stage('eigo', 3, '文ぼう具と ABC', eigo4, 4),
+          stage('eigo', 4, 'ほしい もの・学校', eigo4, 4)
         ]
       }
     ]

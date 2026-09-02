@@ -681,6 +681,31 @@ body {
 .deco--flower i:nth-child(1) { width: 5px; height: 5px; background: #ffe36b; box-shadow: 0 0 7px rgba(255,227,107,.9); }
 .deco--flower i:nth-child(2), .deco--flower i:nth-child(3) { display: none; }
 
+/* ---- 学年ごとの かざりの 色（v4.7）------------------------
+   地面の 色は js/core/tiles.js の THEMES。ここは その上に のる
+   木・花・岩の 色を そろえる ため。小3は 上の 標準の まま。 */
+
+/* 小1 はるの しま：やわらかい 黄緑の 木と ピンクの 花 */
+.map--g1 .deco--tree i:nth-child(1) { background: #62c153; }
+.map--g1 .deco--tree i:nth-child(2) { background: #55b449; box-shadow: inset 0 -3px 0 #429036; }
+.map--g1 .deco--tree i:nth-child(3) { background: #4fac45; box-shadow: inset 0 -3px 0 #3c8832; }
+.map--g1 .deco--flower i:nth-child(1) { background: #ff9ec4; box-shadow: 0 0 7px rgba(255,158,196,.9); }
+
+/* 小2 なつの しま：こい 緑の 木と 白い 花 */
+.map--g2 .deco--tree i:nth-child(1) { background: #2f9a3f; }
+.map--g2 .deco--tree i:nth-child(2) { background: #248a35; box-shadow: inset 0 -3px 0 #1a6a28; }
+.map--g2 .deco--tree i:nth-child(3) { background: #217f31; box-shadow: inset 0 -3px 0 #175f23; }
+.map--g2 .deco--flower i:nth-child(1) { background: #fffbe8; box-shadow: 0 0 7px rgba(255,251,232,.9); }
+
+/* 小4 あきの 大陸：紅葉した 木と 実の 色の 花・くすんだ 岩 */
+.map--g4 .deco--tree i:nth-child(1) { background: #e0913a; }
+.map--g4 .deco--tree i:nth-child(2) { background: #cf7330; box-shadow: inset 0 -3px 0 #a75620; }
+.map--g4 .deco--tree i:nth-child(3) { background: #bf5c2b; box-shadow: inset 0 -3px 0 #96421c; }
+.map--g4 .deco--tree i:nth-child(3)::after { background: #6b4a2c; }
+.map--g4 .deco--flower i:nth-child(1) { background: #ffcf6b; box-shadow: 0 0 7px rgba(255,207,107,.85); }
+.map--g4 .deco--rock i:nth-child(1) { background: #b7ae9f; }
+.map--g4 .deco--rock i:nth-child(2) { background: #9d9483; box-shadow: inset -6px 0 0 #857c6c; }
+
 /* 枯れ木（塔の 小島） */
 .deco--dead { transform: translate(-50%, -100%); filter: drop-shadow(0 3px 2px rgba(20,10,40,.5)); }
 .deco--dead i:nth-child(1) { width: 17px; height: 3px; background: #6b5b52; }

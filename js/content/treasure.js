@@ -146,7 +146,13 @@ MQ.treasure = (function () {
     { stage: 'shakai4-1', id: 'tr4-ken',     name: '県の らしんばん',        shape: 'compass',   colors: c('#4CD164', '#1E7A3C') },
     { stage: 'shakai4-2', id: 'tr4-gomi',    name: 'リサイクルの わ',        shape: 'ring',      colors: c('#4CD164', '#1E7A3C') },
     { stage: 'shakai4-3', id: 'tr4-mamori',  name: 'まもりの すず',          shape: 'bell',      colors: c('#E8443A', '#8A1F18') },
-    { stage: 'shakai4-4', id: 'tr4-kyodo',   name: 'きょう土の まきもの',    shape: 'scroll',    colors: c('#D8B889', '#8A5A2B') }
+    { stage: 'shakai4-4', id: 'tr4-kyodo',   name: 'きょう土の まきもの',    shape: 'scroll',    colors: c('#D8B889', '#8A5A2B') },
+
+    /* ---- 小4 英語の空（4）（v4.7） ---- */
+    { stage: 'eigo4-1',   id: 'tr4-hello',   name: 'あいさつの すず',        shape: 'bell',      colors: c('#8FD3FF', '#3E7FB0') },
+    { stage: 'eigo4-2',   id: 'tr4-youbi',   name: '曜日の すなどけい',      shape: 'hourglass', colors: c('#FF9A4A', '#A8542A') },
+    { stage: 'eigo4-3',   id: 'tr4-abc',     name: 'ABCの かぎ',             shape: 'key',       colors: c('#C9D3DC', '#6B7C8C') },
+    { stage: 'eigo4-4',   id: 'tr4-want',    name: 'ほしいものの たま',      shape: 'orb',       colors: c('#4CD164', '#1E7A3C') }
   ];
 
   const byStage = {};

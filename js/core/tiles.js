@@ -48,6 +48,65 @@ MQ.tiles = (function () {
   COLOR[DGRASS] = ['#3e7a58', '#397151'];
   COLOR[DSAND]  = ['#8f86a8', '#857c9e'];
 
+  /* =======================================================
+     学年ごとの 見た目（v4.7）
+
+     ユーザー要望「学年ごとに マップも 変えて」。
+     4つの ワールドを **べつの 島**に 見せる：
+       小1 はるの しま  … 明るい 黄緑・水色の 海・まるい 小さめの 島
+       小2 なつの しま  … こい 緑・青い 海・白い 砂・よこに 広い 島
+       小3 いまの しま  … これまでの 見た目（正本。ここは 変えない）
+       小4 あきの 大陸  … 黄みどりの 草・紅葉した 森・深い 海・ごつごつした 海岸
+
+     colors … 上の COLOR を 土台に、書いた ところだけ 差しかえる
+     edge   … 島の 形（margin＝左右の あき／wob＝海岸線の ギザギザ／taper＝上下の まるみ）
+            **margin + wob は 4 いか**に する。ノードは よこ 16%（5マスめ）〜82%（27マスめ）に
+            おかれるので、それより 外に 海が 入ると 道が 切れる（smoke.js が 検査）
+     ======================================================= */
+  function pal(list) {
+    const o = {};
+    list.forEach(function (p) { o[p[0]] = p[1]; });
+    return o;
+  }
+  const THEMES = {};
+  function theme(id, over, edge) {
+    const c = {};
+    Object.keys(COLOR).forEach(function (k) { c[k] = COLOR[k]; });
+    Object.keys(over).forEach(function (k) { c[k] = over[k]; });
+    THEMES[id] = { colors: c, edge: edge };
+  }
+  theme('g1', pal([
+    [GRASS,  ['#7cc95f', '#74c157']],
+    [FOREST, ['#4aa348', '#43993f']],
+    [SEA,    ['#4fa3e0', '#4a9ad6']],
+    [SHAL,   ['#8ed0f2', '#85c8ec']],
+    [SAND,   ['#f7e6b6', '#f1dfac']],
+    [ROCK,   ['#a8b2c4', '#9da7ba']],
+    [ROAD,   ['#e2dbca', '#d7d0be']]
+  ]), { margin: 3, wob: 1, taper: [9, 6, 3, 1] });
+
+  theme('g2', pal([
+    [GRASS,  ['#3fa251', '#399a4a']],
+    [FOREST, ['#227a35', '#1e7130']],
+    [SEA,    ['#1f6fc6', '#1b66ba']],
+    [SHAL,   ['#4fb6ea', '#48ade2']],
+    [SAND,   ['#f4eecd', '#ede6c3']],
+    [ROAD,   ['#d9d3c1', '#cec8b5']]
+  ]), { margin: 1, wob: 2, taper: [5, 3, 1, 0] });
+
+  theme('g3', pal([]), { margin: 2, wob: 2, taper: [7, 4, 2, 1] });
+
+  theme('g4', pal([
+    [GRASS,  ['#84a244', '#7c9a3e']],
+    [FOREST, ['#b3652c', '#a75d27']],
+    [SEA,    ['#265f9e', '#225795']],
+    [SHAL,   ['#4f9ccf', '#4894c8']],
+    [RIVER,  ['#4a9ad2', '#4291ca']],
+    [SAND,   ['#e2bb7c', '#dab372']],
+    [ROCK,   ['#95908a', '#8a8580']],
+    [ROAD,   ['#cbc1a8', '#c1b79e']]
+  ]), { margin: 1, wob: 3, taper: [8, 5, 3, 1] });
+
   function isLand(v) { return v >= SAND; }
   function isWater(v) { return v < SAND; }
 
@@ -67,9 +126,12 @@ MQ.tiles = (function () {
        riverY:   川の まんなか（px。なければ 川なし）
        tower:    { xPct, y }            塔の 小島の まんなか
        path:     [{ xPct, y }, ...]     道が つなぐ ところ（順番）
+       theme:    'g1'〜'g4'              学年ごとの 色と 島の 形（v4.7）
      }
      ======================================================= */
   function build(spec) {
+    const th = THEMES[spec.theme] || THEMES.g3;
+    const edge = th.edge;
     const rows = Math.max(10, Math.ceil(spec.height / CELL));
     const g = [];
     const dark = [];               // さいごの塔の 小島の マスか
@@ -96,9 +158,9 @@ MQ.tiles = (function () {
     const yBot = Math.min(rows - 2, row(spec.island.bottom));
     for (let y = yTop; y <= yBot; y++) {
       const k = Math.min(y - yTop, yBot - y);
-      const taper = k >= 4 ? 0 : [7, 4, 2, 1][k];
-      const l = 2 + taper + wob(y, 2);
-      const r = 29 - taper - wob(y + 91, 2);
+      const taper = k >= edge.taper.length ? 0 : edge.taper[k];
+      const l = edge.margin + taper + wob(y, edge.wob);
+      const r = (COLS - 3 - edge.margin) + 2 - taper - wob(y + 91, edge.wob);
       for (let x = l; x <= r; x++) put(x, y, GRASS);
     }
 
@@ -118,15 +180,30 @@ MQ.tiles = (function () {
           }
         }
       }
-      // 理科の おか（v4.6）：岩を 山より 少なく ちらす
-      if (b.biome === 'hill') {
-        for (let y = y0; y <= y1; y++) {
-          for (let x = 1; x < COLS - 1; x++) {
-            if (get(x, y) !== GRASS) continue;
-            if (wob(x * 19 + y * 37 + bi, 16) === 0) put(x, y, ROCK);
-            else if (wob(x * 11 + y * 7 + bi, 15) === 0) put(x, y, FOREST);
+      /* 理科の 湖（v4.7）：ノードの 行の 下に 池を おく。
+         きしべ（砂）は あとの 6番が 自動で つけて くれる。
+         道は ノードの 下では 左はし（16%）を たてに 通るので、
+         池は 12マスめより 右に おいて 橋に ならない ように する。 */
+      if (b.biome === 'lake') {
+        const ly0 = row(b.top + 118);
+        const ly1 = y1;
+        const cy = Math.round((ly0 + ly1) / 2);
+        [[20, 6, 2], [11, 3, 1]].forEach(function (p, pi) {
+          const cx = p[0], rx = p[1], ry = Math.min(p[2], Math.max(1, Math.floor((ly1 - ly0) / 2)));
+          for (let y = cy - ry; y <= cy + ry; y++) {
+            for (let x = cx - rx; x <= cx + rx; x++) {
+              const dx = (x - cx) / rx, dy = (y - cy) / (ry + 0.4);
+              if (dx * dx + dy * dy <= 1 && get(x, y) === GRASS) put(x, y, RIVER);
+            }
           }
-        }
+          if (pi === 0) {   // 湖の まわりに 木を 少し
+            for (let y = ly0; y <= ly1; y++) {
+              for (let x = 1; x < COLS - 1; x++) {
+                if (get(x, y) === GRASS && wob(x * 5 + y * 13 + bi, 9) === 0) put(x, y, FOREST);
+              }
+            }
+          }
+        });
       }
       if (b.biome === 'mountain') {
         for (let y = y0; y <= y1; y++) {
@@ -235,6 +312,7 @@ MQ.tiles = (function () {
 
     return {
       cells: g, cols: COLS, rows: rows, cell: CELL,
+      colors: th.colors,
       heightPx: rows * CELL,
       bridges: bridgeRects.map(function (r) {
         return { x: r.x * CELL, y: r.y * CELL, w: r.w * CELL, h: r.h * CELL };
@@ -273,7 +351,8 @@ MQ.tiles = (function () {
     for (let y = 0; y < grid.rows; y++) {
       const r = grid.cells[y];
       for (let x = 0; x < grid.cols; x++) {
-        const pair = COLOR[r[x]] || COLOR[SEA];
+        const table = grid.colors || COLOR;
+        const pair = table[r[x]] || table[SEA];
         ctx.fillStyle = pair[(x + y) & 1];
         ctx.fillRect(x, y, 1, 1);
       }
@@ -292,7 +371,7 @@ MQ.tiles = (function () {
   function landAt(grid, xPct, yPx) { return isLand(at(grid, xPct, yPx)); }
 
   return {
-    COLS: COLS, CELL: CELL, COLOR: COLOR,
+    COLS: COLS, CELL: CELL, COLOR: COLOR, THEMES: THEMES,
     SEA: SEA, SHAL: SHAL, RIVER: RIVER, SAND: SAND, GRASS: GRASS,
     FOREST: FOREST, ROCK: ROCK, ROAD: ROAD, BRIDGE: BRIDGE,
     DGRASS: DGRASS, DSAND: DSAND,

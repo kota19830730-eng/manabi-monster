@@ -95,6 +95,7 @@ MQ.ui.map = (function () {
     const height = withTower ? towerY + 44 + TOWER_PAD : islandBottom + STRAIT + 24;
 
     return {
+      theme: MQ.content.activeWorld().id,      // 学年ごとの 色と 島の 形（v4.7）
       bands: out, height: height, riverY: riverY,
       island: { top: islandTop, bottom: islandBottom },
       tower: withTower ? { xPct: TOWER_XPCT, y: towerY } : null,
@@ -111,7 +112,7 @@ MQ.ui.map = (function () {
     sea:      ['tree', 'flower', 'tree', 'flower', 'rock', 'tree', 'flower', 'tree'],
     sky:      ['tree', 'flower', 'tree', 'flower', 'tree', 'rock', 'flower', 'tree'],
     // 小4（v4.6）：理科の 山は 草と 岩の おか、社会の 町は 家が ならぶ
-    hill:     ['rock', 'flower', 'tree', 'rock', 'flower', 'flower', 'tree', 'rock'],
+    lake:     ['tree', 'flower', 'tree', 'rock', 'flower', 'tree', 'flower', 'tree'],
     town:     ['house', 'tree', 'flower', 'house', 'rock', 'flower', 'tree', 'house']
   };
   const DECO_W = { mt: 56, tree: 28, house: 34, rock: 22, flower: 8 };
@@ -164,7 +165,7 @@ MQ.ui.map = (function () {
   /* 大きい かざり（雪山・家）は 入る ところが 少ないので、
      ゾーンの 下から 上へ ていねいに さがして おく。 */
   const BIG_FOR = { mountain: ['mt', 'mt', 'mt'], forest: [], sea: ['house'], sky: ['house', 'house'],
-                    hill: ['mt'], town: ['house', 'house', 'house'] };
+                    lake: [], town: ['house', 'house', 'house'] };
 
   function bigPass(b, budget, placed, out) {
     const want = BIG_FOR[b.biome] || [];
@@ -433,7 +434,7 @@ MQ.ui.map = (function () {
       ]) : null
     ]);
 
-    MQ.ui.mount('screen-map', h('div', { class: 'map' }, [
+    MQ.ui.mount('screen-map', h('div', { class: 'map map--' + plan.theme }, [
       top,
       h('div', { class: 'map__scroll' }, [sheet, h('div', { class: 'map__vig' })]),
       bottom
