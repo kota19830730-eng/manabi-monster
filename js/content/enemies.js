@@ -220,6 +220,9 @@ MQ.enemies = (function () {
     { id: 'boss-oni',    area: 'kokugo',     name: 'モジオニ',        shape: 'oni',       colors: { A: '#FF5A5A', C: '#2B2B3A' } },
     { id: 'boss-knight', area: 'rikashakai', name: 'メカナイト',      shape: 'knight',    colors: { A: '#8A9BB8', B: '#12121A' } },
     { id: 'boss-slime',  area: 'eigo',       name: 'キングスライム',   shape: 'kingslime', colors: { A: '#FFA33A', B: '#B35F00' } },
+    /* 小4で 理科と 社会が べつの エリアに なった（v4.6）。
+       理科は メカナイト（rikashakai）を そのまま つかい、社会に この ボスを 足した */
+    { id: 'boss-titan',  area: 'shakai',     name: 'グランドタイタン', shape: 'titan',     colors: { A: '#8A7B63', B: '#4E4436' } },
     /* ラスボス。HPを 2つ けずると 第2形態（色が かわる）に なる */
     { id: 'boss-maou', area: 'tower', name: 'まおう', shape: 'maou', last: true,
       colors: { A: '#7A2436', B: '#3A0E18', r: '#FF3B30', y: '#FFD447', w: '#F2F2F2' },
@@ -273,7 +276,13 @@ MQ.enemies = (function () {
   /* バトルに 出す 敵を えらぶ。
      hard は 0〜1 の むずかしさ。かんたんな ステージは よわそうな 敵（rank1）が 多く、
      むずかしい ステージほど 強そうな 敵（rank3）が ふえる。ならびも よわい→強い。 */
+  /* 小4では 理科と 社会が べつの エリアに なる（v4.6）。
+     ザコの 顔ぶれは 小3の「理科社会の海」の ものを そのまま つかう。 */
+  const AREA_ALIAS = { rika: 'rikashakai', shakai: 'rikashakai' };
+  function poolArea(areaId) { return AREA_ALIAS[areaId] || areaId; }
+
   function pickIds(areaId, n, hard) {
+    areaId = poolArea(areaId);
     // any: true（にんじゃ）は どの エリアにも 出る
     let pool = list.filter(function (e) { return (e.area === areaId || e.any) && !e.rare && !e.hidden; });
     if (!pool.length) pool = list.filter(function (e) { return !e.rare && !e.hidden && e.area; });
@@ -302,6 +311,7 @@ MQ.enemies = (function () {
 
   // そのエリアの レア敵（息子さんの モンスター）。写真から 作ったものも まざる
   function rareIdsFor(areaId) {
+    areaId = poolArea(areaId);
     const own = list.filter(function (e) { return e.rare && e.area === areaId && !e.trio; })
                     .map(function (e) { return e.id; });
     const mine = customs.filter(function (e) { return e.area === areaId; }).map(function (e) { return e.id; });
@@ -321,6 +331,8 @@ MQ.enemies = (function () {
 
   function bossFor(areaId) {
     for (let i = 0; i < bosses.length; i++) if (bosses[i].area === areaId) return bosses[i];
+    const alias = poolArea(areaId);
+    for (let i = 0; i < bosses.length; i++) if (bosses[i].area === alias) return bosses[i];
     return bosses[0];
   }
 
@@ -338,7 +350,7 @@ MQ.enemies = (function () {
     list: list, bosses: bosses, shapes: shapes,
     get: get, node: node, shadowNode: shadowNode, dexList: dexList,
     pickIds: pickIds, goldenId: goldenId, rareId: goldenId, rareIdFor: rareIdFor, rareIdsFor: rareIdsFor,
-    trioFor: trioFor, bossFor: bossFor, setCustom: setCustom,
+    trioFor: trioFor, bossFor: bossFor, poolArea: poolArea, setCustom: setCustom,
     customs: function () { return customs; }
   };
 })();

@@ -1214,7 +1214,7 @@ MQ.ui.battle = (function () {
   function elementOf(areaId) {
     const a = String(areaId || '');
     if (a.indexOf('kokugo') === 0) return 'leaf';
-    if (a.indexOf('rika') === 0) return 'ice';
+    if (a.indexOf('rika') === 0 || a.indexOf('shakai') === 0) return 'ice';
     if (a.indexOf('eigo') === 0) return 'wind';
     return 'fire';
   }

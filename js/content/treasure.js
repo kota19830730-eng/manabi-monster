@@ -136,7 +136,17 @@ MQ.treasure = (function () {
     { stage: 'kokugo4-1', id: 'tr4-yomi',    name: '読みの はね',            shape: 'feather',   colors: c('#E8443A', '#8A1F18') },
     { stage: 'kokugo4-2', id: 'tr4-kaki',    name: '書きの まきもの',        shape: 'scroll',    colors: c('#3E9A6B', '#1E5A3C') },
     { stage: 'kokugo4-3', id: 'tr4-kotoba',  name: 'ことばの らしんばん',    shape: 'compass',   colors: c('#8A6BD8', '#4A2F8A') },
-    { stage: 'kokugo4-4', id: 'tr4-imi',     name: '意味の ももいし',        shape: 'gem',       colors: c('#FF6B9A', '#A8244F') }
+    { stage: 'kokugo4-4', id: 'tr4-imi',     name: '意味の ももいし',        shape: 'gem',       colors: c('#FF6B9A', '#A8244F') },
+
+    /* ---- 小4 理科の山（4）・社会の町（4）（v4.6） ---- */
+    { stage: 'rika4-1',   id: 'tr4-tenki',   name: '天気の はね',            shape: 'feather',   colors: c('#8FD3FF', '#3E7FB0') },
+    { stage: 'rika4-2',   id: 'tr4-denki',   name: '電気の たま',            shape: 'orb',       colors: c('#FFE96B', '#B8860B') },
+    { stage: 'rika4-3',   id: 'tr4-hoshi',   name: '星の ほし',              shape: 'star',      colors: c('#C9B8FF') },
+    { stage: 'rika4-4',   id: 'tr4-mizu',    name: '水の びん',              shape: 'potion',    colors: c('#6FD3FF', '#2E7FB0') },
+    { stage: 'shakai4-1', id: 'tr4-ken',     name: '県の らしんばん',        shape: 'compass',   colors: c('#4CD164', '#1E7A3C') },
+    { stage: 'shakai4-2', id: 'tr4-gomi',    name: 'リサイクルの わ',        shape: 'ring',      colors: c('#4CD164', '#1E7A3C') },
+    { stage: 'shakai4-3', id: 'tr4-mamori',  name: 'まもりの すず',          shape: 'bell',      colors: c('#E8443A', '#8A1F18') },
+    { stage: 'shakai4-4', id: 'tr4-kyodo',   name: 'きょう土の まきもの',    shape: 'scroll',    colors: c('#D8B889', '#8A5A2B') }
   ];
 
   const byStage = {};

@@ -118,6 +118,16 @@ MQ.tiles = (function () {
           }
         }
       }
+      // 理科の おか（v4.6）：岩を 山より 少なく ちらす
+      if (b.biome === 'hill') {
+        for (let y = y0; y <= y1; y++) {
+          for (let x = 1; x < COLS - 1; x++) {
+            if (get(x, y) !== GRASS) continue;
+            if (wob(x * 19 + y * 37 + bi, 16) === 0) put(x, y, ROCK);
+            else if (wob(x * 11 + y * 7 + bi, 15) === 0) put(x, y, FOREST);
+          }
+        }
+      }
       if (b.biome === 'mountain') {
         for (let y = y0; y <= y1; y++) {
           for (let x = 1; x < COLS - 1; x++) {
@@ -130,7 +140,7 @@ MQ.tiles = (function () {
           }
         }
       }
-      if (b.biome === 'sea' || b.biome === 'sky') {
+      if (b.biome === 'sea' || b.biome === 'sky' || b.biome === 'town') {
         // 草はらの ぽつぽつ（少しだけ 木を まぜて さみしくしない）
         for (let y = y0; y <= y1; y++) {
           for (let x = 1; x < COLS - 1; x++) {

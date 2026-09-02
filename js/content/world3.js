@@ -400,6 +400,8 @@ MQ.content = (function () {
      単元の じゅんは 日本文教出版『小学算数』4年。
      ======================================================= */
   const kokugo4 = function () { return MQ.kokugo4.questions; };
+  const rika4 = function () { return MQ.rika4.questions; };
+  const shakai4 = function () { return MQ.shakai4.questions; };
 
   const world4 = {
     id: 'g4', grade: 4, name: '小4ワールド', locked: false,
@@ -432,6 +434,25 @@ MQ.content = (function () {
             make: writeMixStage(kokugo4, 'kokugo', 2, 4) },
           stage('kokugo', 3, 'ことばの きまり', kokugo4, 4),
           stage('kokugo', 4, 'ことばの 意味', kokugo4, 4)
+        ]
+      },
+      /* 小4から 理科と 社会は べつの エリア（ユーザー決定 2026-09-02・v4.6） */
+      {
+        id: 'rika', name: '理科の 山', short: '理科', color: 'var(--c-rika)', biome: 'hill',
+        stages: [
+          stage('rika', 1, '天気と 生き物', rika4, 4),
+          stage('rika', 2, '電気・空気と 水', rika4, 4),
+          stage('rika', 3, '月と 星・温度', rika4, 4),
+          stage('rika', 4, 'あたたまり方と 体', rika4, 4)
+        ]
+      },
+      {
+        id: 'shakai', name: '社会の 町', short: '社会', color: 'var(--c-shakai)', biome: 'town',
+        stages: [
+          stage('shakai', 1, '県の 広がり', shakai4, 4),
+          stage('shakai', 2, '水と ごみ', shakai4, 4),
+          stage('shakai', 3, 'くらしを 守る', shakai4, 4),
+          stage('shakai', 4, 'きょう土と 地いき', shakai4, 4)
         ]
       }
     ]

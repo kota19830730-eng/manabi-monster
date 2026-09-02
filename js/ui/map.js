@@ -109,7 +109,10 @@ MQ.ui.map = (function () {
     mountain: ['tree', 'rock', 'flower', 'tree', 'flower', 'rock', 'flower', 'tree'],
     forest:   ['tree', 'tree', 'flower', 'tree', 'rock', 'tree', 'tree', 'flower'],
     sea:      ['tree', 'flower', 'tree', 'flower', 'rock', 'tree', 'flower', 'tree'],
-    sky:      ['tree', 'flower', 'tree', 'flower', 'tree', 'rock', 'flower', 'tree']
+    sky:      ['tree', 'flower', 'tree', 'flower', 'tree', 'rock', 'flower', 'tree'],
+    // 小4（v4.6）：理科の 山は 草と 岩の おか、社会の 町は 家が ならぶ
+    hill:     ['rock', 'flower', 'tree', 'rock', 'flower', 'flower', 'tree', 'rock'],
+    town:     ['house', 'tree', 'flower', 'house', 'rock', 'flower', 'tree', 'house']
   };
   const DECO_W = { mt: 56, tree: 28, house: 34, rock: 22, flower: 8 };
   const DECO_H = { mt: 42, tree: 32, house: 26, rock: 15, flower: 7 };
@@ -160,7 +163,8 @@ MQ.ui.map = (function () {
 
   /* 大きい かざり（雪山・家）は 入る ところが 少ないので、
      ゾーンの 下から 上へ ていねいに さがして おく。 */
-  const BIG_FOR = { mountain: ['mt', 'mt', 'mt'], forest: [], sea: ['house'], sky: ['house', 'house'] };
+  const BIG_FOR = { mountain: ['mt', 'mt', 'mt'], forest: [], sea: ['house'], sky: ['house', 'house'],
+                    hill: ['mt'], town: ['house', 'house', 'house'] };
 
   function bigPass(b, budget, placed, out) {
     const want = BIG_FOR[b.biome] || [];
