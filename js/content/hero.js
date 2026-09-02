@@ -742,7 +742,15 @@ MQ.hero = (function () {
     { id: 't-pika5',     name: 'ぴかぴか コレクター',    how: 'ぴかぴかを 5こ あつめる',    test: function (p) { return goldCount(p) >= 5; } },
     { id: 't-meteo',     name: 'メテオ つかい',          how: '12コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 12; } },
     { id: 't-bigbang',   name: 'ぎんがの ゆうしゃ',      how: '16コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 16; } },
-    { id: 't-frag',      name: 'かけらの もちぬし',      how: 'かけらを 4つ あつめる',      test: function (p) { return Object.keys(p.frags || {}).length >= 4; } },
+    { id: 't-frag',      name: 'かけらの もちぬし',      how: 'かけらを 4つ あつめる',      test: function (p) {
+      // かけらは 学年ごと（v4.5）。同じ 学年で 4つ そろえば もらえる
+      const by = {};
+      Object.keys(p.frags || {}).forEach(function (k) {
+        const g = k.indexOf(':') > 0 ? k.slice(0, k.indexOf(':')) : 'g3';
+        by[g] = (by[g] || 0) + 1;
+      });
+      return Object.keys(by).some(function (g) { return by[g] >= 4; });
+    } },
     { id: 't-hikari',    name: 'ひかりの けんし',        how: 'Lv15',                     test: function (p) { return levelOf(p.xp) >= 15; } },
     { id: 't-tr20',      name: 'たからの もちぬし',      how: 'たからものを 20こ あつめる',  test: function (p) { return treasureCount(p) >= 20; } },
     { id: 't-dex80',     name: 'ずかんの たつじん',      how: 'モンスターを 80しゅるい 見つける', test: function (p) { return dexCount(p) >= 80; } },

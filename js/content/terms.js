@@ -30,7 +30,11 @@ MQ.terms = (function () {
     'kokugo1': { 1: 1, 2: 2, 3: 2, 4: 2, 5: 2 },
     // 小2
     'sansu2': { 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 3, 13: 3, 14: 3 },
-    'kokugo2': { 1: 1, 2: 1, 3: 1, 4: 2 }
+    'kokugo2': { 1: 1, 2: 1, 3: 1, 4: 2 },
+    // 小4 算数（日本文教出版『小学算数』4年）v4.4
+    'sansu4': { 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 2, 10: 2, 11: 2, 12: 3, 13: 3, 14: 3, 15: 3 },
+    // 小4 国語（東京書籍）。かん字は 1年分 まとめて 1学期あつかい（小1〜小3と 同じ）
+    'kokugo4': { 1: 1, 2: 1, 3: 1, 4: 2 }
   };
 
   /* 小3 リスト教科の 単元（unit の 文字 → 学期）。name は おうちの人ページに 出す */
@@ -117,7 +121,24 @@ MQ.terms = (function () {
     try { return (MQ.save && MQ.save.current) ? MQ.save.current() : null; } catch (e) { return null; }
   }
   function forcePlayer(p) { forced = p || null; }
+  /* v4.5：学期の せっていは **その子の 学年**の ときだけ かかる。
+     ふくしゅう（下の 学年）・よしゅう（上の 学年）では ぜんぶ 出す */
+  function reviewing(player) {
+    if (!player || !player.playGrade || !player.grade) return false;
+    return player.playGrade !== player.grade;
+  }
+  // 画面に 出す ための せってい（ふくしゅう中でも そのまま 見せる）
+  function settingTerm(player) {
+    const t = player && player.term;
+    return (t === 1 || t === 2 || t === 3) ? t : 0;
+  }
+  // 画面に 出す ための せってい（ふくしゅう中でも そのまま 見せる）
+  function settingTerm(player) {
+    const t = player && player.term;
+    return (t === 1 || t === 2 || t === 3) ? t : 0;
+  }
   function termOf(player) {
+    if (reviewing(player)) return 0;
     const t = player && player.term;
     return (t === 1 || t === 2 || t === 3) ? t : 0;
   }
@@ -195,7 +216,7 @@ MQ.terms = (function () {
 
   return {
     TERM_NAMES: TERM_NAMES, UNITS3: UNITS3,
-    unitEntryOf: unitEntryOf, stageTerm: stageTerm, termOf: termOf,
+    unitEntryOf: unitEntryOf, stageTerm: stageTerm, termOf: termOf, reviewing: reviewing, settingTerm: settingTerm, settingTerm: settingTerm,
     stageLearned: stageLearned, unitLearned: unitLearned, allowQ: allowQ, learned: learned,
     entries: entries, whenText: whenText,
     suggested: suggested, now: now, setNow: function (d) { NOW = d || null; },

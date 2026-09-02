@@ -113,7 +113,30 @@ MQ.treasure = (function () {
     { stage: 'kokugo2-1', id: 'tr2-yomi',    name: 'かん字の はね',          shape: 'feather',   colors: c('#FFD166', '#B8860B') },
     { stage: 'kokugo2-2', id: 'tr2-kaki',    name: 'かきかたの まきもの',    shape: 'scroll',    colors: c('#3E9A6B', '#1E5A3C') },
     { stage: 'kokugo2-3', id: 'tr2-kimari',  name: 'きまりの ほん',          shape: 'book',      colors: c('#8A6BD8', '#4A2F8A') },
-    { stage: 'kokugo2-4', id: 'tr2-imi',     name: 'いみの みどりいし',      shape: 'gem',       colors: c('#4CD164', '#1E7A3C') }
+    { stage: 'kokugo2-4', id: 'tr2-imi',     name: 'いみの みどりいし',      shape: 'gem',       colors: c('#4CD164', '#1E7A3C') },
+
+    /* ---- 小4 算数の山（15）（v4.4） ---- */
+    { stage: 'sansu4-1',  id: 'tr4-oku',     name: '億の 王かん',            shape: 'crown',     colors: c('#7FD8FF', '#2E7FB0') },
+    { stage: 'sansu4-2',  id: 'tr4-graph',   name: 'グラフの はね',          shape: 'feather',   colors: c('#4F8CFF', '#1F4FB0') },
+    { stage: 'sansu4-3',  id: 'tr4-wari1',   name: 'わり算の 銀のかぎ',      shape: 'key',       colors: c('#C9D3DC', '#6B7C8C') },
+    { stage: 'sansu4-4',  id: 'tr4-kaku',    name: '角の らしんばん',        shape: 'compass',   colors: c('#E0846B', '#8A3A24') },
+    { stage: 'sansu4-5',  id: 'tr4-shou',    name: '小数の しずく',          shape: 'potion',    colors: c('#8FD3FF', '#3E7FB0') },
+    { stage: 'sansu4-6',  id: 'tr4-wari2',   name: '筆算の 書',              shape: 'book',      colors: c('#3E9A6B', '#1E5A3C') },
+    { stage: 'sansu4-7',  id: 'tr4-seiri',   name: '整理の すなどけい',      shape: 'hourglass', colors: c('#A96BE0', '#5A2D8A') },
+    { stage: 'sansu4-8',  id: 'tr4-heikou',  name: '平行の わ',              shape: 'ring',      colors: c('#FFD166', '#B8860B') },
+    { stage: 'sansu4-9',  id: 'tr4-gaisuu',  name: 'がい数の ほし',          shape: 'star',      colors: c('#FF9A4A') },
+    { stage: 'sansu4-10', id: 'tr4-kimari',  name: 'きまりの まきもの',      shape: 'scroll',    colors: c('#D8B889', '#8A5A2B') },
+    { stage: 'sansu4-11', id: 'tr4-menseki', name: '面積の あおいし',        shape: 'gem',       colors: c('#4F8CFF', '#1F4FB0') },
+    { stage: 'sansu4-12', id: 'tr4-shoukake', name: '小数の すず',           shape: 'bell',      colors: c('#6FD3FF', '#2E7FB0') },
+    { stage: 'sansu4-13', id: 'tr4-bunsuu',  name: '分数の たま',            shape: 'orb',       colors: c('#A96BE0', '#5A2D8A') },
+    { stage: 'sansu4-14', id: 'tr4-kawari',  name: 'かわり方の らしんばん',  shape: 'compass',   colors: c('#4CD164', '#1E7A3C') },
+    { stage: 'sansu4-15', id: 'tr4-hako',    name: 'はこの あかいし',        shape: 'gem',       colors: c('#FF5A5A', '#A82424') },
+
+    /* ---- 小4 国語の森（4）（v4.5） ---- */
+    { stage: 'kokugo4-1', id: 'tr4-yomi',    name: '読みの はね',            shape: 'feather',   colors: c('#E8443A', '#8A1F18') },
+    { stage: 'kokugo4-2', id: 'tr4-kaki',    name: '書きの まきもの',        shape: 'scroll',    colors: c('#3E9A6B', '#1E5A3C') },
+    { stage: 'kokugo4-3', id: 'tr4-kotoba',  name: 'ことばの らしんばん',    shape: 'compass',   colors: c('#8A6BD8', '#4A2F8A') },
+    { stage: 'kokugo4-4', id: 'tr4-imi',     name: '意味の ももいし',        shape: 'gem',       colors: c('#FF6B9A', '#A8244F') }
   ];
 
   const byStage = {};

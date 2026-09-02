@@ -7,7 +7,9 @@
 
    プレイヤー1人ぶんの中身：
      name      なまえ
-     grade     がくねん（1〜6。いまは 3 だけ あそべる。ほかは じゅんびちゅう）
+     grade     がくねん（1〜6）。この子の 学校の 学年。学期の せっていは これに かかる
+     playGrade いま あそんで いる 学年（v4.5）。地図の 上で いつでも 変えられる
+               （予習・復習）。grade と ちがう ときは 学期の しぼりこみを しない
      look      { face, skin, eye, eyeColor, brow, nose, mouth,
                  style, hair, glass }         … 主人公の 見た目（絵は face.js）
      xp        けいけんち（レベルは xp から 計算する。hero.js）
@@ -64,6 +66,8 @@ MQ.save = (function () {
     if (!p.best) p.best = {};
     if (!p.treasure) p.treasure = {};
     if (!p.frags) p.frags = {};
+    // いま あそんで いる 学年（v4.5）。はじめは 学校の 学年と 同じ
+    if (typeof p.playGrade !== 'number' || p.playGrade < 1 || p.playGrade > 6) p.playGrade = p.grade;
     if (typeof p.coins !== 'number') p.coins = 0;
     // もちもの（どうぐ）：持っている たからものだけ・3つまで。あきは 自動で うめる
     if (!Array.isArray(p.bag)) p.bag = [];
@@ -79,6 +83,16 @@ MQ.save = (function () {
     if (!p.dex) p.dex = {};
     if (!p.dexNew) p.dexNew = {};   // まだ 見ていない「NEW」の しるし
     if (!p.escaped) p.escaped = {};
+    /* v4.5：学年を いつでも 変えられる ように なった ので、
+       かけら と にげた敵は 学年ごとに 分ける（'g3:sansu' の ような キー）。
+       古い セーブは その子の 学年の ぶん として つけかえる */
+    ['frags', 'escaped'].forEach(function (f) {
+      const src = p[f] || {}, out = {};
+      Object.keys(src).forEach(function (k) {
+        out[/^g[1-6]:/.test(k) ? k : ('g' + p.grade + ':' + k)] = src[k];
+      });
+      p[f] = out;
+    });
     if (!Array.isArray(p.custom)) p.custom = [];
     if (!Array.isArray(p.log)) p.log = [];
     if (typeof p.battles !== 'number') p.battles = 0;
@@ -198,20 +212,43 @@ MQ.save = (function () {
   }
 
   /* ---- にげた敵（まちがえた問題） ---- */
+  /* いま あそんで いる 学年（v4.5）。かけらと にげた敵は 学年ごとに 分ける。
+     いま 開いて いる ワールドが あれば それ、なければ プレイヤーの playGrade */
+  function playGrade(player) {
+    try {
+      if (MQ.content && MQ.content.activeWorld) return MQ.content.activeWorld().grade;
+    } catch (e) { /* まだ 読みこまれて いない */ }
+    const p = player || current();
+    const g = p && (p.playGrade || p.grade);
+    return (typeof g === 'number' && g >= 1 && g <= 6) ? g : 3;
+  }
+  // 'sansu' → 'g4:sansu'
+  function areaKey(areaId, player) { return 'g' + playGrade(player) + ':' + areaId; }
+
+  // 学年を かえる（地図の 学年チップ）。あそべない 学年は 変えない
+  function setPlayGrade(g) {
+    const w = (MQ.content && MQ.content.worldForGrade) ? MQ.content.worldForGrade(g) : null;
+    if (!w || w.locked) return false;
+    update(function (p) { p.playGrade = g; });
+    return true;
+  }
+
   function escapedIn(player, areaId) {
+    const key = areaKey(areaId, player);
     if (!player.escaped) player.escaped = {};
-    if (!player.escaped[areaId]) player.escaped[areaId] = [];
-    return player.escaped[areaId];
+    if (!player.escaped[key]) player.escaped[key] = [];
+    return player.escaped[key];
   }
 
   function addEscaped(player, areaId, entry) {
     const list = escapedIn(player, areaId).filter(function (e) { return e.key !== entry.key; });
+    const akey = areaKey(areaId, player);
     list.unshift(entry);
-    player.escaped[areaId] = list.slice(0, MAX_ESCAPED);
+    player.escaped[akey] = list.slice(0, MAX_ESCAPED);
   }
 
   function removeEscaped(player, areaId, key) {
-    player.escaped[areaId] = escapedIn(player, areaId).filter(function (e) { return e.key !== key; });
+    player.escaped[areaKey(areaId, player)] = escapedIn(player, areaId).filter(function (e) { return e.key !== key; });
   }
 
   function countEscaped(player, areaId) {
@@ -233,9 +270,11 @@ MQ.save = (function () {
   // ぜんぶの エリアの にげた敵（とっくんバトル用）
   function allEscaped(player) {
     const out = [];
-    Object.keys(player.escaped || {}).forEach(function (areaId) {
-      escapedIn(player, areaId).forEach(function (e) {
-        out.push({ areaId: areaId, entry: e });
+    const pre = 'g' + playGrade(player) + ':';
+    Object.keys(player.escaped || {}).forEach(function (key) {
+      if (key.indexOf(pre) !== 0) return;    // ほかの 学年の ぶんは 数えない
+      (player.escaped[key] || []).forEach(function (e) {
+        out.push({ areaId: key.slice(pre.length), entry: e });
       });
     });
     return out;
@@ -284,6 +323,7 @@ MQ.save = (function () {
     createPlayer: createPlayer, current: current, setCurrent: setCurrent, update: update, deletePlayer: deletePlayer,
     getSetting: getSetting, setSetting: setSetting,
     escapedIn: escapedIn, revengeReady: revengeReady, revengeAfterMs: revengeAfterMs, addEscaped: addEscaped, removeEscaped: removeEscaped, countEscaped: countEscaped,
+    playGrade: playGrade, areaKey: areaKey, setPlayGrade: setPlayGrade,
     allEscaped: allEscaped, countAllEscaped: countAllEscaped,
     addLog: addLog, addCustom: addCustom, removeCustom: removeCustom,
     exportText: exportText, importText: importText,

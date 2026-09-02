@@ -457,7 +457,8 @@ MQ.ui.dex = (function () {
      ======================================================= */
   function termsSection(player) {
     const grade = player.grade || 3;
-    const term = MQ.terms.termOf(player);
+    const term = MQ.terms.settingTerm(player);
+    const playing = player.playGrade || grade;
     const btns = h('div', { class: 'termrow' }, [[1, '1学期まで'], [2, '2学期まで'], [3, '3学期まで'], [0, 'ぜんぶ']].map(function (t) {
       return h('button', {
         class: 'chip' + (term === t[0] ? ' is-on' : ''), type: 'button', text: t[1],
@@ -485,7 +486,8 @@ MQ.ui.dex = (function () {
       })
     ]) : null;
     const groups = {};
-    MQ.content.subjectAreas().forEach(function (a) { groups[a.id] = { name: a.name, items: [] }; });
+    const ownWorld = MQ.content.worldForGrade(grade);
+    (ownWorld.areas || []).forEach(function (a) { if (a.id !== 'tower') groups[a.id] = { name: a.name, items: [] }; });
     MQ.terms.entries(grade).forEach(function (e) { if (groups[e.area]) groups[e.area].items.push(e); });
     Object.keys(groups).forEach(function (id) { groups[id].items.sort(function (a, b) { return a.term - b.term; }); });   // 1学期 → 3学期 → 小4
     const lists = Object.keys(groups).map(function (id) {
@@ -515,6 +517,12 @@ MQ.ui.dex = (function () {
       h('h2', { class: 'label', text: '学校で ならった ところ' }),
       h('p', { class: 'note', text: 'チェックの ある 単元の 問題だけ 出ます。学期を えらぶと 教科書の じゅんに そろい、単元を 押すと 1つずつ 変えられます（学校の 進み方に 合わせて）。' }),
       btns,
+      h('p', { class: 'note' }, [
+        h('span', { text: 'この 子の 学年は 小' + grade + 'です。上の せっていは 小' + grade + 'の 問題にだけ かかります。' }),
+        h('br'),
+        h('span', { text: '地図の 上の「小1〜小6」を 押すと、いつでも 学年を 行き来できます（ふくしゅう・よしゅう）。ちがう 学年で あそぶ ときは 学期で しぼらず ぜんぶ 出します。' }),
+        playing !== grade ? h('b', { text: '　→ いまは 小' + playing + 'で あそんで います。' }) : null
+      ]),
       sugRow
     ].concat(lists));
   }

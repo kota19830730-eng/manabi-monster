@@ -369,7 +369,39 @@ MQ.ui.map = (function () {
       layer.appendChild(towerEl(player, plan.tower));
     }
 
-    /* ---- きょうの ミッション（v3.1）：HUD の 下。3つ ぜんぶ おわったら たたむ ---- */
+    /* ---- がくねん えらび（v4.5）------------------------------------------
+     予習・復習の ために 学年を いつでも 変えられる。
+     ★が ついて いるのが その子の 学校の 学年（学期の せっていは そこだけに かかる）。
+     じゅんびちゅうの 学年は うすく 出て、押すと おしらせだけ 出る。
+     -------------------------------------------------------------------- */
+  function gradeRow(player) {
+    const own = player.grade || 3;
+    const nowId = MQ.content.activeWorld().id;
+    return h('div', { class: 'grrow' }, MQ.content.worlds.map(function (w) {
+      const open = !w.locked;
+      const on = w.id === nowId;
+      return h('button', {
+        class: 'chip chip--g' + (on ? ' is-on' : '') + (open ? '' : ' is-prep'),
+        type: 'button',
+        'aria-label': '小' + w.grade + (open ? '' : '（じゅんびちゅう）'),
+        onclick: function () {
+          MQ.sfx.tap();
+          if (!open) { MQ.ui.toast('小' + w.grade + 'は じゅんびちゅう。もう すこし まってね'); return; }
+          if (on) return;
+          if (!MQ.save.setPlayGrade(w.grade)) return;
+          MQ.ui.toast(w.grade === own ? '小' + w.grade + 'に もどったよ'
+            : w.grade < own ? '小' + w.grade + 'の ふくしゅう！'
+            : '小' + w.grade + 'の よしゅう！');
+          MQ.ui.goMap();
+        }
+      }, [
+        h('b', { text: '小' + w.grade }),
+        w.grade === own ? h('i', { class: 'chip__own', text: '★' }) : null
+      ]);
+    }));
+  }
+
+  /* ---- きょうの ミッション（v3.1）：HUD の 下。3つ ぜんぶ おわったら たたむ ---- */
     const missionPanel = missionsPanel(player);
 
     /* ---- 上の ヘッダー ---- */
@@ -380,7 +412,8 @@ MQ.ui.map = (function () {
         h('button', { class: 'btn btn--stone', type: 'button', text: '図かん', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
         h('button', { class: 'btn btn--stone', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
         h('button', { class: 'btn btn--stone', type: 'button', text: 'プレイヤー', onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); } })
-      ])
+      ]),
+      gradeRow(player)
     ]);
 
     /* ---- 下の ピンクの バー ---- */

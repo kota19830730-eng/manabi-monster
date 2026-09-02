@@ -716,8 +716,16 @@ body {
 .missions__all { margin-top: 4px; font-size: 11px; color: var(--tx-sub); text-align: right; }
 .missions.is-all .missions__all { color: var(--gold); }
 .missions.is-all .missions__head { color: var(--gold); }
-.maptop__row { display: flex; gap: 8px; padding: 8px 12px; background: var(--bg-2); border-bottom: 3px solid var(--hd-edge); }
+.maptop__row { display: flex; gap: 8px; padding: 8px 12px 0; background: var(--bg-2); }
 .maptop__row .btn { flex: 1; min-height: 46px; padding: 0 6px; font-size: 13px; white-space: nowrap; }
+/* がくねん えらび（v4.5）。予習・復習で いつでも 変えられる。★＝その子の 学年 */
+.grrow { display: flex; gap: 5px; padding: 8px 12px; background: var(--bg-2); border-bottom: 3px solid var(--hd-edge); }
+.chip--g { flex: 1; min-height: 34px; padding: 0; justify-content: center; position: relative;
+           font-family: var(--f-head); font-size: 14px; letter-spacing: .02em; box-shadow: 0 3px 0 var(--navy-sh); }
+.chip--g.is-on { box-shadow: 0 3px 0 var(--gold-sh); }
+.chip--g.is-prep { opacity: .4; }
+.chip__own { position: absolute; top: -5px; right: -1px; font-size: 10px; font-style: normal; color: var(--gold-lt); }
+.chip--g.is-on .chip__own { color: #7a5a00; }
 .mapbottom { flex: none; }
 .revenge {
   display: flex; align-items: center; gap: 10px; width: 100%;
@@ -884,8 +892,9 @@ body {
 .battle__body { position: relative; flex: 1; min-height: 0; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; background: linear-gradient(#1a2544, var(--bg-1)); overflow: hidden; }
 
 .card { border-radius: 16px; padding: 10px 14px 12px; background: linear-gradient(var(--paper-1), var(--paper-2)); box-shadow: 0 6px 0 var(--paper-sh); flex: 0 1 auto; min-height: 0; overflow-y: auto; }
-/* ぼうグラフは たてに 長いので 画面に あわせて 小さくする */
-.graph { display: block; width: 100%; height: auto; max-height: calc(var(--stage-h) * 0.22); }
+/* グラフは たてに 長いので 画面に あわせて 小さくする。
+   0.22 だと たて700の 端末で 下の 問題文が 切れた（v4.4 で 0.17 に）*/
+.graph, .figwide { display: block; width: 100%; height: auto; max-height: calc(var(--stage-h) * 0.17); }
 .card__unit { font-size: 14px; color: var(--paper-lbl); }
 .card__q { font-family: var(--f-head); font-size: 34px; color: var(--paper-ink); letter-spacing: .04em; line-height: 1.2; }
 .card__q--m { font-size: 26px; }
@@ -2314,3 +2323,15 @@ body {
   .figbox { width: 180px; height: 135px; }
   .figpair .fig svg { width: 130px; height: 98px; }
 }
+
+/* 問題文の 中の 表（小4「整理の しかた」「かわり方」v4.4） */
+.tbl { width: 100%; border-collapse: collapse; margin: 2px 0 4px;
+       font-family: var(--f-body); font-size: 14px; line-height: 1.1;
+       color: var(--paper-ink); letter-spacing: 0; }
+.tbl th, .tbl td { border: 2px solid var(--paper-ink); padding: 1px 4px;
+                   text-align: center; font-weight: normal; white-space: nowrap; }
+.tbl th { background: rgba(0, 0, 0, .07); font-size: 12px; }
+.tbl .tbl__q { color: #d42a20; font-weight: bold; }
+/* 分数など、とちゅうで 切りたくない ところ */
+.nw { white-space: nowrap; }
+@media (min-height: 820px) { .tbl { font-size: 17px; } .tbl th { font-size: 15px; } }

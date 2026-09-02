@@ -30,6 +30,8 @@
     #treasure たからばこ
     #parent  おうちの人ページ
     #flow    ぜんぶ 自動で 通す（ログを #log に 出す）
+    #map4 #battle4:N #figs4 #treasure4 #parent4 … 小4ワールド（v4.4・算数 15ステージ）
+    #kokugo4 #koku4:N … 小4 国語（v4.5・かん字 219字＋ことば。N=1〜4）
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -82,6 +84,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/kokugo1.js"></script>
 <script src="../js/content/sansu2.js"></script>
 <script src="../js/content/kokugo2.js"></script>
+<script src="../js/content/sansu4.js"></script>
+<script src="../js/content/kokugo4.js"></script>
 <script src="../js/content/terms.js"></script>
 <script src="../js/content/world3.js"></script>
 <script src="../js/ui/common.js"></script>
@@ -400,6 +404,54 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       document.getElementById('stage').appendChild(box);
       return;
     }
+    // #figs4 … 小4の 図（おれ線グラフ・角・四角形・面積・はこ・表）を ぜんぶ ならべて 見る
+    if (mode === 'figs4' || mode.indexOf('figs4:') === 0) {
+      const F = MQ.sansu4.figs4;
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:8px;overflow:auto;z-index:99;';
+      function add4(html, full) {
+        const d = document.createElement('div');
+        d.style.cssText = 'display:inline-block;vertical-align:top;width:' + (full ? '98%' : '47%') + ';margin:2px;';
+        d.innerHTML = html; box.appendChild(d);
+      }
+      add4(F.lineGraphSvg(F.GRAPH4[0], [8, 12, 16, 20, 18, 14, 10]), true);
+      add4(F.protractorSvg(50), true); add4(F.protractorSvg(135), true);
+      add4(F.angleSvg(60)); add4(F.angleSvg(135));
+      add4(F.angleSvg(60, true)); add4(F.straightSvg(55));
+      add4(F.linesSvg('perp')); add4(F.linesSvg('para')); add4(F.linesSvg('cross'));
+      ['square', 'rect', 'para', 'trape', 'rhombus'].forEach(function (k) { add4(F.quadSvg(k)); });
+      add4(F.quadSvg('rhombus', { diag: true })); add4(F.quadSvg('para', { angle: '65度' }));
+      add4(F.rectSvg(8, 5, '8cm', '5cm')); add4(F.lShapeSvg(12, 8, 5, 3));
+      add4(F.boxSvg(false, ['8cm', '5cm', '3cm'])); add4(F.boxSvg(true));
+      ['cross', 'tee', 'step', 'bad'].forEach(function (k) { add4(F.netSvg(k)); });
+      add4(F.tableHtml(['すりきず', 'うちみ', '合計'], [['校てい', '5', '3', '8'], ['体育かん', '4', '6', '10'], ['合計', '9', '9', '18']]), true);
+      add4(F.tableRows([['□', '1', '2', '3', '4', '5', '8'], ['○', '4', '8', '12', '16', '20', '？']]), true);
+      document.getElementById('stage').appendChild(box);
+      const fs4 = parseInt(mode.slice(6), 10);   // #figs4:-1 で いちばん 下
+      if (!isNaN(fs4)) { await wait(60); box.scrollTop = fs4 < 0 ? 99999 : fs4; }
+      return;
+    }
+    // 小4ワールド（v4.4）：#map4(:-1) マップ／#battle4:N 算数N／#treasure4／#parent4 おうちの人ページ
+    if (mode === 'map4' || mode.indexOf('map4:') === 0 || mode.indexOf('battle4') === 0 || mode === 'treasure4' || mode === 'parent4' || mode === 'kokugo4' || mode.indexOf('koku4') === 0) {
+      fresh({
+        stars: { 'sansu4-1': 3, 'sansu4-2': 2, 'sansu4-3': 3, 'sansu4-4': 1 },
+        treasure: { 'tr4-oku': 2, 'tr4-graph': 1, 'tr4-wari1': 2 },
+        frags: {}
+      });
+      MQ.save.update(function (pl) { pl.grade = 4; pl.playGrade = 4; pl.best = {}; });
+      if (mode.indexOf('battle4') === 0) {   // #battle4:11 で ステージ11（面積）
+        const bn = parseInt(mode.slice(8), 10);
+        MQ.ui.battle.start('sansu4-' + (isNaN(bn) ? 1 : bn)); await wait(600); return;
+      }
+      if (mode === 'kokugo4') { MQ.ui.battle.start('kokugo4-2'); await wait(600); return; }
+      if (mode.indexOf('koku4') === 0) { const kn = parseInt(mode.slice(6), 10); MQ.ui.battle.start('kokugo4-' + (isNaN(kn) ? 1 : kn)); await wait(600); return; }
+      if (mode === 'treasure4') { MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
+      if (mode === 'parent4') { MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
+      MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
+      const n4 = parseInt(mode.slice(5), 10);
+      if (!isNaN(n4)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n4 < 0 ? 99999 : n4; }
+      return;
+    }
     // 小2ワールド（v2.3）：#map2(:-1) マップ／#battle2:N さんすうN／#kokugo2 かん字を かく／#treasure2／#upd お知らせ
     if (mode === 'map2' || mode.indexOf('map2:') === 0 || mode.indexOf('battle2') === 0 || mode === 'kokugo2' || mode === 'treasure2' || mode === 'upd') {
       fresh({
@@ -407,7 +459,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         treasure: { 'tr2-hyou': 2, 'tr2-tashi': 1, 'tr2-hiki': 2, 'tr2-yomi': 1 },
         frags: {}
       });
-      MQ.save.update(function (pl) { pl.grade = 2; pl.best = {}; });
+      MQ.save.update(function (pl) { pl.grade = 2; pl.playGrade = 2; pl.best = {}; });
       if (mode.indexOf('battle2') === 0) {
         const bn = parseInt(mode.slice(8), 10);
         MQ.ui.battle.start('sansu2-' + (isNaN(bn) ? 1 : bn)); await wait(600); return;
@@ -427,7 +479,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         treasure: { 'tr1-kazu': 2, 'tr1-banme': 1, 'tr1-hira': 1 },
         frags: {}
       });
-      MQ.save.update(function (pl) { pl.grade = 1; pl.best = {}; });
+      MQ.save.update(function (pl) { pl.grade = 1; pl.playGrade = 1; pl.best = {}; });
       if (mode.indexOf('battle1') === 0) {   // #battle1:8 で ステージ8（とけい）
         const bn = parseInt(mode.slice(8), 10);
         MQ.ui.battle.start('sansu1-' + (isNaN(bn) ? 1 : bn)); await wait(600); return;
@@ -823,7 +875,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const memoRect = mode.indexOf(':rect') > 0;   // #memo:rect＝赤い 四角も 描く（headless で canvas が 写るか）
       const mm = mode.split(':')[0];
       fresh({ stars: { 'sansu2-1': 3 }, treasure: {}, frags: {} });
-      MQ.save.update(function (pl) { pl.grade = 2; pl.best = {}; });
+      MQ.save.update(function (pl) { pl.grade = 2; pl.playGrade = 2; pl.best = {}; });
       MQ.ui.battle.start('sansu2-2'); await wait(400);
       if (mm !== 'memo') { $('.memo__btn').click(); await wait(120); }
       if (mm === 'memo3') { $('.memo__btn').click(); await wait(120); }
@@ -859,7 +911,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode === 'wide' || mode === 'wide3') {
       if (mode === 'wide') {
         fresh({ stars: { 'sansu2-1': 3 }, treasure: {}, frags: {} });
-        MQ.save.update(function (pl) { pl.grade = 2; pl.best = {}; });
+        MQ.save.update(function (pl) { pl.grade = 2; pl.playGrade = 2; pl.best = {}; });
         MQ.ui.battle.start('sansu2-2');
       } else { fresh(); MQ.ui.battle.start('sansu3-6'); }
       await wait(600);
@@ -1116,7 +1168,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await wait(700);
 
     say('--- さいごの塔 ---');
-    MQ.save.update(function (p) { p.frags = { sansu: true, kokugo: true, rikashakai: true, eigo: true }; });
+    MQ.save.update(function (p) { p.frags = {}; ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) { p.frags[MQ.content.fragKey(a, p)] = true; }); });
     MQ.ui.battle.start('tower3');
     await wait(3200);
     await playBattle('tower');
@@ -1133,6 +1185,55 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     });
     MQ.ui.photo.render();
     say('photo: ' + ($('.photo__stage') ? 'ok' : 'MISSING'));
+
+    say('--- 小4ワールド（v4.4・算数だけ） ---');
+    fresh({ stars: { 'sansu4-1': 3, 'sansu4-2': 2 }, frags: {} });
+    MQ.save.update(function (pl) { pl.grade = 4; pl.playGrade = 4; pl.best = {}; });
+    MQ.ui.goMap();
+    await wait(400);
+    const n4nodes = $$('#screen-map .node').length;
+    say('小4 nodes: ' + n4nodes + (n4nodes >= 5 ? ' ok' : ' MISSING'));
+    for (const sn of [2, 4, 7, 8, 11, 14, 15]) {
+      MQ.ui.battle.start('sansu4-' + sn);
+      await wait(400);
+      const q4 = MQ.battle.current();
+      const card4 = $('.card__q');
+      say('sansu4-' + sn + ': ' + (q4 && card4 && card4.innerHTML ? 'ok ' + MQ.util.stripTags(q4.prompt).slice(0, 22) : 'MISSING'));
+    }
+    MQ.ui.battle.start('sansu4-5');
+    await wait(400);
+    await playBattle('sansu4');
+    await wait(700);
+    say('小4 result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
+
+    say('--- 小4 国語（v4.5） ---');
+    for (const kn of [1, 3, 4]) {
+      MQ.ui.battle.start('kokugo4-' + kn);
+      await wait(400);
+      const kq = MQ.battle.current();
+      say('kokugo4-' + kn + ': ' + (kq && $('.card__q') ? 'ok ' + MQ.util.stripTags(kq.prompt).slice(0, 20) : 'MISSING'));
+    }
+    MQ.ui.battle.start('kokugo4-2');
+    await wait(400);
+    say('kokugo4-2 write: ' + (MQ.battle.current() && MQ.battle.current().type === 'write' ? 'ok' : (MQ.battle.current() ? MQ.battle.current().type : 'MISSING')));
+    await playBattle('kokugo4');
+    await wait(700);
+
+    say('--- 学年の きりかえ（v4.5） ---');
+    MQ.ui.goMap();
+    await wait(300);
+    say('学年チップ: ' + $$('#screen-map .chip--g').length + ($$('#screen-map .chip--g').length === 6 ? ' ok' : ' MISSING'));
+    MQ.save.setPlayGrade(2);
+    MQ.ui.goMap();
+    await wait(300);
+    say('小2に きりかえ: ' + MQ.content.activeWorld().id + ' / nodes ' + $$('#screen-map .node').length);
+    MQ.ui.battle.start('sansu2-1');
+    await wait(400);
+    say('小2の バトル: ' + (MQ.battle.current() ? 'ok' : 'MISSING'));
+    MQ.save.setPlayGrade(4);
+    MQ.ui.goMap();
+    await wait(300);
+    say('小4に もどす: ' + MQ.content.activeWorld().id);
 
     say('=== エラー: ' + L.filter(function (t) { return t.indexOf('ERROR') === 0 || t.indexOf('MISSING') >= 0; }).length + ' ===');
     dump();

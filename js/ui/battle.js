@@ -645,7 +645,9 @@ MQ.ui.battle = (function () {
     const n = (d.prompt.textContent || '').replace(/s/g, '').length;
     const q = MQ.battle.current();
     const vert = !!(q && q.layout === 'vertical');   // ひっさん：メモ欄に 数字が あるので カードは 小さめ
-    d.prompt.className = 'card__q' + (n > 30 ? ' card__q--s' : (n > 14 || vert ? ' card__q--m' : ''));
+    // グラフや 表が 入って いる ときは 図に 場所を ゆずる（v4.4）
+    const fig = !!(q && q.prompt && (q.prompt.indexOf('class="graph"') !== -1 || q.prompt.indexOf('class="tbl"') !== -1 || q.prompt.indexOf('class="figwide"') !== -1));
+    d.prompt.className = 'card__q' + (n > 30 || fig ? ' card__q--s' : (n > 14 || vert ? ' card__q--m' : ''));
   }
 
   function renderAnswerArea(q) {
@@ -1665,7 +1667,7 @@ MQ.ui.battle = (function () {
       MQ.content.subjectAreas().forEach(function (area) {
         if (MQ.content.hasFrag(p, area.id)) return;
         if (!MQ.content.fragReady(p, area)) return;
-        p.frags[area.id] = true;
+        p.frags[MQ.content.fragKey(area.id, p)] = true;
         out.frags.push(area);
         const g = MQ.hero.nextDensetsu(p);
         if (g) { p.gear.push(g.id); p.equipped[g.slot] = g.id; out.densetsu.push(g); }

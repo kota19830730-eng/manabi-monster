@@ -164,6 +164,14 @@ MQ.content = (function () {
     };
   }
 
+  // 小4の 算数（sansu4.js の 生成器・v4.4）
+  function sansu4Stage(no, name) {
+    return {
+      id: 'sansu4-' + no, no: no, name: name, when: '', available: true,
+      make: function (n, opts) { return MQ.sansu4.make(no, n, opts); }
+    };
+  }
+
   // いま 出せる 問題の 数（学期の チェックを 通った もの）。少なすぎる ステージは 地図で ロック
   function listPool(getList, no, g) {
     return function (pl) {
@@ -384,11 +392,56 @@ MQ.content = (function () {
     ]
   };
 
+  /* =======================================================
+     小4ワールド（v4.4）
+     いまは 算数だけ。国語・理科・社会・英語は これから 作る。
+     小4から 理科と 社会は 分ける（「りかの 山」「しゃかいの 町」・2026-09-02 ユーザー決定）
+     ので、足す ときは areas に 2つ 別々に 入れる。塔は 教科が そろってから。
+     単元の じゅんは 日本文教出版『小学算数』4年。
+     ======================================================= */
+  const kokugo4 = function () { return MQ.kokugo4.questions; };
+
+  const world4 = {
+    id: 'g4', grade: 4, name: '小4ワールド', locked: false,
+    areas: [
+      {
+        id: 'sansu', name: '算数の山', short: '算数', color: 'var(--c-sansu)', biome: 'mountain',
+        stages: [
+          sansu4Stage(1, '大きい 数'),
+          sansu4Stage(2, 'おれ線グラフ'),
+          sansu4Stage(3, 'わり算の 筆算（1）'),
+          sansu4Stage(4, '角の 大きさ'),
+          sansu4Stage(5, '小数'),
+          sansu4Stage(6, 'わり算の 筆算（2）'),
+          sansu4Stage(7, '整理の しかた'),
+          sansu4Stage(8, 'すいちょくと 平行'),
+          sansu4Stage(9, 'がい数'),
+          sansu4Stage(10, '計算の きまり'),
+          sansu4Stage(11, '面積'),
+          sansu4Stage(12, '小数の かけ算と わり算'),
+          sansu4Stage(13, '分数'),
+          sansu4Stage(14, 'かわり方'),
+          sansu4Stage(15, '直方体と 立方体')
+        ]
+      },
+      {
+        id: 'kokugo', name: '国語の森', short: '国語', color: 'var(--c-kokugo)', biome: 'forest',
+        stages: [
+          stage('kokugo', 1, 'かん字の 読み', kokugo4, 4),
+          { id: 'kokugo4-2', no: 2, name: 'かん字を 書く', available: true, pool: listPool(kokugo4, 2, 4),
+            make: writeMixStage(kokugo4, 'kokugo', 2, 4) },
+          stage('kokugo', 3, 'ことばの きまり', kokugo4, 4),
+          stage('kokugo', 4, 'ことばの 意味', kokugo4, 4)
+        ]
+      }
+    ]
+  };
+
   const worlds = [
     world1,
     world2,
     world3,
-    { id: 'g4', grade: 4, name: '小4ワールド', locked: true, areas: [] },
+    world4,
     { id: 'g5', grade: 5, name: '小5ワールド', locked: true, areas: [] },
     { id: 'g6', grade: 6, name: '小6ワールド', locked: true, areas: [] }
   ];
@@ -404,16 +457,19 @@ MQ.content = (function () {
     return world3;
   }
 
-  /* いま あそんでいる ワールド（v2.2）。
-     プレイヤーの がくねんで 決まる。まだ 開いていない がくねんは 小3 に たおす。
+  /* いま あそんでいる ワールド（v2.2 → v4.5）。
+     **playGrade**（地図の 学年チップで いつでも 変えられる）で 決まる。
+     playGrade が ない／開いていない ときは その子の 学年、それも だめなら 小3。
      マップ・かけら・図かん・にげた敵 は ぜんぶ ここを 見る。 */
   let forced = null;   // テストで ワールドを 決めうちに する とき
   function activeWorld() {
     if (forced) return forced;
     let p = null;
     try { p = (MQ.save && MQ.save.current) ? MQ.save.current() : null; } catch (e) { p = null; }
-    const w = worldForGrade((p && p.grade) || 3);
-    return w.locked ? world3 : w;
+    const w = worldForGrade((p && p.playGrade) || (p && p.grade) || 3);
+    if (!w.locked) return w;
+    const own = worldForGrade((p && p.grade) || 3);
+    return own.locked ? world3 : own;
   }
   function setActive(w) { forced = w || null; }
 
@@ -471,8 +527,12 @@ MQ.content = (function () {
     return starsIn(player, area) >= fragNeed(area);
   }
 
+  // かけらは 学年ごと（v4.5）。'g4:sansu' の ような キー
+  function fragKey(areaId, player) {
+    return (MQ.save && MQ.save.areaKey) ? MQ.save.areaKey(areaId, player) : areaId;
+  }
   function hasFrag(player, areaId) {
-    return !!(player && player.frags && player.frags[areaId]);
+    return !!(player && player.frags && player.frags[fragKey(areaId, player)]);
   }
 
   function fragCount(player) {
@@ -528,12 +588,12 @@ MQ.content = (function () {
   }
 
   return {
-    worlds: worlds, world: world, world3: world3, world1: world1, world2: world2, worldForGrade: worldForGrade,
+    worlds: worlds, world: world, world3: world3, world1: world1, world2: world2, world4: world4, worldForGrade: worldForGrade,
     activeWorld: activeWorld, setActive: setActive, hasTower: hasTower,
     areaOf: areaOf, subjectAreas: subjectAreas, findStage: findStage, isUnlocked: isUnlocked,
     isAvailable: isAvailable, lockedReason: lockedReason, MIN_POOL: MIN_POOL,
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,
-    fragCount: fragCount, towerOpen: towerOpen,
+    fragCount: fragCount, towerOpen: towerOpen, fragKey: fragKey,
     towerStage: towerStage, TOWER_ORDER: TOWER_ORDER
   };
 })();

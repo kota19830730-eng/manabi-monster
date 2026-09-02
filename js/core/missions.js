@@ -33,10 +33,22 @@ MQ.missions = (function () {
       return !!(f && f.stage && MQ.content.isAvailable(f.stage));
     } catch (e) { return false; }
   }
-  // かん字を 書く問題が ある ステージ（小1 こくご4・小2 こくご2・小3 国語2）
+  /* かん字を 書く問題が ある ステージ（小1 こくご4・小2 こくご2・小3 国語2）。
+     その 学年の ワールドに ない ときは 出さない
+     （小4は いま 算数だけ。国語を 足したら ここに 1行 足す） */
+  const WRITE_STAGE = { 1: 'kokugo1-4', 2: 'kokugo2-2', 3: 'kokugo3-2', 4: 'kokugo4-2' };
   function hasWrite(p) {
     const g = p.grade || 3;
-    return stageOk(g === 1 ? 'kokugo1-4' : g === 2 ? 'kokugo2-2' : 'kokugo3-2');
+    const id = WRITE_STAGE[g];
+    if (!id) return false;
+    try {
+      const w = MQ.content.worldForGrade(g);
+      const inWorld = (w.areas || []).some(function (a) {
+        return (a.stages || []).some(function (st) { return st.id === id; });
+      });
+      if (!inWorld) return false;
+    } catch (e) { return false; }
+    return stageOk(id);
   }
   // 開いている ステージが ある 教科の エリア
   function areasOf(p) {
