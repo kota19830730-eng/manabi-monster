@@ -138,6 +138,77 @@ MQ.enemies = (function () {
     { id: 'abc-c', name: 'シー', shape: 'letterC', area: 'eigo', rare: true, by: 'son', trio: 'abc',
       colors: { A: '#F2C14E', B: '#B8860B', w: '#FFFFFF', k: '#12121A' } },
 
+    /* ---------- v4.2 あたらしい 51体（17系統 × 3段階・相棒に できる） ----------
+       line＝系統／stage＝1〜3／evo＝つぎの すがた。1段階は 序盤、3段階は 終盤に 出る */
+    /* ドラコ → ドラグーン → ドラゴニクス */
+    { id: 'drago-1', name: 'ドラコ', shape: 'drago1', area: 'sansu', rank: 1, line: 'drago', stage: 1, evo: 'drago-2', colors: { A: '#E8845A', C: '#FFC96B' } },
+    { id: 'drago-2', name: 'ドラグーン', shape: 'drago2', area: 'sansu', rank: 2, line: 'drago', stage: 2, evo: 'drago-3', colors: { A: '#E8542C', C: '#FFB44E' } },
+    { id: 'drago-3', name: 'ドラゴニクス', shape: 'drago3', area: 'sansu', rank: 3, line: 'drago', stage: 3, colors: { A: '#C42424', C: '#FFC24E' } },
+    /* メカン → メカロン → メガメカン */
+    { id: 'mecha-1', name: 'メカン', shape: 'mecha1', area: 'sansu', rank: 1, line: 'mecha', stage: 1, evo: 'mecha-2', colors: { A: '#A7B4C6' } },
+    { id: 'mecha-2', name: 'メカロン', shape: 'mecha2', area: 'sansu', rank: 2, line: 'mecha', stage: 2, evo: 'mecha-3', colors: { A: '#8E9CC0', C: '#FF9A5A' } },
+    { id: 'mecha-3', name: 'メガメカン', shape: 'mecha3', area: 'sansu', rank: 3, line: 'mecha', stage: 3, colors: { A: '#6B78A0', C: '#FF7A3A' } },
+    /* ミニカン → バギード → タンクロン */
+    { id: 'tank-1', name: 'ミニカン', shape: 'tank1', area: 'sansu', rank: 1, line: 'tank', stage: 1, evo: 'tank-2', colors: { A: '#C98A4A', C: '#7A8CA8' } },
+    { id: 'tank-2', name: 'バギード', shape: 'tank2', area: 'sansu', rank: 2, line: 'tank', stage: 2, evo: 'tank-3', colors: { A: '#B5652C', C: '#6B7C98' } },
+    { id: 'tank-3', name: 'タンクロン', shape: 'tank3', area: 'sansu', rank: 3, line: 'tank', stage: 3, colors: { A: '#7A6A42', C: '#4A5468' } },
+    /* イワゴロ → ゴツガン → マグマゴン */
+    { id: 'magma-1', name: 'イワゴロ', shape: 'magma1', area: 'sansu', rank: 1, line: 'magma', stage: 1, evo: 'magma-2', colors: { A: '#9A8B7A' } },
+    { id: 'magma-2', name: 'ゴツガン', shape: 'magma2', area: 'sansu', rank: 2, line: 'magma', stage: 2, evo: 'magma-3', colors: { A: '#8A7462', C: '#B8A490' } },
+    { id: 'magma-3', name: 'マグマゴン', shape: 'magma3', area: 'sansu', rank: 3, line: 'magma', stage: 3, colors: { A: '#6E4A3A', C: '#FF8A3A' } },
+    /* ニョロン → ヘビガ → ダイジャング */
+    { id: 'serp-1', name: 'ニョロン', shape: 'serp1', area: 'kokugo', rank: 1, line: 'serp', stage: 1, evo: 'serp-2', colors: { A: '#5FBF6A', C: '#D8F0A8' } },
+    { id: 'serp-2', name: 'ヘビガ', shape: 'serp2', area: 'kokugo', rank: 2, line: 'serp', stage: 2, evo: 'serp-3', colors: { A: '#3E9A5B', C: '#E8D98A' } },
+    { id: 'serp-3', name: 'ダイジャング', shape: 'serp3', area: 'kokugo', rank: 3, line: 'serp', stage: 3, colors: { A: '#2E7A4A', C: '#FFD166' } },
+    /* クモリン → スパイドン → アラクネス */
+    { id: 'arac-1', name: 'クモリン', shape: 'arac1', area: 'kokugo', rank: 1, line: 'arac', stage: 1, evo: 'arac-2', colors: { A: '#7A6BB8' } },
+    { id: 'arac-2', name: 'スパイドン', shape: 'arac2', area: 'kokugo', rank: 2, line: 'arac', stage: 2, evo: 'arac-3', colors: { A: '#4A3F80', C: '#C4B8E8' } },
+    { id: 'arac-3', name: 'アラクネス', shape: 'arac3', area: 'kokugo', rank: 3, line: 'arac', stage: 3, colors: { A: '#2E2A55', C: '#8A7ACC' } },
+    /* ウルフン → ガルム → フェンリード */
+    { id: 'fang-1', name: 'ウルガ', shape: 'fang1', area: 'kokugo', rank: 1, line: 'fang', stage: 1, evo: 'fang-2', colors: { A: '#9AA3B8' } },
+    { id: 'fang-2', name: 'ガルム', shape: 'fang2', area: 'kokugo', rank: 2, line: 'fang', stage: 2, evo: 'fang-3', colors: { A: '#6B7490', C: '#E8E4DC' } },
+    { id: 'fang-3', name: 'フェンリード', shape: 'fang3', area: 'kokugo', rank: 3, line: 'fang', stage: 3, colors: { A: '#4A5470', C: '#F2F0EA' } },
+    /* ムシマル → カブトン → キングホーン */
+    { id: 'beetle-1', name: 'ムシマル', shape: 'beetle1', area: 'kokugo', rank: 1, line: 'beetle', stage: 1, evo: 'beetle-2', colors: { A: '#7ABF4F', C: '#F0E08A' } },
+    { id: 'beetle-2', name: 'カブトン', shape: 'beetle2', area: 'kokugo', rank: 2, line: 'beetle', stage: 2, evo: 'beetle-3', colors: { A: '#4F9A3A', C: '#E8C24E' } },
+    { id: 'beetle-3', name: 'キングホーン', shape: 'beetle3', area: 'kokugo', rank: 3, line: 'beetle', stage: 3, colors: { A: '#2E6E2A', C: '#FFD166' } },
+    /* タコリン → オクトーン → クラーケン */
+    { id: 'krak-1', name: 'タコリン', shape: 'krak1', area: 'rikashakai', rank: 1, line: 'krak', stage: 1, evo: 'krak-2', colors: { A: '#E87AB0' } },
+    { id: 'krak-2', name: 'オクトーン', shape: 'krak2', area: 'rikashakai', rank: 2, line: 'krak', stage: 2, evo: 'krak-3', colors: { A: '#C4468A', C: '#FFD9E8' } },
+    { id: 'krak-3', name: 'クラーケン', shape: 'krak3', area: 'rikashakai', rank: 3, line: 'krak', stage: 3, colors: { A: '#8A2E6B', C: '#FFB4D8' } },
+    /* ヒトダマン → ゴースン → ファントーム */
+    { id: 'spect-1', name: 'ヒトダマン', shape: 'spect1', area: 'rikashakai', rank: 1, line: 'spect', stage: 1, evo: 'spect-2', colors: { A: '#8FD6E8' } },
+    { id: 'spect-2', name: 'ゴースン', shape: 'spect2', area: 'rikashakai', rank: 2, line: 'spect', stage: 2, evo: 'spect-3', colors: { A: '#6BAFD6', C: '#E8F4FF' } },
+    { id: 'spect-3', name: 'ファントーム', shape: 'spect3', area: 'rikashakai', rank: 3, line: 'spect', stage: 3, colors: { A: '#5A5F98', C: '#C4C8F0' } },
+    /* コオリン → アイスナイト → ヒョウガード */
+    { id: 'iceK-1', name: 'コオリン', shape: 'iceK1', area: 'rikashakai', rank: 1, line: 'iceK', stage: 1, evo: 'iceK-2', colors: { A: '#9FE0F0', C: '#E8FAFF' } },
+    { id: 'iceK-2', name: 'アイスナイト', shape: 'iceK2', area: 'rikashakai', rank: 2, line: 'iceK', stage: 2, evo: 'iceK-3', colors: { A: '#6BBEE0', C: '#D8F4FF' } },
+    { id: 'iceK-3', name: 'ヒョウガード', shape: 'iceK3', area: 'rikashakai', rank: 3, line: 'iceK', stage: 3, colors: { A: '#3E8AC4', C: '#BFEAFF' } },
+    /* サメリン → シャークル → メガロドス */
+    { id: 'sharkx-1', name: 'サメリン', shape: 'sharkx1', area: 'rikashakai', rank: 1, line: 'sharkx', stage: 1, evo: 'sharkx-2', colors: { A: '#8FB4CC', C: '#E8F0F8' } },
+    { id: 'sharkx-2', name: 'シャークル', shape: 'sharkx2', area: 'rikashakai', rank: 2, line: 'sharkx', stage: 2, evo: 'sharkx-3', colors: { A: '#5A87A8', C: '#E0EAF4' } },
+    { id: 'sharkx-3', name: 'メガロドス', shape: 'sharkx3', area: 'rikashakai', rank: 3, line: 'sharkx', stage: 3, colors: { A: '#3E5F80', C: '#D8E4F0' } },
+    /* ホークン → ファルコン → スカイロード */
+    { id: 'hawk-1', name: 'ホークン', shape: 'hawk1', area: 'eigo', rank: 1, line: 'hawk', stage: 1, evo: 'hawk-2', colors: { A: '#C4A05A', C: '#F0DCA0' } },
+    { id: 'hawk-2', name: 'ファルコン', shape: 'hawk2', area: 'eigo', rank: 2, line: 'hawk', stage: 2, evo: 'hawk-3', colors: { A: '#A87A3A', C: '#E8CE8A' } },
+    { id: 'hawk-3', name: 'スカイロード', shape: 'hawk3', area: 'eigo', rank: 3, line: 'hawk', stage: 3, colors: { A: '#7A5A2A', C: '#F0DCA0' } },
+    /* アルファン → ワードン → アルファベス */
+    { id: 'alpha-1', name: 'アルファン', shape: 'alpha1', area: 'eigo', rank: 1, line: 'alpha', stage: 1, evo: 'alpha-2', colors: { A: '#5FA8E8' } },
+    { id: 'alpha-2', name: 'ワードン', shape: 'alpha2', area: 'eigo', rank: 2, line: 'alpha', stage: 2, evo: 'alpha-3', colors: { A: '#4A8AD6', C: '#F2C93B' } },
+    { id: 'alpha-3', name: 'アルファベス', shape: 'alpha3', area: 'eigo', rank: 3, line: 'alpha', stage: 3, colors: { A: '#3A6CC4', C: '#F2C93B' } },
+    /* カミナリン → ライデン → サンダーロード */
+    { id: 'bolt-1', name: 'カミナリン', shape: 'bolt1', area: 'eigo', rank: 1, line: 'bolt', stage: 1, evo: 'bolt-2', colors: { A: '#B8C4D6' } },
+    { id: 'bolt-2', name: 'ライデン', shape: 'bolt2', area: 'eigo', rank: 2, line: 'bolt', stage: 2, evo: 'bolt-3', colors: { A: '#8A93B0' } },
+    { id: 'bolt-3', name: 'サンダーロード', shape: 'bolt3', area: 'eigo', rank: 3, line: 'bolt', stage: 3, colors: { A: '#5A6480', C: '#E8EEF8' } },
+    /* ユーフォン → スペーサー → ギャラクシオン */
+    { id: 'saucer-1', name: 'ソーサン', shape: 'saucer1', area: 'eigo', rank: 1, line: 'saucer', stage: 1, evo: 'saucer-2', colors: { A: '#B8C4D6' } },
+    { id: 'saucer-2', name: 'スペーサー', shape: 'saucer2', area: 'eigo', rank: 2, line: 'saucer', stage: 2, evo: 'saucer-3', colors: { A: '#8FA2C0' } },
+    { id: 'saucer-3', name: 'ギャラクシオン', shape: 'saucer3', area: 'eigo', rank: 3, line: 'saucer', stage: 3, colors: { A: '#6B7CA8', C: '#C4B0F0' } },
+    /* カゲマル → シノビン → カゲロード */
+    { id: 'ninja-1', name: 'カゲマル', shape: 'ninja1', area: 'sansu', any: true, rank: 1, line: 'ninja', stage: 1, evo: 'ninja-2', colors: { A: '#6B7290', C: '#E84A4A' } },
+    { id: 'ninja-2', name: 'シノビン', shape: 'ninja2', area: 'sansu', any: true, rank: 2, line: 'ninja', stage: 2, evo: 'ninja-3', colors: { A: '#4A5170', C: '#E84A4A' } },
+    { id: 'ninja-3', name: 'カゲロード', shape: 'ninja3', area: 'sansu', any: true, rank: 3, line: 'ninja', stage: 3, colors: { A: '#333A55', C: '#E8324A' } },
+
     /* たからばこ（敵あつかい だが 図鑑には のせない） */
     { id: 'chest', name: 'たからばこ', shape: 'chest', hidden: true,
       colors: { p: '#A6753F', P: '#7A5326', y: '#F2C14E' } }
@@ -203,7 +274,8 @@ MQ.enemies = (function () {
      hard は 0〜1 の むずかしさ。かんたんな ステージは よわそうな 敵（rank1）が 多く、
      むずかしい ステージほど 強そうな 敵（rank3）が ふえる。ならびも よわい→強い。 */
   function pickIds(areaId, n, hard) {
-    let pool = list.filter(function (e) { return e.area === areaId && !e.rare && !e.hidden; });
+    // any: true（にんじゃ）は どの エリアにも 出る
+    let pool = list.filter(function (e) { return (e.area === areaId || e.any) && !e.rare && !e.hidden; });
     if (!pool.length) pool = list.filter(function (e) { return !e.rare && !e.hidden && e.area; });
     if (hard == null) hard = 0.5;
     hard = Math.max(0, Math.min(1, hard));

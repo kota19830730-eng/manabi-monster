@@ -477,7 +477,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
   check(ids.length === 9, 'pickIds ' + a);
   ids.forEach(function (id) {
     const e = MQ.enemies.get(id);
-    check(e && e.area === a && !e.rare && !e.hidden, 'enemy ' + id + ' belongs to ' + a);
+    check(e && (e.area === a || e.any) && !e.rare && !e.hidden, 'enemy ' + id + ' belongs to ' + a);
   });
   check(MQ.enemies.bossFor(a).area === a, 'boss for ' + a);
   const rare = MQ.enemies.get(MQ.enemies.rareIdFor(a));
@@ -509,6 +509,60 @@ MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) {
   if (shape) checkShape(e.shape, shape, 48, 'モンスター');
 });
 check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい いじょう: ' + Object.keys(MQ.monsterArt.mons).length);
+
+/* ---------- v4.2 あたらしい 51体（17系統 × 3段階・相棒に できる） ---------- */
+(function () {
+  const L = MQ.enemies.list.filter(function (e) { return e.line; });
+  check(L.length === 51, 'あたらしい モンスターは 51体（' + L.length + '）');
+  const lines = {};
+  L.forEach(function (e) { (lines[e.line] = lines[e.line] || []).push(e); });
+  check(Object.keys(lines).length === 17, '系統は 17（' + Object.keys(lines).length + '）');
+  let bad = 0;
+  Object.keys(lines).forEach(function (k) {
+    const g = lines[k].slice().sort(function (a, b) { return a.stage - b.stage; });
+    if (g.length !== 3) { bad++; return; }
+    g.forEach(function (e, i) {
+      if (e.stage !== i + 1) bad++;                       // 1→2→3 の じゅん
+      if (e.rank !== e.stage) bad++;                      // 1段階＝序盤（rank1）… と そろう
+      if (i < 2 && e.evo !== g[i + 1].id) bad++;          // つぎの すがたを さして いる
+      if (i === 2 && e.evo) bad++;                        // さいごは 進化しない
+      if (!MQ.enemies.shapes[e.shape]) bad++;
+    });
+  });
+  check(bad === 0, '3だんかいの ならびと 進化さきが 正しい（' + bad + '）');
+  // 名前と id が かぶらない
+  const names = {}, ids = {};
+  let dup = 0;
+  MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) {
+    if (names[e.name]) dup++;
+    if (ids[e.id]) dup++;
+    names[e.name] = 1; ids[e.id] = 1;
+  });
+  check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
+  // 図かん（ザコ＋ボス5体）
+  const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
+  check(dex === 151, '図かんは 151体（' + dex + '）');
+  // エリアごとの 顔ぶれ
+  ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
+    const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
+    check(pool.length >= 30, a + ' の ザコは 30体 いじょう（' + pool.length + '）');
+    [1, 2, 3].forEach(function (r) {
+      const n = pool.filter(function (e) { return (e.rank || 2) === r; }).length;
+      check(n >= 8, a + ' の つよさ' + r + 'は 8体 いじょう（' + n + '）');
+    });
+    check(MQ.enemies.pickIds(a, 12, 0.5).length === 12, a + ' の 顔ぶれが 12体 えらべる');
+  });
+  // にんじゃは どの エリアにも 出る
+  const ninja = MQ.enemies.list.filter(function (e) { return e.line === 'ninja'; });
+  check(ninja.length === 3 && ninja.every(function (e) { return e.any; }), 'にんじゃは どの エリアにも 出る');
+  // 1段階は かんたんな ステージ、3段階は むずかしい ステージに 出やすい
+  const easy = MQ.enemies.pickIds('sansu', 12, 0);
+  const hardIds = MQ.enemies.pickIds('sansu', 12, 1);
+  function rankOf(id) { const e = MQ.enemies.get(id); return e ? (e.rank || 2) : 2; }
+  const easyAvg = easy.reduce(function (t, id) { return t + rankOf(id); }, 0) / easy.length;
+  const hardAvg = hardIds.reduce(function (t, id) { return t + rankOf(id); }, 0) / hardIds.length;
+  check(easyAvg < hardAvg, 'かんたんな ステージほど よわい 顔ぶれ（' + easyAvg.toFixed(1) + ' < ' + hardAvg.toFixed(1) + '）');
+})();
 // たからものの 絵
 MQ.treasure.list.forEach(function (t) {
   const shape = MQ.treasure.shapes[t.shape];
