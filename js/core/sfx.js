@@ -103,6 +103,8 @@ MQ.sfx = (function () {
     crit:    function () { noise(0.2, 0.4); tone(1568, 0.09, 'square', 0.16); tone(2093, 0.18, 'square', 0.14, 0.07); tone(120, 0.18, 'square', 0.2, 0, 50); },
     defeat:  function () { tone(523, 0.1, 'square', 0.13, 0.05); tone(659, 0.1, 'square', 0.13, 0.15); tone(784, 0.22, 'square', 0.13, 0.25); },
     dodge:   function () { tone(500, 0.08, 'triangle', 0.12, 0, 900); },
+    // 相棒の 追い打ち（v4.3）：ぴょんと とんで コツンと あてる
+    palHit:  function () { tone(880, 0.06, 'triangle', 0.12, 0, 1320); tone(1320, 0.09, 'square', 0.12, 0.06); noise(0.1, 0.22, 0.1, 3000); },
     miss:    function () { tone(300, 0.28, 'sawtooth', 0.13, 0, 110); },
     guard:   function () { noise(0.12, 0.3, 0, 3500, 'highpass'); tone(190, 0.16, 'square', 0.2, 0, 140); },
     alarm:   function () { for (let i = 0; i < 3; i++) { tone(660, 0.16, 'sawtooth', 0.12, i * 0.36); tone(494, 0.16, 'sawtooth', 0.12, i * 0.36 + 0.18); } },

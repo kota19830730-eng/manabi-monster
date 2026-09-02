@@ -46,7 +46,7 @@ function load(rel) {
   vm.runInThisContext(code, { filename: rel });
 }
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/pals.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/monstergen.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
  'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
  'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kakusu.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/terms.js', 'js/content/world3.js'].forEach(load);
@@ -1395,6 +1395,47 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   // 古い セーブ
   T.forcePlayer(null);
   MQ.content.setActive(null);
+})();
+
+/* ---------- なかま（相棒・v4.3・pals.js） ---------- */
+(function () {
+  const P = MQ.pals;
+  check(!!P, 'pals が ある');
+  // レベルの 上がり方
+  check(P.levelOf(0) === 1 && P.levelOf(P.expFor(2)) === 2 && P.levelOf(P.expFor(10)) === 10, 'けいけんち → レベル');
+  check(P.expFor(10) > P.expFor(9) && P.expFor(20) > P.expFor(10), 'レベルが 上がるほど 必要な けいけんちが ふえる');
+  // 3問 れんぞくで 追い打ち
+  check(!P.hitOn(1) && !P.hitOn(2) && P.hitOn(3) && !P.hitOn(4) && P.hitOn(6) && P.hitOn(9), '3問ごとに 追い打ち');
+  // なかまに する → 相棒に なる
+  const p = { pals: {}, pal: null, coins: 10, dex: {}, dexNew: {} };
+  P.add(p, 'drago-1');
+  check(p.pal === 'drago-1' && P.own(p).length === 1, 'はじめての なかまは すぐ 相棒に なる');
+  // けいけんちは 半分・Lv10 で 進化
+  const g1 = P.gain(p, 100);
+  check(g1 && g1.gained === 50, 'けいけんちは 主人公の 半分（' + (g1 && g1.gained) + '）');
+  p.pals['drago-1'].exp = P.expFor(10) - 1;
+  const g2 = P.gain(p, 200);
+  check(!!g2.evolved && g2.evolved.to === 'drago-2' && p.pal === 'drago-2', 'Lv10 で つぎの すがたに なる（' + (g2.evolved && g2.evolved.to) + '）');
+  check(!p.pals['drago-1'] && !!p.pals['drago-2'], '前の すがたは のこらない');
+  check(p.dex['drago-2'] === 1, '進化した すがたは 図かんに のる');
+  p.pals['drago-2'].exp = P.expFor(20);
+  const g3 = P.gain(p, 10);
+  check(!!g3.evolved && p.pal === 'drago-3', 'Lv20 で さいごの すがたに なる');
+  const g4 = P.gain(p, 10);
+  check(!g4.evolved, 'さいごの すがたは それ いじょう 進化しない');
+  // コインで こうかん（会った ことが ある モンスターだけ）
+  const q = { pals: {}, pal: null, coins: 6, dex: { 'serp-1': 2 }, dexNew: {} };
+  check(!P.canBuy(q, 'krak-1'), '会った ことが ない モンスターは 買えない');
+  check(P.canBuy(q, 'serp-1'), '会った ことが ある モンスターは 買える');
+  const before = q.coins;
+  P.buy(q, 'serp-1');
+  check(q.coins === before - P.price('serp-1') && P.has(q, 'serp-1'), 'コインを はらって なかまに なる');
+  check(!P.canBuy(q, 'serp-1'), 'もう なかまの モンスターは 買えない');
+  // たおした 中から なかま候補（もう なかまの もの・ボス・たからばこは えらばない）
+  const r = { pals: { 'serp-1': { exp: 0 } }, pal: 'serp-1', coins: 0, dex: {}, dexNew: {} };
+  check(P.offerFrom(r, ['chest', 'boss-dragon', 'serp-1'], function () { return 0; }) === null, 'たからばこ・ボス・なかまは 候補に ならない');
+  check(P.offerFrom(r, ['drago-1'], function () { return 0; }) === 'drago-1', 'たおした ザコは 候補に なる');
+  check(P.offerFrom(r, ['drago-1'], function () { return 0.99; }) === null, 'いつも なかまに なる わけでは ない');
 })();
 
 /* ---------- 絵から モンスターを 組み立てる（v3.6〜・monstergen.js） ---------- */

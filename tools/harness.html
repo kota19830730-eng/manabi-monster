@@ -62,6 +62,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/ai.js"></script>
 <script src="../js/core/handwrite.js"></script>
 <script src="../js/core/missions.js"></script>
+<script src="../js/core/pals.js"></script>
 <script src="../js/core/battle.js"></script>
 <script src="../js/content/monsterart.js"></script>
 <script src="../js/content/monstergen.js"></script>
@@ -998,6 +999,51 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('tower: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
       return;
     }
+    /* なかま（相棒・v4.3）
+       #pals        … 図かんの「なかま」タブ（相棒 3体＋コイン 20）
+       #palbattle   … 相棒を 連れて バトル（3問 れんぞく 正解で 追い打ち）
+       #palresult   … けっか画面（そだった ぶん＋なかまに なりたい） */
+    if (mode.indexOf('pal') === 0) {
+      fresh();
+      MQ.save.update(function (pl) {
+        pl.coins = 20;
+        ['drago-1', 'mecha-2', 'ninja-1'].forEach(function (id) { MQ.pals.add(pl, id); });
+        MQ.pals.setActive(pl, 'drago-1');
+        // コインで こうかんできる ように、会った ことに する
+        ['serp-1', 'krak-1', 'hawk-2', 'bolt-3'].forEach(function (id) { pl.dex[id] = (pl.dex[id] || 0) + 1; });
+        if (mode === 'palresult') pl.pals['drago-1'].exp = MQ.pals.expFor(10) - 30;   // あと少しで しんか
+      });
+      if (mode === 'pals') {
+        MQ.ui.dex.render('pals');
+        MQ.ui.show('screen-dex');
+        await wait(200);
+        const cur = MQ.pals.active(MQ.save.current());
+        say('pals: いまの相棒=' + (cur ? cur.name + ' Lv.' + cur.lv : 'なし') +
+            ' もっている=' + MQ.pals.own(MQ.save.current()).length +
+            ' お店=' + document.querySelectorAll('.palshop__row').length + ' 相棒カード=' + ($('.palnow') ? 'ok' : 'MISSING'));
+        return;
+      }
+      // #palresult2 … かならず「なかまに なりたい」が 出る（いちばん つまった 画面の 検査）
+      if (mode === 'palresult2') { const real = MQ.pals.offerFrom; MQ.pals.offerFrom = function (p, def) { return real(p, def, function () { return 0; }); }; }
+      MQ.ui.battle.start('sansu3-2');
+      await wait(400);
+      say('palbattle: 画面の 相棒=' + ($('.pal') && !$('.pal').hidden ? $('.pal .pal__name').textContent : 'MISSING'));
+      if (mode === 'palbattle') {
+        // 3問 れんぞく 正解 → 追い打ち
+        for (let i = 0; i < 3; i++) { answerViaUI(true); await wait(1800); }
+        say('palbattle: 追い打ち=' + (MQ.battle.summaryNow ? '?' : '') + ' コンボ=' + MQ.battle.combo());
+        freeze();
+        return;
+      }
+      await playBattle('palresult');
+      await wait(900);
+      const rs = $('.rs');
+      say('palresult: 画面=' + (rs ? 'ok' : 'MISSING') +
+          ' 相棒の帯=' + ($('.rs__pal') ? $('.rs__pal .rs__palname').textContent : 'なし') +
+          ' なかま候補=' + ($('.rs__paloffer') ? $('.rs__paloffer .rs__palotext').textContent : 'なし'));
+      return;
+    }
+
     if (mode === 'result' || mode === 'result2' || mode === 'result3') {
       // #result  … ボスを たおして レベルアップも する にぎやかな ケース
       // #result2 … ボスに にげられて ★0 の さみしい ケース

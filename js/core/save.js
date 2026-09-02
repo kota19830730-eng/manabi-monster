@@ -20,6 +20,7 @@
      treasure  { ステージid: 1 or 2 }   1=ふつう 2=金色（★3）
      frags     { エリアid: true }        … まなびの かけら
      coins     きんのコインの 数
+     pals      なかま（相棒）{ id: { exp, got } }／pal  いまの 相棒の id
      bag       [ たからもの id ]   … もちもの（たたかいに もっていく アイテム・3つまで）
      itemUses / fastCount / bestCombo … しょうごう用の カウンター
      dex       { 敵id: たおした回数 }      … 図鑑
@@ -72,6 +73,9 @@ MQ.save = (function () {
         if (p.bag.length < BAG_MAX && p.treasure[t.id] && p.bag.indexOf(t.id) === -1) p.bag.push(t.id);
       });
     }
+    // なかま（相棒・v4.3）：{ id: { exp, got } }／pal＝いま 連れて 歩いて いる 1体
+    if (!p.pals || typeof p.pals !== 'object' || Array.isArray(p.pals)) p.pals = {};
+    if (typeof p.pal !== 'string' || !p.pals[p.pal]) p.pal = Object.keys(p.pals)[0] || null;
     if (!p.dex) p.dex = {};
     if (!p.dexNew) p.dexNew = {};   // まだ 見ていない「NEW」の しるし
     if (!p.escaped) p.escaped = {};

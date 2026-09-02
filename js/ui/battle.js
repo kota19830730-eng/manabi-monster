@@ -25,6 +25,7 @@ MQ.ui.battle = (function () {
   let input = '';
   let div = { q: '', r: '', active: 'q' };
   let bossOnScreen = false;
+  let palNow = null;              // いまの 相棒（v4.3）
   let fxTimer = null;
   let quakeTimer = null;
   let writeState = 'draw';     // かん字を 書く問題： 'draw' → 'check'（はんていが まよった ときだけ）
@@ -69,6 +70,10 @@ MQ.ui.battle = (function () {
           d.hero = h('div', { class: 'hero' }, [
             d.heroImg = h('img', { class: 'sprite hero__img', alt: '主人公' }),
             h('div', { class: 'shadow shadow--hero' })
+          ]),
+          d.pal = h('div', { class: 'pal', hidden: true }, [
+            d.palBox = h('div', { class: 'pal__box' }),
+            d.palName = h('span', { class: 'pal__name', text: '' })
           ]),
           d.foes = h('div', { class: 'foes' })
         ]),
@@ -171,7 +176,7 @@ MQ.ui.battle = (function () {
       MQ.battle.start({
         stage: found.stage, mode: 'tower',
         bossId: 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3,
-        timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0
+        timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player)
       });
     } else {
       // リベンジ（v3.1）：にげてから 時間が たった 敵だけ（古い ものから）。にげた その日は とっくんで
@@ -193,11 +198,12 @@ MQ.ui.battle = (function () {
         stage: found.stage, mode: 'normal',
         escaped: escaped, enemies: enemies, bossId: boss.id,
         rareId: rareId, trioIds: trioIds, chest: true, mobs: MOBS,
-        timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0
+        timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player)
       });
     }
 
     d.heroImg.src = MQ.hero.sprite(player);
+    syncPal(player);
     paintScene(isTower ? 'tower' : (ctx.area.biome || 'mountain'));
     MQ.bgm.play(isTower ? 'maou' : 'battle');
     MQ.ui.show('screen-battle');
@@ -229,9 +235,11 @@ MQ.ui.battle = (function () {
         return e;
       }),
       items: bagOf(player),
-      coins: player.coins || 0
+      coins: player.coins || 0,
+      pal: palOf(player)
     });
     d.heroImg.src = MQ.hero.sprite(player);
+    syncPal(player);
     paintScene('mountain');
     MQ.bgm.play('battle');
     MQ.ui.show('screen-battle');
@@ -430,6 +438,12 @@ MQ.ui.battle = (function () {
        発動：技名の バナー＋色の 光＋主人公の まわりの つぶつぶ＋効果音
        効果が のこっている あいだは 主人公が 光る（has-burst / has-shield …）
      ======================================================= */
+  // いまの 相棒（core に わたす ぶん）
+  function palOf(player) {
+    const cur = MQ.pals ? MQ.pals.active(player) : null;
+    return cur ? { id: cur.id, name: cur.name, lv: cur.lv } : null;
+  }
+
   function bagOf(player) { return MQ.treasure.bagItems(player); }
 
   // 右下の ボタン（もちものが ない とき・タイムアタックでは 出さない）
@@ -907,6 +921,7 @@ MQ.ui.battle = (function () {
       if (res.burst) burstHit();
       popDamage('+' + res.xp, res.crit || res.rare || !!res.multi || !!res.burst);
       comboShow(res.combo);
+      if (res.palHit) palAttack();
       if (res.multi) {
         MQ.sfx.multiKO(res.multi);
         flash(true);
@@ -914,7 +929,7 @@ MQ.ui.battle = (function () {
         d.msg.textContent = res.multi >= 3 ? 'トリプル KO！！ ぜんぶ 一発で たおした！' : 'ダブル KO！ 2体 まとめて たおした！';
         d.foes.querySelectorAll('.enemy').forEach(function (el) { el.classList.add('is-down'); });
       } else {
-        d.msg.textContent = (res.revenge ? 'リベンジ せいこう！ ' : res.burst ? 'ばくれつ！ ' : res.crit ? 'クリティカル！ ' : '') + e.name + ' を たおした！'
+        d.msg.textContent = (res.palHit && palNow ? palNow.name + 'の こうげき！ ' : '') + (res.revenge ? 'リベンジ せいこう！ ' : res.burst ? 'ばくれつ！ ' : res.crit ? 'クリティカル！ ' : '') + e.name + ' を たおした！'
           + (res.revenge ? '　ボーナス ＋' + MQ.battle.XP.revenge : res.burst ? '　けいけんち ' + res.burst + 'ばい！' : res.rare ? '　3ばいだ！' : '')
           + (res.coins ? '　コイン ＋' + res.coins : '');
       }
@@ -964,6 +979,7 @@ MQ.ui.battle = (function () {
     if (res.outcome === 'bosshit') {
       markChoices(q, value);
       attack(res.crit, true, specialOf(res.combo));
+      if (res.palHit) palAttack();
       if (res.burst) burstHit();
       popDamage((res.burst ? res.dmg + 'ダメージ ' : '') + '+' + res.xp, res.crit || !!res.burst);
       comboShow(res.combo);
@@ -1457,6 +1473,29 @@ MQ.ui.battle = (function () {
     }, sp.ms);
   }
 
+  /* いまの 相棒を 画面に 出す（いなければ かくす） */
+  function syncPal(player) {
+    const cur = MQ.pals ? MQ.pals.active(player) : null;
+    palNow = cur;
+    d.pal.hidden = !cur;
+    d.palBox.innerHTML = '';
+    if (!cur) return;
+    d.palBox.appendChild(MQ.enemies.node(cur.id, { size: 40, cls: 'pal__img' }));
+    d.palName.textContent = cur.name + ' Lv.' + cur.lv;
+  }
+
+  /* 3問 れんぞく 正解 → 相棒の 追い打ち。前に 出て ぶつかって もどる */
+  function palAttack() {
+    if (!palNow || d.pal.hidden) return;
+    d.pal.classList.remove('is-hit');
+    void d.pal.offsetWidth;
+    d.pal.classList.add('is-hit');
+    MQ.sfx.palHit();
+    const s = h('span', { class: 'pal__slash' });
+    d.fx.appendChild(s);
+    setTimeout(function () { s.remove(); d.pal.classList.remove('is-hit'); }, 700);
+  }
+
   function attack(crit, boss, sp) {
     d.hero.classList.remove('is-attack', 'is-special');
     void d.hero.offsetWidth;
@@ -1540,7 +1579,7 @@ MQ.ui.battle = (function () {
     const before = MQ.hero.progress(ctx.player.xp).level;
     const out = {
       levelBefore: before, levelAfter: before, leveledUp: false,
-      gear: null, densetsu: [], treasure: null, gold: false,
+      gear: null, densetsu: [], treasure: null, gold: false, pal: null, palOffer: null,
       frags: [], titles: [], best: null, fullSet: null,
       missions: null
     };
@@ -1557,6 +1596,11 @@ MQ.ui.battle = (function () {
       p.revengeWins = (p.revengeWins || 0) + (sum.revengeBeaten || []).length;
       // きょうの ミッション（v3.1）：進めて、クリアぶんの コイン・けいけんちは その場で
       if (MQ.missions) out.missions = MQ.missions.progress(p, sum, { areaId: ctx.tokkun ? null : ctx.area.id, stageId: ctx.stage.id });
+      // なかま（v4.3）：けいけんちの 半分が 相棒にも 入る／たおした 中から「なかまに なりたい」1体
+      if (MQ.pals) {
+        out.pal = MQ.pals.gain(p, sum.xp);
+        out.palOffer = MQ.pals.offerFrom(p, sum.defeated);
+      }
       if (!p.dexNew) p.dexNew = {};
       sum.defeated.forEach(function (id) {
         if (id === 'chest') return;

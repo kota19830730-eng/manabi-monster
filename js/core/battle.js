@@ -52,6 +52,7 @@ window.MQ = window.MQ || {};
 
 MQ.battle = (function () {
   const XP = {
+    pal: 10,                 // 相棒の 追い打ち（ザコの とき）
     revenge: 15,        // リベンジ（にげた敵を たおす）の ボーナス（v3.1）
     mob: 10, mobRetry: 5,          // ザコ
     bossHit: 15, bossHitRetry: 8,  // ボスへの 1ダメージ
@@ -251,6 +252,8 @@ MQ.battle = (function () {
       enraged: false,
       retry: false,
       combo: 0,
+      pal: opts.pal || null,       // いまの 相棒（{ id, name }）。いなければ null
+      palHits: 0,
       maxCombo: 0,
       correct: 0,
       answered: 0,
@@ -342,6 +345,14 @@ MQ.battle = (function () {
        'chestlost'  たからばこに にげられた（罰なし）
        'bosshit'    ボスに 1ダメージ
        'guard'      ボスに ガードされた                       */
+  /* 相棒の 追い打ち：3問 れんぞく 正解するたび（3・6・9…）。まちがえ直しの ときは 出ない */
+  function palHitNow() {
+    if (!s.pal || !MQ.pals) return false;
+    const hit = MQ.pals.hitOn(s.combo);
+    if (hit) s.palHits++;
+    return hit;
+  }
+
   function answer(value) {
     const q = current();
     const wasRetry = s.retry;
@@ -361,18 +372,21 @@ MQ.battle = (function () {
 
       /* ---- たからばこ ---- */
       if (q.chest) {
-        const xp = gain(XP.chest);
+        const palHit = palHitNow();
+        const xp = gain(XP.chest + (palHit ? XP.pal : 0));
         const coins = q.coins || 1;        // たからばこ よび（金色）は 2まい
         s.coins += coins;
         s.chestOpened = true;
-        return { outcome: 'chest', xp: xp, coins: coins, combo: s.combo, crit: crit, note: q.note };
+        return { outcome: 'chest', xp: xp, coins: coins, combo: s.combo, crit: crit, note: q.note, palHit: palHit };
       }
 
       /* ---- ボス ---- */
       if (s.phase === 'boss') {
         const last = s.mode === 'tower';
         // ばくれつ こうげき：ダメージが ふえ、そのぶん けいけんちも 入る
-        const dmg = s.buff.dmg > 1 ? Math.min(s.buff.dmg, s.bossHp) : 1;
+        const palHit = palHitNow();
+        let dmg = s.buff.dmg > 1 ? Math.min(s.buff.dmg, s.bossHp) : 1;
+        if (palHit) dmg = Math.min(dmg + 1, s.bossHp);      // 相棒の 追い打ち
         s.buff.dmg = 1;
         let xp = (wasRetry ? (last ? XP.lastHitRetry : XP.bossHitRetry) : (last ? XP.lastHit : XP.bossHit)) * dmg;
         if (crit) xp += XP.critBonus;
@@ -391,7 +405,7 @@ MQ.battle = (function () {
         xp = gain(xp);
         if (!defeated && s.bossAsked >= s.bossMax) { s.phase = 'done'; s.bossFled = true; s.endedAt = now(); }
         return {
-          outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note,
+          outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note, palHit: palHit,
           dmg: dmg, burst: dmg > 1 ? dmg : 0, coins: defeated ? 1 : 0,
           hpLeft: s.bossHp, defeated: defeated, last: last,
           enrage: !defeated && s.bossHp <= s.enrageAt && s.enraged,
@@ -400,7 +414,9 @@ MQ.battle = (function () {
       }
 
       /* ---- ザコ ---- */
+      const palHit = palHitNow();
       let xp = wasRetry ? XP.mobRetry : XP.mob;
+      if (palHit) xp += XP.pal;
       if (q.rare) xp *= XP.rareMul;
       if (crit) xp += XP.critBonus;
 
@@ -425,7 +441,7 @@ MQ.battle = (function () {
       s.defeated.push(q.enemyId);
       if (q.revenge) s.revengeBeaten.push(q.id);
       return {
-        outcome: 'correct', xp: xp, crit: crit, combo: s.combo, rare: !!q.rare,
+        outcome: 'correct', xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit,
         multi: multi, note: q.note, burst: burst, coins: coins, revenge: !!q.revenge
       };
     }
@@ -710,7 +726,9 @@ MQ.battle = (function () {
       revengeBeaten: s.revengeBeaten,
       revengeBonus: s.revengeBeaten.length * XP.revenge,
       typeOk: Object.assign({}, s.typeOk),
-      itemsUsed: s.itemsUsed.slice()
+      itemsUsed: s.itemsUsed.slice(),
+      palHits: s.palHits,
+      palId: s.pal ? s.pal.id : null
     };
   }
 

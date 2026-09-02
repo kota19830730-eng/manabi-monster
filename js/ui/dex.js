@@ -24,7 +24,7 @@ MQ.ui.dex = (function () {
     const keepTop = oldWrap && scr.classList.contains('is-active') ? oldWrap.scrollTop : 0;
 
     const tabs = h('div', { class: 'tabs' }, [
-      ['hero', '主人公'], ['treasure', 'たからばこ'], ['mons', 'モンスター'],
+      ['hero', '主人公'], ['treasure', 'たからばこ'], ['mons', 'モンスター'], ['pals', 'なかま'],
       ['parent', 'おうちの人'], ['set', 'せってい']
     ].map(function (t) {
       return h('button', {
@@ -37,6 +37,7 @@ MQ.ui.dex = (function () {
     if (tab === 'hero') body = heroTab(player);
     else if (tab === 'treasure') body = treasureTab(player);
     else if (tab === 'mons') body = monsTab(player);
+    else if (tab === 'pals') body = palsTab(player);
     else if (tab === 'parent') body = parentTab(player);
     else body = settingsTab(player);
 
@@ -275,6 +276,88 @@ MQ.ui.dex = (function () {
   /* =======================================================
      モンスター図かん
      ======================================================= */
+  /* ---------- なかま（相棒・v4.3） ----------
+     連れて 歩けるのは 1体。たたかいで けいけんちの 半分が 入り、Lv10・Lv20 で 進化する。
+     ふやし方は ①たおすと たまに なかまに なりたがる（けっか画面）②コインで こうかん */
+  function palsTab(player) {
+    const cur = MQ.pals.active(player);
+    const own = MQ.pals.own(player);
+    const shop = MQ.pals.shopList(player);
+    const kids = [];
+
+    // ① いまの 相棒
+    if (cur) {
+      const e = MQ.enemies.get(cur.id);
+      kids.push(h('div', { class: 'palnow' }, [
+        h('div', { class: 'palnow__art' }, [MQ.enemies.node(cur.id, { size: 88 })]),
+        h('div', { class: 'palnow__info' }, [
+          h('span', { class: 'palnow__label', text: 'いまの 相棒' }),
+          h('span', { class: 'palnow__name', text: cur.name }),
+          h('span', { class: 'palnow__lv', text: 'Lv.' + cur.lv + (cur.max ? '（さいこう）' : '　つぎまで ' + cur.need) }),
+          h('div', { class: 'palnow__bar' }, [h('div', { class: 'palnow__fill', style: { width: Math.round(cur.ratio * 100) + '%' } })]),
+          h('span', { class: 'palnow__evo', text: cur.evoAt ? 'Lv.' + cur.evoAt + ' で しんかする' : (e && e.stage === 3 ? 'さいごの すがた' : 'しんかは しない') })
+        ])
+      ]));
+    } else {
+      kids.push(h('p', { class: 'note', text: 'まだ なかまが いないよ。たたかいの あと「なかまに なりたそう！」と 出たら なかまに できるよ。コインでも こうかんできる。' }));
+    }
+
+    // ② もっている なかま（タップで 交代）
+    kids.push(h('h3', { class: 'dexh', text: 'なかま　' + own.length + '体' }));
+    if (own.length) {
+      kids.push(h('div', { class: 'dexgrid' }, own.map(function (o) {
+        return h('button', {
+          class: 'dexcell palcell' + (cur && cur.id === o.id ? ' is-on' : ''), type: 'button',
+          onclick: function () {
+            if (cur && cur.id === o.id) return;
+            MQ.sfx.tap();
+            MQ.save.update(function (p) { MQ.pals.setActive(p, o.id); });
+            MQ.ui.toast(o.name + 'を 相棒に した！');
+            render('pals');
+          }
+        }, [
+          cur && cur.id === o.id ? h('span', { class: 'dexcell__new', text: 'いま' }) : null,
+          h('div', { class: 'dexcell__art' }, [MQ.enemies.node(o.id, { size: 52 })]),
+          h('span', { class: 'dexcell__name', text: o.name }),
+          h('span', { class: 'dexcell__num', text: 'Lv.' + o.lv })
+        ]);
+      })));
+    }
+
+    // ③ コインで なかまに する（出会った ことが ある モンスターだけ）
+    kids.push(h('h3', { class: 'dexh', text: 'コインで なかまに する' }));
+    kids.push(h('p', { class: 'note' }, [
+      h('span', { text: 'もっている コイン ' }),
+      h('span', { class: 'palshop__coin', text: String(player.coins || 0) }),
+      h('span', { text: '　（たからばこ・ボス・★3で ふえる）' })
+    ]));
+    if (!shop.length) {
+      kids.push(h('p', { class: 'note', text: 'たたかって 出会った モンスターが ここに ならぶよ。' }));
+    } else {
+      kids.push(h('div', { class: 'palshop' }, shop.slice(0, 30).map(function (o) {
+        const ok = (player.coins || 0) >= o.price;
+        return h('div', { class: 'palshop__row' }, [
+          h('div', { class: 'palshop__art' }, [MQ.enemies.node(o.id, { size: 36 })]),
+          h('span', { class: 'palshop__name', text: o.name }),
+          h('span', { class: 'palshop__price', text: 'コイン ' + o.price }),
+          h('button', {
+            class: 'btn btn--small ' + (ok ? 'btn--cream' : 'btn--stone'), type: 'button',
+            text: ok ? 'なかまに する' : 'コインが たりない',
+            disabled: ok ? undefined : 'disabled',
+            onclick: function () {
+              if (!ok) return;
+              MQ.sfx.rare();
+              MQ.save.update(function (p) { MQ.pals.buy(p, o.id); });
+              MQ.ui.toast(o.name + 'が なかまに なった！');
+              render('pals');
+            }
+          })
+        ]);
+      })));
+    }
+    return h('div', { class: 'cell' }, kids);
+  }
+
   function monsTab(player) {
     const list = MQ.enemies.dexList();
     const seen = list.filter(function (e) { return (player.dex[e.id] || 0) > 0; }).length;

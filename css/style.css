@@ -843,6 +843,21 @@ body {
 .hero__img, .enemy__img { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)); }
 .hero__img { width: 76px; height: 76px; animation: bob 2.4s ease-in-out infinite; }
 .enemy__img { animation: bob 1.8s ease-in-out infinite; }
+/* ---- なかま（相棒・v4.3）：主人公の 足もとに 小さく いる ---- */
+.pal { position: absolute; left: 134px; bottom: 20px; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.pal .mons { filter: drop-shadow(0 3px 3px rgba(10,10,40,.45)); animation: bob 2s ease-in-out infinite; }
+.pal__name { font-family: var(--f-head); font-size: 9px; color: #ffe9a8; text-shadow: 0 1px 0 rgba(0,0,0,.6); white-space: nowrap; }
+.pal.is-hit { animation: palJump .55s ease-out; }
+.pal.is-hit .pal__name { opacity: .4; }
+@keyframes palJump {
+  0% { transform: translate(0, 0); }
+  35% { transform: translate(120px, -26px); }
+  55% { transform: translate(146px, -10px); }
+  100% { transform: translate(0, 0); }
+}
+.pal__slash { position: absolute; right: 54px; top: 96px; width: 40px; height: 6px; background: #fff2b0; box-shadow: 0 0 12px 4px rgba(255,214,90,.85); animation: palSlash .5s ease-out forwards; z-index: 4; }
+@keyframes palSlash { 0% { opacity: 0; transform: scaleX(.2) rotate(-18deg); } 30% { opacity: 1; transform: scaleX(1.2) rotate(-18deg); } 100% { opacity: 0; transform: scaleX(1.6) rotate(-18deg); } }
+@media (prefers-reduced-motion: reduce) { .pal.is-hit, .pal__slash { animation-duration: .01s; } }
 .combo { position: absolute; bottom: 8px; left: 12px; font-family: var(--f-head); font-size: 26px; color: #fff; text-shadow: 0 3px 0 #d6491f, 0 0 14px rgba(255,150,80,.8); z-index: 3; }
 .dmg { position: absolute; font-family: var(--f-head); font-size: 22px; color: #fff; text-shadow: 0 2px 0 #d6491f; z-index: 4; }
 
@@ -1527,7 +1542,50 @@ body {
 .rs__barfill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4fd3ff, #7cf9c4); transition: width .8s ease-out; }
 
 .rs__best { margin: -2px 0 0; text-align: center; font-size: 13px; color: #7cf9c4; white-space: nowrap; }
+.hud__pal { flex: none; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; margin-left: -4px; }
+/* ---- 図かんの「なかま」タブ（v4.3） ---- */
+.palnow { display: flex; gap: 12px; align-items: center; padding: 10px; border: 3px solid var(--gold); border-radius: 14px; background: rgba(245,197,66,.12); }
+.palnow__art { width: 88px; height: 88px; flex: none; display: flex; align-items: center; justify-content: center; }
+.palnow__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.palnow__label { font-family: var(--f-body); font-size: 11px; color: #ffd98a; letter-spacing: 1px; }
+.palnow__name { font-family: var(--f-head); font-size: 19px; color: #fff; }
+.palnow__lv { font-family: var(--f-head); font-size: 13px; color: #eaf0ff; }
+.palnow__bar { height: 8px; border-radius: 4px; background: rgba(0,0,0,.4); overflow: hidden; }
+.palnow__fill { height: 100%; background: linear-gradient(90deg, #6be2a8, #34c47a); }
+.palnow__evo { font-family: var(--f-body); font-size: 11px; color: #bcd0ff; }
+.palcell.is-on { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(245,197,66,.35); }
+.palshop { display: flex; flex-direction: column; gap: 6px; }
+.palshop__row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 2px solid var(--frame); border-radius: 10px; background: rgba(16,24,48,.7); }
+.palshop__art { width: 36px; height: 36px; flex: none; display: flex; align-items: center; justify-content: center; }
+.palshop__name { flex: 1; min-width: 0; font-family: var(--f-head); font-size: 13px; color: #eaf0ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.palshop__price { font-family: var(--f-head); font-size: 12px; color: var(--gold); flex: none; }
+.palshop__coin { font-family: var(--f-head); font-size: 15px; color: var(--gold); }
+/* ---- けっか画面の なかま（v4.3） ---- */
+.rs__pal, .rs__paloffer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px; border-radius: 10px;
+  background: rgba(24,34,64,.75); border: 2px solid var(--frame);
+}
+.rs__paloffer { border-color: var(--gold); background: rgba(245,197,66,.14); }
+.rs__pal--evo { border-color: var(--gold); background: rgba(245,197,66,.14); }
+.rs__palimg { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; }
+.rs__palmid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rs__palname, .rs__palotext { font-family: var(--f-head); font-size: 12px; color: #eaf0ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs__palotext { flex: 1; color: var(--gold); }
+.rs__palbar { height: 5px; border-radius: 3px; background: rgba(0,0,0,.4); overflow: hidden; }
+.rs__palfill { height: 100%; background: linear-gradient(90deg, #6be2a8, #34c47a); }
+.rs__palexp { font-family: var(--f-head); font-size: 12px; color: #9ff0c4; flex: none; }
+.rs__palget { min-height: 30px; padding: 0 10px; font-size: 12px; flex: none; }
+.rs__paloffer.is-got { border-color: #34c47a; background: rgba(52,196,122,.16); }
 .rs__mission { margin: -2px 0 0; padding: 4px 10px; border-radius: 10px; text-align: center; font-size: 12px; line-height: 1.35; color: #ffe89a; background: rgba(255,212,71,.12); box-shadow: inset 0 0 0 2px var(--gold); }
+
+/* たての みじかい 端末で 入りきらない ときだけ 余白を つめる（v4.3） */
+.rs--tight { gap: 5px; padding: 8px 12px 10px; }
+.rs--tight .rs__lv { padding: 6px 12px 7px; }
+.rs--tight .rs__item { min-height: 70px; }
+.rs--tight .rs__chip { padding: 4px 4px 5px; }
+.rs--tight .rs__pal, .rs--tight .rs__paloffer { padding: 3px 8px; }
+.rs--tight .rs__btns { gap: 6px; }
 
 /* ---- 4. ボーナスチップ ---- */
 .rs__chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }

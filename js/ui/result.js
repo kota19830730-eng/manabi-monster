@@ -138,6 +138,40 @@ MQ.ui.result = (function () {
         : 'ミッション クリア！ ' + m.completed.map(function (x) { return x.text; }).join('・') + '　コイン +' + m.coins });
     }
 
+    /* ---- 3b. なかま（v4.3）：そだった ぶんと、なかまに なりたい 子 ---- */
+    let palRow = null;
+    if (rw.pal) {
+      const info = MQ.pals.info(player, rw.pal.id);
+      const ev = rw.pal.evolved;
+      palRow = h('div', { class: 'rs__pal' + (ev ? ' rs__pal--evo' : '') }, [
+        h('div', { class: 'rs__palimg' }, [MQ.enemies.node(rw.pal.id, { size: 30 })]),
+        h('div', { class: 'rs__palmid' }, [
+          h('span', { class: 'rs__palname', text: ev ? ev.fromName + ' ▶ ' + ev.toName + ' に しんか！' : rw.pal.name + '　Lv.' + rw.pal.lv + (rw.pal.leveledUp ? '　レベルアップ！' : '') }),
+          h('div', { class: 'rs__palbar' }, [h('div', { class: 'rs__palfill', style: { width: Math.round((info ? info.ratio : 0) * 100) + '%' } })])
+        ]),
+        h('span', { class: 'rs__palexp', text: '+' + rw.pal.gained })
+      ]);
+    }
+    let palOffer = null;
+    if (rw.palOffer) {
+      const oe = MQ.enemies.get(rw.palOffer);
+      const btn = h('button', {
+        class: 'btn btn--small btn--cream rs__palget', type: 'button', text: 'なかまに する',
+        onclick: function () {
+          MQ.sfx.rare();
+          MQ.save.update(function (p) { MQ.pals.add(p, rw.palOffer); });
+          palOffer.classList.add('is-got');
+          btn.remove();
+          txt.textContent = (oe ? oe.name : '') + ' が なかまに なった！';
+        }
+      });
+      const txt = h('span', { class: 'rs__palotext', text: (oe ? oe.name : '') + ' が なかまに なりたそう！' });
+      palOffer = h('div', { class: 'rs__paloffer' }, [
+        h('div', { class: 'rs__palimg' }, [rw.palOffer ? MQ.enemies.node(rw.palOffer, { size: 30 }) : null]),
+        txt, btn
+      ]);
+    }
+
     /* ---- 4. ボーナスチップ ---- */
     const chips = h('div', { class: 'rs__chips' }, [
       chip('はやとき', sum.fastBonus ? '+' + sum.fastBonus : 'なし', sum.fastBonus ? 'rs__chip--on' : ''),
@@ -213,9 +247,11 @@ MQ.ui.result = (function () {
 
     const panel = h('div', { class: 'rs ' + mood }, [
       h('div', { class: 'rs__fx' }),
-      banner, bossCard, lvBand, best, mission, chips, items, ttl, btns
+      banner, bossCard, lvBand, palRow, palOffer, best, mission, chips, items, ttl, btns
     ]);
     MQ.ui.mount('screen-result', panel);
+    requestAnimationFrame(function () { fit(panel); });
+    setTimeout(function () { fit(panel); }, 320);
 
     // 上から 順番に 出す
     Array.prototype.slice.call(panel.children).forEach(function (el, i) {
@@ -227,6 +263,8 @@ MQ.ui.result = (function () {
     /* ---- 音 ---- */
     if (!sum.bossBeaten) MQ.sfx.clear();          // ボスの ときは ファンファーレが 鳴っている
     if (rw.leveledUp) setTimeout(MQ.sfx.levelup, 700);
+    if (rw.pal && rw.pal.evolved) setTimeout(MQ.sfx.levelup, 1100);
+    if (rw.palOffer) setTimeout(MQ.sfx.appear, 900);
     if (rw.treasure) setTimeout(MQ.sfx.treasure, 1000);
     if (rw.frags.length) setTimeout(MQ.sfx.frag, 1400);
     if (rw.gear || rw.densetsu.length) setTimeout(MQ.sfx.item, 1200);
@@ -239,5 +277,20 @@ MQ.ui.result = (function () {
     }
   }
 
-  return { render: render };
+  /* けっか画面は かならず 1画面に おさめる（スクロールさせない）。
+     たての みじかい 端末で 入りきらない ときだけ、
+     ①余白を つめる ②「手に入れた もの」を かくす ③ボーナスチップを かくす の じゅんに へらす */
+  function fit(panel) {
+    function over() { return panel.scrollHeight > panel.clientHeight + 1; }
+    if (!over()) return;
+    panel.classList.add('rs--tight');
+    if (!over()) return;
+    const items = panel.querySelector('.rs__items');
+    if (items) items.hidden = true;
+    if (!over()) return;
+    const chips = panel.querySelector('.rs__chips');
+    if (chips) chips.hidden = true;
+  }
+
+  return { render: render, fit: fit };
 })();

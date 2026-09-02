@@ -103,8 +103,11 @@ MQ.ui = MQ.ui || {};
   // 名前・しょうごう・レベル・けいけんちの バー
   MQ.ui.hud = function (player) {
     const pr = MQ.hero.progress(player.xp);
+    // なかま（v4.3）：連れて 歩いて いる 相棒を 顔の 横に 小さく
+    const pal = MQ.pals ? MQ.pals.active(player) : null;
     return h('div', { class: 'hud' }, [
       MQ.ui.faceImg(player, 'hud__img'),
+      pal ? h('div', { class: 'hud__pal', title: pal.name + ' Lv.' + pal.lv }, [MQ.enemies.node(pal.id, { size: 30 })]) : null,
       h('div', { class: 'hud__body' }, [
         h('div', { class: 'hud__name', text: player.name }),
         h('div', { class: 'hud__title', text: MQ.hero.titleName(player) }),
