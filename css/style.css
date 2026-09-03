@@ -976,6 +976,51 @@ body {
 .card__q--m { font-size: 26px; }
 .card__q--s { font-size: 21px; line-height: 1.3; }
 .card__ans { display: block; margin-top: 4px; font-size: 46px; letter-spacing: .1em; }
+
+/* ---- よみあげ「きく」ボタン（v5.3） ----
+   英語の 文（英語ステージ）と 小1の 問題文に つく。声の ない 端末では 出ない。
+   スピーカーの 絵は CSS の 四角（絵文字は 使わない・画像も 使わない）*/
+.card__listen { display: flex; justify-content: flex-end; margin-top: 6px; }
+.card__listen[hidden] { display: none; }
+.listen {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 40px; padding: 0 16px; border: 0; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(#ffe27a, var(--gold)); color: #4a3208;
+  font-family: var(--f-head); font-size: 15px; letter-spacing: .04em;
+  box-shadow: 0 4px 0 var(--paper-sh), inset 0 2px 0 rgba(255,255,255,.55);
+}
+.listen:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--paper-sh), inset 0 2px 0 rgba(255,255,255,.55); }
+/* スピーカー：四角い 本体＋右に ひろがる ラッパ（三角）＋音の 波 2本。
+   ぜんぶ CSS（画像も 絵文字も 使わない）*/
+.listen__ico { position: relative; width: 17px; height: 14px; flex: none; }
+/* 本体（左の 四角）＋ ラッパ（右に ひろがる 三角）*/
+.listen__ico::before {
+  content: ''; position: absolute; left: 0; top: 4px; width: 4px; height: 6px;
+  background: #4a3208;
+}
+.listen__ico i {
+  position: absolute; left: 4px; top: 1px; width: 0; height: 0;
+  border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+  border-right: 5px solid #4a3208;
+}
+/* 音の 波 2本（右に 弧を 2つ）*/
+.listen__ico b {
+  position: absolute; left: 10px; top: 3px; width: 4px; height: 8px;
+  border: 2px solid #4a3208; border-left: 0; border-radius: 0 8px 8px 0;
+}
+.listen__ico b::after {
+  content: ''; position: absolute; left: 2px; top: -3px; width: 3px; height: 12px;
+  border: 2px solid #4a3208; border-left: 0; border-radius: 0 9px 9px 0; opacity: .55;
+}
+/* 読んで いる あいだは 光って ゆれる */
+.listen.is-playing { animation: listenOn .7s ease-in-out infinite; }
+@keyframes listenOn {
+  0%, 100% { box-shadow: 0 4px 0 var(--paper-sh), inset 0 2px 0 rgba(255,255,255,.55), 0 0 0 0 rgba(255,212,71,.7); }
+  50%      { box-shadow: 0 4px 0 var(--paper-sh), inset 0 2px 0 rgba(255,255,255,.55), 0 0 14px 4px rgba(255,212,71,.85); }
+}
+/* 正解の ふきだしの 中では 少し 小さく */
+.feedback .listen { margin-top: 2px; min-height: 36px; font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .listen.is-playing { animation-duration: .01s; } }
 .pillstat span { margin-right: 5px; font-size: 13px; }
 /* 中身が ないときは 出さない（空の 黒い わくが 見えてしまうため） */
 .feedback:empty, .arena__msg:empty, .card__unit:empty, .combo:empty { display: none; }

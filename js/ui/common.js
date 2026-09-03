@@ -188,8 +188,46 @@ MQ.ui = MQ.ui || {};
       }),
       mk('きょく', function () { return MQ.bgm.isEnabled(); }, function (on) {
         MQ.bgm.setEnabled(on); MQ.save.setSetting('bgm', on);
-      })
-    ];
+      }),
+      // よみあげ（v5.3）。声が 入って いない 端末では 出さない
+      (MQ.speech && (MQ.speech.ready('en') || MQ.speech.ready('ja')))
+        ? mk('よみあげ',
+            function () { return MQ.save.getSetting('speech', true); },
+            function (on) { MQ.save.setSetting('speech', on); if (!on) MQ.speech.stop(); })
+        : null
+    ].filter(Boolean);
+  };
+
+  /* この 端末・この せってい で 読み上げて よいか（v5.3） */
+  MQ.ui.canSpeak = function (lang) {
+    if (!MQ.speech) return false;
+    if (!MQ.save.getSetting('speech', true)) return false;
+    return MQ.speech.ready(lang);
+  };
+
+  /* 「きく」ボタンを 作る（おしたら 読む・読んで いる あいだは 光る）。
+     読める もの が ない ときは null → 画面に 出さない */
+  MQ.ui.listenButton = function (say) {
+    if (!say || !say.text) return null;
+    if (!MQ.ui.canSpeak(say.lang)) return null;
+    let off = null;
+    const btn = h('button', {
+      class: 'listen', type: 'button', 'aria-label': '読み上げ',
+      onclick: function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        MQ.sfx.tap();
+        btn.classList.add('is-playing');
+        const done = function () { clearTimeout(off); btn.classList.remove('is-playing'); };
+        const ok = MQ.speech.speak(say.text, say.lang, { onend: done });
+        if (!ok) done();
+        else off = setTimeout(done, 6000);   // 保険（onend が 来ない 端末が ある）
+      }
+    }, [
+      h('span', { class: 'listen__ico' }, [h('i', {}), h('b', {})]),
+      h('span', { class: 'listen__tx', text: say.label || 'きく' })
+    ]);
+    return btn;
   };
 
   /* いまの プレイヤーの じぶんモンスターを 敵として つかえるように する */

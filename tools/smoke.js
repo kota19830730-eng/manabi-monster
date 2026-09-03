@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/pals.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/pals.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
 
 const MQ = global.MQ;
@@ -1761,6 +1761,82 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   // 古い セーブ
   T.forcePlayer(null);
   MQ.content.setActive(null);
+})();
+
+/* ---------- よみあげ（v5.3・speech.js） ---------- */
+(function () {
+  const S = MQ.speech;
+  check(!!S, 'speech が ある');
+
+  // HTML の しるしを とる
+  check(S.plain('<b>Good</b> morning<br>ね') === 'Good morning ね', 'HTML を とる: ' + S.plain('<b>Good</b> morning<br>ね'));
+
+  // " " の 中の 英語だけ 読む
+  check(S.englishIn('"Good morning." の いみは？') === 'Good morning.', '英語を とり出す: ' + S.englishIn('"Good morning." の いみは？'));
+  check(S.englishIn('"How is the weather?" の いみは？') === 'How is the weather?', '文ぜんたいを とり出す');
+  // カタカナの ふりがなは 読まない（読めない ので）
+  check(S.englishIn('"Nǐ hǎo（ニーハオ）" は どの 国の あいさつ？').indexOf('ニーハオ') < 0, 'カタカナの ふりがなは 読まない');
+  // かぎかっこが ない ときも ひろう
+  check(S.englishIn('apple は なに？') === 'apple', 'かぎかっこ なしでも ひろう: ' + S.englishIn('apple は なに？'));
+  // 英語が ない ときは から
+  check(S.englishIn('3 たす 4 は？') === '', '英語が なければ から');
+  check(S.englishIn('') === '', 'からの 文でも おちない');
+
+  // 声が ない ところ（node）では ぜったいに 読まない
+  check(S.ready('en') === false && S.ready('ja') === false, '声が ない ときは ready が false');
+  check(S.speak('hello', 'en') === false, '声が ない ときは 読まない');
+
+  // どの 問題に ボタンが つくか（読める か どうかは 画面がわが 見る）
+  const en = S.forQuestion({ prompt: '"Good morning." の いみは？' }, { areaId: 'eigo', grade: 3 });
+  check(!!en && en.lang === 'en' && en.text === 'Good morning.', '英語ステージ → 英語で 読む');
+  const g1 = S.forQuestion({ prompt: 'あわせて いくつ？' }, { areaId: 'sansu', grade: 1 });
+  check(!!g1 && g1.lang === 'ja' && g1.text === 'あわせて いくつ？', '小1 → 日本語で 問題文を 読む');
+  check(S.forQuestion({ prompt: '3 たす 4 は？' }, { areaId: 'sansu', grade: 3 }) === null, '小3の 算数は 読まない');
+  // 小1でも かん字の 入った 問題は 読まない（声が 答えを 言って しまう）
+  check(S.forQuestion({ prompt: '「山」の よみかたは？' }, { areaId: 'kokugo', grade: 1 }) === null, '小1 かん字の よみは 読まない');
+  check(S.forQuestion({ prompt: '「やま」を かん字で かくと？' }, { areaId: 'kokugo', grade: 1 }) === null, '小1 かん字を かくも 読まない（文に かん字）');
+  check(S.forQuestion({ prompt: 'あわせて いくつ？' }, { areaId: 'sansu', grade: 1 }) !== null, '小1 ひらがなの 問題は 読む');
+  check(S.hasKanji('やま') === false && S.hasKanji('山') === true, 'かん字の 見わけ');
+  /* 小1の 問題を ぜんぶ 見る。
+     読むのは **画面に 出て いる 問題文 そのもの** なので、読み上げで
+     あたらしく ばれるのは「見ても わからないが 声に すると わかる」もの
+     ＝ かん字の 読み だけ。だから たしかめるのは この 2つ：
+       ① 読む 文が 画面の 文と 同じ（よけいな ものを 足して いない）
+       ② かん字を ふくまない（ふくむ 問題は そもそも 読まない） */
+  (function () {
+    let bad = 0, kanji = 0, spoken = 0;
+    (MQ.kokugo1 ? MQ.kokugo1.questions : []).forEach(function (q) {
+      const say = S.forQuestion({ prompt: q.text }, { areaId: 'kokugo', grade: 1 });
+      if (!say) { if (S.hasKanji(q.text)) kanji++; return; }
+      spoken++;
+      if (say.text !== S.plain(q.text)) bad++;
+      if (S.hasKanji(say.text)) kanji--, bad++;
+    });
+    check(bad === 0, '小1 こくご：読む 文は 画面の 文と 同じ・かん字なし（ちがい ' + bad + '件）');
+    check(spoken > 0 && kanji > 0, '小1 こくご：かん字の 問題は 読まない（' + kanji + '問 とばした）');
+    console.log('  小1 こくご: きく ' + spoken + ' / ' + (MQ.kokugo1 ? MQ.kokugo1.questions.length : 0) + '問（かん字の ' + kanji + '問は 読まない）');
+  })();
+  check(S.forQuestion({ prompt: '「花」の 読みは？' }, { areaId: 'kokugo', grade: 3 }) === null, '小3の 国語は 読まない（答えが わかる）');
+  check(S.forQuestion({ prompt: '"apple" の いみは？' }, { areaId: 'eigo', grade: 4 }) !== null, '小4の 英語も 読む');
+  // 英語が 入って いない 英語ステージの 問題は ボタンを 出さない
+  check(S.forQuestion({ prompt: 'アルファベットは ぜんぶで 何文字？' }, { areaId: 'eigo', grade: 4 }) === null, '英語が なければ ボタンなし');
+  // ふきだし（note）
+  const nt = S.forNote('朝の あいさつです。昼は "Good afternoon."', { areaId: 'eigo' });
+  check(!!nt && nt.text === 'Good afternoon.', 'ふきだしの 英語も 読める: ' + (nt && nt.text));
+  check(S.forNote('朝の あいさつです。', { areaId: 'eigo' }) === null, '英語の ない ふきだしは ボタンなし');
+  check(S.forNote('てんとう虫の あしは 6本', { areaId: 'rika' }) === null, '英語ステージ いがいは 読まない');
+
+  // 英語ステージの 問題の うち、どれくらい 読めるか（目やす）
+  [['eigo3', MQ.eigo3], ['eigo4', MQ.eigo4]].forEach(function (pair) {
+    const mod = pair[1];
+    if (!mod || !mod.questions) return;
+    const all = mod.questions;
+    const ok = all.filter(function (q) {
+      return S.forQuestion({ prompt: q.text }, { areaId: 'eigo', grade: 3 }) !== null;
+    }).length;
+    check(ok >= all.length * 0.5, pair[0] + ' の 半分いじょうに きくボタン: ' + ok + ' / ' + all.length);
+    console.log('  ' + pair[0] + ': きく ' + ok + ' / ' + all.length + '問');
+  });
 })();
 
 /* ---------- なかま（相棒・v4.3・pals.js） ---------- */

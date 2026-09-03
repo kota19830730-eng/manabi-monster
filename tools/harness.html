@@ -68,6 +68,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/handwrite.js"></script>
 <script src="../js/core/missions.js"></script>
 <script src="../js/core/pals.js"></script>
+<script src="../js/core/speech.js"></script>
 <script src="../js/core/battle.js"></script>
 <!-- 教科の ファイルは **index.html と 同じ じゅんばん**（tools/smoke.js が 検査する）。
      じゅんばんが ずれると、本物の アプリだけ 落ちる バグを 見のがす（v4.9 の zu.js）。 -->
@@ -124,6 +125,34 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
   MQ.sfx.setEnabled(false);
   MQ.bgm.setEnabled(false);
   MQ.ui.setTextures();
+
+  /* headless の Chrome には 声が 入って いない ので、にせの 声を 入れる（v5.3）。
+     読んだ 中身は window.__spoke に たまる。*/
+  function fakeVoices(none) {
+    window.__spoke = [];
+    const vs = none ? [] : [
+      { name: 'Fake US', lang: 'en-US', default: true },
+      { name: 'Fake UK', lang: 'en-GB' },
+      { name: 'Fake JP', lang: 'ja-JP' }
+    ];
+    const synth = {
+      getVoices: function () { return vs; },
+      speak: function (u) {
+        window.__spoke.push({ text: u.text, lang: u.lang, rate: u.rate, voice: u.voice && u.voice.name });
+        if (typeof u.onend === 'function') setTimeout(u.onend, 30);
+      },
+      cancel: function () {},
+      addEventListener: function () {}
+    };
+    try { Object.defineProperty(window, 'speechSynthesis', { value: synth, configurable: true }); }
+    catch (e) { window.speechSynthesis = synth; }
+    // native の Utterance に にせの voice を 入れると TypeError に なる ので、
+    // こちらも かならず にせに する
+    const U = function (t) { this.text = t; this.lang = ''; this.rate = 1; this.pitch = 1; this.volume = 1; };
+    try { Object.defineProperty(window, 'SpeechSynthesisUtterance', { value: U, configurable: true }); }
+    catch (e) { window.SpeechSynthesisUtterance = U; }
+    if (MQ.speech) MQ.speech.refresh();
+  }
 
   function fresh(opts) {
     opts = opts || {};
@@ -561,6 +590,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     if (mode === 'parent') { fresh(); MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'set') { fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); return; }
+    // #set2 … よみあげの スイッチが 出る せってい画面（にせの 声・v5.3）
+    if (mode === 'set2') { fakeVoices(); fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); await wait(200); say('set2: スイッチ=' + Array.prototype.map.call(document.querySelectorAll('.sw'), function (b) { return b.textContent; }).join('/')); dump(); return; }
     if (mode === 'photo') { fresh(); MQ.ui.photo.render(); return; }
     // 写真から モンスター（v2.7）：#photo2 = 子どもの 絵に 見せかけた 画像／#photo3:<file URL>[:<マス数>[:<x,y,w[,h]>[:<消す,こく>]]] = 本物の 画像
     //   x,y,w,h は わくの 場所（写真に 対する わりあい 0〜1。h を 書かなければ 写真の px で 正方形）。子どもが 指で わくを 動かした のと 同じに PointerEvent で 動かす
@@ -1114,6 +1145,67 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('tower4: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
       return;
     }
+    /* よみあげ（v5.3）
+       #speak     … 英語ステージ。カードの「きく」を おして 何を 読むか 見る
+       #speak2    … 正解の あとの ふきだしの「きく」
+       #speak1    … 小1（問題文を 日本語で）
+       #speakoff  … せっていを 切った とき ＝ ボタンが 出ない
+       #speaknone … 声が 入って いない 端末 ＝ ボタンが 出ない */
+    if (mode.indexOf('speak') === 0) {
+      const off = (mode === 'speakoff');
+      const none = (mode === 'speaknone');
+      const g1 = (mode === 'speak1');
+      fakeVoices(none);                      // none の ときは 声 0こ
+      fresh(g1 ? { grade: 1 } : {});
+      if (g1) MQ.save.setPlayGrade(1);
+      if (off) MQ.save.setSetting('speech', false);
+      MQ.ui.battle.start(g1 ? 'sansu1-1' : 'eigo3-1');
+      await wait(500);
+      const btn = $('.card__listen .listen');
+      const q = MQ.battle.current();
+      say('speak: 問題=' + (q ? MQ.speech.plain(q.prompt).slice(0, 34) : 'なし'));
+      say('speak: きくボタン=' + (btn ? 'ある' : 'ない') +
+          ' 声=' + (MQ.speech.ready('en') ? 'en' : '-') + (MQ.speech.ready('ja') ? '/ja' : '') +
+          ' せってい=' + (MQ.save.getSetting('speech', true) ? 'on' : 'off'));
+      if (off || none) {
+        say('speak: ' + (off ? 'せっていを 切った' : '声が ない') + ' ときに ボタンが ' +
+            (btn ? '出た NG' : '出ない OK'));
+        dump(); freeze(); return;
+      }
+      if (!btn) { say('speak: きくボタン MISSING'); dump(); freeze(); return; }
+      btn.click();
+      await wait(120);
+      const sp = (window.__spoke || [])[0];
+      say('speak: 読んだ="' + (sp ? sp.text : 'MISSING') + '" ことば=' + (sp ? sp.lang : '-') +
+          ' はやさ=' + (sp ? sp.rate : '-') + ' 光る=' + (btn.classList.contains('is-playing') ? 'ok' : 'no'));
+      if (mode === 'speak2') {
+        // 正解して ふきだしを 出す。つぎの 問題に 進む 前に 止める
+        answerViaUI(true);
+        await wait(400);
+        freeze();
+        // ふきだしは 予約ずみの タイマーで 消える（freeze は 予約ずみを 止められない）
+        // → 見つけた すぐ あとに 写しを とって おく
+        const fbox = document.querySelector('.feedback');
+        const panel = document.querySelector('.battle__body');
+        if (fbox && panel) {
+          const c = fbox.cloneNode(true);
+          c.style.animation = 'none';
+          c.setAttribute('data-copy', '1');
+          panel.appendChild(c);
+        }
+        const fb = $('.feedback .listen');
+        say('speak2: ふきだしの きく=' + (fb ? 'ある' : 'ない') +
+            ' 文=' + ($('.feedback__note') ? $('.feedback__note').textContent.slice(0, 30) : '-'));
+        if (fb) { fb.click(); await wait(120);
+          const sp2 = (window.__spoke || [])[1];
+          say('speak2: 読んだ="' + (sp2 ? sp2.text : 'MISSING') + '"'); }
+
+      }
+      dump();
+      freeze();
+      return;
+    }
+
     /* なかま（相棒・v4.3）
        #pals        … 図かんの「なかま」タブ（相棒 3体＋コイン 20）
        #palbattle   … 相棒を 連れて バトル（3問 れんぞく 正解で 追い打ち）

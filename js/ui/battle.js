@@ -96,7 +96,8 @@ MQ.ui.battle = (function () {
       d.panel = h('section', { class: 'battle__body' }, [
         d.card = h('div', { class: 'card' }, [
           d.unit = h('p', { class: 'card__unit' }),
-          d.prompt = h('div', { class: 'card__q' })
+          d.prompt = h('div', { class: 'card__q' }),
+          d.listen = h('div', { class: 'card__listen', hidden: true })   // よみあげ（v5.3）
         ]),
         d.choices = h('div', { class: 'choices' }),
         d.memo = h('div', { class: 'memo' }, [
@@ -652,9 +653,27 @@ MQ.ui.battle = (function () {
     d.prompt.className = 'card__q' + (n > 30 || fig ? ' card__q--s' : (n > 14 || vert ? ' card__q--m' : ''));
   }
 
+  /* よみあげ（v5.3）：英語の 文（英語ステージ）／小1の 問題文 に「きく」を つける。
+     声が 入って いない 端末・せっていが 切って ある ときは 何も 出ない */
+  function renderListen(q) {
+    if (!d.listen) return;
+    if (MQ.speech) MQ.speech.stop();          // 前の 読み上げを 止める
+    d.listen.textContent = '';
+    d.listen.hidden = true;
+    if (!MQ.speech || !MQ.ui.listenButton) return;
+    const grade = ctx && ctx.world ? ctx.world.grade : 0;
+    const areaId = q.areaId || (ctx && ctx.area ? ctx.area.id : '');
+    const say = MQ.speech.forQuestion(q, { areaId: areaId, grade: grade });
+    const btn = MQ.ui.listenButton(say);
+    if (!btn) return;
+    d.listen.appendChild(btn);
+    d.listen.hidden = false;
+  }
+
   function renderAnswerArea(q) {
     d.prompt.innerHTML = q.prompt || '';
     fitPrompt();
+    renderListen(q);
     d.card.hidden = false;
 
     // えらぶ
@@ -1063,6 +1082,14 @@ MQ.ui.battle = (function () {
     d.feedback.textContent = '';
     d.feedback.appendChild(h('b', { class: 'feedback__head', text: head }));
     if (note) d.feedback.appendChild(h('span', { class: 'feedback__note', text: note }));
+    // よみあげ（v5.3）：ふきだしの 中の 英語も 聞ける
+    if (note && MQ.speech && MQ.ui.listenButton) {
+      const areaId = (ctx && ctx.area) ? ctx.area.id : '';
+      const cur = MQ.battle.current();
+      const say = MQ.speech.forNote(note, { areaId: (cur && cur.areaId) || areaId });
+      const b = MQ.ui.listenButton(say);
+      if (b) d.feedback.appendChild(b);
+    }
     d.feedback.className = 'feedback' + (cls ? ' ' + cls : '');
   }
 
@@ -1116,6 +1143,7 @@ MQ.ui.battle = (function () {
     d.msg.textContent = '';
     d.foes.innerHTML = '';
     d.card.hidden = true;
+    if (MQ.speech) MQ.speech.stop();
     d.choices.hidden = true;
     d.memo.hidden = true;
     d.displays.hidden = true;
