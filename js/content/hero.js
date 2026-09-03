@@ -588,52 +588,54 @@ MQ.hero = (function () {
      ======================================================= */
   const posterRows = [
     '............................S.....',
-    '...............RRRRR.......WSS....',
-    '...............rrrrr.......WSE....',
-    '...............rrrrr.......WSE....',
-    '............LLLLLLLLLLLLhh.WSE....',
-    '............HHHHHHHHHHHHhh.WSE....',
-    '............HHHHHHHHHHHHhh.WSE....',
-    '............HHHHHHHHHHHHhh.WSE....',
-    '............HHsssssssssshh.WSE....',
-    '............HHsssssssssshh.WSE....',
-    '............HHskksssskkshh.WSE....',
-    '............HHskksssskkshh.WSE....',
-    '............HHsssssssssshhgggggg..',
-    '............HHsssssssssshhGGGGGG..',
-    '............HHeeeeeeeeeehhggggg...',
-    '............HHHHHHHHHHHHhhGGGGG...',
-    '............hhhhhhhhhhhhhhLLLLD...',
-    '........LLLLLLLLLLLLLLLLDDAAAAD...',
-    '........AAAAAAAAAAAAAAAADDAAAAD...',
-    '.yyyyyyyyyAAAAAAAAAAAAAADDAAAAD...',
-    '.yBBBBBBByAAAAAAAAAAAAAADDAAAAD...',
-    '.yBBBgBBByAAAAAAAAAAAAAADDAAAAD...',
-    '.yBBgggBByAAAAAAAAAAAAAADDAAAAD...',
-    '.yBgggggByAAAAAAAAAAAAAADDAAAAD...',
-    '.yBBgggBByAAAAAAAAAAAAAADD........',
-    '.yBBBgBBBy..gggggggggggggg........',
-    '.yBBBBBBBy..gggggggggggggg........',
-    '.yyyyyyyyy..GGGGGGGGGGGGGG........',
-    '............ppppppppppppqq........',
-    '............ppppppppppppqq........',
-    '............ppppppppppppqq........',
-    '............ppppppqqppppqq........',
-    '............ppppppqqppppqq........',
-    '............ppppppqqppppqq........',
-    '............gggggg..gggggg........',
-    '............GGGGGG..GGGGGG........'
+    '...........................SSS....',
+    '...........................SSC....',
+    '...........................SCC....',
+    '...........kkkkkkkkkkkkkk..SSC....',
+    '...........KKKKKKKKKKKKKK..SCC....',
+    '...........KKKKKKKKKKKKKK..SSC....',
+    '...........KKKKKKKKKKKKKK..SCC....',
+    '...........KKKKKKKKKKKKKK..SSC....',
+    '...........KKKKKKKKKKKKKKMMMMMMM..',
+    '...........KKKKsKKssKKeKKmmmmmmm..',
+    '...........KKKKsssssKKeKK..mmm....',
+    '...........KKsWBBssWBBeKK..mmm....',
+    '...........KKsBBBssBBBeKK..mmm....',
+    '...........KKsBBBssBBBeKK.MMMMM...',
+    '...........KKssssssssseKK.LLLLD...',
+    '...........KKssssssssseKK.AAAAD...',
+    '.............ssssssssse...AAAAD...',
+    '.......gggggLLggggggggLDDvAAAAD...',
+    '.......gggggAAGGGGGGGGADggggggg...',
+    '.yyyyyyyyyGGAAAAAAAAAAADggggggg...',
+    '.ybbbbbbbyLLAAAAggggggADGGGGGGG...',
+    '.ybbbybbbyAAAAAAAggggAADDvAAAAD...',
+    '.ybbyyybbyAAAAAAAAGGAAADDvv.......',
+    '.ybyyyyybyAAAAAAAAAAAAADDVvv......',
+    '.ybbyyybbyAAAAAAAAAAAAADDVvv......',
+    '.ybbbybbbyAAgggggggggggggVvv......',
+    '.ybbbbbbbyVGGGGGGGGGGGGGGVvv......',
+    '.ybbbbbbbyVVppppppppppqqVVvv......',
+    '.ybbbbbbbyVVppppppppppqqVVvv......',
+    '.yyyyyyyyyVVpppppqqpppqqVVVvv.....',
+    '.......VVVVVpppppqqpppqqVVVvv.....',
+    '.......VVVVVpppppqqpppqqVVVvv.....',
+    '........VVVVgggggVVgggggVVVv......',
+    '............qqqqq..qqqqq..........',
+    '............qqqqq..qqqqq..........'
   ];
 
   const POSTER_PALETTE = {
-    r: '#ff5e5e', R: '#ff9090',                              // 前立て
-    H: '#eef3ff', h: '#bcc9e6', L: '#ffffff',                // かぶと
-    s: '#ffdca8', e: '#e0b986', k: '#242a44',                // 顔と 目
-    A: '#b8cce8', D: '#8ba3c9',                              // よろい
+    K: '#3b2a16', k: '#5c421f',                              // かみの毛
+    s: '#ffdca8', e: '#e0b986',                              // はだ
+    W: '#ffffff', B: '#2e6fe0',                              // 青い 目
+    A: '#3a3a48', L: '#4e4e5e', D: '#26262f',                // 黒い よろい
     g: '#ffd447', G: '#d9a418',                              // 金
-    p: '#33418f', q: '#26307a',                              // あし
-    W: '#ffffff', S: '#e8f3ff', E: '#a9c8e8',                // けん
-    y: '#ffd447', B: '#4d7ddc'                               // たて
+    p: '#2b2b36', q: '#1d1d26',                              // あし・くつ
+    V: '#3f66c9', v: '#294a9e',                              // 青い マント
+    M: '#5a6274', m: '#2c3040',                              // けんの つば・にぎり
+    S: '#e8f3ff', C: '#5aa8f0',                              // ダイヤの 刃
+    y: '#ffd447', b: '#3f66c9'                               // たて
   };
 
   function poster() {

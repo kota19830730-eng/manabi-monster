@@ -1,23 +1,24 @@
 /* ---------------------------------------------------------
    01 はじめの画面（タイトル）
 
-   モックの とおり：
-     明るい 青空 → 夕陽の グラデーション
-     上から 放射状の 後光 ＋ まん中に 白い グロー
-     四角い 雲が 2つ ゆっくり ながれる
+   v5.0（2026-09-04）ユーザーが えらんだ モック
+   「モンスター だいしゅうごう」の とおりに 作り直した：
+     明るい 青空 ＋ まん中の 光 ＋ 色とりどりの かみふぶき
      金グラデ＋こい茶ぶちの ロゴ ＋ ✦3つ
-     空：ボスの 赤い ドラゴン（炎を はく）と
-         うかぶ もんだいブロック（？・A・算）
-     地面：草 → 土 → 草 の 3層（市松）
-         木・勇者・さいごの塔／なかま3体・たからばこ
+     うしろ：大きな ボスドラゴン（ドラゴニクス）と うかぶ「A」ブロック
+     まん中：勇者（黒かみ・青マント・ダイヤの けん）と なかまたち
+     手まえ：にんじゃ・ゴールデンスライム・ゴージャスな たからばこ・マグマゴン
      いちばん下：緑の 主ボタン ＋ クリームと 紺の サブボタン
 
-   画面は たてに flex で 3つに 分ける。
-     head（ロゴ）→ scene（空・のびちぢみ）→ land（地面）→ actions
-   こうすると 端末の たての 長さが 変わっても 重ならない。
+   **モンスターは ゲームの 本物の 絵**（MQ.enemies.node）を つかう。
+   タイトルだけの にせの 絵を 作ると 図かんと ちがって しまうため。
+   勇者だけは 決まった 一枚絵（MQ.hero.poster）。マス目は
+   `node tools/gen-title-art.js` で 作る（手で 打たない）。
 
-   絵は ぜんぶ CSS の div か ドット絵（js/core/pixel.js）。
-   画像ファイルは 使いません。
+   画面は たてに flex で 4つに 分ける。
+     head（ロゴ）→ scene（空・のびちぢみ）→ land（地面）→ actions
+   みんなは land の 中に「下から の 位置」で おいて あるので、
+   画面が 高く なっても ボタンの すぐ 上に そろう。
    --------------------------------------------------------- */
 window.MQ = window.MQ || {};
 MQ.ui = MQ.ui || {};
@@ -25,105 +26,18 @@ MQ.ui = MQ.ui || {};
 MQ.ui.start = (function () {
   const h = MQ.util.h;
 
-  /* =======================================================
-     タイトルだけで 使う ドット絵
-     （マス目は 生成スクリプトで 作った もの。
-       ボスの 赤い ドラゴンは 図かんの「まおう」とは 別の、看板用の 一枚絵）
-     ======================================================= */
-  const DRAGON_ROWS = [
-    '.GG......................................GG.',
-    '.pppp..................................pppp.',
-    '.ppPPpp.G..........................G.ppPPpp.',
-    '.ppPPPPpG..........................GpPPPPpp.',
-    '..pPPPPPPpp......................ppPPPPPPp..',
-    '..pPPPPPPPPpp.G..............G.ppPPPPPPPPp..',
-    '..pPPPPPPPPPPpG..............GpPPPPPPPPPPp..',
-    '...PPPGPPPPPPPPpp..........ppPPPPPPPPGPPP...',
-    '...PPPPPPPPPPPPPPpp......ppPPPPPPPPPPPPPP...',
-    '...pPPPPPPPGPPPPPPPpG..GpPPPPPPPGPPPPPPPp...',
-    '....PPPPPPPPPPPPPPPPG..GPPPPPPPPPPPPPPPP....',
-    '....PGPPpPPPPpPPGPpPG..GPpPGPPpPPPPpPPPP....',
-    '....pGPPGPPPP.NNNNNNNNNNNNNNNNDDPPP.PPPp....',
-    '.....GppGpppp.KKKKKKKKKKKKKKKKDDppp.ppp.....',
-    '....NNNNNNNN..KKKKKKKKKKKKKKKKDD............',
-    '....KKYYKKKKKKKKKGGKKKGGKKKGGKDD............',
-    '..KKKKYYKKKKKKKKKGGKKKGGKKKGGKDDKKKKKK......',
-    '..KKKKKKKKKKKKKKKKKKKKKKKKKKKKDDKKKKKKK.....',
-    '..KKKKKKKKKK..KKKKKKKKKKKKKKKKDD.....KK.....',
-    '..DDDDDDDKKK..DDDDDDDDDDDDDDDDDD.....KK.....',
-    '...GKKKKKKKK......KKK.....KKK........KKP....',
-    '..................KKK.....KKK........PPPPP..',
-    '..................KKK.....KKK........PPPPPP.',
-    '.................GGGG....GGGG..........P....'
+  /* かみふぶき：[左px, 上 %（空の 高さに 合わせて 散らす）, 大きさ, 色, かたむき] */
+  const BITS = [
+    [30, 24, 8, '#ffd447', 12], [356, 27, 7, '#ef6ea3', -16],
+    [70, 30, 6, '#63d94f', 24], [320, 30, 8, '#5ab0ff', -10],
+    [180, 34, 6, '#ff8f5e', 18], [240, 34, 7, '#ffd447', -22],
+    [128, 37, 6, '#ef6ea3', 8], [288, 38, 6, '#63d94f', -14],
+    [48, 47, 6, '#63d94f', 20], [344, 50, 7, '#ffd447', -12]
   ];
-  const DRAGON_PAL = {
-    P: '#ee4a34', p: '#9c1e0c',        // はね（赤）／へり・ほね（こい赤）
-    K: '#7a1608', N: '#b0301a', D: '#4c0b03',   // からだ（こい赤／あかるい／かげ）
-    G: '#ffd447', Y: '#ffe95e'         // 金の つの・かぎづめ・はん点／光る 目
-  };
 
-  const SLIME_ROWS = [
-    '....gggggggg....',
-    '..gggggggggggg..',
-    '.glllgggggggggg.',
-    'gllgggggggggggdd',
-    'gllgggggggggggdd',
-    'ggggkkggggkkggdd',
-    'ggggkkggggkkggdd',
-    'ggggkkggggkkggdd',
-    'ggggkkggggkkggdd',
-    'ggggggggggggggdd',
-    'ggggggkkkkggggdd',
-    'ggggggggggggggdd',
-    '.ggggggggggggdd.',
-    '..ggggggggggdd..'
-  ];
-  const SLIME_PAL = { g: '#63d94f', d: '#3f9c33', l: '#c2f7b4', k: '#1a2540' };
-
-  const LIZARD_ROWS = [
-    '...lllllllldd...',
-    '...oooooooodd...',
-    '...ookkookkdd...',
-    '...ookkookkdd...',
-    '...oooooooodd...',
-    '...oodddddddd...',
-    '...oooooooodd...',
-    '.oooooooooodood.',
-    '.oooooccccodood.',
-    '.oooooccccodood.',
-    '....ooccccod....',
-    '....ooccccod....',
-    '....oooooood....',
-    '....ooo..ooo....',
-    '....ddd..ddd....'
-  ];
-  const LIZARD_PAL = { o: '#ff9436', d: '#d96a15', c: '#ffd9a0', l: '#ffc07a', k: '#1a2540' };
-
-  const GOLEM_ROWS = [
-    '....lllllldd....',
-    '....bbbbbbdd....',
-    '....byybbyyd....',
-    '....byybbyyd....',
-    '....bbbbbbdd....',
-    '....bbbbbbdd....',
-    '....bbbbbbdd....',
-    'bbbdllllllddbbbd',
-    'bbbdbbbbbbddbbbd',
-    'bbbdbbbbbbddbbbd',
-    'bbbdbbbbbbddbbbd',
-    'bbbdbbbbbbddbbbd',
-    'bbbdbbbbbbddbbbd',
-    '....bbbbbbdd....',
-    '....bbb..bbb....',
-    '....ddd..ddd....'
-  ];
-  const GOLEM_PAL = { b: '#4d8ce0', d: '#2f5fae', l: '#9fd0ff', y: '#ffd447' };
-
-  function dot(key, rows, pal, cls) {
-    return h('img', {
-      class: 'sprite ' + cls, alt: '',
-      src: MQ.pixel.url(key, [{ rows: rows, palette: pal }], { bevel: true })   // ふち取りなし（モックに 合わせる）
-    });
+  /* ゲームの 本物の モンスターを 1体 おく（場所と 大きさは CSS の .tmob--*） */
+  function mob(id, size, cls) {
+    return h('div', { class: 'tmob tmob--' + cls }, [MQ.enemies.node(id, { size: size })]);
   }
 
   function begin(name, look, grade) {
@@ -141,60 +55,71 @@ MQ.ui.start = (function () {
   }
 
   /* =======================================================
-     空（背景・後光・雲）
+     空（背景・光・かみふぶき）
      ======================================================= */
   function sky() {
     return [
       h('div', { class: 'title__sky' }),
-      h('div', { class: 'title__rays' }),
       h('div', { class: 'title__glow' }),
-      h('div', { class: 'cloud cloud--a' }, [h('i'), h('i'), h('i')]),
-      h('div', { class: 'cloud cloud--b' }, [h('i'), h('i'), h('i')])
+      h('div', { class: 'title__bits' }, BITS.map(function (b) {
+        return h('i', {
+          style: {
+            left: b[0] + 'px', top: b[1] + '%',
+            width: b[2] + 'px', height: b[2] + 'px',
+            background: b[3], transform: 'rotate(' + b[4] + 'deg)'
+          }
+        });
+      }))
     ];
   }
 
   /* =======================================================
-     空に うかぶ もの（ボスと もんだいブロック）
+     ゴージャスな たからばこ（ふたが ひらいて 金貨が 見える）
      ======================================================= */
-  function scene() {
-    return h('div', { class: 'title__scene' }, [
-      // ボスの 赤い ドラゴン（炎を はく）
-      h('div', { class: 'title__boss' }, [
-        dot('t-dragon', DRAGON_ROWS, DRAGON_PAL, 'title__bossimg'),
-        h('div', { class: 'title__fire' }, [h('i'), h('i'), h('i')])
+  function chest() {
+    return h('div', { class: 'title__chest' }, [
+      h('div', { class: 'glow' }),
+      h('div', { class: 'lid' }, [h('i', { class: 'gem' })]),
+      h('div', { class: 'coins' }, [h('i'), h('i'), h('i')]),
+      h('div', { class: 'box' }, [
+        h('i', { class: 'band band--l' }),
+        h('i', { class: 'band band--r' }),
+        h('div', { class: 'lock' })
       ]),
-      // うかぶ もんだいブロック（左の 空に まとめる）
-      h('div', { class: 'title__cube title__cube--q', text: '？' }),
-      h('div', { class: 'title__cube title__cube--a', text: 'A' }),
-      h('div', { class: 'title__cube title__cube--s', text: '算' })
+      h('span', { class: 'spark spark--a' }),
+      h('span', { class: 'spark spark--b' })
     ]);
   }
 
   /* =======================================================
-     地面（草→土→草）と そこに 立つ もの
+     空の あき（画面が 高い ぶんは ここが のびる）
+     ======================================================= */
+  function scene() {
+    return h('div', { class: 'title__scene' });
+  }
+
+  /* =======================================================
+     地面（草 → 土）と そこに いる みんな
      ======================================================= */
   function land() {
     return h('div', { class: 'title__land' }, [
-      h('div', { class: 'title__grass title__grass--far' }),
+      h('div', { class: 'title__grass' }),
       h('div', { class: 'title__dirt' }),
-      h('div', { class: 'title__grass title__grass--near' }),
+      h('div', { class: 'title__speck title__speck--a' }),
+      h('div', { class: 'title__speck title__speck--b' }),
+      h('div', { class: 'title__speck title__speck--c' }),
 
-      // 木と 塔の ねもとの 白い 石
-      h('div', { class: 'title__stone title__stone--a' }),
-      h('div', { class: 'title__stone title__stone--b' }),
+      // うしろ：ボスの ドラゴンと 空の なかま、うかぶ「A」ブロック
+      mob('drago-3', 128, 'dragon'),
+      mob('bat-purple', 52, 'bat'),
+      mob('mecha-1', 50, 'robo'),
+      h('div', { class: 'title__cube', text: 'A' }),
 
-      // 木
-      h('div', { class: 'title__tree' }, [h('i'), h('i'), h('i'), h('i')]),
-
-      // さいごの塔
-      h('div', { class: 'title__tower' }, [
-        h('div', { class: 'top' }, [h('i'), h('i'), h('i')]),
-        h('div', { class: 'body' }, [
-          h('div', { class: 'win win--on' }),
-          h('div', { class: 'win win--off' }),
-          h('div', { class: 'door' })
-        ])
-      ]),
+      // まん中：なかまたち
+      mob('slime-green', 62, 'slime'),
+      mob('lizard-fire', 60, 'lizard'),
+      mob('ghost-white', 58, 'ghost'),
+      mob('golem-gray', 58, 'golem'),
 
       // 勇者（その子の アバターでは なく、決まった 一枚絵）
       h('div', { class: 'title__hero' }, [
@@ -202,19 +127,11 @@ MQ.ui.start = (function () {
         h('div', { class: 'shadow shadow--poster' })
       ]),
 
-      // なかまの モンスター 3体
-      h('div', { class: 'title__pals' }, [
-        h('div', { class: 'tpal tpal--a' }, [dot('t-slime', SLIME_ROWS, SLIME_PAL, 'tpal__img')]),
-        h('div', { class: 'tpal tpal--b' }, [dot('t-lizard', LIZARD_ROWS, LIZARD_PAL, 'tpal__img')]),
-        h('div', { class: 'tpal tpal--c' }, [dot('t-golem', GOLEM_ROWS, GOLEM_PAL, 'tpal__img')])
-      ]),
-
-      // たからばこ
-      h('div', { class: 'title__chest' }, [
-        h('span', { class: 'spark' }),
-        h('div', { class: 'lid' }),
-        h('div', { class: 'box' }, [h('div', { class: 'key' })])
-      ])
+      // 手まえ：にんじゃ・ゴールデンスライム・たからばこ・マグマゴン
+      mob('ninja-2', 62, 'ninja'),
+      mob('slime-golden', 58, 'gold'),
+      chest(),
+      mob('magma-3', 62, 'magma')
     ]);
   }
 
