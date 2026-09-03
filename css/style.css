@@ -912,7 +912,36 @@ body {
 }
 .pal__slash { position: absolute; right: 54px; top: 96px; width: 40px; height: 6px; background: #fff2b0; box-shadow: 0 0 12px 4px rgba(255,214,90,.85); animation: palSlash .5s ease-out forwards; z-index: 4; }
 @keyframes palSlash { 0% { opacity: 0; transform: scaleX(.2) rotate(-18deg); } 30% { opacity: 1; transform: scaleX(1.2) rotate(-18deg); } 100% { opacity: 0; transform: scaleX(1.6) rotate(-18deg); } }
-@media (prefers-reduced-motion: reduce) { .pal.is-hit, .pal__slash { animation-duration: .01s; } }
+/* なかまゲージ（v5.2）：正解で たまる 玉。まちがえても へらない */
+.pal__gauge { display: flex; gap: 3px; margin-top: 1px; }
+.pal__dot { width: 8px; height: 8px; background: rgba(10,16,40,.7); border: 1px solid rgba(255,233,168,.55); }
+.pal__dot.is-on { background: #ffe07a; border-color: #fff3c4; box-shadow: 0 0 5px 1px rgba(255,214,90,.9); }
+.pal.is-hit .pal__gauge { opacity: .4; }
+
+/* 追い打ちの ときの 帯（ひっさつの 技名バナーの 小さい ばん） */
+.palbanner {
+  position: absolute; left: 50%; top: 70px; transform: translateX(-50%);   /* ふきだしと 同じ 高さ（上の バーの 下） */
+  padding: 3px 12px; background: rgba(10,14,34,.86); border: 2px solid var(--gold);
+  border-radius: 8px; font-family: var(--f-head); font-size: 13px; color: #ffe9a8;
+  text-shadow: 0 1px 0 rgba(0,0,0,.7); white-space: nowrap; z-index: 6;
+  animation: palBanner .9s ease-out forwards;
+}
+@keyframes palBanner {
+  0%   { opacity: 0; transform: translateX(-50%) scale(.7); }
+  18%  { opacity: 1; transform: translateX(-50%) scale(1.08); }
+  30%  { transform: translateX(-50%) scale(1); }
+  78%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* なまえを つける（図かんの なかまタブ） */
+.palnow__rename { align-self: center; margin-top: 8px; padding: 0 18px; font-size: 13px; }
+.palname { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px 10px; border: 3px solid var(--gold); border-radius: 14px; background: rgba(245,197,66,.10); }
+.palname__input { width: 100%; text-align: center; }
+.palname__btns { display: flex; gap: 8px; }
+.palname__btns .btn { flex: 1; }
+
+@media (prefers-reduced-motion: reduce) { .pal.is-hit, .pal__slash, .palbanner { animation-duration: .01s; } }
 .combo { position: absolute; bottom: 8px; left: 12px; font-family: var(--f-head); font-size: 26px; color: #fff; text-shadow: 0 3px 0 #d6491f, 0 0 14px rgba(255,150,80,.8); z-index: 3; }
 .dmg { position: absolute; font-family: var(--f-head); font-size: 22px; color: #fff; text-shadow: 0 2px 0 #d6491f; z-index: 4; }
 

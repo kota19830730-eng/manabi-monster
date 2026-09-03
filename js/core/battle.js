@@ -254,6 +254,7 @@ MQ.battle = (function () {
       combo: 0,
       pal: opts.pal || null,       // いまの 相棒（{ id, name }）。いなければ null
       palHits: 0,
+      palGauge: 0,                 // なかまゲージ（正解で たまる・まちがえても へらない・v5.2）
       maxCombo: 0,
       correct: 0,
       answered: 0,
@@ -346,10 +347,14 @@ MQ.battle = (function () {
        'bosshit'    ボスに 1ダメージ
        'guard'      ボスに ガードされた                       */
   /* 相棒の 追い打ち：3問 れんぞく 正解するたび（3・6・9…）。まちがえ直しの ときは 出ない */
+  /* なかまゲージ（v5.2）：正解するたびに 1つ たまり、たまりきったら 追い打ち。
+     **まちがえても へらない**（アプリの「ばつを 与えない」きまりに そろえた） */
   function palHitNow() {
     if (!s.pal || !MQ.pals) return false;
-    const hit = MQ.pals.hitOn(s.combo);
-    if (hit) s.palHits++;
+    s.palGauge++;
+    const need = MQ.pals.gaugeNeed();
+    const hit = s.palGauge >= need;
+    if (hit) { s.palGauge = 0; s.palHits++; }
     return hit;
   }
 
@@ -748,6 +753,8 @@ MQ.battle = (function () {
     bossMax: function () { return s.bossMax; },
     isEnraged: function () { return s.enraged; },
     combo: function () { return s.combo; },
+    palGauge: function () { return s.palGauge; },
+    palGaugeNeed: function () { return MQ.pals ? MQ.pals.gaugeNeed() : 3; },
     correct: function () { return s.correct; },
     isRetry: function () { return s.retry; },
     stage: function () { return s.stage; },

@@ -709,6 +709,14 @@ MQ.hero = (function () {
   function treasureCount(p) { return Object.keys(p.treasure || {}).length; }
   function goldCount(p) { const t = p.treasure || {}; return Object.keys(t).filter(function (k) { return t[k] >= 2; }).length; }
   function dexCount(p) { const d = p.dex || {}; return Object.keys(d).filter(function (k) { return d[k] > 0; }).length; }
+  // なかま（v5.2）
+  function palCount(p) { return p && p.pals ? Object.keys(p.pals).length : 0; }
+  function palBestLv(p) {
+    if (!p || !p.pals || !MQ.pals) return 0;
+    return Object.keys(p.pals).reduce(function (best, id) {
+      return Math.max(best, MQ.pals.levelOf((p.pals[id] || {}).exp || 0));
+    }, 0);
+  }
   function hasPerfect(p) {
     const b = p.best || {};
     return Object.keys(b).some(function (k) { return b[k] && b[k].total >= 10 && b[k].correct === b[k].total; });
@@ -759,7 +767,11 @@ MQ.hero = (function () {
     { id: 't-daiya',     name: 'ダイヤの けんし',        how: 'Lv20',                     test: function (p) { return levelOf(p.xp) >= 20; } },
     { id: 't-beat500',   name: 'モンスターの 王',        how: 'モンスターを 500たい たおす', test: function (p) { return (p.defeated || 0) >= 500; } },
     { id: 't-yusha',     name: 'でんせつの ゆうしゃ',     how: 'ラスボスを たおす',          test: function (p) { return beaten(p, 'boss-maou'); } },
-    { id: 't-yami',      name: 'やみを こえた 者',        how: 'ダークロードを たおす',      test: function (p) { return beaten(p, 'boss-dark'); } }
+    { id: 't-yami',      name: 'やみを こえた 者',        how: 'ダークロードを たおす',      test: function (p) { return beaten(p, 'boss-dark'); } },
+    // なかま（v5.2）
+    { id: 't-pal1',      name: 'なかまと ともに',        how: 'なかまを 1体 つくる',       test: function (p) { return palCount(p) >= 1; } },
+    { id: 't-pal10',     name: 'なかまの リーダー',       how: 'なかまを 10体 あつめる',     test: function (p) { return palCount(p) >= 10; } },
+    { id: 't-palLv10',   name: 'きずなの あかし',        how: '相棒を Lv.10 に そだてる',   test: function (p) { return palBestLv(p) >= 10; } }
   ];
   const titleById = {};
   titles.forEach(function (t) { titleById[t.id] = t; });

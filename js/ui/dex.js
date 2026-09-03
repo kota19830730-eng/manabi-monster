@@ -11,6 +11,7 @@ MQ.ui.dex = (function () {
   const h = MQ.util.h;
   let tab = 'hero';
   let picked = null;   // たからばこの たなで えらんだ たからもの（せつめいを 出す）
+  let naming = false;  // なかまの なまえを 直している さいちゅう（v5.2）
 
   function render(which) {
     if (which && which !== tab) picked = null;
@@ -298,7 +299,43 @@ MQ.ui.dex = (function () {
           h('span', { class: 'palnow__evo', text: cur.evoAt ? 'Lv.' + cur.evoAt + ' で しんかする' : (e && e.stage === 3 ? 'さいごの すがた' : 'しんかは しない') })
         ])
       ]));
+      // なまえを つける（v5.2）。8文字まで。からっぽに すると もとの 名前に もどる
+      if (!naming) {
+        kids.push(h('button', {
+          class: 'btn btn--small btn--cream palnow__rename', type: 'button',
+          text: 'なまえを つける',
+          onclick: function () { MQ.sfx.tap(); naming = true; render('pals'); }
+        }));
+      }
+      if (naming) {
+        const input = h('input', {
+          class: 'input palname__input', type: 'text', maxlength: String(MQ.pals.NAME_MAX),
+          placeholder: cur.baseName, autocomplete: 'off', 'aria-label': 'なかまの なまえ'
+        });
+        input.value = cur.named ? cur.name : '';
+        const save = function () {
+          MQ.sfx.rare();
+          MQ.save.update(function (p) { MQ.pals.setName(p, cur.id, input.value); });
+          naming = false;
+          MQ.ui.toast('なまえを つけたよ！');
+          render('pals');
+        };
+        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') save(); });
+        kids.push(h('div', { class: 'palname' }, [
+          h('p', { class: 'note', text: 'すきな なまえを つけられるよ（8文字まで）。からっぽに すると ' + cur.baseName + ' に もどるよ。' }),
+          input,
+          h('div', { class: 'palname__btns' }, [
+            h('button', {
+              class: 'btn btn--small btn--stone', type: 'button', text: 'やめる',
+              onclick: function () { MQ.sfx.tap(); naming = false; render('pals'); }
+            }),
+            h('button', { class: 'btn btn--small btn--gold', type: 'button', text: 'けってい', onclick: save })
+          ])
+        ]));
+        setTimeout(function () { try { input.focus(); } catch (e) {} }, 60);
+      }
     } else {
+      naming = false;
       kids.push(h('p', { class: 'note', text: 'まだ なかまが いないよ。たたかいの あと「なかまに なりたそう！」と 出たら なかまに できるよ。コインでも こうかんできる。' }));
     }
 

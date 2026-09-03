@@ -73,7 +73,8 @@ MQ.ui.battle = (function () {
           ]),
           d.pal = h('div', { class: 'pal', hidden: true }, [
             d.palBox = h('div', { class: 'pal__box' }),
-            d.palName = h('span', { class: 'pal__name', text: '' })
+            d.palName = h('span', { class: 'pal__name', text: '' }),
+            d.palGauge = h('div', { class: 'pal__gauge' })
           ]),
           d.foes = h('div', { class: 'foes' })
         ]),
@@ -307,6 +308,7 @@ MQ.ui.battle = (function () {
   }
 
   function comboShow(n) {
+    syncPalGauge();                    // なかまゲージ（v5.2）
     // コンボで 曲が もりあがる（3〜 ドラム／5〜 もう1本の メロディ＋テンポ）
     MQ.bgm.setIntensity(n >= 5 ? 2 : (n >= 3 ? 1 : 0));
     d.combo.hidden = n < 2;
@@ -1484,11 +1486,36 @@ MQ.ui.battle = (function () {
     if (!cur) return;
     d.palBox.appendChild(MQ.enemies.node(cur.id, { size: 40, cls: 'pal__img' }));
     d.palName.textContent = cur.name + ' Lv.' + cur.lv;
+    d.palGauge.innerHTML = '';
+    const need = MQ.battle.palGaugeNeed ? MQ.battle.palGaugeNeed() : 3;
+    for (let i = 0; i < need; i++) d.palGauge.appendChild(h('span', { class: 'pal__dot' }));
+    syncPalGauge();
+  }
+
+  /* なかまゲージの 玉を ぬる（正解で たまる・まちがえても へらない・v5.2） */
+  function syncPalGauge() {
+    if (!d.palGauge || d.pal.hidden) return;
+    const now = MQ.battle.palGauge ? MQ.battle.palGauge() : 0;
+    const dots = d.palGauge.children;
+    for (let i = 0; i < dots.length; i++) dots[i].classList.toggle('is-on', i < now);
+  }
+
+  /* 追い打ちの ときの 帯（「〇〇の こうげき！」）。
+     ふきだしと かさならない ように、出ている あいだは ふきだしを 消す */
+  function palBanner(name) {
+    const b = h('div', { class: 'palbanner', text: name + 'の こうげき！' });
+    d.fx.appendChild(b);
+    if (d.msg) d.msg.classList.add('is-quiet');
+    setTimeout(function () {
+      b.remove();
+      if (d.msg) d.msg.classList.remove('is-quiet');
+    }, 900);
   }
 
   /* 3問 れんぞく 正解 → 相棒の 追い打ち。前に 出て ぶつかって もどる */
   function palAttack() {
     if (!palNow || d.pal.hidden) return;
+    palBanner(palNow.name);
     d.pal.classList.remove('is-hit');
     void d.pal.offsetWidth;
     d.pal.classList.add('is-hit');
@@ -1598,17 +1625,19 @@ MQ.ui.battle = (function () {
       p.revengeWins = (p.revengeWins || 0) + (sum.revengeBeaten || []).length;
       // きょうの ミッション（v3.1）：進めて、クリアぶんの コイン・けいけんちは その場で
       if (MQ.missions) out.missions = MQ.missions.progress(p, sum, { areaId: ctx.tokkun ? null : ctx.area.id, stageId: ctx.stage.id });
-      // なかま（v4.3）：けいけんちの 半分が 相棒にも 入る／たおした 中から「なかまに なりたい」1体
-      if (MQ.pals) {
-        out.pal = MQ.pals.gain(p, sum.xp);
-        out.palOffer = MQ.pals.offerFrom(p, sum.defeated);
-      }
+      // 図かんを 先に ふやす（v5.2）。なかまの「3回 たおしたら かならず」が
+      // この たたかいの ぶんも 数えられる ように、なかまの 処理より 先に やる
       if (!p.dexNew) p.dexNew = {};
       sum.defeated.forEach(function (id) {
         if (id === 'chest') return;
         if (!p.dex[id]) p.dexNew[id] = true;     // はじめて 出会った → ずかんで NEW
         p.dex[id] = (p.dex[id] || 0) + 1;
       });
+      // なかま（v4.3）：けいけんちの 半分が 相棒にも 入る／たおした 中から「なかまに なりたい」1体
+      if (MQ.pals) {
+        out.pal = MQ.pals.gain(p, sum.xp);
+        out.palOffer = MQ.pals.offerFrom(p, sum.defeated);
+      }
 
       /* ---- ★ と じぶんの さいこう記ろく ---- */
       if (!ctx.tokkun) {

@@ -686,11 +686,21 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true },
     best: { 'sansu3-1': { correct: 13, total: 13, time: 100 } },
     fastCount: 9, bestCombo: 18, itemUses: 12, custom: [{ id: 'c1' }],
-    missionsDone: 12, revengeWins: 6   // v3.1 の しょうごう
+    missionsDone: 12, revengeWins: 6,  // v3.1 の しょうごう
+    // v5.2 の しょうごう：なかま 10体・そのうち 1体は Lv10
+    pals: (function () {
+      const o = {};
+      MQ.enemies.list.slice(0, 10).forEach(function (e, i) {
+        o[e.id] = { exp: i === 0 ? MQ.pals.expFor(10) : 0 };
+      });
+      return o;
+    })(),
+    pal: MQ.enemies.list[0].id
   };
   const gotAll = MQ.hero.checkTitles(rich);
   check(gotAll.length === MQ.hero.titles.length, 'ぜんぶ そろえば ぜんぶ もらえる: ' + gotAll.length + ' / ' + MQ.hero.titles.length);
-  check(rich.title === 't-yami', 'さいごに もらった しょうごうが つく: ' + rich.title);
+  const lastTitle = MQ.hero.titles[MQ.hero.titles.length - 1].id;
+  check(rich.title === lastTitle, 'さいごに もらった しょうごうが つく: ' + rich.title);
 })();
 
 /* ---- 見た目（ブロック調：かみ／め／ふく／いろ／アクセ） ---- */
@@ -1762,6 +1772,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(P.expFor(10) > P.expFor(9) && P.expFor(20) > P.expFor(10), 'レベルが 上がるほど 必要な けいけんちが ふえる');
   // 3問 れんぞくで 追い打ち
   check(!P.hitOn(1) && !P.hitOn(2) && P.hitOn(3) && !P.hitOn(4) && P.hitOn(6) && P.hitOn(9), '3問ごとに 追い打ち');
+  check(P.gaugeNeed() === 3, 'なかまゲージは 3問で たまる: ' + P.gaugeNeed());
   // なかまに する → 相棒に なる
   const p = { pals: {}, pal: null, coins: 10, dex: {}, dexNew: {} };
   P.add(p, 'drago-1');
@@ -1788,6 +1799,37 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(q.coins === before - P.price('serp-1') && P.has(q, 'serp-1'), 'コインを はらって なかまに なる');
   check(!P.canBuy(q, 'serp-1'), 'もう なかまの モンスターは 買えない');
   // たおした 中から なかま候補（もう なかまの もの・ボス・たからばこは えらばない）
+  /* なまえを つける（v5.2）。8文字まで・からっぽで もとの 名前に もどる・進化しても のこる */
+  (function () {
+    const n = { pals: {}, pal: null, coins: 0, dex: {}, dexNew: {} };
+    P.add(n, 'drago-1');
+    const base = P.info(n, 'drago-1').name;
+    check(!P.info(n, 'drago-1').named, 'さいしょは もとの 名前');
+    P.setName(n, 'drago-1', '  ドラ  ');
+    check(P.info(n, 'drago-1').name === 'ドラ' && P.info(n, 'drago-1').named, 'なまえを つけられる: ' + P.info(n, 'drago-1').name);
+    check(P.info(n, 'drago-1').baseName === base, 'もとの 名前も のこる');
+    P.setName(n, 'drago-1', 'あいうえおかきくけこ');
+    check(P.info(n, 'drago-1').name.length === P.NAME_MAX, 'なまえは ' + P.NAME_MAX + '文字まで: ' + P.info(n, 'drago-1').name);
+    // 進化しても なまえは そのまま
+    P.setName(n, 'drago-1', 'ドラ');
+    n.pals['drago-1'].exp = P.expFor(10);
+    P.evolveIfReady(n);
+    check(!!n.pals['drago-2'] && n.pals['drago-2'].name === 'ドラ', 'しんかしても なまえは のこる');
+    P.setName(n, 'drago-2', '');
+    check(!P.info(n, 'drago-2').named, 'からっぽで もとの 名前に もどる');
+  })();
+
+  /* 3回 たおした 相手は かならず なかまに なりたがる（v5.2） */
+  (function () {
+    const n = { pals: {}, pal: null, coins: 0, dex: { 'serp-1': 3 }, dexNew: {} };
+    const never = function () { return 1; };   // ぐうぜんでは ぜったい 出ない
+    check(P.offerFrom(n, ['serp-1'], never) === 'serp-1', '3回 たおしたら かならず なかまに なりたがる');
+    const m = { pals: {}, pal: null, coins: 0, dex: { 'serp-1': 2 }, dexNew: {} };
+    check(P.offerFrom(m, ['serp-1'], never) === null, '2回では まだ（ぐうぜんだけ）');
+    const k = { pals: { 'serp-1': { exp: 0 } }, pal: 'serp-1', coins: 0, dex: { 'serp-1': 9 }, dexNew: {} };
+    check(P.offerFrom(k, ['serp-1'], never) === null, 'もう なかまの ものは 出さない');
+  })();
+
   const r = { pals: { 'serp-1': { exp: 0 } }, pal: 'serp-1', coins: 0, dex: {}, dexNew: {} };
   check(P.offerFrom(r, ['chest', 'boss-dragon', 'serp-1'], function () { return 0; }) === null, 'たからばこ・ボス・なかまは 候補に ならない');
   check(P.offerFrom(r, ['drago-1'], function () { return 0; }) === 'drago-1', 'たおした ザコは 候補に なる');

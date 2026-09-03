@@ -23,7 +23,10 @@ MQ.pals = (function () {
 
   const MAX_LV = 30;
   const EXP_SHARE = 0.5;               // 主人公が もらった けいけんちの 半分
-  const HIT_EVERY = 3;                 // 何問 れんぞくで 追い打ちか
+  const HIT_EVERY = 3;                 // 何問 れんぞくで 追い打ちか（ふるい やりかた・のこして ある）
+  const GAUGE_NEED = 3;                // なかまゲージ：正解 何問で 追い打ちか（v5.2）
+  const SURE_KILLS = 3;                // 何回 たおしたら かならず なかまに なりたがるか（v5.2）
+  const NAME_MAX = 8;                  // つけられる なまえの 長さ（v5.2）
   const EVO_LV = { 1: 10, 2: 20 };     // 1段階 → Lv10 で／2段階 → Lv20 で 進化
   const PRICE = { 1: 3, 2: 6, 3: 10 }; // コインで こうかんする ときの ねだん（つよさべつ）
   const OFFER = { 1: 0.16, 2: 0.10, 3: 0.06 };  // たおした ときに なかまに なりたがる 見こみ
@@ -41,6 +44,23 @@ MQ.pals = (function () {
 
   function enemyOf(id) { return MQ.enemies ? MQ.enemies.get(id) : null; }
 
+  /* なかまゲージ：正解 何問で 追い打ちか。**まちがえても へらない**（v5.2） */
+  function gaugeNeed() { return GAUGE_NEED; }
+
+  /* つけた なまえ（なければ もとの 名前） */
+  function baseName(id) { const e = enemyOf(id); return e ? e.name : id; }
+  function displayName(p, id) {
+    const rec = p && p.pals ? p.pals[id] : null;
+    return (rec && rec.name) ? rec.name : baseName(id);
+  }
+  /* なまえを つける。から文字に すると もとの 名前に もどる */
+  function setName(p, id, name) {
+    if (!p || !p.pals || !p.pals[id]) return null;
+    const t = String(name == null ? '' : name).replace(/\s+/g, ' ').trim().slice(0, NAME_MAX);
+    if (t) p.pals[id].name = t; else delete p.pals[id].name;
+    return info(p, id);
+  }
+
   /* 相棒 1体の いまの ようす */
   function info(p, id) {
     if (!p || !p.pals || !p.pals[id]) return null;
@@ -51,7 +71,9 @@ MQ.pals = (function () {
     const base = expFor(lv), next = lv >= MAX_LV ? base : expFor(lv + 1);
     return {
       id: id,
-      name: e ? e.name : id,
+      name: displayName(p, id),          // つけた なまえ（なければ もとの 名前）
+      baseName: e ? e.name : id,
+      named: !!rec.name,
       enemy: e,
       exp: exp,
       lv: lv,
@@ -103,6 +125,7 @@ MQ.pals = (function () {
     const rec = p.pals[cur.id];
     delete p.pals[cur.id];
     p.pals[to] = { exp: rec.exp, got: rec.got, from: cur.id };
+    if (rec.name) p.pals[to].name = rec.name;      // つけた なまえは そのまま（v5.2）
     p.pal = to;
     // 図かんにも のせる（進化した すがたを 見た ことに する）
     if (p.dex) {
@@ -135,7 +158,7 @@ MQ.pals = (function () {
     };
   }
 
-  /* 3問 れんぞく 正解ごとに 追い打ち */
+  /* ふるい やりかた（コンボで 追い打ち）。まだ 使う ところが あるので のこす */
   function hitOn(combo) { return combo > 0 && combo % HIT_EVERY === 0; }
 
   /* コインで こうかん。**図かんで 出会った ことが ある** モンスターだけ */
@@ -179,6 +202,8 @@ MQ.pals = (function () {
       if (has(p, id)) continue;
       const e = enemyOf(id);
       if (!e) continue;
+      // 3回 たおした 相手は かならず なかまに なりたがる（v5.2）
+      if (((p.dex && p.dex[id]) || 0) >= SURE_KILLS) return id;
       const rate = e.rare || e.by === 'photo' ? 0.2 : (OFFER[e.rank || 2] || 0.1);
       if (r() < rate) return id;
     }
@@ -189,6 +214,8 @@ MQ.pals = (function () {
     expFor: expFor, levelOf: levelOf, info: info, own: own, has: has, count: count,
     add: add, active: active, setActive: setActive, gain: gain, evolveIfReady: evolveIfReady,
     hitOn: hitOn, price: price, shopList: shopList, canBuy: canBuy, buy: buy, offerFrom: offerFrom,
-    MAX_LV: MAX_LV, HIT_EVERY: HIT_EVERY, EVO_LV: EVO_LV
+    gaugeNeed: gaugeNeed, displayName: displayName, baseName: baseName, setName: setName,
+    MAX_LV: MAX_LV, HIT_EVERY: HIT_EVERY, EVO_LV: EVO_LV, GAUGE_NEED: GAUGE_NEED,
+    SURE_KILLS: SURE_KILLS, NAME_MAX: NAME_MAX
   };
 })();

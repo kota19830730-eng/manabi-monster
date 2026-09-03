@@ -1117,7 +1117,9 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     /* なかま（相棒・v4.3）
        #pals        … 図かんの「なかま」タブ（相棒 3体＋コイン 20）
        #palbattle   … 相棒を 連れて バトル（3問 れんぞく 正解で 追い打ち）
-       #palresult   … けっか画面（そだった ぶん＋なかまに なりたい） */
+       #palresult   … けっか画面（そだった ぶん＋なかまに なりたい）
+       #palname     … なまえを つける（図かんの なかまタブ・v5.2）
+       #palgauge    … なかまゲージ（正解で たまる・まちがえても へらない・v5.2） */
     if (mode.indexOf('pal') === 0) {
       fresh();
       MQ.save.update(function (pl) {
@@ -1128,6 +1130,75 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         ['serp-1', 'krak-1', 'hawk-2', 'bolt-3'].forEach(function (id) { pl.dex[id] = (pl.dex[id] || 0) + 1; });
         if (mode === 'palresult') pl.pals['drago-1'].exp = MQ.pals.expFor(10) - 30;   // あと少しで しんか
       });
+      // #palname … なまえを つける（v5.2）
+      if (mode === 'palname') {
+        MQ.ui.dex.render('pals');
+        MQ.ui.show('screen-dex');
+        await wait(200);
+        const btn = $('.palnow__rename');
+        if (!btn) { say('palname: なまえボタン MISSING'); return; }
+        btn.click();
+        await wait(250);
+        const input = $('.palname__input');
+        if (input) { input.value = 'ドラちゃん'; }
+        const ok = $('.palname .btn--gold');
+        if (ok) ok.click();
+        await wait(300);
+        const cur = MQ.pals.active(MQ.save.current());
+        say('palname: なまえ=' + (cur ? cur.name : 'なし') + ' もとの名前=' + (cur ? cur.baseName : '-') +
+            ' つけた=' + (cur && cur.named ? 'yes' : 'no') +
+            ' カードの 字=' + ($('.palnow__name') ? $('.palnow__name').textContent : 'MISSING'));
+        // もう一度 ひらいた ところを 撮る
+        const b2 = $('.palnow__rename');
+        if (b2) b2.click();
+        await wait(250);
+        dump();
+        freeze();
+        return;
+      }
+      // #palgauge … ゲージは 正解で たまり、まちがえても へらない（v5.2）
+      if (mode === 'palgauge') {
+        MQ.ui.battle.start('sansu3-2');
+        await wait(400);
+        const need = MQ.battle.palGaugeNeed();
+        const ok1 = answerViaUI(true);  await wait(1800);
+        say('  1問め ok=' + ok1 + ' ゲージ=' + MQ.battle.palGauge() + ' コンボ=' + MQ.battle.combo());
+        const ok2 = answerViaUI(true);  await wait(1800);
+        say('  2問め ok=' + ok2 + ' ゲージ=' + MQ.battle.palGauge() + ' コンボ=' + MQ.battle.combo());
+        const before = MQ.battle.palGauge();
+        const ok3 = answerViaUI(false); await wait(1800);   // わざと まちがえる
+        say('  3問め（わざと ×）ok=' + ok3 + ' ゲージ=' + MQ.battle.palGauge() + ' コンボ=' + MQ.battle.combo());
+        const after = MQ.battle.palGauge();
+        say('palgauge: 何問で たまる=' + need + ' 2問めで=' + before +
+            ' まちがえた あと=' + after + ' → ' + (after === before ? 'へらない OK' : 'へった NG') +
+            ' コンボ=' + MQ.battle.combo() +
+            ' 玉=' + document.querySelectorAll('.pal__dot.is-on').length + '/' + document.querySelectorAll('.pal__dot').length);
+        dump();
+        freeze();
+        return;
+      }
+      // #palhit … 3問め（ゲージが たまった ところ）の 追い打ちの 帯を 撮る（v5.2）
+      if (mode === 'palhit') {
+        MQ.ui.battle.start('sansu3-2');
+        await wait(400);
+        answerViaUI(true); await wait(1800);
+        answerViaUI(true); await wait(1800);
+        answerViaUI(true); await wait(260);          // 帯が 出ている あいだに 止める
+        // 帯は 0.9秒で 消える タイマーが ついている → 写しに おきかえて アニメを 止める
+        const st = document.createElement('style');
+        st.textContent = '.palbanner { animation-delay: -.25s !important; animation-play-state: paused !important; }';
+        document.head.appendChild(st);
+        const bn = document.querySelector('.palbanner');
+        // .fx は つぎの 問題を 出す ときに 空に される → 写しは .arena に おく
+        const arena = document.querySelector('.arena');
+        if (bn && arena) { arena.appendChild(bn.cloneNode(true)); }
+        say('palhit: 帯=' + (bn ? bn.textContent : 'MISSING') +
+            ' ゲージ=' + MQ.battle.palGauge() + '（たまったら 0に もどる）' +
+            ' 玉=' + document.querySelectorAll('.pal__dot.is-on').length + '/' + document.querySelectorAll('.pal__dot').length);
+        dump();
+        freeze();
+        return;
+      }
       if (mode === 'pals') {
         MQ.ui.dex.render('pals');
         MQ.ui.show('screen-dex');
