@@ -152,7 +152,10 @@ MQ.treasure = (function () {
     { stage: 'eigo4-1',   id: 'tr4-hello',   name: 'あいさつの すず',        shape: 'bell',      colors: c('#8FD3FF', '#3E7FB0') },
     { stage: 'eigo4-2',   id: 'tr4-youbi',   name: '曜日の すなどけい',      shape: 'hourglass', colors: c('#FF9A4A', '#A8542A') },
     { stage: 'eigo4-3',   id: 'tr4-abc',     name: 'ABCの かぎ',             shape: 'key',       colors: c('#C9D3DC', '#6B7C8C') },
-    { stage: 'eigo4-4',   id: 'tr4-want',    name: 'ほしいものの たま',      shape: 'orb',       colors: c('#4CD164', '#1E7A3C') }
+    { stage: 'eigo4-4',   id: 'tr4-want',    name: 'ほしいものの たま',      shape: 'orb',       colors: c('#4CD164', '#1E7A3C') },
+
+    /* ---- 小4 さいごの塔（v4.8） ---- */
+    { stage: 'tower4',    id: 'tr4-dark',    name: 'やみの かんむり',        shape: 'crown',     colors: c('#7A4BC2', '#2A1240') }
   ];
 
   const byStage = {};

@@ -223,6 +223,11 @@ MQ.enemies = (function () {
     /* 小4で 理科と 社会が べつの エリアに なった（v4.6）。
        理科は メカナイト（rikashakai）を そのまま つかい、社会に この ボスを 足した */
     { id: 'boss-titan',  area: 'shakai',     name: 'グランドタイタン', shape: 'titan',     colors: { A: '#8A7B63', B: '#4E4436' } },
+    /* 小4の ラスボス（v4.8）。塔は 学年ごとに あるので、
+       どの ラスボスが 出るかは world3.js の towerStage の bossId が 決める。 */
+    { id: 'boss-dark', area: 'tower4', name: 'ダークロード', shape: 'dark', last: true,
+      colors: { A: '#4A3A7A', B: '#241844', r: '#C24BFF', y: '#F2C14E', w: '#E8E4FF' },
+      phase2: { A: '#7A3AA8', B: '#3C1466', r: '#FF3B30', y: '#FFF3B8', w: '#FFFFFF' } },
     /* ラスボス。HPを 2つ けずると 第2形態（色が かわる）に なる */
     { id: 'boss-maou', area: 'tower', name: 'まおう', shape: 'maou', last: true,
       colors: { A: '#7A2436', B: '#3A0E18', r: '#FF3B30', y: '#FFD447', w: '#F2F2F2' },

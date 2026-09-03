@@ -60,7 +60,7 @@ MQ.ui.result = (function () {
     const tower = !!ctx.stage.tower;
     const perfect = sum.total > 0 && sum.correct === sum.total;
 
-    const label = tower && sum.bossBeaten ? 'まおうを たおした！'
+    const label = tower && sum.bossBeaten ? MQ.content.lastBoss().name + 'を たおした！'
       : sum.stars === 3 ? 'パーフェクト！'
       : sum.stars >= 1 ? 'ステージ クリア！'
       : tokkun ? 'とっくん おわり' : 'ざんねん…';
@@ -96,7 +96,7 @@ MQ.ui.result = (function () {
             h('span', { class: 'rs__num', text: String(sum.correct) }),
             h('span', { class: 'rs__den', text: '/ ' + sum.total + ' もん' })
           ]),
-          h('span', { class: 'rs__scoresub', text: escapedN ? 'にげた敵 ' + escapedN + '体 → マップの とっくんで' : (sum.bossBeaten ? (tower ? 'まおう' : 'ボス') + 'を たおした！' : 'また ちょうせんだ！') })
+          h('span', { class: 'rs__scoresub', text: escapedN ? 'にげた敵 ' + escapedN + '体 → マップの とっくんで' : (sum.bossBeaten ? (tower ? MQ.content.lastBoss().name : 'ボス') + 'を たおした！' : 'また ちょうせんだ！') })
         ]),
         perfect
           ? h('span', { class: 'rs__stamp rs__stamp--on', text: 'ぜんもん せいかい' })

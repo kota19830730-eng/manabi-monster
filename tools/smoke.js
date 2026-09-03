@@ -535,6 +535,43 @@ const kinds = towerQs.map(function (q) { return q.id.split(':')[1]; });
 check(JSON.stringify(kinds) === JSON.stringify(['sansu', 'kokugo', 'romaji', 'rika', 'eigo']),
   'ラスボスは 算数→国語→ローマ字→理社→英語: ' + kinds.join(','));
 
+/* ---- 小4の さいごの塔（v4.8）---- */
+(function () {
+  const w4 = MQ.content.world('g4');
+  const area = w4.areas.filter(function (a) { return a.id === 'tower'; })[0];
+  check(!!area && area.stages.length === 1, '小4に さいごの塔の エリアが ある');
+  const st4 = area.stages[0];
+  check(st4.id === 'tower4' && st4.tower === true, '小4の 塔は tower4');
+  check(st4.bossId === 'boss-dark', '小4の ラスボスは ダークロード: ' + st4.bossId);
+  check(MQ.content.towerStage.bossId === 'boss-maou', '小3の ラスボスは まおう');
+  MQ.terms.forcePlayer({ grade: 4, term: 0, units: {} });
+  MQ.content.setActive(w4);
+  const qs = [];
+  for (let i = 0; i < 5; i++) qs.push(st4.make(1, { boss: true, index: i })[0]);
+  qs.forEach(function (q, i) { validate(q, 'tower4#' + i); check(q.lv === 3, 'tower4#' + i + ' は lv3'); });
+  const k4 = qs.map(function (q) { return q.id.split(':')[1]; });
+  check(JSON.stringify(k4) === JSON.stringify(['sansu', 'kokugo', 'rika', 'shakai', 'eigo']),
+    '小4の 塔は 算数→国語→理科→社会→英語: ' + k4.join(','));
+  check(st4.make(8, { boss: true }).length === 8, '小4の 塔は 8問 出る');
+  // ローマ字は 小4には ない
+  check(st4.make(20, { boss: true }).every(function (q) { return q.type !== 'roma'; }), '小4の 塔に ローマ字は 出ない');
+  // ラスボスの 名前（画面の 文字は ここを 見る）
+  check(MQ.content.lastBoss().name === 'ダークロード' && MQ.content.towerStageId() === 'tower4', '小4の lastBoss: ' + MQ.content.lastBoss().name);
+  // かけらは 5つ ひつよう（小4は 5教科）
+  const p5 = { grade: 4, playGrade: 4, frags: {} };
+  check(MQ.content.towerOpen(p5) === false, 'かけらが ないと 小4の 塔は 開かない');
+  ['sansu', 'kokugo', 'rika', 'shakai'].forEach(function (id) { p5.frags[MQ.content.fragKey(id, p5)] = true; });
+  check(MQ.content.towerOpen(p5) === false, 'かけら 4つでは 小4の 塔は まだ 開かない');
+  p5.frags[MQ.content.fragKey('eigo', p5)] = true;
+  check(MQ.content.towerOpen(p5) === true, 'かけら 5つで 小4の 塔が 開く');
+  MQ.content.setActive(MQ.content.world3);
+  check(MQ.content.lastBoss().name === 'まおう' && MQ.content.towerStageId() === 'tower3', '小3の lastBoss: ' + MQ.content.lastBoss().name);
+  MQ.content.setActive(null);
+  MQ.terms.forcePlayer(null);
+  check(!!MQ.treasure.forStage('tower4'), '小4の 塔の たからもの');
+  check(MQ.enemies.get('boss-dark').shape === 'dark' && !!MQ.monsterArt.mons.dark, 'ダークロードの 絵');
+})();
+
 /* ---- 学年ごとの 地図（v4.7）---- */
 (function () {
   const T = MQ.tiles;
@@ -577,8 +614,8 @@ check(JSON.stringify(kinds) === JSON.stringify(['sansu', 'kokugo', 'romaji', 'ri
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 98, 'たからもの 98個（小3 32＋小1 17＋小2 18＋小4 31）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 17 && MQ.treasure.listFor(w2).length === 18 && MQ.treasure.listFor(w4).length === 31, 'listFor: 小3 32・小1 17・小2 18・小4 31');
+check(MQ.treasure.total() === 99, 'たからもの 99個（小3 32＋小1 17＋小2 18＋小4 32）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 17 && MQ.treasure.listFor(w2).length === 18 && MQ.treasure.listFor(w4).length === 32, 'listFor: 小3 32・小1 17・小2 18・小4 32');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -611,7 +648,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
   // ぜんぶ そろった プレイヤーは ぜんぶ もらえる
   const dex = {};
   MQ.enemies.list.slice(0, 80).forEach(function (e) { dex[e.id] = 1; });
-  ['boss-dragon', 'boss-oni', 'boss-knight', 'boss-slime', 'boss-maou', 'slime-golden'].forEach(function (id) { dex[id] = 1; });
+  ['boss-dragon', 'boss-oni', 'boss-knight', 'boss-slime', 'boss-titan', 'boss-maou', 'boss-dark', 'slime-golden'].forEach(function (id) { dex[id] = 1; });
   const stars = {}; MQ.content.subjectAreas().forEach(function (a) { a.stages.forEach(function (st) { stars[st.id] = 3; }); });
   const tr = {}; MQ.treasure.list.forEach(function (t) { tr[t.id] = 2; });
   const rich = {
@@ -623,7 +660,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
   };
   const gotAll = MQ.hero.checkTitles(rich);
   check(gotAll.length === MQ.hero.titles.length, 'ぜんぶ そろえば ぜんぶ もらえる: ' + gotAll.length + ' / ' + MQ.hero.titles.length);
-  check(rich.title === 't-yusha', 'さいごに もらった しょうごうが つく: ' + rich.title);
+  check(rich.title === 't-yami', 'さいごに もらった しょうごうが つく: ' + rich.title);
 })();
 
 /* ---- 見た目（ブロック調：かみ／め／ふく／いろ／アクセ） ---- */
@@ -776,7 +813,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 152, '図かんは 152体（' + dex + '）');
+  check(dex === 153, '図かんは 153体（' + dex + '）');
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -1108,7 +1145,7 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     check(!!pw, 'たからもの ' + t.id + '（' + t.shape + '）に わざが ない');
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
-  const want = { burst: 12, shield: 12, freeze: 12, guide: 25, golden: 7, chest: 7, power: 15, charge: 8 };
+  const want = { burst: 12, shield: 13, freeze: 12, guide: 25, golden: 7, chest: 7, power: 15, charge: 8 };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
     check(typeof p.desc(p.val[0]) === 'string' && p.desc(p.val[0]).length > 0 && p.short(p.val[1]).length > 0, 'わざ ' + p.id + ' の せつめい');
@@ -1357,7 +1394,7 @@ check(MQ.content.worldForGrade(5).locked === true && MQ.content.worldForGrade(6)
   MQ.save.createPlayer('小2テスト', null, 2);
   check(MQ.content.activeWorld().id === 'g2' && MQ.content.subjectAreas()[0].stages.length === 14, 'がくねん 2 の プレイヤーは 小2ワールド');
   MQ.save.createPlayer('小4テスト', null, 4);
-  check(MQ.content.activeWorld().id === 'g4' && MQ.content.subjectAreas().length === 5 && !MQ.content.hasTower(), 'がくねん 4 の プレイヤーは 小4ワールド（算数・国語・理科・社会・英語の 5エリア・塔なし）');
+  check(MQ.content.activeWorld().id === 'g4' && MQ.content.subjectAreas().length === 5 && MQ.content.hasTower(), 'がくねん 4 の プレイヤーは 小4ワールド（5エリア＋さいごの塔）');
   check(MQ.content.areaOf('rika').name === '理科の 湖' && MQ.content.areaOf('shakai').name === '社会の 町', '小4は 理科と 社会が べつの エリア');
   MQ.save.createPlayer('小5テスト', null, 5);
   check(MQ.content.activeWorld().id === 'g3', 'まだ 開いていない がくねんは 小3 に たおす');

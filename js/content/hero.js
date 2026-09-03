@@ -756,7 +756,8 @@ MQ.hero = (function () {
     { id: 't-dex80',     name: 'ずかんの たつじん',      how: 'モンスターを 80しゅるい 見つける', test: function (p) { return dexCount(p) >= 80; } },
     { id: 't-daiya',     name: 'ダイヤの けんし',        how: 'Lv20',                     test: function (p) { return levelOf(p.xp) >= 20; } },
     { id: 't-beat500',   name: 'モンスターの 王',        how: 'モンスターを 500たい たおす', test: function (p) { return (p.defeated || 0) >= 500; } },
-    { id: 't-yusha',     name: 'でんせつの ゆうしゃ',     how: 'ラスボスを たおす',          test: function (p) { return beaten(p, 'boss-maou'); } }
+    { id: 't-yusha',     name: 'でんせつの ゆうしゃ',     how: 'ラスボスを たおす',          test: function (p) { return beaten(p, 'boss-maou'); } },
+    { id: 't-yami',      name: 'やみを こえた 者',        how: 'ダークロードを たおす',      test: function (p) { return beaten(p, 'boss-dark'); } }
   ];
   const titleById = {};
   titles.forEach(function (t) { titleById[t.id] = t; });

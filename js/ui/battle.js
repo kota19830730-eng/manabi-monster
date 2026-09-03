@@ -175,7 +175,7 @@ MQ.ui.battle = (function () {
     if (isTower) {
       MQ.battle.start({
         stage: found.stage, mode: 'tower',
-        bossId: 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3,
+        bossId: found.stage.bossId || 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player)
       });
     } else {
@@ -400,7 +400,7 @@ MQ.ui.battle = (function () {
     if (q.chest) {
       d.msg.textContent = 'たからばこが 出てきた！ あけてみよう';
     } else if (bossPhase) {
-      d.msg.textContent = !bossOnScreen ? (last ? 'まおうが 立ちはだかる…！' : 'ボスの ' + e.name + ' が たちふさがる！')
+      d.msg.textContent = !bossOnScreen ? (last ? e.name + 'が 立ちはだかる…！' : 'ボスの ' + e.name + ' が たちふさがる！')
         : MQ.battle.isEnraged() ? e.name + ' は 本気だ！ あと ' + MQ.battle.bossHp() + 'かい！'
         : 'こうげきだ！ あと ' + MQ.battle.bossHp() + 'かい！';
       bossOnScreen = true;
@@ -989,7 +989,7 @@ MQ.ui.battle = (function () {
       ok(res.note);
 
       if (res.defeated) {
-        d.msg.textContent = (res.burst ? 'ばくれつ こうげき！ ' : '') + (res.last ? 'まおうを たおした！！！' : 'ボスの ' + e.name + ' を たおした！！');
+        d.msg.textContent = (res.burst ? 'ばくれつ こうげき！ ' : '') + (res.last ? e.name + 'を たおした！！！' : 'ボスの ' + e.name + ' を たおした！！');
         MQ.sfx.bossdown();
         MQ.bgm.stop();
         // ドーン の あとに ファンファーレ → けっか画面で しょうりの 曲へ つながる
@@ -1006,7 +1006,7 @@ MQ.ui.battle = (function () {
       }
       if (res.enrage) {
         const last = res.last;
-        d.msg.textContent = last ? 'まおう「まだ 本気では なかった…！」' : e.name + ' は おこりだした！';
+        d.msg.textContent = last ? e.name + '「まだ 本気では なかった…！」' : e.name + ' は おこりだした！';
         if (last) MQ.sfx.henshin(); else MQ.sfx.enrage();
         MQ.bgm.setEnrage(true);          // 曲が 速くなる
         shake(true);
@@ -1119,7 +1119,7 @@ MQ.ui.battle = (function () {
     d.displays.hidden = true;
     d.keys.hidden = true;
     d.warnText.textContent = 'FINAL BATTLE';
-    d.warnSub.textContent = 'まおうが 目を さました…！';
+    d.warnSub.textContent = MQ.content.lastBoss().name + 'が 目を さました…！';
     d.warning.className = 'warning warning--last';
     d.warning.hidden = false;
     void d.warning.offsetWidth;
@@ -1678,7 +1678,7 @@ MQ.ui.battle = (function () {
       if (sum.bossBeaten && ctx.stage.tower) {
         const g = MQ.hero.nextDensetsu(p);
         if (g) { p.gear.push(g.id); p.equipped[g.slot] = g.id; out.densetsu.push(g); }
-        MQ.save.addLog(p, 'さいごの塔で まおうを たおした！');
+        MQ.save.addLog(p, 'さいごの塔で ' + MQ.content.lastBoss().name + 'を たおした！');
       }
 
       out.fullSet = MQ.hero.equippedSetOf(p);

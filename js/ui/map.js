@@ -242,20 +242,22 @@ MQ.ui.map = (function () {
   function towerEl(player, t) {
     const open = MQ.content.towerOpen(player);
     const gotN = MQ.content.fragCount(player);
-    const beaten = (player.dex && player.dex['boss-maou']) > 0;
+    const need = MQ.content.subjectAreas().length;          // 小3は 4教科・小4は 5教科（v4.8）
+    const last = MQ.content.lastBoss();
+    const beaten = (player.dex && player.dex[last.id]) > 0;
 
     return h('button', {
       class: 'tower' + (open ? '' : ' tower--lock'), type: 'button',
       style: { left: t.xPct + '%', top: t.y + 'px' },
       onclick: function () {
         MQ.sfx.tap();
-        if (!open) { MQ.ui.toast('まなびの かけらを 4つ あつめよう'); return; }
-        MQ.ui.battle.start('tower3');
+        if (!open) { MQ.ui.toast('まなびの かけらを ' + need + 'つ あつめよう'); return; }
+        MQ.ui.battle.start(MQ.content.towerStageId());
       }
     }, [
       h('span', { class: 'tower__aura' }),
       h('span', { class: 'tower__sign', text: 'さいごの塔' }),
-      h('span', { class: 'tower__sub', text: open ? (beaten ? 'もう一度 いどむ' : 'まおうが 待つ！') : 'かけら ' + gotN + ' / 4' }),
+      h('span', { class: 'tower__sub', text: open ? (beaten ? 'もう一度 いどむ' : last.name + 'が 待つ！') : 'かけら ' + gotN + ' / ' + need }),
       h('span', { class: 'tower__art' }, [
         h('span', { class: 'tower__bat' }, [h('i'), h('i'), h('i'), h('i'), h('i')]),
         h('span', { class: 'tower__body' }, [

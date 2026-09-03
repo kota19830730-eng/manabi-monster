@@ -191,14 +191,27 @@ MQ.content = (function () {
 
   /* =======================================================
      さいごの塔（ラスボス）
-     出題は 5問。算数 → 国語 → ローマ字 → 理科社会 → 英語 の順。
-     小3の 1年間の 総まとめに なる。
+
+     学年ごとに 1つ（v4.8）。出題は 5問、その学年の 教科が じゅんばんに 出て、
+     1年間の 総まとめに なります。
+       小3 … 算数 → 国語 → ローマ字 → 理科社会 → 英語（ラスボス＝まおう）
+       小4 … 算数 → 国語 → 理科 → 社会 → 英語（ラスボス＝ダークロード）
+     slot の area を 書かない ときは kind を そのまま エリア id に します。
+     ローマ字だけは ステージでは なく MQ.romaji3 から 直に 出します
+     （国語の ローマ字ステージは noTower: true で 国語の わくから 外して あります）。
      ======================================================= */
-  const TOWER_ORDER = [
+  const TOWER_ORDER3 = [
     { kind: 'sansu',  label: '算数' },
     { kind: 'kokugo', label: '国語' },
     { kind: 'romaji', label: 'ローマ字' },
-    { kind: 'rika',   label: '理科社会' },
+    { kind: 'rika',   label: '理科社会', area: 'rikashakai' },
+    { kind: 'eigo',   label: '英語' }
+  ];
+  const TOWER_ORDER4 = [
+    { kind: 'sansu',  label: '算数' },
+    { kind: 'kokugo', label: '国語' },
+    { kind: 'rika',   label: '理科', area: 'rika' },
+    { kind: 'shakai', label: '社会', area: 'shakai' },
     { kind: 'eigo',   label: '英語' }
   ];
 
@@ -208,42 +221,43 @@ MQ.content = (function () {
     return area.stages.filter(isAvailable);
   }
 
-  function towerQuestion(slot) {
+  function towerQuestion(slot, grade) {
     let q = null;
     if (slot.kind === 'romaji') {
       q = MQ.romaji3.make(1, {})[0];
-    } else if (slot.kind === 'sansu') {
-      const open = openStagesOf('sansu');
-      const st = MQ.util.pick(open.length ? open : [null]);
-      q = st ? st.make(1, { boss: true })[0] : null;
     } else {
-      const areaId = slot.kind === 'kokugo' ? 'kokugo' : slot.kind === 'rika' ? 'rikashakai' : 'eigo';
-      const open = openStagesOf(areaId).filter(function (st) { return st.id !== 'kokugo3-5'; });
+      const open = openStagesOf(slot.area || slot.kind).filter(function (st) { return !st.noTower; });
       const st = MQ.util.pick(open.length ? open : [null]);
       q = st ? st.make(1, { boss: true })[0] : null;
     }
     if (!q) return null;
     q = Object.assign({}, q);
     q.unit = 'さいごの もんだい ・ ' + slot.label;
-    q.id = 'tower3:' + slot.kind + ':' + q.id;
+    q.id = 'tower' + grade + ':' + slot.kind + ':' + q.id;
     return q;
   }
 
-  const towerStage = {
-    id: 'tower3', no: 1, name: 'さいごの 塔', available: true, tower: true,
-    make: function (n, opts) {
-      const out = [];
-      const start = (opts && opts.index) || 0;
-      for (let i = 0; i < n; i++) {
-        let q = null;
-        for (let t = 0; t < TOWER_ORDER.length && !q; t++) {
-          q = towerQuestion(TOWER_ORDER[(start + i + t) % TOWER_ORDER.length]);
+  function makeTowerStage(grade, order, bossId) {
+    return {
+      id: 'tower' + grade, no: 1, name: 'さいごの 塔', available: true, tower: true,
+      bossId: bossId, order: order,
+      make: function (n, opts) {
+        const out = [];
+        const start = (opts && opts.index) || 0;
+        for (let i = 0; i < n; i++) {
+          let q = null;
+          for (let t = 0; t < order.length && !q; t++) {
+            q = towerQuestion(order[(start + i + t) % order.length], grade);
+          }
+          if (q) out.push(q);
         }
-        if (q) out.push(q);
+        return out;
       }
-      return out;
-    }
-  };
+    };
+  }
+
+  const towerStage = makeTowerStage(3, TOWER_ORDER3, 'boss-maou');
+  const towerStage4 = makeTowerStage(4, TOWER_ORDER4, 'boss-dark');
 
   /* =======================================================
      小3ワールド
@@ -282,7 +296,7 @@ MQ.content = (function () {
             make: writeMixStage(kokugo, 'kokugo', 2) },
           stage('kokugo', 3, 'ことばの きまり', kokugo),
           stage('kokugo', 4, 'ことばの 意味', kokugo),
-          { id: 'kokugo3-5', no: 5, name: 'ローマ字', available: true,
+          { id: 'kokugo3-5', no: 5, name: 'ローマ字', available: true, noTower: true,
             make: function (n, opts) { return MQ.romaji3.make(n, opts); } }
         ]
       },
@@ -465,6 +479,11 @@ MQ.content = (function () {
           stage('eigo', 3, '文ぼう具と ABC', eigo4, 4),
           stage('eigo', 4, 'ほしい もの・学校', eigo4, 4)
         ]
+      },
+      /* 小4の さいごの塔（v4.8）。5教科の かけらを ぜんぶ 集めると 開く */
+      {
+        id: 'tower', name: 'さいごの 塔', short: '塔', color: 'var(--c-tower)', biome: 'tower',
+        stages: [towerStage4]
       }
     ]
   };
@@ -571,6 +590,20 @@ MQ.content = (function () {
     return subjectAreas().filter(function (a) { return hasFrag(player, a.id); }).length;
   }
 
+  /* さいごの塔の ラスボス（学年で ちがう・v4.8）。
+     小3＝まおう／小4＝ダークロード。画面の 文字は ぜんぶ ここを 見る。 */
+  function lastBoss() {
+    const area = towerArea();
+    const st = area && area.stages[0];
+    const id = (st && st.bossId) || 'boss-maou';
+    return (MQ.enemies && MQ.enemies.get(id)) || { id: id, name: 'まおう' };
+  }
+  // いま あそんでいる 学年の 塔の ステージ id（'tower3' / 'tower4'）
+  function towerStageId() {
+    const area = towerArea();
+    return (area && area.stages[0] && area.stages[0].id) || 'tower3';
+  }
+
   function hasTower() { return !!towerArea(); }
   function towerOpen(player) {
     if (!hasTower()) return false;
@@ -626,6 +659,8 @@ MQ.content = (function () {
     isAvailable: isAvailable, lockedReason: lockedReason, MIN_POOL: MIN_POOL,
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,
     fragCount: fragCount, towerOpen: towerOpen, fragKey: fragKey,
-    towerStage: towerStage, TOWER_ORDER: TOWER_ORDER
+    lastBoss: lastBoss, towerStageId: towerStageId,
+    towerStage: towerStage, towerStage4: towerStage4,
+    TOWER_ORDER: TOWER_ORDER3, TOWER_ORDER3: TOWER_ORDER3, TOWER_ORDER4: TOWER_ORDER4
   };
 })();

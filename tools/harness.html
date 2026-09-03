@@ -33,6 +33,7 @@
     #map4 #battle4:N #figs4 #treasure4 #parent4 … 小4ワールド（v4.4・算数 15ステージ）
     #kokugo4 #koku4:N … 小4 国語（v4.5・かん字 219字＋ことば。N=1〜4）
     #rika4:N #shakai4:N #eigo4:N … 小4 理科・社会・英語（v4.6/v4.7・N=1〜4）
+    #last4 #last4map … 小4の さいごの塔（v4.8・ダークロード）
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -1059,6 +1060,19 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('tower: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
       return;
     }
+    // 小4の さいごの塔（v4.8）：#last4 バトル／#last4map 塔が 開いた 地図
+    if (mode === 'last4' || mode === 'last4map') {
+      fresh({ frags: {} });
+      MQ.save.update(function (pl) {
+        pl.grade = 4; pl.playGrade = 4;
+        ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; });
+      });
+      if (mode === 'last4map') { MQ.ui.goMap(); await wait(300); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
+      MQ.ui.battle.start('tower4');
+      await wait(3200);
+      say('tower4: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
+      return;
+    }
     /* なかま（相棒・v4.3）
        #pals        … 図かんの「なかま」タブ（相棒 3体＋コイン 20）
        #palbattle   … 相棒を 連れて バトル（3問 れんぞく 正解で 追い打ち）
@@ -1255,6 +1269,21 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await wait(400);
     say('小4の ゾーン: ' + $$('#screen-map .biome__name').length + ($$('#screen-map .biome__name').length === 5 ? ' ok' : ' MISSING'));
     say('理科の 湖: ' + ($$('#screen-map .biome__name').filter(function (e) { return e.textContent.indexOf('理科の 湖') >= 0; }).length ? 'ok' : 'MISSING'));
+
+    say('--- 小4の さいごの塔（v4.8） ---');
+    MQ.save.update(function (pl) {
+      ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; });
+    });
+    MQ.ui.goMap();
+    await wait(400);
+    say('塔: ' + ($('#screen-map .tower') ? 'ok' : 'MISSING') + ' / 開いた: ' + (MQ.content.towerOpen(MQ.save.current()) ? 'ok' : 'MISSING'));
+    say('ラスボス: ' + MQ.content.lastBoss().name + (MQ.content.lastBoss().name === 'ダークロード' ? ' ok' : ' MISSING'));
+    MQ.ui.battle.start('tower4');
+    await wait(3200);
+    say('tower4 の 1問め: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'MISSING'));
+    await playBattle('tower4');
+    await wait(900);
+    say('tower4 result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
 
     say('--- 学年ごとの 地図（v4.7） ---');
     for (const g of [1, 2, 3, 4]) {
