@@ -346,17 +346,76 @@ body {
 .title__bits { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .title__bits i { position: absolute; display: block; }
 
-/* ---- ロゴ ---- */
-.title__head { position: relative; z-index: 4; flex: none; padding: 30px 0 0; text-align: center; }
-.title__logowrap { position: relative; display: inline-block; transform: rotate(-2deg); }
+/* ---- ロゴ（v5.1・木の かんばん）----
+   上の あき（title__top）と 空（title__scene）で 高さを 分けあうので、
+   画面が 高い ほど ロゴが 下がって まん中に 寄る。
+   scene の min-height は ドラゴンが ロゴに かぶらない ための 見はり。 */
+.title__top   { position: relative; z-index: 4; flex: 1 1 0; min-height: 52px; }
+.title__head  { position: relative; z-index: 4; flex: none; padding: 0; text-align: center; }
+
+/* 木の かんばん */
+.title__plaque {
+  position: relative; display: inline-block; padding: 14px 16px 16px;
+  border-radius: 22px; transform: rotate(-2deg);
+  background: linear-gradient(#e6b878, #c68e50 55%, #a9743c);
+  box-shadow: 0 0 0 4px #6b4423, 0 7px 0 #593819, 0 13px 20px rgba(20,20,60,.42),
+              inset 0 4px 0 rgba(255,255,255,.45), inset 0 -7px 0 rgba(90,58,28,.3);
+}
+.title__plaque::before {
+  content: ''; position: absolute; inset: 7px; border-radius: 15px; pointer-events: none;
+  box-shadow: inset 0 0 0 2px rgba(255,240,205,.34);
+}
+
+/* みどりの 宝石（四すみの かざり） */
+.plq__gem {
+  position: absolute; display: block; z-index: 2;
+  background: linear-gradient(#8ff5b4, #23a05a 60%, #158a48);
+  clip-path: polygon(50% 0, 100% 38%, 50% 100%, 0 38%);
+  filter: drop-shadow(0 0 7px rgba(90,240,155,.75));
+}
+.plq__gem--a { left: 20px;  top: -11px; width: 22px; height: 26px; animation: pulse 2.6s ease-in-out infinite; }
+.plq__gem--b { right: 46px; top: -9px;  width: 17px; height: 20px; animation: pulse 3.2s ease-in-out .7s infinite; }
+.plq__gem--c { right: 12px; bottom: -10px; width: 19px; height: 23px; animation: pulse 2.9s ease-in-out 1.2s infinite; }
+
+/* 本（左上） */
+.plq__book {
+  position: absolute; left: -10px; top: -16px; width: 50px; height: 42px; z-index: 3;
+  transform: rotate(-13deg); filter: drop-shadow(0 4px 4px rgba(20,20,60,.45));
+}
+.plq__book .cover {
+  position: absolute; inset: 0; border-radius: 4px;
+  background: linear-gradient(#8a5a2c, #5f3a17);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.28), inset -6px 0 0 rgba(0,0,0,.22);
+}
+.plq__book .pages {
+  position: absolute; left: 5px; right: 9px; bottom: 4px; height: 9px;
+  background: #fff6e0; box-shadow: inset 0 -3px 0 #d8c9a8;
+}
+.plq__book .gem {
+  position: absolute; left: 15px; top: 9px; width: 18px; height: 21px;
+  background: linear-gradient(#8ff5b4, #23a05a 60%, #158a48);
+  clip-path: polygon(50% 0, 100% 38%, 50% 100%, 0 38%);
+  filter: drop-shadow(0 0 6px rgba(90,240,155,.85));
+}
+
+/* えんぴつ（右上） */
+.plq__pen {
+  position: absolute; right: -10px; top: -22px; width: 26px; height: 56px; z-index: 3;
+  transform: rotate(19deg); filter: drop-shadow(0 4px 4px rgba(20,20,60,.45));
+}
+.plq__pen .tip  { position: absolute; left: 3px; top: 0; width: 20px; height: 15px; background: #ffdca8; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.plq__pen .lead { position: absolute; left: 8px; top: 0; width: 10px; height: 8px; background: #3a3a48; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.plq__pen .body { position: absolute; left: 3px; top: 15px; width: 20px; height: 30px; background: linear-gradient(90deg, #ff9a6a, #e8542c 55%, #b03a18); }
+.plq__pen .end  { position: absolute; left: 3px; bottom: 0; width: 20px; height: 11px; border-radius: 0 0 5px 5px; background: linear-gradient(#ffe89a, #f2b93c); box-shadow: inset 0 -3px 0 #b8801d; }
+
+.title__logowrap { position: relative; display: block; }
 .title__logo {
-  font-family: var(--f-head); font-size: 56px; line-height: 1.05; letter-spacing: .02em;
+  font-family: var(--f-head); font-size: 58px; line-height: 1.04; letter-spacing: .02em;
   background: linear-gradient(#fff8d0 8%, var(--gold) 40%, #f2a01c 60%, #ffe89a 92%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 4px #4a2a06;
+  -webkit-text-stroke: 5px #4a2a06;
   paint-order: stroke fill;
-  filter: drop-shadow(0 3px 0 #8a530e) drop-shadow(0 7px 0 #4a2a06)
-          drop-shadow(0 12px 14px rgba(20,20,60,.5));
+  filter: drop-shadow(0 3px 0 #8a530e) drop-shadow(0 6px 0 #4a2a06);
 }
 /* 4とがりの 星（文字では なく かたちで 描く） */
 .title__spark, .title__chest .spark {
@@ -364,17 +423,25 @@ body {
   clip-path: polygon(50% 0%, 56% 44%, 100% 50%, 56% 56%, 50% 100%, 44% 56%, 0% 50%, 44% 44%);
   filter: drop-shadow(0 0 7px rgba(255,255,255,.95));
 }
-.title__spark--a { top: -16px; left: -32px; width: 32px; height: 32px; animation: pulse 1.4s ease-in-out infinite; }
-.title__spark--b { bottom: 2px; right: -32px; width: 24px; height: 24px; background: #fff4c6; filter: drop-shadow(0 0 8px rgba(255,232,150,.95)); animation: pulse 1.9s ease-in-out .5s infinite; }
-.title__spark--c { top: 56px; right: -16px; width: 17px; height: 17px; animation: pulse 2.4s ease-in-out .9s infinite; }
+.title__spark--a { top: -6px; left: -18px; width: 22px; height: 22px; animation: pulse 1.4s ease-in-out infinite; }
+.title__spark--b { bottom: 4px; right: -16px; width: 17px; height: 17px; background: #fff4c6; filter: drop-shadow(0 0 8px rgba(255,232,150,.95)); animation: pulse 1.9s ease-in-out .5s infinite; }
+
+/* ひとこと（左右に 小さな 宝石） */
+.title__tagrow { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
+.tag__gem {
+  display: block; width: 13px; height: 16px; flex: none;
+  background: linear-gradient(#8ff5b4, #23a05a 60%, #158a48);
+  clip-path: polygon(50% 0, 100% 38%, 50% 100%, 0 38%);
+  filter: drop-shadow(0 0 6px rgba(90,240,155,.7));
+}
 .title__tag {
-  display: inline-block; margin: 12px 0 0; padding: 7px 18px; border-radius: 999px;
+  display: inline-block; margin: 0; padding: 7px 18px; border-radius: 999px;
   background: rgba(20,28,60,.9); border: 2px solid rgba(255,255,255,.16);
   color: #ffe9c4; font-size: 15px; white-space: nowrap; box-shadow: 0 5px 14px rgba(0,0,0,.35);
 }
 
 /* ---- 空の あき（画面が 高い ぶんは ここが のびる） ---- */
-.title__scene { position: relative; z-index: 2; flex: 1; min-height: 40px; }
+.title__scene { position: relative; z-index: 2; flex: 1.35 1 0; min-height: 126px; }
 
 /* ---- 地面（草 → 土）と そこに いる みんな ----
    みんなは この 中で「下から の 位置」で おく。上に はみ出して 立つので
@@ -401,7 +468,7 @@ body {
 
 /* ---- タイトルに ならぶ モンスター（絵は ゲームの 本物）---- */
 .tmob { position: absolute; filter: drop-shadow(0 5px 5px rgba(20,20,60,.4)); }
-.tmob--dragon { left: 250px; bottom: 138px; z-index: 1; animation: bob 3.6s ease-in-out infinite; filter: drop-shadow(0 9px 9px rgba(60,15,10,.4)); }
+.tmob--dragon { left: 250px; bottom: 118px; z-index: 1; animation: bob 3.6s ease-in-out infinite; filter: drop-shadow(0 9px 9px rgba(60,15,10,.4)); }
 .tmob--bat    { left: 26px;  bottom: 196px; z-index: 1; animation: bob 3.1s ease-in-out .4s infinite; }
 .tmob--robo   { left: 10px;  bottom: 112px; z-index: 1; animation: bob 4.2s ease-in-out .7s infinite; }
 .tmob--slime  { left: 10px;  bottom: 76px;  z-index: 2; animation: bob 1.9s ease-in-out infinite; }

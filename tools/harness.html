@@ -389,6 +389,19 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
   }
 
   async function run() {
+    if (mode === 'measure') {
+      fresh(); MQ.ui.start.render(); MQ.ui.show('screen-start');
+      await wait(300);
+      const st = getComputedStyle(document.documentElement).getPropertyValue('--stage-h');
+      const L = ['stage-h: ' + st.trim()];
+      [['plaque','.title__plaque'],['book','.plq__book'],['pen','.plq__pen'],['sound','.title__sound'],['tag','.title__tagrow'],['dragon','.tmob--dragon'],['land','.title__land'],['actions','.title__actions']].forEach(function (p) {
+        const el = document.querySelector(p[1]);
+        if (!el) { L.push(p[0] + ': MISSING'); return; }
+        const r = el.getBoundingClientRect();
+        L.push(p[0] + ': x ' + Math.round(r.left) + '..' + Math.round(r.right) + '  y ' + Math.round(r.top) + '..' + Math.round(r.bottom));
+      });
+      say(L.join(' | ')); dump(); return;
+    }
     if (mode === 'start') { fresh(); MQ.ui.start.render(); MQ.ui.show('screen-start'); return; }
     if (mode === 'maker') { try { localStorage.clear(); } catch (e) {} MQ.save.load(); MQ.ui.start.maker(); return; }
     if (mode === 'look') { fresh(); MQ.ui.look.edit(); return; }

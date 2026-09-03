@@ -129,15 +129,38 @@ MQ.ui = MQ.ui || {};
   };
 
   /* =======================================================
-     ロゴ（モックと 同じ。金の グラデ＋茶色の ふち＋-3度 かたむける）
+     ロゴ（v5.1・ユーザーが 出した 見本の とおり）
+
+     木の かんばんに はめた ロゴ。左上に 本（みどりの 宝石つき）、
+     右上に えんぴつ、四すみに みどりの 宝石。文字は 金の グラデ＋
+     こい茶の ふち。かんばんは -2度 かたむける。
+     ぜんぶ CSS の div（画像ファイルは 使わない）。
      ======================================================= */
   MQ.ui.logo = function () {
-    return h('div', { class: 'title__logowrap' }, [
-      h('div', { class: 'title__logo', html: 'まなび<br>モンスター' }),
-      // ✦ は 文字だと 細くて 安っぽいので、CSS で 4とがりの 星を 描く
-      h('span', { class: 'title__spark title__spark--a' }),
-      h('span', { class: 'title__spark title__spark--b' }),
-      h('span', { class: 'title__spark title__spark--c' })
+    return h('div', { class: 'title__plaque' }, [
+      // 本（左上）
+      h('div', { class: 'plq__book' }, [
+        h('i', { class: 'cover' }),
+        h('i', { class: 'pages' }),
+        h('i', { class: 'gem' })
+      ]),
+      // えんぴつ（右上）
+      h('div', { class: 'plq__pen' }, [
+        h('i', { class: 'tip' }),
+        h('i', { class: 'lead' }),
+        h('i', { class: 'body' }),
+        h('i', { class: 'end' })
+      ]),
+      // みどりの 宝石
+      h('i', { class: 'plq__gem plq__gem--a' }),
+      h('i', { class: 'plq__gem plq__gem--b' }),
+      h('i', { class: 'plq__gem plq__gem--c' }),
+      h('div', { class: 'title__logowrap' }, [
+        h('div', { class: 'title__logo', html: 'まなび<br>モンスター' }),
+        // ✦ は 文字だと 細くて 安っぽいので、CSS で 4とがりの 星を 描く
+        h('span', { class: 'title__spark title__spark--a' }),
+        h('span', { class: 'title__spark title__spark--b' })
+      ])
     ]);
   };
 

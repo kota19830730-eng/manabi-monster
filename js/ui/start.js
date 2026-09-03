@@ -26,13 +26,13 @@ MQ.ui = MQ.ui || {};
 MQ.ui.start = (function () {
   const h = MQ.util.h;
 
-  /* かみふぶき：[左px, 上 %（空の 高さに 合わせて 散らす）, 大きさ, 色, かたむき] */
+  /* かみふぶき：[左px, 上 %（ロゴと 地面の あいだ の 高さの わりあい）, 大きさ, 色, かたむき] */
   const BITS = [
-    [30, 24, 8, '#ffd447', 12], [356, 27, 7, '#ef6ea3', -16],
-    [70, 30, 6, '#63d94f', 24], [320, 30, 8, '#5ab0ff', -10],
-    [180, 34, 6, '#ff8f5e', 18], [240, 34, 7, '#ffd447', -22],
-    [128, 37, 6, '#ef6ea3', 8], [288, 38, 6, '#63d94f', -14],
-    [48, 47, 6, '#63d94f', 20], [344, 50, 7, '#ffd447', -12]
+    [30, 8, 8, '#ffd447', 12], [356, 14, 7, '#ef6ea3', -16],
+    [70, 26, 6, '#63d94f', 24], [320, 30, 8, '#5ab0ff', -10],
+    [180, 20, 6, '#ff8f5e', 18], [240, 42, 7, '#ffd447', -22],
+    [128, 50, 6, '#ef6ea3', 8], [288, 58, 6, '#63d94f', -14],
+    [48, 64, 6, '#63d94f', 20], [200, 72, 7, '#ffd447', -12]
   ];
 
   /* ゲームの 本物の モンスターを 1体 おく（場所と 大きさは CSS の .tmob--*） */
@@ -60,16 +60,7 @@ MQ.ui.start = (function () {
   function sky() {
     return [
       h('div', { class: 'title__sky' }),
-      h('div', { class: 'title__glow' }),
-      h('div', { class: 'title__bits' }, BITS.map(function (b) {
-        return h('i', {
-          style: {
-            left: b[0] + 'px', top: b[1] + '%',
-            width: b[2] + 'px', height: b[2] + 'px',
-            background: b[3], transform: 'rotate(' + b[4] + 'deg)'
-          }
-        });
-      }))
+      h('div', { class: 'title__glow' })
     ];
   }
 
@@ -95,7 +86,19 @@ MQ.ui.start = (function () {
      空の あき（画面が 高い ぶんは ここが のびる）
      ======================================================= */
   function scene() {
-    return h('div', { class: 'title__scene' });
+    // かみふぶきは ここ（ロゴと 地面の あいだ）に 出す。
+    // 画面が 高い ほど ここが 広がるので、空が さびしく ならない。
+    return h('div', { class: 'title__scene' }, [
+      h('div', { class: 'title__bits' }, BITS.map(function (b) {
+        return h('i', {
+          style: {
+            left: b[0] + 'px', top: b[1] + '%',
+            width: b[2] + 'px', height: b[2] + 'px',
+            background: b[3], transform: 'rotate(' + b[4] + 'deg)'
+          }
+        });
+      }))
+    ]);
   }
 
   /* =======================================================
@@ -193,9 +196,15 @@ MQ.ui.start = (function () {
 
     const wrap = h('div', { class: 'title' }, sky().concat([
       h('div', { class: 'title__sound' }, MQ.ui.soundButtons()),
+      // 上の あき（ロゴを 下げる ため。画面が 高い ほど 大きく なる）
+      h('div', { class: 'title__top' }),
       h('div', { class: 'title__head' }, [
         MQ.ui.logo(),
-        h('p', { class: 'title__tag', text: 'こたえた ぶんだけ つよくなる' })
+        h('div', { class: 'title__tagrow' }, [
+          h('i', { class: 'tag__gem' }),
+          h('p', { class: 'title__tag', text: 'こたえた ぶんだけ つよくなる' }),
+          h('i', { class: 'tag__gem' })
+        ])
       ]),
       scene(),
       land(),
