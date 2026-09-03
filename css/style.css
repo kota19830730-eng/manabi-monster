@@ -359,11 +359,11 @@ body {
 .cloud { position: absolute; display: flex; align-items: flex-end; z-index: 1; }
 .cloud i { display: block; background: #fff; }
 .cloud i:nth-child(3) { background: #eaf7ff; }
-.cloud--a { top: 138px; left: -34px; animation: drift 11s ease-in-out infinite alternate; }
+.cloud--a { top: 70px; left: 12px; animation: drift 11s ease-in-out infinite alternate; }
 .cloud--a i:nth-child(1) { width: 24px; height: 22px; }
 .cloud--a i:nth-child(2) { width: 24px; height: 40px; }
 .cloud--a i:nth-child(3) { width: 24px; height: 28px; }
-.cloud--b { top: 216px; right: -28px; animation: drift 14s ease-in-out infinite alternate-reverse; }
+.cloud--b { top: 58px; right: 10px; animation: drift 14s ease-in-out infinite alternate-reverse; }
 .cloud--b i { width: 22px; height: 20px; }
 .cloud--b i:nth-child(2) { height: 38px; }
 .cloud--b i:nth-child(3) { background: #fff; }
@@ -483,14 +483,14 @@ body {
 
 /* なかまの モンスター 3体 */
 .title__pals { position: absolute; left: 22px; bottom: 24px; display: flex; align-items: flex-end; gap: 34px; z-index: 4; }
-.pal { filter: drop-shadow(0 5px 5px rgba(20,20,60,.4)); }
-.pal__img { display: block; width: 58px; }
-.pal--a { animation: bob 1.9s ease-in-out infinite; }
-.pal--b { animation: bob 2.6s ease-in-out .3s infinite; }
-.pal--c { animation: bob 3.2s ease-in-out .6s infinite; }
-.pal--a .pal__img { height: 51px; }
-.pal--b .pal__img { height: 54px; }
-.pal--c .pal__img { height: 58px; }
+.tpal { filter: drop-shadow(0 5px 5px rgba(20,20,60,.4)); }
+.tpal__img { display: block; width: 58px; }
+.tpal--a { animation: bob 1.9s ease-in-out infinite; }
+.tpal--b { animation: bob 2.6s ease-in-out .3s infinite; }
+.tpal--c { animation: bob 3.2s ease-in-out .6s infinite; }
+.tpal--a .tpal__img { height: 51px; }
+.tpal--b .tpal__img { height: 54px; }
+.tpal--c .tpal__img { height: 58px; }
 
 /* たからばこ */
 .title__chest { position: absolute; bottom: 26px; right: 18px; z-index: 4; filter: drop-shadow(0 5px 5px rgba(10,10,40,.4)); }

@@ -204,9 +204,9 @@ MQ.ui.start = (function () {
 
       // なかまの モンスター 3体
       h('div', { class: 'title__pals' }, [
-        h('div', { class: 'pal pal--a' }, [dot('t-slime', SLIME_ROWS, SLIME_PAL, 'pal__img')]),
-        h('div', { class: 'pal pal--b' }, [dot('t-lizard', LIZARD_ROWS, LIZARD_PAL, 'pal__img')]),
-        h('div', { class: 'pal pal--c' }, [dot('t-golem', GOLEM_ROWS, GOLEM_PAL, 'pal__img')])
+        h('div', { class: 'tpal tpal--a' }, [dot('t-slime', SLIME_ROWS, SLIME_PAL, 'tpal__img')]),
+        h('div', { class: 'tpal tpal--b' }, [dot('t-lizard', LIZARD_ROWS, LIZARD_PAL, 'tpal__img')]),
+        h('div', { class: 'tpal tpal--c' }, [dot('t-golem', GOLEM_ROWS, GOLEM_PAL, 'tpal__img')])
       ]),
 
       // たからばこ
