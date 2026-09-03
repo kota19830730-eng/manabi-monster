@@ -45,11 +45,15 @@ function load(rel) {
   const code = fs.readFileSync(path.join(base, rel), 'utf8');
   vm.runInThisContext(code, { filename: rel });
 }
+/* 読む じゅんばん：**教科の ファイルは index.html から そのまま 読みとる**（v5.0.1）。
+   ここに 手で ならべると 本物と ずれて、アプリだけ 落ちる バグを 見のがす。
+   （v4.9 で zu.js が rika4.js より 後に なって いて、テストは ぜんぶ 通るのに
+     本物の アプリでは 小4の 理科・社会が 読みこみ時に 落ちて いた） */
+const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
+const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
  'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/pals.js', 'js/core/battle.js',
- 'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/monstergen.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
- 'js/content/zu.js', 'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
- 'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kakusu.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/sansu4.js', 'js/content/kokugo4.js', 'js/content/rika4.js', 'js/content/shakai4.js', 'js/content/eigo4.js', 'js/content/terms.js', 'js/content/world3.js'].forEach(load);
+ 'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
 
 const MQ = global.MQ;
 const TYPES = ['number', 'choice', 'divrem', 'roma', 'write'];
@@ -1923,6 +1927,31 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   })();
 })();
 
+/* ===== 読みこみの じゅんばん（v5.0.1）=====
+   本物の index.html・harness.html・この smoke が 同じ じゅんばんで 教科の
+   ファイルを 読むか 見る。ずれると「テストは 通るのに アプリだけ 落ちる」に なる。
+   （v4.9：zu.js が rika4.js より 後 → 小4の 理科・社会が 読みこみ時に 落ちて、
+     小4に して いる 子は「ぼうけんの つづき」が きかなく なって いた） */
+(function () {
+  const harness = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  const hOrder = harness.split(String.fromCharCode(34)).filter(function (s) { return /^[.][.].js.content.[a-z0-9]+[.]js$/.test(s); })
+    .map(function (s) { return s.slice(3); });
+  check(hOrder.join(',') === CONTENT_ORDER.join(','),
+    'harness.html の 教科ファイルの じゅんばんが index.html と 同じ');
+  // 読みこみ中に 落ちて いたら この どれかが undefined に なる
+  const need = { zu: MQ.zu, sansu3: MQ.sansu3, kokugo3: MQ.kokugo3, rikashakai3: MQ.rikashakai3,
+    eigo3: MQ.eigo3, romaji3: MQ.romaji3, sansu1: MQ.sansu1, kokugo1: MQ.kokugo1, sansu2: MQ.sansu2,
+    kokugo2: MQ.kokugo2, sansu4: MQ.sansu4, kokugo4: MQ.kokugo4, rika4: MQ.rika4, shakai4: MQ.shakai4,
+    eigo4: MQ.eigo4, kanjiQ: MQ.kanjiQ, kakusu: MQ.kakusu, terms: MQ.terms, content: MQ.content };
+  Object.keys(need).forEach(function (k) { check(!!need[k], 'MQ.' + k + ' が 読めて いる'); });
+  // 図を つかう 教科は zu より 後に 読む こと
+  const zuAt = CONTENT_ORDER.indexOf('js/content/zu.js');
+  ['rika4', 'shakai4', 'rikashakai3'].forEach(function (f) {
+    check(zuAt >= 0 && zuAt < CONTENT_ORDER.indexOf('js/content/' + f + '.js'),
+      'zu.js を ' + f + '.js より 先に 読む');
+  });
+  console.log('読みこみ じゅんばん: index/harness/smoke そろい・教科 ' + CONTENT_ORDER.length + ' ファイル');
+})();
 // 非同期の 検査（AI の generate など）が おわってから まとめる
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
