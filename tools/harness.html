@@ -34,6 +34,7 @@
     #kokugo4 #koku4:N … 小4 国語（v4.5・かん字 219字＋ことば。N=1〜4）
     #rika4:N #shakai4:N #eigo4:N … 小4 理科・社会・英語（v4.6/v4.7・N=1〜4）
     #last4 #last4map … 小4の さいごの塔（v4.8・ダークロード）
+    #zu #chizu … 問題の 図（v4.9・地図記号・方位・じしゃく・回路・月）／地図と方位の バトル
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -77,6 +78,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/treasure.js"></script>
 <script src="../js/content/sansu3.js"></script>
 <script src="../js/content/kokugo3.js"></script>
+<script src="../js/content/zu.js"></script>
 <script src="../js/content/rikashakai3.js"></script>
 <script src="../js/content/eigo3.js"></script>
 <script src="../js/content/romaji3.js"></script>
@@ -392,6 +394,30 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       fresh(); MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
       const n = parseInt(mode.slice(4), 10);   // #map:600 で その いちまで スクロール（-1 は いちばん下）
       if (!isNaN(n)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n < 0 ? 99999 : n; }
+      return;
+    }
+    // #zu … 問題に つける 図（v4.9）：地図記号17・方位・じしゃく・回路・月
+    if (mode === 'zu') {
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:10px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;z-index:99;align-content:start;overflow:auto;';
+      MQ.zu.names.forEach(function (k) {
+        const d = document.createElement('div');
+        d.innerHTML = MQ.zu.kigoSvg(k) + '<div style="font-size:10px;text-align:center">' + MQ.zu.KIGO_NAMES[k] + '</div>';
+        box.appendChild(d);
+      });
+      [MQ.zu.compass(45), MQ.zu.compass(null), MQ.zu.needle(), MQ.zu.magnet(), MQ.zu.magnet(true), MQ.zu.magnets('NN'), MQ.zu.magnets('NS'),
+       MQ.zu.circuit('single', 'motor'), MQ.zu.circuit('series', 'motor'), MQ.zu.circuit('parallel', 'bulb'),
+       MQ.zu.moon('full'), MQ.zu.moon('crescent'), MQ.zu.moon('half'), MQ.zu.moon('phases')].forEach(function (s) {
+        const d = document.createElement('div'); d.innerHTML = s; box.appendChild(d);
+      });
+      document.getElementById('stage').appendChild(box);
+      return;
+    }
+    // #chizu … 地図と方位の バトル（図つきの 問題が 出る）
+    if (mode === 'chizu') {
+      fresh();
+      MQ.ui.battle.start('rikashakai3-3');
+      await wait(600);
       return;
     }
     // #figs … 小2「かたち」「ぶんすう」の 図を ぜんぶ ならべて 見る

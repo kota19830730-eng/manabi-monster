@@ -48,7 +48,7 @@ function load(rel) {
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
  'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/pals.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/content/monsterart.js', 'js/content/monstergen.js', 'js/content/face.js', 'js/content/enemies.js', 'js/content/hero.js', 'js/content/art.js', 'js/content/treasure.js',
- 'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
+ 'js/content/zu.js', 'js/content/sansu3.js', 'js/content/kokugo3.js', 'js/content/rikashakai3.js', 'js/content/eigo3.js',
  'js/content/romaji3.js', 'js/content/sansu1.js', 'js/content/kanjiq.js', 'js/content/kakusu.js', 'js/content/kokugo1.js', 'js/content/sansu2.js', 'js/content/kokugo2.js', 'js/content/sansu4.js', 'js/content/kokugo4.js', 'js/content/rika4.js', 'js/content/shakai4.js', 'js/content/eigo4.js', 'js/content/terms.js', 'js/content/world3.js'].forEach(load);
 
 const MQ = global.MQ;
@@ -400,7 +400,7 @@ check(MQ.kokugo1.kotoba.length >= 140 && MQ.kokugo2.kotoba.length >= 100, 'こ�
       const t = q.text + q.choices.join('') + (q.note || '') + (q.hint || '') + (q.unit || '');
       const bad = badKanji(t);
       check(bad.length === 0, name + '#' + i + ' に 5年いじょうの かん字 ' + bad.join('') + ': ' + q.text);
-      check(!/[A-Za-z]{3,}/.test(t.replace(/km|cm|mm/g, '')), name + '#' + i + ' に 英語が まざって いる: ' + q.text);
+      check(!/[A-Za-z]{3,}/.test(MQ.util.stripTags(t).replace(/km|cm|mm/g, '')), name + '#' + i + ' に 英語が まざって いる: ' + q.text);
       check(q.unit.indexOf('／') > 0, name + '#' + i + ' の unit');
     });
   });
@@ -570,6 +570,32 @@ check(JSON.stringify(kinds) === JSON.stringify(['sansu', 'kokugo', 'romaji', 'ri
   MQ.terms.forcePlayer(null);
   check(!!MQ.treasure.forStage('tower4'), '小4の 塔の たからもの');
   check(MQ.enemies.get('boss-dark').shape === 'dark' && !!MQ.monsterArt.mons.dark, 'ダークロードの 絵');
+})();
+
+/* ---- 問題の 図（v4.9）：地図記号・方位・じしゃく・回路・月 ---- */
+(function () {
+  check(MQ.zu.names.length === 17, '地図記号は 17こ: ' + MQ.zu.names.length);
+  MQ.zu.names.forEach(function (nm) { check(MQ.zu.kigoSvg(nm).indexOf('<svg') === 0, '地図記号 ' + nm); });
+  const st3 = MQ.rikashakai3.questions.filter(function (q) { return q.stage === 3; });
+  const withFig = st3.filter(function (q) { return q.text.indexOf('<svg') !== -1; }).length;
+  check(withFig >= 24, '地図と方位の 図つきが 24問 いじょう: ' + withFig);
+  // stripTags した 問題文（＝出題 id の もと）が かぶらない（同じ 文だと 12問かぶりなしが こわれる）
+  [1, 2, 3, 4].forEach(function (st) {
+    const seen = {};
+    MQ.rikashakai3.questions.filter(function (q) { return q.stage === st; }).forEach(function (q) {
+      const k = MQ.util.stripTags(q.text);
+      check(!seen[k], 'rikashakai stage' + st + ' の 問題文が かぶる: ' + k);
+      seen[k] = 1;
+    });
+  });
+  const mag = MQ.rikashakai3.questions.filter(function (q) { return q.stage === 2 && q.text.indexOf('<svg') !== -1; }).length;
+  check(mag >= 6, 'じしゃくの 図つきが 6問 いじょう: ' + mag);
+  // N/S の 字が 答えに なる 問題は 字を かくした じしゃくの 図
+  const ryohashi = MQ.rikashakai3.questions.filter(function (q) { return q.text.indexOf('両はしの 名前') !== -1; })[0];
+  check(!!ryohashi && ryohashi.text.indexOf('>N<') === -1, '両はしの 名前の 図に N/S の 字が ない');
+  check(MQ.rika4.questions.filter(function (q) { return q.text.indexOf('<svg') !== -1; }).length >= 7, '小4理科の 図つき（回路・月）');
+  check(MQ.shakai4.questions.filter(function (q) { return q.text.indexOf('<svg') !== -1; }).length >= 1, '小4社会の 図つき');
+  check(MQ.zu.circuit('parallel', 'bulb').indexOf('<svg') === 0 && MQ.zu.moon('phases').indexOf('<svg') === 0, '回路と 月の 図が 作れる');
 })();
 
 /* ---- 学年ごとの 地図（v4.7）---- */
