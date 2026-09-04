@@ -89,7 +89,12 @@
   } else if (mode === 'bodies') {
     // 写真から 作る モンスターの 体 16しゅるい（v4.1・v5.7 コウモリ）
     const G = MQ.monsterGen;
-    const COL = { blob: '#4fbf6a', beast: '#c98a3f', fish: '#4f9bf0', bird: '#e8c04e', humanoid: '#5fb0c8', bug: '#8fbf4f', box: '#c9772f', triple: '#e8544e', dragon: '#7a4fd6', robot: '#8fa2c0', snake: '#4fbf6a', squid: '#e0559b', ghost: '#cfd8ee', vehicle: '#c9772f', spider: '#4a4f6b', bat: '#4a4a5c' };
+    const COL = { blob: '#4fbf6a', beast: '#c98a3f', fish: '#4f9bf0', bird: '#e8c04e', humanoid: '#5fb0c8', bug: '#8fbf4f', box: '#c9772f', triple: '#e8544e', dragon: '#7a4fd6', robot: '#8fa2c0', snake: '#4fbf6a', squid: '#e0559b', ghost: '#cfd8ee', vehicle: '#c9772f', spider: '#4a4f6b', bat: '#4a4a5c',
+      dino: '#5aa64f', shark: '#5b7fa8', crab: '#d4553f', rabbit: '#e8d9c4', cat: '#c98a3f', bear: '#8a6039',
+      turtle: '#4f9b5e', frog: '#6cbf3f', penguin: '#3b4257', golem: '#7b6f63', pumpkin: '#e08428', tree: '#4f9b4a',
+      mushroom: '#d1504a', devil: '#a03b5c', angel: '#e8dcc0', king: '#c9a63f', wizard: '#5b4fa8', sword: '#9aa7bd',
+      star: '#f2c93b', flame: '#e8622e', cloud: '#b9c6de', rocket: '#d0d6e2', ufo: '#7f8aa0', snowman: '#e8f0fb',
+      bee: '#e8b52e', butterfly: '#e0559b', scorpion: '#8a5a2f', ship: '#a4642f', plane: '#7f95bd' };
     function feat(o) {
       const f = { main: [160, 160, 180], accent: null, eyes: 2, horns: 0, legs: 0, wings: false, skull: false, teeth: false, wide: false, tall: false, parts: 1, rectness: 0.5, sideOut: false };
       Object.keys(o || {}).forEach(function (k) { f[k] = o[k]; });

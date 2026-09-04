@@ -46,6 +46,7 @@ MQ.ui.photo = (function () {
   let size = 96;                    // ドット絵の マス数（初期は こまかい・v3.3）
   let cleanMode = 3;                // しあげ：3 = モンスター（絵を 参考に 組み立てる・v3.6）／2 = ゲームふう／1 = 絵の まま／0 = しない
   let picks = [];                   // モンスターの 候補（v3.8）
+  let showAll = false;              // 「ほかの すがた」を ひらいて いるか（v5.8）
   let lastCells = null;             // さいごに 読んだ マス目（テスト用）
   let letterPick = [];              // 字の モンスターの もじ（子どもが えらんだ もの・v4.0）
   let pickAt = 0;                   // えらんで いる 候補
@@ -1235,7 +1236,9 @@ MQ.ui.photo = (function () {
           const boxI = bbox(innerFg, W, H);
           if (boxI && boxI.n >= 30) { cellsI = cellsFrom(innerFg, boxI).cells; cleanCells(cellsI, N, true); }
         }
-        list = cellsI && MQ.monsterGen.variantsInner ? MQ.monsterGen.variantsInner(cells, cellsI, N, 8) : MQ.monsterGen.variants(cells, N, 8);
+        // ふだんは 上位 12体。「ほかの すがた」を ひらいて いる ときだけ ぜんぶ 作る（v5.8。ぜんぶは 45体 あるので おそく なる）
+        const want = showAll ? 99 : 12;
+        list = cellsI && MQ.monsterGen.variantsInner ? MQ.monsterGen.variantsInner(cells, cellsI, N, want) : MQ.monsterGen.variants(cells, N, want);
       }
       if (list.length) {
         picks = list;
@@ -1496,29 +1499,52 @@ MQ.ui.photo = (function () {
       h('button', { class: 'btn btn--small btn--stone photo__redo', type: 'button', text: '写真から やり直す', onclick: function () { MQ.sfx.tap(); edited = ''; drawStage(); refresh(); } })
     ]);
 
-    // 候補 3体の タイル（v3.8）。タップで えらぶ
+    // 候補の タイル（v3.8）。タップで えらぶ。v5.8：上位 12体＋「ほかの すがた」で のこり ぜんぶ
     const pickRow = h('div', { class: 'photo__picks', hidden: 'hidden' });
+    const allRow = h('div', { class: 'photo__picks photo__all', hidden: 'hidden' });
+    const moreBtn = h('button', {
+      class: 'btn btn--small btn--cream photo__more', type: 'button', text: 'ほかの すがた',
+      hidden: 'hidden',
+      onclick: function () {
+        MQ.sfx.tap();
+        showAll = !showAll;
+        refresh();
+      }
+    });
     // 字の 候補は 子どもが えらんだ もじで 見せる
     function pickPng(p) {
       if (p.letters && letterPick.length && MQ.monsterGen.letterPng) return MQ.monsterGen.letterPng(letterPick, p.cols || null);
       return p.png;
     }
+    // 候補 1体ぶんの タイル（絵＋名前）
+    function pickTile(p, i) {
+      return h('button', {
+        class: 'photo__pick' + (i === pickAt ? ' is-on' : ''), type: 'button',
+        title: MQ.monsterGen.kindName ? MQ.monsterGen.kindName(p.tag || p.kind) : '',
+        onclick: function () {
+          if (pickAt === i) return;
+          pickAt = i; MQ.sfx.tap();
+          refresh();
+        }
+      }, [
+        h('img', { class: 'photo__pickimg', src: pickPng(p), alt: '' }),
+        h('span', { class: 'photo__pickname', text: MQ.monsterGen.kindName ? MQ.monsterGen.kindName(p.tag || p.kind) : '' })
+      ]);
+    }
     function paintPicks() {
       pickRow.innerHTML = '';
-      pickRow.hidden = !(cleanMode === 3 && picks.length > 1 && !edited);
-      if (pickRow.hidden) return;
+      allRow.innerHTML = '';
+      const on = cleanMode === 3 && picks.length > 1 && !edited;
+      pickRow.hidden = !on;
+      allRow.hidden = !(on && showAll);
+      moreBtn.hidden = !on;
+      if (!on) return;
+      moreBtn.textContent = showAll ? 'とじる' : 'ほかの すがた';
       pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'どれに する？' }));
-      picks.forEach(function (p, i) {
-        const b = h('button', {
-          class: 'photo__pick' + (i === pickAt ? ' is-on' : ''), type: 'button',
-          onclick: function () {
-            if (pickAt === i) return;
-            pickAt = i; MQ.sfx.tap();
-            refresh();
-          }
-        }, [h('img', { class: 'photo__pickimg', src: pickPng(p), alt: '' })]);
-        pickRow.appendChild(b);
-      });
+      picks.slice(0, 12).forEach(function (p, i) { pickRow.appendChild(pickTile(p, i)); });
+      if (!showAll) return;
+      allRow.appendChild(h('span', { class: 'photo__lbl', text: 'ぜんぶの すがた' }));
+      picks.forEach(function (p, i) { if (i >= 12) allRow.appendChild(pickTile(p, i)); });
     }
     /* もじを えらぶ（v4.0）。
        絵から もじを 当てるのは むずかしい ので、**子どもが タップで 直せる** ように する。
@@ -1571,6 +1597,8 @@ MQ.ui.photo = (function () {
       ]),
       emptyNote,
       pickRow,
+      h('div', { class: 'photo__morerow' }, [moreBtn]),
+      allRow,
       letterRow,
       sliderRow('はいけいを 消す', 15, 120, function () { return tol; }, function (v) { tol = v; }),
       sliderRow('線を こく', 0, 100, function () { return inkLv; }, function (v) { inkLv = v; }),

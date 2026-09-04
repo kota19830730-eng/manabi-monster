@@ -658,6 +658,23 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     // #set2 … よみあげの スイッチが 出る せってい画面（にせの 声・v5.3）
     if (mode === 'set2') { fakeVoices(); fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); await wait(200); say('set2: スイッチ=' + Array.prototype.map.call(document.querySelectorAll('.sw'), function (b) { return b.textContent; }).join('/')); dump(); return; }
     if (mode === 'photo') { fresh(); MQ.ui.photo.render(); return; }
+    // #photoall = にせの 絵を 入れて「ほかの すがた」を ひらく（v5.8・体 45しゅるい）
+    if (mode.indexOf('photoall') === 0) {
+      fresh();
+      MQ.ui.photo.render();
+      await new Promise(function (res) { MQ.ui.photo.render.load(mode.indexOf(':bat') > 0 ? fakeDrawing2() : fakeDrawing(), function () { res(); }); });
+      await wait(150);
+      const more = $('.photo__more');
+      say('more btn: ' + (more && !more.hidden ? more.textContent : 'なし'));
+      if (more) more.click();
+      await wait(300);
+      const names = Array.prototype.map.call(document.querySelectorAll('.photo__pickname'), function (e) { return e.textContent; });
+      say('すがた ' + names.length + '体: ' + names.join(' '));
+      const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__picks');
+      if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 60;
+      dump();
+      return;
+    }
     // 写真から モンスター（v2.7）：#photo2 = 子どもの 絵に 見せかけた 画像／#photo2b = たからばこの 中に 生きものが いる 絵（v5.7・ミミック）／#photo3:<file URL>[:<マス数>[:<x,y,w[,h]>[:<消す,こく>]]] = 本物の 画像
     //   x,y,w,h は わくの 場所（写真に 対する わりあい 0〜1。h を 書かなければ 写真の px で 正方形）。子どもが 指で わくを 動かした のと 同じに PointerEvent で 動かす
     if (mode.indexOf('photo2') === 0 || mode.indexOf('photo3:') === 0) {

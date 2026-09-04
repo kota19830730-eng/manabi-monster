@@ -2055,7 +2055,11 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   const G = MQ.monsterGen;
   check(!!G, 'monsterGen が ある');
   const KINDS = ['blob', 'beast', 'fish', 'bird', 'humanoid', 'bug', 'box', 'triple',
-    'dragon', 'robot', 'snake', 'squid', 'ghost', 'vehicle', 'spider', 'bat'];
+    'dragon', 'robot', 'snake', 'squid', 'ghost', 'vehicle', 'spider', 'bat',
+    // v5.8
+    'dino', 'shark', 'crab', 'rabbit', 'cat', 'bear', 'turtle', 'frog', 'penguin', 'golem',
+    'pumpkin', 'tree', 'mushroom', 'devil', 'angel', 'king', 'wizard', 'sword', 'star', 'flame',
+    'cloud', 'rocket', 'ufo', 'snowman', 'bee', 'butterfly', 'scorpion', 'ship', 'plane'];
   const N = 64;
   // まる／たまご形の 絵を 作る（目 2つ つき）
   function blobArt(cx, cy, rx, ry, col, eyes) {
@@ -2082,14 +2086,15 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(fTall.tall === true && fTall.wide === false, 'たて長と わかる（ratio ' + fTall.ratio.toFixed(2) + '）');
   check(fTall.main[2] > fTall.main[0], '主な 色は 青（青 > 赤）');
   const mTall = G.make(fTall);
-  check(['humanoid', 'blob', 'ghost'].indexOf(mTall.kind) >= 0, 'たて長は 立ちすがた／まる／ゆうれい（' + mTall.kind + '）');
+  const WIDE_ONLY = ['fish', 'beast', 'crab', 'turtle', 'shark', 'ufo', 'cloud', 'plane', 'ship', 'vehicle', 'scorpion', 'bug', 'spider'];
+  const TALLBOX_ONLY = ['box', 'robot', 'triple', 'sword', 'rocket', 'snowman', 'tree', 'penguin', 'wizard', 'angel', 'king', 'mushroom'];
+  check(WIDE_ONLY.indexOf(mTall.kind) < 0, 'たて長の 絵を よこ長の しゅるいに しない（' + mTall.kind + '）');
   // ② よこ長の たまご → よこ長の しゅるい
   const fWide = G.analyze(blobArt(32, 32, 22, 11, [230, 140, 60], [[18, 26], [26, 26]]), N);
   check(fWide.wide === true, 'よこ長と わかる');
   check(fWide.main[0] > fWide.main[2], '主な 色は オレンジ（赤 > 青）');
   const kWide = G.make(fWide).kind;
-  check(['fish', 'beast', 'bug', 'snake', 'blob', 'dragon'].indexOf(kWide) >= 0, 'よこ長の たまごは 生きもの（' + kWide + '）');
-  check(['vehicle', 'box', 'robot', 'triple'].indexOf(kWide) < 0, 'よこ長の たまごは のりもの・はこに しない');
+  check(TALLBOX_ONLY.indexOf(kWide) < 0, 'よこ長の たまごを たて長・四角の しゅるいに しない（' + kWide + '）');
   // ③ 四角い 絵 → はこ
   check(G.make(G.analyze(rectArt(18, 16, 28, 26, [200, 120, 70]), N)).kind === 'box', '四角い 絵は はこ');
   // ④ 3つに 分かれた 絵 → 3つご
@@ -2109,12 +2114,26 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(Object.keys(G.bodies).length === KINDS.length, '体は ' + KINDS.length + 'しゅるい（' + Object.keys(G.bodies).length + '）');
   // あたらしい 7しゅるいも 部品が そろって いる（目・つの・きばの 場所が ある）
   let miss = 0;
-  ['dragon', 'robot', 'snake', 'squid', 'ghost', 'vehicle', 'spider'].forEach(function (k) {
+  KINDS.forEach(function (k) {
     const sp = G.make({ main: [180, 120, 200], accent: null, eyes: 2, horns: 0, legs: 0, wings: false, skull: false, teeth: true, wide: false, tall: false, parts: 1, rectness: 0.5, sideOut: false }, k);
     if (!sp || sp.shape.length < 8) miss++;
     if (!sp.shape.some(function (p) { return p[4] === 'w'; })) miss++;      // 目か きばの 白が ある
   });
-  check(miss === 0, 'あたらしい 7しゅるいに 目と 部品が ある（' + miss + '）');
+  check(miss === 0, 'ぜんぶの しゅるいに 目と 部品が ある（' + miss + '）');
+  // v5.8：しゅるいごとに かたちが ちがう（同じ 四角の ならびを つかい回して いない）
+  (function () {
+    const seen = {};
+    let dup = 0;
+    KINDS.forEach(function (k) {
+      const key = JSON.stringify(G.bodies[k]());
+      if (seen[key]) dup++;
+      seen[key] = k;
+    });
+    check(dup === 0, 'かたちが かぶって いない（かぶり ' + dup + '）');
+    let thin = 0;
+    KINDS.forEach(function (k) { if (G.bodies[k]().length < 5) thin++; });
+    check(thin === 0, 'どの しゅるいも 四角 5個 いじょう（' + thin + '）');
+  })();
   // ミミック（v5.7）：はこ＋中の 生きもの。M の 色が 中の 生きものの 色に なり、目の 数は 中から
   (function () {
     const mm = G.make({ main: [226, 150, 95], accent: [242, 201, 59], inner: { main: [58, 56, 68], eyes: 3 }, eyes: 2 }, 'mimic');
