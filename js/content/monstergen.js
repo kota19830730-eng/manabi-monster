@@ -2513,6 +2513,16 @@ MQ.monsterGen = (function () {
 
   /* しゅるいごとの「合う 度合い」。絵から わかる ことは かぎられる ので、
      いちばん 合う 1つに 決めうちせず、上位 3つを 候補に して 子どもに えらんで もらう */
+  /* かたちの 見くらべ（matchKinds）を 点数に どれだけ まぜるか。
+     **0 ＝ つかわない**（v6.2 で 実測した 結果）。
+       ・お手本 そのものなら 85/85 当たる（しくみは 正しい）
+       ・回転や のびちぢみを 少し 入れる だけで 1番あては 33%、12番までに 入るのは 62%
+       ・息子さんの 本物の 写真では **良く ならなかった**（サメ→ワニ に 入れかわるなど）
+     85しゅるいの 四角い すがたは たがいに にすぎて、白黒の 形だけでは 見分けられない。
+     ちゃんと 当てるには 学習した ニューラルネット（何MBもの ファイル）が いる。
+     しくみと はかり方は のこして ある（docs/v6.2かたち判定メモ.md）。良く できたら ここを 上げる。 */
+  const SIM_W = 0;
+
   function kindScores(f) {
     const sc = {
       blob: 3,
@@ -3080,6 +3090,20 @@ MQ.monsterGen = (function () {
     if (rd) f.riderScore = rd.score;
     lastF = f;
     const order = kindScores(f);
+    /* かたちの 見くらべ（v6.2）を 点数に まぜる。
+       ぜんぶの しゅるいの にて いる 度合いから「ふつうより どれだけ にて いるか」を 出して 足す
+       （絵に よって にて いる 度合いの 幅が ちがう ので、生の 数字では なく ばらつきで 見る） */
+    const sims = matchKinds(cells, N);
+    if (sims.length > 4) {
+      let sum = 0, sum2 = 0;
+      sims.forEach(function (x) { sum += x.sim; sum2 += x.sim * x.sim; });
+      const mean = sum / sims.length;
+      const sd = Math.sqrt(Math.max(1e-6, sum2 / sims.length - mean * mean));
+      const map = {};
+      sims.forEach(function (x) { map[x.kind] = (x.sim - mean) / sd; });
+      order.forEach(function (o) { if (map[o.kind] != null) o.score += SIM_W * map[o.kind]; });
+      order.sort(function (a, b) { return b.score - a.score; });
+    }
     const out = [];
     const done = {};
     function add(kind, tag, feat) {
@@ -3138,6 +3162,176 @@ MQ.monsterGen = (function () {
     add(make(fW, 'box'), 'box');
     innerList.forEach(function (v) { if (out.length < want && !done[v.tag]) { done[v.tag] = 1; out.push(v); } });
     return out.slice(0, want);
+  }
+
+  /* =======================================================
+     ⑤ かたちを 見くらべる（v6.2）＝ かぎの いらない「AI」
+
+     ユーザー「チャッピーなキーとか言われても普通の人じゃわからん。こっちで作れないの？」
+     → **通信も かぎも つかわず、アプリの 中だけで** どの すがたか を 決める。
+
+     やり方は かん字の 書きとり判定（core/handwrite.js）と 同じ 考え方：
+       ① 85しゅるいの ドット絵を「お手本」として 白黒の 形（マスク）に する
+       ② 子どもの 絵も 白黒の 形に する（線だけで かいて あっても 中を うめる）
+       ③ どちらも たてよこの ひ を たもった まま 12×12 に ちぢめる
+       ④ 数字の ならびとして どれだけ にて いるか（コサイン）を くらべる
+       ⑤ 左右を ひっくり返した ものも くらべて、にて いる ほうを とる
+          （子どもが 左むきに かき、お手本が 右むき の ことが ある）
+     ======================================================= */
+  const MASK_S = 16;                 // 見くらべる ときの こまかさ（16×16）
+  const MASKS = {};                  // しゅるい → 48×48 の 白黒（1回 作ったら おぼえる）
+  const VECS = {};                   // しゅるい → 見くらべ用の 数字の ならび
+  let MEANV = null;                  // 85しゅるいの 平均（「ふつうの モンスター」）
+
+  /* おまけ（つの・はね・きば）を つけない「すの 体」の 形 */
+  function kindMask(kind) {
+    if (MASKS[kind]) return MASKS[kind];
+    const f = {
+      main: [150, 150, 160], accent: null, eyes: 2, horns: 0, legs: 0, wings: false,
+      skull: false, teeth: false, wide: false, tall: false, parts: 1, rectness: 0.5,
+      sideOut: false, ratio: 1, dark: false
+    };
+    let m = null;
+    try { m = make(f, kind); } catch (e) { m = null; }
+    if (!m) return null;
+    const g = new Uint8Array(48 * 48);
+    (m.shape || []).forEach(function (p) {
+      if (!p) return;
+      const x0 = Math.max(0, p[0]), y0 = Math.max(0, p[1]);
+      const x1 = Math.min(48, p[0] + p[2]), y1 = Math.min(48, p[1] + p[3]);
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) g[y * 48 + x] = 1;
+    });
+    MASKS[kind] = g;
+    return g;
+  }
+
+  /* 線だけで かいた 絵の 中を うめる（外から ぬって、たどりつけない ところ＝中） */
+  function fillHoles(g, w, hh) {
+    const out = new Uint8Array(g);
+    const bg = new Uint8Array(w * hh);
+    const st = [];
+    function push(k) { if (bg[k] || g[k]) return; bg[k] = 1; st.push(k); }
+    for (let x = 0; x < w; x++) { push(x); push((hh - 1) * w + x); }
+    for (let y = 0; y < hh; y++) { push(y * w); push(y * w + w - 1); }
+    while (st.length) {
+      const k = st.pop(), x = k % w, y = (k - x) / w;
+      if (x + 1 < w) push(k + 1);
+      if (x > 0) push(k - 1);
+      if (y + 1 < hh) push(k + w);
+      if (y > 0) push(k - w);
+    }
+    for (let k = 0; k < w * hh; k++) if (!bg[k]) out[k] = 1;
+    return out;
+  }
+
+  /* 白黒の 形 → 16×16 の ぬり ぐあい（たてよこの ひ は たもつ＝よこ長・たて長も 見分ける） */
+  function shapeGrid(g, w, hh) {
+    let x0 = w, y0 = hh, x1 = -1, y1 = -1;
+    for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) {
+      if (!g[y * w + x]) continue;
+      if (x < x0) x0 = x; if (x > x1) x1 = x;
+      if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    if (x1 < 0) return null;
+    const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+    const side = Math.max(bw, bh);
+    const ox = (side - bw) / 2, oy = (side - bh) / 2;      // まん中に おく（正方形の わくに はめる）
+    const sum = new Float32Array(MASK_S * MASK_S);
+    const cnt = new Float32Array(MASK_S * MASK_S);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const cx = Math.min(MASK_S - 1, Math.floor((x - x0 + ox) / side * MASK_S));
+        const cy = Math.min(MASK_S - 1, Math.floor((y - y0 + oy) / side * MASK_S));
+        const k = cy * MASK_S + cx;
+        cnt[k]++;
+        if (g[y * w + x]) sum[k]++;
+      }
+    }
+    const v = new Float32Array(MASK_S * MASK_S);
+    for (let k = 0; k < v.length; k++) v[k] = cnt[k] ? sum[k] / cnt[k] : 0;
+    return v;
+  }
+
+  /* 16×16 の ぬり ぐあい → 見くらべ用の ならび。
+     ぬり ぐあい だけだと「まん中に かたまり」が みんな 同じで 見分けが つかない ので、
+     **りんかくの かたち**（列ごとの 上のはし／下のはし・行ごとの 左のはし／右のはし）を 足す。
+     ここに あし・つの・耳・ひれ の でっぱりが 出る。 */
+  function featOf(grid) {
+    const S = MASK_S;
+    const P = 2.0;                                    // りんかくを どれだけ 重く 見るか
+    const out = new Float32Array(S * S + S * 4);
+    for (let k = 0; k < S * S; k++) out[k] = grid[k];
+    const at = S * S;
+    for (let x = 0; x < S; x++) {
+      let top = -1, bot = -1;
+      for (let y = 0; y < S; y++) if (grid[y * S + x] > 0.25) { if (top < 0) top = y; bot = y; }
+      out[at + x] = P * (top < 0 ? 0.5 : top / S);
+      out[at + S + x] = P * (bot < 0 ? 0.5 : bot / S);
+    }
+    for (let y = 0; y < S; y++) {
+      let l = -1, r = -1;
+      for (let x = 0; x < S; x++) if (grid[y * S + x] > 0.25) { if (l < 0) l = x; r = x; }
+      out[at + S * 2 + y] = P * (l < 0 ? 0.5 : l / S);
+      out[at + S * 3 + y] = P * (r < 0 ? 0.5 : r / S);
+    }
+    return out;
+  }
+  /* 「ふつうの モンスター」との ちがい だけを 見る（みんなに 共通の ところを 引く）。
+     これを しないと どの 2つも 0.9 いじょう にて しまい 見分けが つかない */
+  function meanVec() {
+    if (MEANV) return MEANV;
+    const list = Object.keys(BODIES).map(kindFeat).filter(Boolean);
+    const m = new Float32Array(list[0].length);
+    list.forEach(function (v) { for (let i = 0; i < m.length; i++) m[i] += v[i]; });
+    for (let i = 0; i < m.length; i++) m[i] /= list.length;
+    MEANV = m;
+    return m;
+  }
+  function sub(v, m) {
+    const out = new Float32Array(v.length);
+    for (let i = 0; i < v.length; i++) out[i] = v[i] - m[i];
+    return out;
+  }
+  function kindFeat(kind) {
+    if (VECS[kind]) return VECS[kind];
+    const g = kindMask(kind);
+    if (!g) return null;
+    const v = featOf(shapeGrid(g, 48, 48));
+    VECS[kind] = v;
+    return v;
+  }
+  function cos(a, b) {
+    let d = 0, na = 0, nb = 0;
+    for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+    return na && nb ? d / Math.sqrt(na * nb) : 0;
+  }
+  /* 左右を ひっくり返した ぬり ぐあい（子どもが 左むきに かく ことが ある） */
+  function mirrorGrid(g) {
+    const out = new Float32Array(g.length);
+    for (let y = 0; y < MASK_S; y++) for (let x = 0; x < MASK_S; x++) out[y * MASK_S + x] = g[y * MASK_S + (MASK_S - 1 - x)];
+    return out;
+  }
+
+  /* 子どもの 絵（cells）と 85しゅるいの お手本を 見くらべる。
+     かえり値：[{ kind, sim }]（にて いる じゅん・sim は 0〜1） */
+  function matchKinds(cells, N) {
+    const g = new Uint8Array(N * N);
+    let n = 0;
+    for (let k = 0; k < N * N; k++) if (cells[k]) { g[k] = 1; n++; }
+    if (n < 16) return [];
+    const grid = shapeGrid(fillHoles(g, N, N), N, N);
+    if (!grid) return [];
+    const m = meanVec();
+    const a = sub(featOf(grid), m);
+    const b = sub(featOf(mirrorGrid(grid)), m);
+    const out = [];
+    Object.keys(BODIES).forEach(function (kind) {
+      const t = kindFeat(kind);
+      if (!t) return;
+      const tt = sub(t, m);
+      out.push({ kind: kind, sim: Math.max(cos(a, tt), cos(b, tt)) });
+    });
+    return out.sort(function (a2, b2) { return b2.sim - a2.sim; });
   }
 
   /* AIが えらんだ しゅるいを 候補の 先頭に もってくる（v6.0）。
@@ -3220,6 +3414,8 @@ MQ.monsterGen = (function () {
     kindName: function (k) { return KIND_NAMES[k] || k; },
     kindGroup: function (k) { return KIND_GROUP[k] || 'obake'; },
     kindList: kindList,
+    matchKinds: matchKinds,
+    kindMask: kindMask,
     groups: GROUPS,
     setHint: setHint,
     withFirst: withFirst,

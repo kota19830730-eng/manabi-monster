@@ -680,12 +680,14 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       MQ.ui.photo.render();
       await new Promise(function (res) { MQ.ui.photo.render.load(mode.indexOf(':bat') > 0 ? fakeDrawing2() : fakeDrawing(), function () { res(); }); });
       await wait(150);
-      const more = $('.photo__more');
-      say('more btn: ' + (more && !more.hidden ? more.textContent : 'なし'));
-      if (more) more.click();
+      const gs = document.querySelectorAll('.photo__group');
+      say('なかまの ボタン: ' + Array.prototype.map.call(gs, function (b) { return b.textContent; }).join(' '));
+      if (gs[0]) gs[0].click();               // 「いきもの」を ひらく
       await wait(300);
-      const names = Array.prototype.map.call(document.querySelectorAll('.photo__pickname'), function (e) { return e.textContent; });
-      say('すがた ' + names.length + '体: ' + names.join(' '));
+      const all = Array.prototype.map.call(document.querySelectorAll('.photo__all .photo__pickname'), function (e) { return e.textContent; });
+      say('いきもの ' + all.length + '体: ' + all.join(' '));
+      const rec = Array.prototype.map.call(document.querySelectorAll('.photo__picks:not(.photo__all) .photo__pickname'), function (e) { return e.textContent; });
+      say('おすすめ ' + rec.length + '体: ' + rec.join(' '));
       const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__picks');
       if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 60;
       dump();

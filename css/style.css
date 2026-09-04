@@ -2074,7 +2074,8 @@ body {
 .photo__pick { flex-direction: column; gap: 1px; height: auto; padding: 3px 0 2px; }
 .photo__pickname { font-size: 9px; line-height: 1.1; color: #cfdaf6; max-width: 56px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .photo__pick.is-on .photo__pickname { color: var(--gold); }
-.photo__morerow { display: flex; justify-content: center; }
+.photo__grouprow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.photo__grouprow .photo__lbl { width: 100%; }
 /* v6.0：AIに 見てもらう（絵を 送って しゅるいを 文字で もらう） */
 .photo__seerow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .photo__seenote { flex: 1; min-width: 120px; font-size: 12px; color: var(--gold); }

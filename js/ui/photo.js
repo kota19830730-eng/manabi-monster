@@ -46,7 +46,7 @@ MQ.ui.photo = (function () {
   let size = 96;                    // ドット絵の マス数（初期は こまかい・v3.3）
   let cleanMode = 3;                // しあげ：3 = モンスター（絵を 参考に 組み立てる・v3.6）／2 = ゲームふう／1 = 絵の まま／0 = しない
   let picks = [];                   // モンスターの 候補（v3.8）
-  let showAll = false;              // 「ほかの すがた」を ひらいて いるか（v5.8）
+  let showGroup = '';               // ひらいて いる なかま（''＝とじて いる・v6.2）
   let aiSee = null;                 // AIが 絵を 見て 教えて くれた こと（v6.0）{ kinds, eyes, horns, name }
   let aiSeeBusy = false;
   let aiSeeErr = '';
@@ -1245,7 +1245,7 @@ MQ.ui.photo = (function () {
           if (boxI && boxI.n >= 30) { cellsI = cellsFrom(innerFg, boxI).cells; cleanCells(cellsI, N, true); }
         }
         // ふだんは 上位 12体。「ほかの すがた」を ひらいて いる ときだけ ぜんぶ 作る（v5.8。ぜんぶは 45体 あるので おそく なる）
-        const want = showAll ? 99 : 12;
+        const want = showGroup ? 99 : 12;
         list = cellsI && MQ.monsterGen.variantsInner ? MQ.monsterGen.variantsInner(cells, cellsI, N, want) : MQ.monsterGen.variants(cells, N, want);
         // AIが 見て くれた ときは その すがたを 先頭に（v6.0）
         if (aiSee && aiSee.kinds && MQ.monsterGen.withFirst) list = MQ.monsterGen.withFirst(list, aiSee.kinds);
@@ -1555,15 +1555,22 @@ MQ.ui.photo = (function () {
     // 候補の タイル（v3.8）。タップで えらぶ。v5.8：上位 12体＋「ほかの すがた」で のこり ぜんぶ
     const pickRow = h('div', { class: 'photo__picks', hidden: 'hidden' });
     const allRow = h('div', { class: 'photo__picks photo__all', hidden: 'hidden' });
-    const moreBtn = h('button', {
-      class: 'btn btn--small btn--cream photo__more', type: 'button', text: 'ほかの すがた',
-      hidden: 'hidden',
-      onclick: function () {
-        MQ.sfx.tap();
-        showAll = !showAll;
-        refresh();
-      }
-    });
+    /* なかまから えらぶ（v6.2）。
+       85しゅるい ぜんぶを ならべると さがせない。**いきもの／むし／おばけ・ひと／もの・のりもの／しぜん**
+       の ボタンを おすと その なかまだけ 出る ので、**2タップで どの すがたにも たどりつける**。
+       AIの かぎが なくても これで じゅうぶん えらべる。 */
+    const groupRow = h('div', { class: 'photo__grouprow', hidden: 'hidden' }, [
+      h('span', { class: 'photo__lbl', text: 'なかまから えらぶ' })
+    ].concat((MQ.monsterGen && MQ.monsterGen.groups ? MQ.monsterGen.groups : []).map(function (g) {
+      return h('button', {
+        class: 'chip chip--s photo__group', type: 'button', text: g.name, 'data-g': g.id,
+        onclick: function () {
+          MQ.sfx.tap();
+          showGroup = showGroup === g.id ? '' : g.id;
+          refresh();
+        }
+      });
+    })));
     // 字の 候補は 子どもが えらんだ もじで 見せる
     function pickPng(p) {
       if (p.letters && letterPick.length && MQ.monsterGen.letterPng) return MQ.monsterGen.letterPng(letterPick, p.cols || null);
@@ -1589,24 +1596,18 @@ MQ.ui.photo = (function () {
       allRow.innerHTML = '';
       const on = cleanMode === 3 && picks.length > 1 && !edited;
       pickRow.hidden = !on;
-      allRow.hidden = !(on && showAll);
-      moreBtn.hidden = !on;
+      groupRow.hidden = !on;
+      allRow.hidden = !(on && showGroup);
+      Array.prototype.forEach.call(groupRow.querySelectorAll('.photo__group'), function (b) {
+        b.classList.toggle('is-on', b.getAttribute('data-g') === showGroup);
+      });
       if (!on) return;
-      moreBtn.textContent = showAll ? 'とじる' : 'ほかの すがた';
-      pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'どれに する？' }));
+      pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'おすすめ' }));
       picks.slice(0, 12).forEach(function (p, i) { pickRow.appendChild(pickTile(p, i)); });
-      if (!showAll) return;
-      /* ぜんぶの すがた（v5.9・85しゅるい）は なかま分けして ならべる。
-         いきもの／むし／おばけ・ひと／もの・のりもの／しぜん の 見出しつき */
-      const groups = (MQ.monsterGen.groups || [{ id: 'obake', name: 'すがた' }]);
-      groups.forEach(function (g) {
-        const mine = [];
-        picks.forEach(function (p, i) {
-          if (MQ.monsterGen.kindGroup(p.tag || p.kind) === g.id) mine.push([p, i]);
-        });
-        if (!mine.length) return;
-        allRow.appendChild(h('span', { class: 'photo__glbl', text: g.name }));
-        mine.forEach(function (pair) { allRow.appendChild(pickTile(pair[0], pair[1])); });
+      if (!showGroup) return;
+      // えらんだ なかまの すがただけ ならべる（v6.2）
+      picks.forEach(function (p, i) {
+        if (MQ.monsterGen.kindGroup(p.tag || p.kind) === showGroup) allRow.appendChild(pickTile(p, i));
       });
     }
     /* もじを えらぶ（v4.0）。
@@ -1661,7 +1662,7 @@ MQ.ui.photo = (function () {
       emptyNote,
       seeRow,
       pickRow,
-      h('div', { class: 'photo__morerow' }, [moreBtn]),
+      groupRow,
       allRow,
       letterRow,
       sliderRow('はいけいを 消す', 15, 120, function () { return tol; }, function (v) { tol = v; }),
@@ -1778,6 +1779,7 @@ MQ.ui.photo = (function () {
     function useImage(im) {
       img = im;
       pickAt = 0;
+      showGroup = '';
       letterPick = [];
       origImg = null; origCrop = null; aiUsed = false; aiError = ''; edited = '';
       // 写真が かわったら AIの こたえは 消す（前の 絵の こたえを つかわない・v6.0）
