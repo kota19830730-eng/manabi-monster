@@ -281,11 +281,11 @@ MQ.content = (function () {
           sansuStage(11, '小数', '10〜11月', true),
           sansuStage(12, '重さ', '11月', true),
           sansuStage(13, '分数', '11〜12月', true),
-          sansuStage(14, '□を 使った 式', '1月', false),
-          sansuStage(15, '倍の 見方', '1月', false),
-          sansuStage(16, '三角形と 角', '1〜2月', false),
-          sansuStage(17, 'かけ算の 筆算（2）', '2月', false),
-          sansuStage(18, 'そろばん', '3月', false)
+          sansuStage(14, '□を 使った 式', '1月', true),
+          sansuStage(15, '倍の 見方', '1月', true),
+          sansuStage(16, '三角形と 角', '1〜2月', true),
+          sansuStage(17, 'かけ算の 筆算（2）', '2月', true),
+          sansuStage(18, 'そろばん', '3月', true)
         ]
       },
       {

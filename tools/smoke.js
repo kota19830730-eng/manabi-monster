@@ -92,7 +92,7 @@ function levelsNonDecreasing(qs) {
   for (let i = 1; i < qs.length; i++) if ((qs[i].lv || 2) < (qs[i - 1].lv || 2)) return false;
   return true;
 }
-for (let s = 1; s <= 13; s++) {
+for (let s = 1; s <= 18; s++) {
   const st = MQ.sansu3.stages[s];
   check(!!st, 'sansu3 stage ' + s + ' が ある');
   if (!st) continue;
@@ -125,6 +125,32 @@ for (let s = 1; s <= 13; s++) {
   const s11 = MQ.sansu3.make(11, 60);
   check(s11.some(function (q) { return q.decimal && !Number.isInteger(q.answer); }), 'sansu11 に 小数の 答えが ある');
   check(s11.every(function (q) { return !q.decimal || (q.answer * 10) % 1 < 1e-9; }), 'sansu11 の 小数は 0.1 きざみ');
+  // 3学期の 図（v6.3）
+  check(F.triSvg('iso', ['5cm', '5cm', '3cm'], ['あ', 'い', 'う']).split('<text').length === 7 && F.anglesSvg(40, 50, 100, 30).split('<path').length === 3 && F.setSquareSvg(false).split('<polygon').length === 3 && F.circleTriSvg('4cm').indexOf('<polygon') >= 0 && F.tapeSvg(3, ['12cm', '4cm']).split('<rect').length === 3, '3学期の 図');
+  // そろばん：5 いじょうは 五玉が はりに つく（赤）・一玉は d%5 こ
+  const sb = F.sorobanSvg([0, 7, 3, 0], 3);
+  check(sb.split('#D42A20').length - 1 === 1 + 2 + 3, 'そろばん 703 の 赤い 玉は 6こ: ' + (sb.split('#D42A20').length - 1));
+  // ステージ 14〜18 の 中身
+  const s14 = MQ.sansu3.make(14, 60);
+  check(s14.every(function (q) { return q.prompt.indexOf('□') >= 0 || (q.choices || []).some(function (c) { return c.indexOf('□') >= 0; }); }), 'sansu14 は ぜんぶ □つき');
+  check(s14.filter(function (q) { return q.type === 'choice'; }).length >= 8, 'sansu14 に 式を えらぶ 問題');
+  const s15 = MQ.sansu3.make(15, 60);
+  check(s15.filter(function (q) { return q.prompt.indexOf('<svg') >= 0; }).length >= 8, 'sansu15 に テープ図');
+  const s16 = MQ.sansu3.make(16, 60).concat(MQ.sansu3.make(16, 8, { boss: true }));
+  check(s16.filter(function (q) { return q.prompt.indexOf('<svg') >= 0; }).length >= 20, 'sansu16 は 図が 多い');
+  s16.forEach(function (q) { if (q.type === 'choice' && q.choices.indexOf('二等辺三角形') >= 0 && q.choices.indexOf('正三角形') >= 0 && q.key && q.key.indexOf('sides:') === 0) {
+    const s = q.key.slice(6).split(',').map(Number); const eq = new Set(s).size; const want = eq === 1 ? '正三角形' : eq === 2 ? '二等辺三角形' : 'どちらでも ない';
+    check(q.choices[0] === want, 'sansu16 辺の 長さ → 名前: ' + q.key + ' → ' + q.choices[0]); } });
+  const s17 = MQ.sansu3.make(17, 60).concat(MQ.sansu3.make(17, 8, { boss: true }));
+  check(s17.some(function (q) { return q.layout === 'vertical' && q.b >= 10 && q.a >= 100; }), 'sansu17 に 3けた × 2けた の 筆算');
+  s17.forEach(function (q) { if (q.layout === 'vertical') check(q.answer === q.a * q.b, 'sansu17 筆算の 答え ' + q.a + '×' + q.b); });
+  const s18 = MQ.sansu3.make(18, 60).concat(MQ.sansu3.make(18, 8, { boss: true }));
+  check(s18.filter(function (q) { return q.prompt.indexOf('<svg') >= 0; }).length >= 20, 'sansu18 は そろばんの 図が 多い');
+  check(s18.some(function (q) { return q.decimal; }), 'sansu18 に 小数の そろばん');
+  // そろばんを 読む 問題は 図の 玉と 答えが 合う（赤い 玉の 数 = 各けたの 五玉＋一玉）
+  s18.forEach(function (q) { if (q.key && q.key.indexOf('sr:') === 0) {
+    const n = q.answer; let beads = 0; String(n).split('').forEach(function (ch) { const d = +ch; beads += (d >= 5 ? 1 : 0) + d % 5; });
+    check(q.prompt.split('#D42A20').length - 1 === beads, 'そろばん ' + n + ' の 玉: ' + (q.prompt.split('#D42A20').length - 1) + ' vs ' + beads); } });
   // 学期の おすすめ
   const Tm = MQ.terms;
   check(Tm.suggested(new Date(2026, 8, 1)) === 2 && Tm.suggested(new Date(2026, 3, 10)) === 1 && Tm.suggested(new Date(2027, 0, 10)) === 3 && Tm.suggested(new Date(2026, 7, 31)) === 1 && Tm.suggested(new Date(2026, 11, 20)) === 2, '学期の おすすめ');
@@ -257,7 +283,7 @@ check(MQ.sansu4.make(2, 12).filter(function (q) { return q.prompt.indexOf('class
    （実機の 写真で「問題が 見えない」と 分かった）。ぜんぶの 学年を しらべる。 */
 (function () {
   const FIG = /figbox|class="graph"|class="figwide"|class="tbl"|class="clock"|<svg/;
-  [['sansu1', 12], ['sansu2', 14], ['sansu3', 13], ['sansu4', 15]].forEach(function (pair) {
+  [['sansu1', 12], ['sansu2', 14], ['sansu3', 18], ['sansu4', 15]].forEach(function (pair) {
     const mod = MQ[pair[0]];
     for (let s = 1; s <= pair[1]; s++) {
       [mod.make(s, 40), mod.make(s, 6, { boss: true })].forEach(function (list) {

@@ -1,8 +1,8 @@
 /* ---------------------------------------------------------
    小3 算数：問題を その場で作る（日本文教出版『小学算数』の順）
 
-   ステージ 1〜6 は 1学期、7〜13 は 2学期（v3.0・2026-08-31 に 追加）。
-   ステージ 14〜18（3学期）は まだ。学校で習う 前に 足していく。
+   ステージ 1〜6 は 1学期、7〜13 は 2学期（v3.0・2026-08-31 に 追加）、
+   14〜18 は 3学期（v6.3・2026-09-05 に 追加。□を 使った 式／倍の 見方／三角形と 角／かけ算の 筆算(2)／そろばん）。
    出すか どうかは 学期の しくみ（terms.js・おうちの人ページ）が 決める。
 
    問題の作り方は 関数として 入っていて、数字は 毎回かわります。
@@ -1564,10 +1564,606 @@ MQ.sansu3 = (function () {
     boss: [function b1() { return fracWordQ(); }, function b2() { return oneMinusFracQ(); }, function b3() { return fracSumOneQ(); }, function b4() { return fracLineQ(); }]
   };
 
-  // 図を 見る ため（tools/harness.html #figs3）
-  const figs3 = { lineSvg: lineSvg, circleSvg: circleSvg, ballsSvg: ballsSvg, dialSvg: dialSvg, kanjiNum: kanjiNum };
+  /* =======================================================
+     ここから 3学期（ステージ 14〜18・v6.3・2026-09-05）
+     ======================================================= */
 
-  const stages = { 1: stage1, 2: stage2, 3: stage3, 4: stage4, 5: stage5, 6: stage6, 7: stage7, 8: stage8, 9: stage9, 10: stage10, 11: stage11, 12: stage12, 13: stage13 };
+  /* ---- 3学期の 図（三角形・角・テープ図・そろばん） ---- */
+  // 三角形。kind: iso（二等辺）/ equi（正）/ sca（ふつう）。labels: [左の辺, 右の辺, 底辺]（null で 出さない）。corners: ['あ','い','う']（上・左下・右下）
+  const TRI_PTS = {
+    iso:  [[80, 14], [30, 104], [130, 104]],
+    equi: [[80, 16], [30, 103], [130, 103]],
+    sca:  [[56, 16], [18, 104], [142, 104]]
+  };
+  function triSvg(kind, labels, corners) {
+    const p = TRI_PTS[kind] || TRI_PTS.sca;
+    let s = '<polygon points="' + p.map(function (q) { return q.join(','); }).join(' ') + '" fill="' + FF + '" stroke="' + FS + '" stroke-width="4" stroke-linejoin="round"/>';
+    if (labels) {
+      const mids = [
+        [(p[0][0] + p[1][0]) / 2 - 14, (p[0][1] + p[1][1]) / 2 - 2],
+        [(p[0][0] + p[2][0]) / 2 + 14, (p[0][1] + p[2][1]) / 2 - 2],
+        [(p[1][0] + p[2][0]) / 2, p[1][1] + 14]
+      ];
+      labels.forEach(function (t, i) {
+        if (t == null) return;
+        s += '<text x="' + mids[i][0] + '" y="' + mids[i][1] + '" font-size="12" font-weight="bold" text-anchor="middle" fill="' + FR + '">' + t + '</text>';
+      });
+    }
+    if (corners) {
+      const at = [[p[0][0], p[0][1] + 24], [p[1][0] + 18, p[1][1] - 6], [p[2][0] - 18, p[2][1] - 6]];
+      corners.forEach(function (t, i) {
+        if (t == null) return;
+        s += '<text x="' + at[i][0] + '" y="' + at[i][1] + '" font-size="12" font-weight="bold" text-anchor="middle" fill="' + FB + '">' + t + '</text>';
+      });
+    }
+    return svgBox(s);
+  }
+  // 角を 2つ ならべる（あ・い）。deg は 開きぐあい、len は 辺の 長さ（小さい 角に 長い 辺を つけて ひっかけに できる）
+  function anglePart(vx, vy, deg, len, label) {
+    const a = deg * Math.PI / 180;
+    const ex = vx + Math.cos(a) * len, ey = vy - Math.sin(a) * len;
+    let s = '<line x1="' + vx + '" y1="' + vy + '" x2="' + (vx + len) + '" y2="' + vy + '" stroke="' + FS + '" stroke-width="3.5" stroke-linecap="round"/>';
+    s += '<line x1="' + vx + '" y1="' + vy + '" x2="' + ex + '" y2="' + ey + '" stroke="' + FS + '" stroke-width="3.5" stroke-linecap="round"/>';
+    const r = 16;
+    s += '<path d="M ' + (vx + r) + ' ' + vy + ' A ' + r + ' ' + r + ' 0 ' + (deg > 180 ? 1 : 0) + ' 0 ' + (vx + Math.cos(a) * r) + ' ' + (vy - Math.sin(a) * r) + '" fill="none" stroke="' + FR + '" stroke-width="2.5"/>';
+    s += '<text x="' + (vx + 6) + '" y="' + (vy + 16) + '" font-size="13" font-weight="bold" fill="' + FB + '">' + label + '</text>';
+    return s;
+  }
+  function anglesSvg(degA, lenA, degB, lenB) {
+    return svgBox(anglePart(28, 92, degA, lenA, 'あ') + anglePart(106, 92, degB, lenB, 'い'));
+  }
+  // 三角じょうぎ 2まい（あ＝直角二等辺・い＝30/60/90）。flip で あ・い を 入れかえる
+  function setSquareSvg(flip) {
+    function one(ox, kind, label) {
+      const pts = kind === 'iso'
+        ? [[ox + 6, 104], [ox + 66, 104], [ox + 6, 44]]
+        : [[ox + 6, 104], [ox + 66, 104], [ox + 66, 22]];
+      let s = '<polygon points="' + pts.map(function (q) { return q.join(','); }).join(' ') + '" fill="' + FF + '" stroke="' + FS + '" stroke-width="4" stroke-linejoin="round"/>';
+      const rx = kind === 'iso' ? ox + 6 : ox + 66;
+      s += '<rect x="' + (kind === 'iso' ? rx : rx - 8) + '" y="96" width="8" height="8" fill="none" stroke="' + FR + '" stroke-width="1.5"/>';
+      s += '<text x="' + (ox + 36) + '" y="118" font-size="12" font-weight="bold" text-anchor="middle" fill="' + FB + '">' + label + '</text>';
+      return s;
+    }
+    return svgBox(flip ? one(4, 'sca', 'あ') + one(84, 'iso', 'い') : one(4, 'iso', 'あ') + one(84, 'sca', 'い'));
+  }
+  // 円の 中に 三角形（中心と 円周の 2点）。rLabel は 半径の 文字
+  function circleTriSvg(rLabel) {
+    const cx = 80, cy = 62, r = 46;
+    let s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#fff" stroke="' + FS + '" stroke-width="3"/>';
+    const a1 = -Math.PI * 0.72, a2 = -Math.PI * 0.28;
+    const p1 = [cx + Math.cos(a1) * r, cy + Math.sin(a1) * r], p2 = [cx + Math.cos(a2) * r, cy + Math.sin(a2) * r];
+    s += '<polygon points="' + cx + ',' + cy + ' ' + p1.join(',') + ' ' + p2.join(',') + '" fill="' + FF + '" stroke="' + FR + '" stroke-width="3.5" stroke-linejoin="round"/>';
+    s += '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="' + FS + '"/>';
+    if (rLabel) s += '<text x="' + (cx - 30) + '" y="' + (cy - 14) + '" font-size="12" font-weight="bold" fill="' + FR + '">' + rLabel + '</text>';
+    return svgBox(s);
+  }
+  // テープ図（倍の 見方）。上「あ」が 下「い」の times 倍。labels: [あの 文字, いの 文字]
+  function tapeSvg(times, labels) {
+    const left = 30, full = 124, unit = full / Math.max(times, 1);
+    let s = '';
+    s += '<text x="8" y="38" font-size="13" font-weight="bold" fill="' + FB + '">あ</text>';
+    s += '<rect x="' + left + '" y="24" width="' + full + '" height="20" fill="' + FR + '" stroke="' + FS + '" stroke-width="2"/>';
+    for (let i = 1; i < times; i++) s += '<line x1="' + (left + unit * i) + '" y1="24" x2="' + (left + unit * i) + '" y2="44" stroke="#fff" stroke-width="1.5" stroke-dasharray="3 2"/>';
+    s += '<text x="8" y="86" font-size="13" font-weight="bold" fill="' + FB + '">い</text>';
+    s += '<rect x="' + left + '" y="72" width="' + unit + '" height="20" fill="' + FB + '" stroke="' + FS + '" stroke-width="2"/>';
+    if (labels) {
+      s += '<text x="' + (left + full / 2) + '" y="16" font-size="12" font-weight="bold" text-anchor="middle" fill="' + FS + '">' + labels[0] + '</text>';
+      s += '<text x="' + (left + unit / 2) + '" y="108" font-size="12" font-weight="bold" text-anchor="middle" fill="' + FS + '">' + labels[1] + '</text>';
+    }
+    return svgBox(s);
+  }
+  // そろばん。digits: 上の 位から ならべた 数字の 配列、unitIdx: 一の位の 列（定位点）
+  function sorobanSvg(digits, unitIdx) {
+    const cols = digits.length, gap = Math.min(30, 130 / cols), x0 = 80 - gap * (cols - 1) / 2;
+    const top = 8, bot = 116, bar = 40;
+    let s = '<rect x="' + (x0 - gap / 2 - 4) + '" y="' + top + '" width="' + (gap * cols + 8) + '" height="' + (bot - top) + '" rx="4" fill="#E9D3A8" stroke="#6B4A22" stroke-width="3"/>';
+    s += '<line x1="' + (x0 - gap / 2 - 4) + '" y1="' + bar + '" x2="' + (x0 + gap * (cols - 0.5) + 4) + '" y2="' + bar + '" stroke="#6B4A22" stroke-width="3"/>';
+    for (let c = 0; c < cols; c++) {
+      const x = x0 + gap * c, d = digits[c];
+      s += '<line x1="' + x + '" y1="' + (top + 2) + '" x2="' + x + '" y2="' + (bot - 2) + '" stroke="#8A6A3A" stroke-width="1.5"/>';
+      // 定位点（一の位・その 3つ ごと）
+      if ((c - unitIdx) % 3 === 0) s += '<circle cx="' + x + '" cy="' + bar + '" r="2.4" fill="#fff" stroke="#6B4A22" stroke-width="1"/>';
+      // 五玉（はりの 上）。5 いじょうなら はりに つける
+      const fy = d >= 5 ? bar - 8 : top + 10;
+      s += '<ellipse cx="' + x + '" cy="' + fy + '" rx="' + (gap / 2 - 2) + '" ry="6" fill="' + (d >= 5 ? '#D42A20' : '#B98A5A') + '" stroke="#3A2610" stroke-width="1.2"/>';
+      // 一玉 4つ（はりの 下）。d%5 こが はりに つく
+      const up = d % 5;
+      for (let i = 0; i < 4; i++) {
+        const y = i < up ? bar + 8 + i * 13 : bot - 8 - (3 - i) * 13;
+        s += '<ellipse cx="' + x + '" cy="' + y + '" rx="' + (gap / 2 - 2) + '" ry="6" fill="' + (i < up ? '#D42A20' : '#B98A5A') + '" stroke="#3A2610" stroke-width="1.2"/>';
+      }
+    }
+    return svgBox(s);
+  }
+  function digitsOf(n, len) {
+    const out = [];
+    for (let i = 0; i < len; i++) { out.unshift(n % 10); n = Math.floor(n / 10); }
+    return out;
+  }
+
+  /* =======================================================
+     ステージ14 □を 使った 式
+     ======================================================= */
+  // 場面の 文。□＝わからない 数、○＝わかっている 数、△＝けっか
+  const BOX_STORY = {
+    addL: [['はじめに シールが □まい ありました。○まい もらったので、ぜんぶで △まいに なりました。', 'まい'],
+           ['水そうに 金魚が □ひき いました。○ひき 入れたので、△ひきに なりました。', 'ひき'],
+           ['ちょ金ばこに □円 入って いました。○円 入れたので、△円に なりました。', '円']],
+    addR: [['ノートを ○さつ もって いました。□さつ 買ったので、ぜんぶで △さつに なりました。', 'さつ'],
+           ['おり紙を ○まい もって いました。□まい もらったので、△まいに なりました。', 'まい']],
+    subL: [['あめが □こ ありました。○こ 食べたので、のこりは △こに なりました。', 'こ'],
+           ['シールを □まい もって いました。○まい あげたので、のこりは △まいに なりました。', 'まい'],
+           ['□円 もって いました。○円の 本を 買ったので、のこりは △円に なりました。', '円']],
+    subR: [['色紙が ○まい ありました。□まい 使ったので、のこりは △まいに なりました。', 'まい'],
+           ['○円 もって いました。□円の おかしを 買ったので、のこりは △円に なりました。', '円']],
+    mulL: [['1ふくろに □こずつ 入った みかんを ○ふくろ 買ったら、ぜんぶで △こでした。', 'こ'],
+           ['1本 □円の えんぴつを ○本 買ったら、ぜんぶで △円でした。', '円'],
+           ['1はこに □こずつ 入った チョコが ○はこ あって、ぜんぶで △こです。', 'こ']],
+    mulR: [['1本 ○円の ジュースを □本 買ったら、ぜんぶで △円でした。', '本'],
+           ['1人に ○まいずつ 色紙を くばります。□人に くばったら、ぜんぶで △まい いりました。', '人']],
+    divL: [['□まいの 色紙を ○人で 同じ 数ずつ 分けたら、1人分は △まいに なりました。', 'まい'],
+           ['□この いちごを 1さらに ○こずつ のせたら、△さらに なりました。', 'さら']]
+  };
+  const BOX_SIGN = { addL: '+', addR: '+', subL: '−', subR: '−', mulL: '×', mulR: '×', divL: '÷' };
+  // 式の 文字（□ + 5 = 12 など）
+  function boxEq(kind, a, b) {
+    const sg = BOX_SIGN[kind];
+    if (kind === 'addR' || kind === 'mulR' || kind === 'subR') return a + ' ' + sg + ' □ = ' + b;
+    return '□ ' + sg + ' ' + a + ' = ' + b;
+  }
+  // 数を きめる。かえす: { a: わかっている 数, b: けっか, x: □の 数 }
+  function boxNums(kind, big) {
+    let x, a;
+    if (kind === 'addL' || kind === 'addR') { x = big ? U.randInt(120, 680) : U.randInt(12, 68); a = big ? U.randInt(100, 300) : U.randInt(5, 29); return { a: a, b: x + a, x: x }; }
+    if (kind === 'subL') { x = big ? U.randInt(300, 900) : U.randInt(30, 90); a = big ? U.randInt(100, 280) : U.randInt(5, 28); return { a: a, b: x - a, x: x }; }
+    if (kind === 'subR') { a = big ? U.randInt(400, 900) : U.randInt(40, 90); x = big ? U.randInt(100, 350) : U.randInt(5, 35); return { a: a, b: a - x, x: x }; }
+    if (kind === 'mulL' || kind === 'mulR') {
+      a = U.randInt(2, 9);
+      if (big) { do { x = U.randInt(11, 49); } while (Math.floor(x / 10) * a >= 10 || (x % 10) * a >= 10); }   // 各位で わりきれる（96 ÷ 3 の 形）
+      else x = U.randInt(2, 9);
+      return { a: a, b: x * a, x: x };
+    }
+    // divL: □ ÷ a = b
+    a = U.randInt(2, 9); const q = big ? U.randInt(10, 12) : U.randInt(2, 9); return { a: a, b: q, x: q * a };
+  }
+  function boxHow(kind, n) {
+    if (kind === 'addL' || kind === 'addR') return n.b + ' − ' + n.a;
+    if (kind === 'subL') return n.b + ' + ' + n.a;
+    if (kind === 'subR') return n.a + ' − ' + n.b;
+    if (kind === 'mulL' || kind === 'mulR') return n.b + ' ÷ ' + n.a;
+    return n.b + ' × ' + n.a;
+  }
+  function boxHint(kind) {
+    if (kind === 'addL' || kind === 'addR') return 'たし算の □は、答えから たした 数を ひくと わかるよ。';
+    if (kind === 'subL') return 'ひかれる 数は、答えに ひいた 数を たすと もどるよ。';
+    if (kind === 'subR') return 'ひいた 数は、はじめの 数から 答えを ひくと わかるよ。';
+    if (kind === 'mulL' || kind === 'mulR') return 'かけ算の □は、答えを かけた 数で わると わかるよ。';
+    return 'わり算の □は、答えに わった 数を かけると もどるよ。';
+  }
+  const BOX_KINDS = ['addL', 'addR', 'subL', 'subR', 'mulL', 'mulR', 'divL'];
+  // 中身が 同じに なる 式（□ + 12 = 40 と 12 + □ = 40）。まちがいの 候補に 入れない
+  const BOX_MIRROR = { addL: 'addR', addR: 'addL', mulL: 'mulR', mulR: 'mulL' };
+  // 式だけ：□ + 24 = 61 → □は？
+  function eqQ(kind, big) {
+    const n = boxNums(kind, big);
+    return num('□を 使った 式', '<span class="num">' + boxEq(kind, n.a, n.b) + '</span><br>□に 入る 数は？', n.x, {
+      hint: boxHint(kind) + ' ' + boxHow(kind, n) + '。', note: boxEq(kind, n.a, n.b).replace('□', n.x)
+    });
+  }
+  // 場面 → 式を えらぶ
+  function pickEqQ(kind) {
+    const st = pf(BOX_STORY[kind]), n = boxNums(kind, false);
+    const text = st[0].replace('□', '□').replace('○', n.a).replace('△', n.b);
+    const wrong = BOX_KINDS.filter(function (k) { return k !== kind && k !== BOX_MIRROR[kind]; }).map(function (k) { return boxEq(k, n.a, n.b); });
+    wrong.push(n.b + ' ' + BOX_SIGN[kind] + ' ' + n.a + ' = □');
+    return choice('場面と 式', text + ' わからない 数を □と して、式に 書くと？', withDistractors(boxEq(kind, n.a, n.b), wrong), {
+      key: 'peq:' + kind + ':' + n.a + ':' + n.b + ':' + st[1],
+      hint: 'ことばの じゅんばんの とおりに 式に しよう。「ぜんぶで」は たし算、「のこり」は ひき算、「ずつ」は かけ算か わり算。',
+      note: '式は ' + boxEq(kind, n.a, n.b) + '。□ = ' + n.x
+    });
+  }
+  // 場面 → □の 数
+  function storyQ(kind, big) {
+    const st = pf(BOX_STORY[kind]), n = boxNums(kind, big);
+    const text = st[0].replace('○', n.a).replace('△', n.b);
+    return num('□を 使った 式', text + ' □は いくつ？', n.x, {
+      key: 'story:' + kind + ':' + n.a + ':' + n.b + ':' + st[1],
+      hint: '式は ' + boxEq(kind, n.a, n.b) + '。' + boxHint(kind), note: boxHow(kind, n) + ' = ' + n.x
+    });
+  }
+  // □の もとめ方（式を えらぶ）
+  function howQ(kind) {
+    const n = boxNums(kind, false);
+    const right = boxHow(kind, n);
+    const cands = [n.b + ' + ' + n.a, n.b + ' − ' + n.a, n.a + ' − ' + n.b, n.b + ' × ' + n.a, n.b + ' ÷ ' + n.a, n.a + ' ÷ ' + n.b, n.a + ' × ' + n.b];
+    return choice('□の もとめ方', '<span class="num">' + boxEq(kind, n.a, n.b) + '</span><br>□を もとめる 式は？', withDistractors(right, cands), {
+      key: 'how:' + kind + ':' + n.a + ':' + n.b, hint: boxHint(kind), note: '□ = ' + right + ' = ' + n.x
+    });
+  }
+  const stage14 = {
+    easy: [
+      function e1() { return eqQ(pf(['addL', 'addR']), false); },
+      function e2() { return eqQ('subL', false); },
+      function e3() { return howQ(pf(['addL', 'subL', 'addR'])); },
+      function e4() { return pickEqQ(pf(['addL', 'subL'])); }
+    ],
+    normal: [
+      function n1() { return eqQ('subR', false); },
+      function n2() { return eqQ(pf(['mulL', 'mulR']), false); },
+      function n3() { return storyQ(pf(['addL', 'addR', 'subL']), false); },
+      function n4() { return pickEqQ(pf(['mulL', 'subR', 'addR'])); },
+      function n5() { return howQ(pf(['mulL', 'subR', 'divL'])); }
+    ],
+    hard: [
+      function h1() { return eqQ('divL', false); },
+      function h2() { return eqQ(pf(['addL', 'subL', 'subR']), true); },
+      function h3() { return storyQ(pf(['subR', 'mulL', 'mulR', 'divL']), false); },
+      function h4() { return pickEqQ(pf(['divL', 'mulR'])); },
+      function h5() { return eqQ('mulL', true); }
+    ],
+    boss: [
+      function b1() { return storyQ(pf(['addL', 'subL', 'subR']), true); },
+      function b2() { return eqQ('divL', true); },
+      function b3() { return storyQ('divL', false); },
+      function b4() { return eqQ(pf(['subR', 'mulR']), true); }
+    ]
+  };
+
+  /* =======================================================
+     ステージ15 倍の 見方
+     ======================================================= */
+  const BAI_THINGS = [['赤い テープ', '青い テープ', 'cm'], ['長い ひも', '短い ひも', 'cm'], ['大きい 木', '小さい 木', 'm'], ['ジュース', '牛にゅう', 'dL'], ['ビルの 高さ', '家の 高さ', 'm'], ['お兄さんの ビー玉', '弟の ビー玉', 'こ'], ['白い リボン', '赤い リボン', 'cm']];
+  function timesOfQ(big) {
+    const t = pf(BAI_THINGS), k = U.randInt(2, 9), base = big ? U.randInt(12, 24) : U.randInt(2, 9);
+    return num('何倍', t[0] + 'は ' + (base * k) + t[2] + '、' + t[1] + 'は ' + base + t[2] + '。' + t[0] + 'は ' + t[1] + 'の 何倍？', k, {
+      key: 'times:' + t[0] + ':' + base + ':' + k, scratch: !!big,
+      hint: '何倍かを もとめる ときは わり算。' + (base * k) + ' ÷ ' + base + '。', note: (base * k) + ' ÷ ' + base + ' = ' + k + '（' + k + '倍）'
+    });
+  }
+  function timesAmountQ(big) {
+    const t = pf(BAI_THINGS), k = U.randInt(2, 9), base = big ? U.randInt(12, 48) : U.randInt(2, 9);
+    return num('何倍かの 大きさ', t[1] + 'は ' + base + t[2] + '。' + t[0] + 'は ' + t[1] + 'の ' + k + '倍です。' + t[0] + 'は 何' + t[2] + '？', base * k, {
+      key: 'amount:' + t[0] + ':' + base + ':' + k, scratch: !!big,
+      hint: k + '倍は かけ算。' + base + ' × ' + k + '。', note: base + ' × ' + k + ' = ' + (base * k) + t[2]
+    });
+  }
+  function baseAmountQ(big) {
+    const t = pf(BAI_THINGS), k = U.randInt(2, 9);
+    let base = U.randInt(2, 9);
+    if (big) { do { base = U.randInt(11, 33); } while (Math.floor(base / 10) * k >= 10 || (base % 10) * k >= 10); }
+    return num('もとに する 大きさ', t[0] + 'は ' + (base * k) + t[2] + 'で、' + t[1] + 'の ' + k + '倍です。' + t[1] + 'は 何' + t[2] + '？', base, {
+      key: 'base:' + t[0] + ':' + base + ':' + k, scratch: !!big,
+      hint: 'もとに する 大きさを □と すると、□ × ' + k + ' = ' + (base * k) + '。□は ' + (base * k) + ' ÷ ' + k + '。', note: (base * k) + ' ÷ ' + k + ' = ' + base + t[2]
+    });
+  }
+  function tapeTimesQ() {
+    const k = U.randInt(2, 6), base = U.randInt(2, 9);
+    return num('テープ図', figQ3('あの テープは いの 何倍？', tapeSvg(k, [(base * k) + 'cm', base + 'cm'])), k, {
+      key: 'tape:' + k + ':' + base, scratch: false,
+      hint: 'いの 長さで あを はかると、何こ分 あるかな。' + (base * k) + ' ÷ ' + base + '。', note: (base * k) + ' ÷ ' + base + ' = ' + k + '（' + k + '倍）'
+    });
+  }
+  function tapeBaseQ() {
+    const k = U.randInt(2, 6), base = U.randInt(2, 9);
+    return num('テープ図', figQ3('あは いの ' + k + '倍で ' + (base * k) + 'cm。いは 何cm？', tapeSvg(k, [(base * k) + 'cm', '？cm'])), base, {
+      key: 'tapeb:' + k + ':' + base, scratch: false,
+      hint: 'い × ' + k + ' = ' + (base * k) + '。いは ' + (base * k) + ' ÷ ' + k + '。', note: (base * k) + ' ÷ ' + k + ' = ' + base + 'cm'
+    });
+  }
+  function tapeAmountQ() {
+    const k = U.randInt(2, 6), base = U.randInt(2, 9);
+    return num('テープ図', figQ3('あは いの ' + k + '倍。あは 何cm？', tapeSvg(k, ['？cm', base + 'cm'])), base * k, {
+      key: 'tapea:' + k + ':' + base, scratch: false,
+      hint: base + 'cm の ' + k + 'こ分。' + base + ' × ' + k + '。', note: base + ' × ' + k + ' = ' + (base * k) + 'cm'
+    });
+  }
+  function priceTimesQ() {
+    const it = pf([['ケーキ', 'プリン'], ['本', 'ノート'], ['くつ', 'くつ下'], ['かばん', 'ハンカチ']]);
+    const base = U.randInt(11, 32) * 10, k = U.randInt(2, 4);
+    return num('ねだんの 倍', it[1] + 'の ねだんは ' + base + '円。' + it[0] + 'は ' + it[1] + 'の ' + k + '倍の ねだんです。' + it[0] + 'は 何円？', base * k, {
+      key: 'price:' + it[0] + ':' + base + ':' + k,
+      hint: base + ' × ' + k + ' を 筆算で。', note: base + ' × ' + k + ' = ' + (base * k) + '円'
+    });
+  }
+  function twoStepQ() {
+    const base = U.randInt(2, 5), k1 = U.randInt(2, 4), k2 = U.randInt(2, 3);
+    return num('倍の 倍', '赤の リボンは ' + base + 'cm。青は 赤の ' + k1 + '倍、黄は 青の ' + k2 + '倍です。黄の リボンは 何cm？', base * k1 * k2, {
+      key: 'two:' + base + ':' + k1 + ':' + k2,
+      hint: 'まず 青 = ' + base + ' × ' + k1 + ' = ' + (base * k1) + '。つぎに 黄 = ' + (base * k1) + ' × ' + k2 + '。', note: base + ' × ' + k1 + ' × ' + k2 + ' = ' + (base * k1 * k2) + 'cm'
+    });
+  }
+  function whichOpQ() {
+    const w = pf([
+      ['「12 は 3 の 何倍？」を もとめる 式は？', '12 ÷ 3', ['12 × 3', '12 − 3', '12 + 3']],
+      ['「4 の 5倍」を もとめる 式は？', '4 × 5', ['4 ÷ 5', '5 ÷ 4', '4 + 5']],
+      ['「ある 数の 6倍が 42。ある 数は？」を もとめる 式は？', '42 ÷ 6', ['42 × 6', '42 − 6', '6 ÷ 42']],
+      ['「24 は 8 の 何倍？」を もとめる 式は？', '24 ÷ 8', ['24 × 8', '24 − 8', '8 ÷ 24']],
+      ['「7 の 3倍」を もとめる 式は？', '7 × 3', ['7 ÷ 3', '3 ÷ 7', '7 + 3']],
+      ['「ある 数の 4倍が 36。ある 数は？」を もとめる 式は？', '36 ÷ 4', ['36 × 4', '36 − 4', '4 ÷ 36']]
+    ]);
+    return choice('倍と 式', w[0], [w[1]].concat(w[2]), {
+      key: 'whichop:' + w[1], hint: '「何倍」と「もとの 大きさ」は わり算、「○倍の 大きさ」は かけ算。', note: w[1]
+    });
+  }
+  const stage15 = {
+    easy: [function e1() { return timesOfQ(false); }, function e2() { return timesAmountQ(false); }, tapeTimesQ, whichOpQ],
+    normal: [function n1() { return baseAmountQ(false); }, tapeBaseQ, tapeAmountQ, function n4() { return timesAmountQ(true); }, whichOpQ],
+    hard: [function h1() { return timesOfQ(true); }, function h2() { return baseAmountQ(true); }, priceTimesQ, twoStepQ],
+    boss: [function b1() { return baseAmountQ(true); }, function b2() { return twoStepQ(); }, function b3() { return priceTimesQ(); }, function b4() { return timesOfQ(true); }]
+  };
+
+  /* =======================================================
+     ステージ16 三角形と 角
+     ======================================================= */
+  const TRI_NAMES = ['二等辺三角形', '正三角形', 'どちらでも ない'];
+  function triChoices(kind) {
+    const right = kind === 'iso' ? TRI_NAMES[0] : kind === 'equi' ? TRI_NAMES[1] : TRI_NAMES[2];
+    return [right].concat(TRI_NAMES.filter(function (n) { return n !== right; }));
+  }
+  const TRI_WORDS = [
+    ['2つの 辺（へん）の 長さが 等しい 三角形を 何と いう？', '二等辺三角形', ['正三角形', '直角三角形', '四角形'], '「二等辺」は 2つの 辺が 等しい と いう 意味。'],
+    ['3つの 辺（へん）の 長さが みんな 等しい 三角形を 何と いう？', '正三角形', ['二等辺三角形', '直角三角形', '長方形'], '「正」は 辺も 角も みんな 同じ と いう 意味。'],
+    ['二等辺三角形は、いくつの 角の 大きさが 等しい？', '2つ', ['3つ', '1つ', 'ない'], 'まん中で おると 2つの 角が ぴったり かさなるよ。'],
+    ['正三角形の 3つの 角の 大きさは？', 'みんな 等しい', ['2つだけ 等しい', 'ぜんぶ ちがう', '1つは 直角'], '正三角形は 3つの 角が みんな 同じ 大きさ。'],
+    ['角の 大きさは 何で 決まる？', '辺の 開きぐあい', ['辺の 長さ', '三角形の 大きさ', '辺の 数'], '辺が 長くても 短くても、開きぐあいが 同じなら 角の 大きさは 同じ。'],
+    ['1組の 三角じょうぎの うち、二等辺三角形は 何まい？', '1まい', ['2まい', '0まい', '3まい'], '直角の となりの 2つの 角が 同じ ほうの 三角じょうぎが 二等辺三角形。'],
+    ['円の 中心と、円のまわりの 2つの 点を むすんで できる 三角形は？', '二等辺三角形', ['正三角形', 'どちらでも ない', '四角形'], '中心から 円のまわりまでは どこも 半径で 同じ 長さ。だから 2つの 辺が 等しい。']
+  ];
+  function triWordQ() {
+    const w = pf(TRI_WORDS);
+    return choice('三角形', w[0], [w[1]].concat(w[2]), { key: 'tw:' + w[1] + ':' + w[0].slice(0, 6), hint: w[3], note: w[1] });
+  }
+  function sidesKind() {
+    const r = Math.random();
+    if (r < 0.4) { const a = U.randInt(3, 9); let c; do { c = U.randInt(2, 9); } while (c === a || c >= a * 2); return { kind: 'iso', s: U.shuffle([a, a, c]) }; }
+    if (r < 0.7) { const a = U.randInt(3, 9); return { kind: 'equi', s: [a, a, a] }; }
+    let a, b, c; do { a = U.randInt(3, 9); b = U.randInt(3, 9); c = U.randInt(3, 9); } while (a === b || b === c || a === c || a + b <= c || b + c <= a || a + c <= b);
+    return { kind: 'sca', s: [a, b, c] };
+  }
+  function sidesQ() {
+    const t = sidesKind();
+    return choice('三角形の 名前', '辺（へん）の 長さが ' + t.s.join('cm、') + 'cm の 三角形は？', triChoices(t.kind), {
+      key: 'sides:' + t.s.join(','), hint: '同じ 長さの 辺が いくつ あるか 数えよう。2つなら 二等辺三角形、3つなら 正三角形。',
+      note: t.s.join('cm、') + 'cm → ' + triChoices(t.kind)[0]
+    });
+  }
+  function figNameQ() {
+    const t = sidesKind();
+    let labels;
+    if (t.kind === 'iso') { const eq = t.s.filter(function (v, i, arr) { return arr.indexOf(v) !== i; })[0]; const other = t.s.filter(function (v) { return v !== eq; })[0]; labels = [eq + 'cm', eq + 'cm', other + 'cm']; }
+    else labels = t.s.map(function (v) { return v + 'cm'; });
+    return choice('三角形の 名前', figQ3('この 三角形の 名前は？', triSvg(t.kind, labels)), triChoices(t.kind), {
+      key: 'fname:' + t.kind + ':' + labels.join(','), hint: '辺の 長さを 見くらべよう。同じ 長さの 辺が 2つ → 二等辺三角形、3つ → 正三角形。',
+      note: labels.join('、') + ' → ' + triChoices(t.kind)[0]
+    });
+  }
+  function angleCmpQ(trick) {
+    let a = U.randInt(20, 115), b = U.randInt(20, 115);
+    while (Math.abs(a - b) < 25) b = U.randInt(20, 115);
+    const bigIsA = a > b;
+    const lenA = trick ? (bigIsA ? 32 : 50) : U.randInt(36, 50), lenB = trick ? (bigIsA ? 50 : 32) : U.randInt(36, 50);
+    return choice('角の 大きさ', figQ3('角が 大きいのは どっち？', anglesSvg(a, lenA, b, lenB)), [bigIsA ? 'あ' : 'い', bigIsA ? 'い' : 'あ'], {
+      key: 'acmp:' + a + ':' + b + ':' + (trick ? 't' : 'n'), hint: '辺の 長さでは なく、辺の 開きぐあいで くらべよう。' + (trick ? '辺が 長い ほうが 大きい とは かぎらないよ。' : ''),
+      note: (bigIsA ? 'あ' : 'い') + ' の ほうが 開いて いる'
+    });
+  }
+  function isoAngleQ() {
+    const eq = U.randInt(4, 9), other = pf([eq - 1, eq - 2, eq + 1].filter(function (v) { return v >= 2 && v < eq * 2; }));
+    // 上が あ、左下が い、右下が う。等しい 角は い と う
+    const ask = pf(['い', 'う']);
+    const ans = ask === 'い' ? 'う' : 'い';
+    return choice('二等辺三角形の 角', figQ3('二等辺三角形。角' + ask + ' と 同じ 大きさの 角は？', triSvg('iso', [eq + 'cm', eq + 'cm', other + 'cm'], ['あ', 'い', 'う'])), [ans, 'あ', 'ない'], {
+      key: 'isoang:' + eq + ':' + other + ':' + ask, hint: '二等辺三角形は、等しい 2つの 辺の 下に ある 2つの 角が 同じ 大きさ。',
+      note: '角' + ask + ' = 角' + ans
+    });
+  }
+  function perimeterQ(kind) {
+    if (kind === 'equi') {
+      const a = U.randInt(3, 9);
+      return num('まわりの 長さ', figQ3('1辺（へん）が ' + a + 'cm の 正三角形。まわりの 長さは 何cm？', triSvg('equi', [a + 'cm', a + 'cm', a + 'cm'])), a * 3, {
+        key: 'per:equi:' + a, scratch: false, hint: '3つの 辺が みんな ' + a + 'cm。' + a + ' × 3。', note: a + ' × 3 = ' + (a * 3) + 'cm'
+      });
+    }
+    const eq = U.randInt(3, 9); let other; do { other = U.randInt(2, 9); } while (other === eq || other >= eq * 2);
+    return num('まわりの 長さ', figQ3('二等辺三角形。まわりの 長さは 何cm？', triSvg('iso', [eq + 'cm', eq + 'cm', other + 'cm'])), eq * 2 + other, {
+      key: 'per:iso:' + eq + ':' + other, scratch: false, hint: eq + ' + ' + eq + ' + ' + other + '。', note: eq + ' + ' + eq + ' + ' + other + ' = ' + (eq * 2 + other) + 'cm'
+    });
+  }
+  function sideFromPerQ() {
+    const a = U.randInt(3, 9);
+    return num('正三角形の 辺', 'まわりの 長さが ' + (a * 3) + 'cm の 正三角形。1つの 辺（へん）は 何cm？', a, {
+      key: 'sfp:' + a, scratch: false, hint: '3つの 辺が 同じ 長さ。' + (a * 3) + ' ÷ 3。', note: (a * 3) + ' ÷ 3 = ' + a + 'cm'
+    });
+  }
+  function isoOtherQ() {
+    const eq = U.randInt(3, 9); let other; do { other = U.randInt(2, 9); } while (other === eq || other >= eq * 2);
+    return num('二等辺三角形の 辺', '等しい 辺（へん）が ' + eq + 'cm で、まわりの 長さが ' + (eq * 2 + other) + 'cm の 二等辺三角形。のこりの 辺は 何cm？', other, {
+      key: 'isoo:' + eq + ':' + other, scratch: false, hint: (eq * 2 + other) + ' から ' + eq + ' を 2回 ひこう。', note: (eq * 2 + other) + ' − ' + eq + ' − ' + eq + ' = ' + other + 'cm'
+    });
+  }
+  function compassTriQ() {
+    const eq = U.randInt(3, 9); let base; do { base = U.randInt(2, 9); } while (base === eq || base >= eq * 2);
+    return num('コンパスで かく', '辺（へん）の 長さが ' + eq + 'cm・' + eq + 'cm・' + base + 'cm の 二等辺三角形を かきます。' + base + 'cm の 辺を ひいた あと、その 両はしから コンパスで 円を かきます。コンパスの 開きは 何cm？', eq, {
+      key: 'comp:' + eq + ':' + base, scratch: false, hint: 'のこりの 2つの 辺の 長さに コンパスを 開くよ。', note: 'コンパスは ' + eq + 'cm に 開く'
+    });
+  }
+  function circleTriQ(kindAsk) {
+    const r = U.randInt(3, 9);
+    if (kindAsk === 'name') {
+      return choice('円と 三角形', figQ3('円の 中心と、円のまわりの 2つの 点を むすんだ 三角形。この 三角形は？', circleTriSvg(r + 'cm')), triChoices('iso'), {
+        key: 'ctri:name:' + r, hint: '中心から 円のまわりまでの 長さ（半径）は どこも 同じ。', note: '半径 2本が 等しい → 二等辺三角形'
+      });
+    }
+    return num('円と 三角形', figQ3('半径 ' + r + 'cm の 円。赤い 三角形の 等しい 2つの 辺（へん）は 何cm？', circleTriSvg(r + 'cm')), r, {
+      key: 'ctri:side:' + r, scratch: false, hint: '中心から 円のまわりまでは 半径の 長さ。', note: '2つの 辺は 半径と 同じ ' + r + 'cm'
+    });
+  }
+  function setSquareQ() {
+    const flip = Math.random() < 0.5;
+    const ask = pf(['iso', 'sca']);
+    const isoLabel = flip ? 'い' : 'あ', scaLabel = flip ? 'あ' : 'い';
+    const right = ask === 'iso' ? isoLabel : scaLabel;
+    const text = ask === 'iso' ? '三角じょうぎ 2まい。二等辺三角形は どっち？' : '三角じょうぎ 2まい。3つの 辺（へん）の 長さが みんな ちがうのは どっち？';
+    return choice('三角じょうぎ', figQ3(text, setSquareSvg(flip)), [right, right === 'あ' ? 'い' : 'あ'], {
+      key: 'ss:' + ask + ':' + (flip ? 'f' : 'n'), hint: '直角の となりの 2つの 辺が 同じ 長さの ほうが 二等辺三角形。', note: right
+    });
+  }
+  const stage16 = {
+    easy: [triWordQ, sidesQ, figNameQ, function e4() { return angleCmpQ(false); }],
+    normal: [isoAngleQ, function n2() { return perimeterQ('equi'); }, function n3() { return circleTriQ('name'); }, setSquareQ, function n5() { return angleCmpQ(true); }, triWordQ],
+    hard: [function h1() { return perimeterQ('iso'); }, sideFromPerQ, compassTriQ, function h4() { return circleTriQ('side'); }, isoOtherQ],
+    boss: [function b1() { return isoOtherQ(); }, function b2() { return compassTriQ(); }, function b3() { return perimeterQ('iso'); }, function b4() { return sideFromPerQ(); }]
+  };
+
+  /* =======================================================
+     ステージ17 かけ算の 筆算（2）（2けた × 2けた・3けた × 2けた）
+     ======================================================= */
+  const hintMul2 = 'かける数の 一の位、十の位の じゅんに かけて、ずらして 書いて たそう。';
+  function tensTensQ() {
+    const a = U.randInt(2, 9) * 10, b = U.randInt(2, 9) * 10;
+    return num('何十 × 何十', expr(a, '×', b), a * b, { scratch: false, hint: (a / 10) + ' × ' + (b / 10) + ' = ' + (a * b / 100) + '。それを 100倍。', note: a + ' × ' + b + ' = ' + (a * b) });
+  }
+  function timesTensQ() {
+    const a = U.randInt(12, 48), b = U.randInt(2, 9) * 10;
+    return num('2けた × 何十', expr(a, '×', b), a * b, { hint: a + ' × ' + (b / 10) + ' = ' + (a * b / 10) + '。それを 10倍。', note: a + ' × ' + b + ' = ' + (a * b) });
+  }
+  function mul22(noCarry) {
+    let a, b, tries = 0;
+    do {
+      a = U.randInt(12, 99); b = U.randInt(12, 99);
+      if (b % 10 === 0) continue;
+      const ok = (a % 10) * (b % 10) < 10 && Math.floor(a / 10) * (b % 10) < 10 && (a % 10) * Math.floor(b / 10) < 10 && Math.floor(a / 10) * Math.floor(b / 10) < 10;
+      if (noCarry ? ok : !ok) break;
+    } while (tries++ < 300);
+    return mulV('2けた × 2けた', a, b, { hint: noCarry ? 'まず ' + a + ' × ' + (b % 10) + '、つぎに ' + a + ' × ' + Math.floor(b / 10) + '0。たすと 答え。' : hintMul2 });
+  }
+  function mul32(zero) {
+    let a, b;
+    if (zero) { a = U.randInt(1, 9) * 100 + U.randInt(1, 9); b = U.randInt(12, 99); if (b % 10 === 0) b += 3; }
+    else { do { a = U.randInt(112, 999); b = U.randInt(12, 99); } while (b % 10 === 0 || a % 10 === 0); }
+    return mulV('3けた × 2けた', a, b, { hint: zero ? '十の位の 0 に 気をつけて。' + hintMul2 : hintMul2 });
+  }
+  const MUL2_WORDS = [
+    ['1こ □円の あめを ○こ 買います。何円？', 11, 45, '円'],
+    ['1日に □分ずつ ○日 走りました。ぜんぶで 何分？', 15, 45, '分'],
+    ['1はこに □こずつ 入った クッキーが ○はこ。ぜんぶで 何こ？', 12, 36, 'こ'],
+    ['1m □円の リボンを ○m 買います。何円？', 25, 85, '円'],
+    ['1回に □人 のれる バスが ○回 走ります。ぜんぶで 何人 のれる？', 24, 48, '人'],
+    ['1本 □円の ジュースを ○本 買います。何円？', 80, 120, '円'],
+    ['1さつ □ページの 本を ○さつ 読みました。ぜんぶで 何ページ？', 110, 250, 'ページ']
+  ];
+  function mul2WordQ(big) {
+    const w = pf(big ? MUL2_WORDS.slice(3) : MUL2_WORDS.slice(0, 5));
+    const a = U.randInt(w[1], w[2]), b = U.randInt(12, big ? 48 : 30);
+    return num('かけ算の 文章題', w[0].replace('□', a).replace('○', b), a * b, {
+      key: 'mw2:' + w[3] + ':' + a + ':' + b, hint: a + ' × ' + b + ' の 筆算で。', note: a + ' × ' + b + ' = ' + (a * b) + w[3]
+    });
+  }
+  function kufuuQ() {
+    const w = pf([[25, 4], [50, 2], [20, 5], [125, 8]]);
+    const c = U.randInt(3, 9);
+    const flip = Math.random() < 0.5;
+    const text = flip ? w[0] + ' × ' + c + ' × ' + w[1] : w[1] + ' × ' + w[0] + ' × ' + c;
+    return num('計算の くふう', '<span class="num">' + text + '</span>', w[0] * w[1] * c, {
+      key: 'kufuu:' + text, scratch: false, hint: w[0] + ' × ' + w[1] + ' = ' + (w[0] * w[1]) + ' を 先に 計算すると かんたん。かけ算は じゅんばんを かえても 答えは 同じ。', note: (w[0] * w[1]) + ' × ' + c + ' = ' + (w[0] * w[1] * c)
+    });
+  }
+  function mentalQ() {
+    const a = pf([12, 15, 25, 35, 45, 24, 21, 32]), b = pf([3, 4, 2]);
+    return num('あん算', expr(a, '×', b) + '（あん算で）', a * b, { scratch: false, hint: a + ' を ' + (Math.floor(a / 10) * 10) + ' と ' + (a % 10) + ' に 分けて、それぞれ ' + b + '倍して たそう。', note: a + ' × ' + b + ' = ' + (a * b) });
+  }
+  const stage17 = {
+    easy: [tensTensQ, timesTensQ, function e3() { return mul22(true); }, mentalQ],
+    normal: [function n1() { return mul22(false); }, function n2() { return mul2WordQ(false); }, function n3() { return mul22(false); }, timesTensQ],
+    hard: [function h1() { return mul32(false); }, function h2() { return mul32(true); }, function h3() { return mul2WordQ(true); }, kufuuQ],
+    boss: [function b1() { return mul32(false); }, function b2() { return mul2WordQ(true); }, function b3() { return mul32(true); }, function b4() { return mul22(false); }]
+  };
+
+  /* =======================================================
+     ステージ18 そろばん
+     ======================================================= */
+  const SORO_WORDS = [
+    ['そろばんで、はりの 上に ある 玉（五玉）1つは いくつ を あらわす？', '5', ['1', '10', '4'], '上の 玉は 五玉（ごだま）。1つで 5。'],
+    ['そろばんで、はりの 下に ある 玉（一玉）1つは いくつ を あらわす？', '1', ['5', '2', '10'], '下の 玉は 一玉（いちだま）。1つで 1。'],
+    ['そろばんの はりに ついた 白い 点（定位点・ていいてん）が ある けたは 何の 位？', '一の位', ['十の位', '百の位', '千の位'], '定位点の ある けたを 一の位に して 数を おくよ。'],
+    ['そろばんで 数を あらわす とき、はりに よせた 玉と はなれた 玉、どちらを 読む？', 'はりに よせた 玉', ['はりから はなれた 玉', 'どちらも', '上の 玉だけ'], 'はりに くっついて いる 玉だけ 数えるよ。'],
+    ['そろばんで、一の位の 右どなりの けたは 何の 位？', '小数第一位', ['十の位', '百の位', '一の位'], '定位点の 右は 小数の 位（0.1 の 位）。'],
+    ['そろばんで、一の位の 左どなりの けたは 何の 位？', '十の位', ['百の位', '小数第一位', '一の位'], '左へ 行くほど 位が 大きく なるよ。']
+  ];
+  function soroWordQ() {
+    const w = pf(SORO_WORDS);
+    return choice('そろばん', w[0], [w[1]].concat(w[2]), { key: 'sw:' + w[1] + ':' + w[0].slice(0, 8), hint: w[3], note: w[1] });
+  }
+  function soroReadQ(len, allowZero) {
+    const n = allowZero ? U.randInt(Math.pow(10, len - 1), Math.pow(10, len) - 1) : bigNum(len, false);
+    const cols = Math.max(4, len);
+    const digs = digitsOf(n, cols);
+    return num('そろばんを 読む', figQ3('そろばんは いくつ を あらわして いる？', sorobanSvg(digs, cols - 1)), n, {
+      key: 'sr:' + n, scratch: false, maxLen: 9,
+      hint: '定位点の けたが 一の位。はりに よせた 玉を、五玉は 5・一玉は 1 として けたごとに 読もう。',
+      note: 'そろばんは ' + n
+    });
+  }
+  function soroReadDecQ() {
+    const t = U.randInt(11, 99); if (t % 10 === 0) return soroReadDecQ();
+    const digs = digitsOf(t, 4);   // 十・一・小数第一位 ＋ 左に 1けた
+    return dec('そろばんと 小数', figQ3('定位点（ていいてん）の 右の けたは 0.1 の 位。そろばんは いくつ？', sorobanSvg(digs, 2)), t, {
+      key: 'srd:' + t, scratch: false, hint: '定位点の けたまでが 整数。右の けたは 0.1 が いくつ分。', note: 'そろばんは ' + fmtDec(t)
+    });
+  }
+  function soroPutQ() {
+    const n = U.randInt(6, 9);
+    return num('玉の おき方', 'そろばんで ' + n + ' を おく とき、五玉 1つと 一玉 いくつ を はりに よせる？', n - 5, {
+      key: 'sp:' + n, scratch: false, hint: '5 と いくつで ' + n + ' かな。', note: '5 + ' + (n - 5) + ' = ' + n + ' → 一玉 ' + (n - 5) + 'つ'
+    });
+  }
+  function soroAddQ(useFive) {
+    let n, k;
+    if (useFive) { do { n = U.randInt(1, 4); k = U.randInt(1, 4); } while (n + k < 5); }
+    else { do { n = U.randInt(11, 44); k = U.randInt(1, 3); } while ((n % 10) % 5 + k >= 5 || (n % 10) + k >= 10); }
+    const digs = useFive ? [0, n] : digitsOf(n, 2);
+    return num('そろばんの たし算', figQ3('そろばんに ' + n + ' が おいて あります。' + k + ' を たすと？', sorobanSvg(digs, 1)), n + k, {
+      key: 'sa:' + n + ':' + k, scratch: false,
+      hint: useFive ? '一玉が 足りない ときは、五玉を 入れて 一玉を ' + (5 - k) + 'つ とるよ。' : '一玉を ' + k + 'つ はりに よせよう。',
+      note: n + ' + ' + k + ' = ' + (n + k)
+    });
+  }
+  function soroSubQ(useFive) {
+    let n, k;
+    if (useFive) { do { n = U.randInt(5, 8); k = U.randInt(1, 4); } while (n - k >= 5); }
+    else { do { n = U.randInt(12, 49); k = U.randInt(1, 3); } while ((n % 10) % 5 < k || n % 10 < k); }
+    const digs = useFive ? [0, n] : digitsOf(n, 2);
+    return num('そろばんの ひき算', figQ3('そろばんに ' + n + ' が おいて あります。' + k + ' を ひくと？', sorobanSvg(digs, 1)), n - k, {
+      key: 'ss:' + n + ':' + k, scratch: false,
+      hint: useFive ? '一玉が 足りない ときは、五玉を とって 一玉を ' + (5 - k) + 'つ 入れるよ。' : '一玉を ' + k + 'つ はりから はなそう。',
+      note: n + ' − ' + k + ' = ' + (n - k)
+    });
+  }
+  function soroTenQ() {
+    const n = U.randInt(6, 9), k = U.randInt(10 - n, 9);
+    return num('くり上がり', 'そろばんに ' + n + ' が おいて あります。' + k + ' を たすと？（十の位に 一玉を 1つ 入れて、一の位から ' + (10 - k) + ' を とる）', n + k, {
+      key: 'st:' + n + ':' + k, scratch: false, hint: '一の位で 足りない ときは 10 を 入れて、10 − ' + k + ' = ' + (10 - k) + ' を とる。', note: n + ' + ' + k + ' = ' + (n + k)
+    });
+  }
+  function soroFiveBeadQ() {
+    const n = U.randInt(1, 4), k = U.randInt(5 - n, 4);
+    return num('五玉を 使う たし算', 'そろばんに ' + n + ' が おいて あります。' + k + ' を たす とき、五玉を 入れて 一玉を いくつ とる？', 5 - k, {
+      key: 'sf:' + n + ':' + k, scratch: false, hint: k + ' は 5 より ' + (5 - k) + ' 小さい。だから 5 を 入れて ' + (5 - k) + ' を とる。', note: '五玉を 入れて 一玉を ' + (5 - k) + 'つ とる → ' + (n + k)
+    });
+  }
+  const stage18 = {
+    easy: [soroWordQ, function e2() { return soroReadQ(2, false); }, soroPutQ, function e4() { return soroAddQ(false); }],
+    normal: [function n1() { return soroReadQ(3, true); }, function n2() { return soroSubQ(false); }, function n3() { return soroAddQ(true); }, soroWordQ, function n5() { return soroReadQ(4, true); }],
+    hard: [soroReadDecQ, soroFiveBeadQ, function h3() { return soroSubQ(true); }, soroTenQ, function h5() { return soroReadQ(5, true); }],
+    boss: [function b1() { return soroReadQ(6, true); }, function b2() { return soroReadDecQ(); }, function b3() { return soroTenQ(); }, function b4() { return soroFiveBeadQ(); }]
+  };
+
+  // 図を 見る ため（tools/harness.html #figs3 / #figs3b）
+  const figs3 = { lineSvg: lineSvg, circleSvg: circleSvg, ballsSvg: ballsSvg, dialSvg: dialSvg, kanjiNum: kanjiNum,
+    triSvg: triSvg, anglesSvg: anglesSvg, setSquareSvg: setSquareSvg, circleTriSvg: circleTriSvg, tapeSvg: tapeSvg, sorobanSvg: sorobanSvg };
+
+  const stages = { 1: stage1, 2: stage2, 3: stage3, 4: stage4, 5: stage5, 6: stage6, 7: stage7, 8: stage8, 9: stage9, 10: stage10, 11: stage11, 12: stage12, 13: stage13,
+    14: stage14, 15: stage15, 16: stage16, 17: stage17, 18: stage18 };
 
   // maker を かたよらないように じゅんばんに 使う
   function cycle(list, n) {

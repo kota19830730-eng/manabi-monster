@@ -1267,7 +1267,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     if (mode === 'fit' || mode === 'fit:all') {
       const STAGES = mode === 'fit:all'
-        ? [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'sansu3-11'], [3, 'sansu3-12'], [3, 'kokugo3-2'], [3, 'kokugo3-3'], [3, 'rikashakai3-1'], [3, 'eigo3-1'],
+        ? [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'sansu3-11'], [3, 'sansu3-12'], [3, 'sansu3-16'], [3, 'sansu3-18'], [3, 'kokugo3-2'], [3, 'kokugo3-3'], [3, 'rikashakai3-1'], [3, 'eigo3-1'],
            [1, 'sansu1-8'], [2, 'sansu2-2'], [2, 'sansu2-9'], [4, 'sansu4-2'], [4, 'sansu4-7'], [4, 'sansu4-11'], [4, 'sansu4-15']]
         : [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'kokugo3-2'], [3, 'eigo3-1']];
       let worst = 0, worstQ = "", checked = 0, bad = 0, badCard = 0, badBody = 0;
@@ -1387,6 +1387,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     // 小3 算数 2学期（v3.0）：#battle3:N で ステージN（7 大きい数・8 長さ・9 円と球・10 筆算・11 小数・12 重さ・13 分数）／#battle3:N:lv で その むずかしさ だけ
+    // 3学期（v6.3）：14 □を使った式・15 倍の見方・16 三角形と角・17 かけ算の筆算(2)・18 そろばん
     if (mode.indexOf('battle3') === 0) {
       fresh();
       const parts = mode.split(':');
@@ -1404,6 +1405,17 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;z-index:99;align-content:start;';
       [F.circleSvg('radius', '4cm'), F.circleSvg('diameter', '10cm'), F.circleSvg('chord', ''), F.circleSvg('two', '16cm'), F.ballsSvg(3, '6cm', '？cm'), F.ballsSvg(4, '？cm', '24cm'), F.dialSvg(340), F.dialSvg(1240, 2000)].forEach(function (svg) { const d = document.createElement('div'); d.innerHTML = svg; box.appendChild(d); });
       [F.lineSvg(10000, 10, 3, 5, function (v) { return v >= 10000 ? '1万' : String(v); }), F.lineSvg(2, 20, 7, 10), F.lineSvg(1, 5, 2, 5, function (v) { return v ? '1' : '0'; })].forEach(function (svg) { const d = document.createElement('div'); d.style.gridColumn = '1 / -1'; d.innerHTML = svg; box.appendChild(d); });
+      document.getElementById('stage').appendChild(box);
+      return;
+    }
+    // 3学期の 図を ならべて 見る（v6.3）
+    if (mode === 'figs3b') {
+      const F = MQ.sansu3.figs3;
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;z-index:99;align-content:start;';
+      [F.triSvg('iso', ['5cm', '5cm', '3cm'], ['あ', 'い', 'う']), F.triSvg('equi', ['4cm', '4cm', '4cm']), F.triSvg('sca', ['3cm', '6cm', '7cm']), F.anglesSvg(40, 50, 100, 30),
+       F.setSquareSvg(false), F.circleTriSvg('4cm'), F.tapeSvg(3, ['12cm', '4cm']), F.tapeSvg(5, ['？cm', '3cm']),
+       F.sorobanSvg([0, 0, 2, 7], 3), F.sorobanSvg([0, 7, 0, 3], 3), F.sorobanSvg([0, 1, 2, 3], 2), F.sorobanSvg([1, 2, 3, 4, 5, 6], 5)].forEach(function (svg) { const d = document.createElement('div'); d.innerHTML = svg; box.appendChild(d); });
       document.getElementById('stage').appendChild(box);
       return;
     }
