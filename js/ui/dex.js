@@ -688,14 +688,14 @@ MQ.ui.dex = (function () {
     );
     showState();
     return h('div', { class: 'ai' }, [
-      h('h2', { class: 'label', text: 'AIで モンスターを かっこよく' }),
-      h('p', { class: 'note', text: '「じぶんの モンスターを つくる」で とった 絵を、AI（Google の Gemini）に 送って、絵に 忠実な まま ゲームの モンスターらしく かき直します。かぎを 入れた ときだけ、子どもの 画面に「AIで かっこよく する」の ボタンが 出ます。' }),
+      h('h2', { class: 'label', text: 'AIに 絵を 見てもらう' }),
+      h('p', { class: 'note', text: 'かぎを 入れると、「じぶんの モンスターを つくる」で 2つの ことが できます。①「AIに 見てもらう」… 絵を AI（Google の Gemini）に 見せて「コウモリ」「たからばこ」など どの すがたかを 当てて もらいます。絵は AIに かかせず、いままでどおり ゲームの 部品で 組み立てる ので ほかの モンスターと 見た目が そろいます。こちらは 無料わくの ある AIを つかいます。②「AIで かっこよく する」… AIに 絵を かき直して もらいます（こちらは 1まい 約5〜20円）。かぎを 入れない ときは どちらの ボタンも 出ず、外には 何も 送りません。' }),
       h('p', { class: 'note', text: '送るのは 切りぬいた 絵の 部分だけです（なまえ・きろくは 送りません）。かぎは この タブレットの 中だけに ほぞんされ、「きろくの ほぞん」の ファイルには 入りません。' }),
       h('ol', { class: 'ai__steps' }, [
         h('li', {}, ['Google の ', h('a', { class: 'ai__link', href: 'https://aistudio.google.com/apikey', target: '_blank', rel: 'noopener', text: 'aistudio.google.com/apikey' }), ' を ひらいて ログインする']),
         h('li', { text: '「APIキーを 作成」を 押して、出てきた 文字（AIza… で はじまる）を コピーする' }),
         h('li', { text: '下の わくに はりつけて「しらべる」。OK が 出たら つかえます' }),
-        h('li', { text: 'おかね：1まい 約5〜20円（Google に はらいます）。無料わくの ない AIなので、Google AI Studio で Billing（お支払い）の 設定が いります。上限は「1日に つかえる 回数」で' })
+        h('li', { text: 'おかね：「AIに 見てもらう」は 無料わくの ある AI（1日 数十回なら ただ の 見こみ）。「AIで かっこよく する」は 1まい 約5〜20円で、Google AI Studio で Billing（お支払い）の 設定が いります。上限は 下の「1日に つかえる 回数」で（2つ 合わせた 数）' })
       ]),
       keyIn,
       h('div', { class: 'ai__row' }, [
@@ -714,7 +714,7 @@ MQ.ui.dex = (function () {
         })
       ]),
       status,
-      h('p', { class: 'ai__sub', text: 'AIの しゅるい' }),
+      h('p', { class: 'ai__sub', text: 'AIの しゅるい（「かっこよく する」の ほう）' }),
       modelChips,
       h('p', { class: 'ai__sub', text: '1日に つかえる 回数（この タブレット）' }),
       limitChips

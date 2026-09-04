@@ -31,12 +31,33 @@ MQ.ai = (function () {
     { id: 'gemini-3-pro-image', name: 'きれい', note: '1まい 約20円' }
   ];
   const DEFAULT_MODEL = 'gemini-3.1-flash-image';
+  /* 絵を「見る」AI（v6.0）。絵を 送って **文字だけ** かえって くる ので 絵を 作る AI より ずっと 安い
+     （文字の AIには 無料わくが ある）。上から じゅんに ためして、404（その 名前の AIが ない）なら つぎへ。
+     うまく いった 名前は おぼえて おく（seeModel）。 */
+  const SEE_MODELS = ['gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-flash', 'gemini-2.5-flash'];
   const LIMITS = [5, 10, 20, 50];
   const DEFAULT_LIMIT = 20;
   const TIMEOUT_MS = 90000;
 
   /* AIへの たのみ方（英語の ほうが 画像AIに よく 通じる）。
      いちばん 大事なのは「子どもの 絵に 忠実に」。目の 数・つの・手足を 変えない。 */
+  /* 絵を 見て もらう ときの たのみ方（v6.0）。
+     ★ 絵は 作らせない。**しゅるいの id を えらばせる だけ**（そのあと ゲームの 部品で 組み立てる ので
+     ほかの モンスターと 見た目が そろう＝v3.5 の「浮く」問題が おきない）。 */
+  const SEE_PROMPT = [
+    'This is a photo of a monster or creature that a child drew by hand on paper.',
+    'There may be a hand-drawn frame, background scribbles, a title or the desk around it. Ignore all of that and look only at the main creature.',
+    'Choose which of these shape types the drawing looks like. Format is "id=meaning in Japanese":',
+    '{LIST}',
+    'Special ids: "mimic" = a treasure chest with a creature inside it. "letters" = the drawing is letters or digits. "rider" = a knight riding a horse.',
+    'Reply with JSON only, no explanation:',
+    '{"kinds":["id1","id2","id3"],"eyes":2,"horns":0,"name":"..."}',
+    '- kinds: exactly 3 ids copied exactly from the list above, most likely first.',
+    '- eyes: how many eyes are drawn on the creature (1, 2 or 3).',
+    '- horns: how many horns, ears or spikes stick up from its head (0 to 3).',
+    '- name: a short monster name in Japanese katakana or hiragana, 6 characters or fewer.'
+  ].join('\n');
+
   const PROMPT = [
     'This is a photo of a monster that a child drew by hand on paper.',
     'Redraw it as a polished enemy monster for a retro pixel-art RPG video game, while staying faithful to the child\'s design:',
@@ -91,6 +112,7 @@ MQ.ai = (function () {
     const out = {
       key: typeof c.key === 'string' ? c.key.trim() : '',
       model: MODELS.some(function (m) { return m.id === c.model; }) ? c.model : DEFAULT_MODEL,
+      seeModel: SEE_MODELS.indexOf(c.seeModel) >= 0 ? c.seeModel : '',   // 見る AI（うまく いった 名前を おぼえる）
       limit: LIMITS.indexOf(c.limit) >= 0 ? c.limit : DEFAULT_LIMIT,
       used: c.used && typeof c.used === 'object' ? { day: String(c.used.day || ''), n: Number(c.used.n) || 0 } : { day: '', n: 0 }
     };
@@ -108,7 +130,7 @@ MQ.ai = (function () {
   }
   function config() {
     const c = load();
-    return { key: c.key, model: c.model, limit: c.limit };
+    return { key: c.key, model: c.model, limit: c.limit, seeModel: c.seeModel };
   }
   function setConfig(o) {
     const c = load();
@@ -235,6 +257,75 @@ MQ.ai = (function () {
     });
   }
 
+  /* こたえの JSON（文字）→ { kinds, eyes, horns, name }（v6.0） */
+  function parseSee(json) {
+    if (!json || typeof json !== 'object') throw err('unknown', 'empty');
+    if (json.promptFeedback && json.promptFeedback.blockReason) throw err('safety', json.promptFeedback.blockReason);
+    const cand = (json.candidates || [])[0];
+    if (!cand) throw err('unknown', 'no candidates');
+    let txt = '';
+    ((cand.content && cand.content.parts) || []).forEach(function (p) { if (typeof p.text === 'string') txt += p.text; });
+    if (!txt) {
+      const fr = String(cand.finishReason || '');
+      throw err(/SAFETY|PROHIBITED|BLOCKLIST/.test(fr) ? 'safety' : 'unknown', fr || 'no text');
+    }
+    // コードブロックの しるしで かこまれて いる ことが ある ので、いちばん 外の { } を とり出す
+    const m = txt.match(/\{[\s\S]*\}/);
+    let o = null;
+    try { o = JSON.parse(m ? m[0] : txt); } catch (e) { o = null; }
+    if (!o || typeof o !== 'object') throw err('unknown', 'bad json');
+    const kinds = (Array.isArray(o.kinds) ? o.kinds : []).filter(function (k) { return typeof k === 'string' && k; }).slice(0, 4);
+    if (!kinds.length) throw err('unknown', 'no kinds');
+    const n = function (v, lo, hi) { v = Math.round(Number(v)); return v >= lo && v <= hi ? v : null; };
+    return {
+      kinds: kinds,
+      eyes: n(o.eyes, 1, 3),
+      horns: n(o.horns, 0, 3),
+      name: typeof o.name === 'string' ? o.name.trim().slice(0, 8) : ''
+    };
+  }
+
+  /* 絵を 送って「なに か」を 答えて もらう（v6.0）。かえるのは 文字だけ（絵は 作らない）。
+     kinds = [{ id, name }] の ならび（monstergen の しゅるいの 一覧）*/
+  function describe(dataUrl, kinds, opts) {
+    opts = opts || {};
+    const c = load();
+    if (!c.key) return Promise.reject(err('nokey'));
+    if (left() <= 0) return Promise.reject(err('limit'));
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.reject(err('offline'));
+    const m = String(dataUrl || '').match(/^data:(image\/[a-z]+);base64,(.+)$/);
+    if (!m) return Promise.reject(err('unknown', 'bad image'));
+    const listTxt = (kinds || []).map(function (k) { return k.id + '=' + k.name; }).join(', ');
+    const body = {
+      contents: [{ parts: [{ text: (opts.prompt || SEE_PROMPT).replace('{LIST}', listTxt) }, { inlineData: { mimeType: m[1], data: m[2] } }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0 }
+    };
+    // おぼえて いる 名前 → 上から じゅんに（404 の ときだけ つぎを ためす）
+    const order = [];
+    if (c.seeModel) order.push(c.seeModel);
+    SEE_MODELS.forEach(function (id) { if (order.indexOf(id) < 0) order.push(id); });
+    function step(i) {
+      const model = opts.model || order[i];
+      return call('models/' + model + ':generateContent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function (res) {
+        if (res.status !== 200) {
+          const e = fromStatus(res.status, res.json);
+          if (e.code === 'model' && !opts.model && i + 1 < order.length) return step(i + 1);
+          throw e;
+        }
+        const out = parseSee(res.json);
+        countUse();
+        if (!opts.model && c.seeModel !== model) { c.seeModel = model; persist(); }
+        out.model = model;
+        return out;
+      });
+    }
+    return step(0);
+  }
+
   /* かぎと AIの しゅるいを たしかめる（おうちの人ページの「しらべる」）。絵は 作らない（無料） */
   function check() {
     const c = load();
@@ -262,10 +353,14 @@ MQ.ai = (function () {
     canUse: canUse,
     modelName: modelName,
     generate: generate,
+    describe: describe,
+    SEE_MODELS: SEE_MODELS,
+    SEE_PROMPT: SEE_PROMPT,
     check: check,
     message: message,
     // テスト用
     parse: parse,
+    parseSee: parseSee,
     fromStatus: fromStatus,
     transport: transport,
     _reset: function () { conf = null; }

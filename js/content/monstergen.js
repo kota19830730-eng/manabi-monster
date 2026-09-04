@@ -49,6 +49,11 @@ MQ.monsterGen = (function () {
     return out.map(function (v) { return Math.max(0, Math.min(255, v * t)); });
   }
 
+  /* AIが 見て 教えて くれた こと（v6.0）。目の 数・つのの 数は 絵から 読むより AIの ほうが 当たる。
+     写真を 入れかえたら photo.js が setHint(null) で 消す */
+  let HINT = {};
+  function setHint(h) { HINT = h && typeof h === 'object' ? h : {}; }
+
   /* cells（{ink,c} か null の ならび）から 特徴を 読む */
   function analyze(cells, N) {
     const occ = new Uint8Array(N * N);
@@ -447,9 +452,9 @@ MQ.monsterGen = (function () {
       ratio: ratio,
       wide: ratio >= 1.35,
       tall: ratio <= 0.9,
-      horns: Math.min(3, bumps(true)),
+      horns: HINT.horns != null ? HINT.horns : Math.min(3, bumps(true)),
       legs: Math.min(4, bumps(false)),
-      eyes: eyeN,
+      eyes: HINT.eyes != null ? HINT.eyes : eyeN,
       dense: n / (bw * bh),
       area: n,
       parts: parts(),
@@ -3135,6 +3140,34 @@ MQ.monsterGen = (function () {
     return out.slice(0, want);
   }
 
+  /* AIが えらんだ しゅるいを 候補の 先頭に もってくる（v6.0）。
+     もう 候補に ある ものは 前に 出す。ない ものは その場で 作る。
+     ここで 作る 絵は いつもの `make()` なので、ほかの モンスターと 見た目が そろう */
+  function withFirst(list, kinds, feat) {
+    const f = feat || lastF;
+    const out = [], seen = {};
+    function tagOf(v) { return v.tag || v.kind; }
+    (kinds || []).forEach(function (k) {
+      if (!k || seen[k]) return;
+      const hit = (list || []).filter(function (v) { return tagOf(v) === k; })[0];
+      if (hit) { seen[k] = 1; out.push(hit); return; }
+      if (!BODIES[k] && ['mimic', 'rider', 'letters', 'letter'].indexOf(k) < 0) return;
+      if (!f) return;
+      const m = make(f, k);
+      if (!m) return;
+      seen[k] = 1;
+      out.push({ png: png(m.shape, m.colors), kind: m.kind, tag: k, shape: m.shape, colors: m.colors, letters: m.letters || null, cols: m.cols || null });
+    });
+    (list || []).forEach(function (v) { if (!seen[tagOf(v)]) out.push(v); });
+    return out;
+  }
+
+  /* AIに わたす しゅるいの 一覧 [{ id, name }]（v6.0） */
+  function kindList() {
+    const ids = Object.keys(BODIES).concat(['mimic', 'rider', 'letters']);
+    return ids.map(function (id) { return { id: id, name: KIND_NAMES[id] || id }; });
+  }
+
   /* 絵（cells）から いっきに PNG まで（候補の 1番め と 同じ） */
   function fromCells(cells, N) {
     const v = variants(cells, N, 1);
@@ -3186,7 +3219,10 @@ MQ.monsterGen = (function () {
   return {
     kindName: function (k) { return KIND_NAMES[k] || k; },
     kindGroup: function (k) { return KIND_GROUP[k] || 'obake'; },
+    kindList: kindList,
     groups: GROUPS,
+    setHint: setHint,
+    withFirst: withFirst,
     analyze: analyze,
     fromDrawing: fromDrawing,
     variants: variants,

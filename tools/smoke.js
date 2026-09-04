@@ -2162,6 +2162,17 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     const ov = mm.shape.filter(function (p) { return p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48; });
     check(ov.length === 0, 'ミミックは 48マスから はみ出さない');
     check(typeof G.variantsInner === 'function', 'variantsInner が ある');
+  // v6.0：AIの こたえを つかう しくみ
+  check(typeof G.kindList === 'function' && G.kindList().length >= 85, 'AIに わたす しゅるいの 一覧（' + (G.kindList ? G.kindList().length : 0) + '）');
+  check(G.kindList().every(function (k) { return k.id && k.name && k.name !== k.id; }), '一覧は ぜんぶ 日本語の 名前つき');
+  (function () {
+    const f = { main: [200, 120, 60], accent: null, eyes: 2, horns: 0, legs: 0, wings: false, skull: false, teeth: false, wide: true, tall: false, parts: 1, rectness: 0.5, sideOut: false };
+    const base = ['fish', 'beast', 'blob'].map(function (k) { const m = G.make(f, k); return { kind: m.kind, tag: k, png: '', shape: m.shape, colors: m.colors }; });
+    const out = G.withFirst(base, ['blob', 'bat'], f);
+    check(out[0].tag === 'blob', 'AIの 1番めが 先頭に くる（' + out[0].tag + '）');
+    check(out.length === base.length + 1 && out[1].tag === 'bat', '候補に なかった すがたは その場で 作る');
+    check(out.filter(function (v) { return v.tag === 'blob'; }).length === 1, 'おなじ すがたが 2つに ならない');
+  })();
   })();
   check(/^#[0-9a-f]{6}$/.test(m.colors.A), '色 A が #xxxxxx（' + m.colors.A + '）');
   const over = m.shape.filter(function (p) { return p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48; });

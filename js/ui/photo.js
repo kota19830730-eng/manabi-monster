@@ -47,6 +47,9 @@ MQ.ui.photo = (function () {
   let cleanMode = 3;                // しあげ：3 = モンスター（絵を 参考に 組み立てる・v3.6）／2 = ゲームふう／1 = 絵の まま／0 = しない
   let picks = [];                   // モンスターの 候補（v3.8）
   let showAll = false;              // 「ほかの すがた」を ひらいて いるか（v5.8）
+  let aiSee = null;                 // AIが 絵を 見て 教えて くれた こと（v6.0）{ kinds, eyes, horns, name }
+  let aiSeeBusy = false;
+  let aiSeeErr = '';
   let lastCells = null;             // さいごに 読んだ マス目（テスト用）
   let letterPick = [];              // 字の モンスターの もじ（子どもが えらんだ もの・v4.0）
   let pickAt = 0;                   // えらんで いる 候補
@@ -1244,6 +1247,8 @@ MQ.ui.photo = (function () {
         // ふだんは 上位 12体。「ほかの すがた」を ひらいて いる ときだけ ぜんぶ 作る（v5.8。ぜんぶは 45体 あるので おそく なる）
         const want = showAll ? 99 : 12;
         list = cellsI && MQ.monsterGen.variantsInner ? MQ.monsterGen.variantsInner(cells, cellsI, N, want) : MQ.monsterGen.variants(cells, N, want);
+        // AIが 見て くれた ときは その すがたを 先頭に（v6.0）
+        if (aiSee && aiSee.kinds && MQ.monsterGen.withFirst) list = MQ.monsterGen.withFirst(list, aiSee.kinds);
       }
       if (list.length) {
         picks = list;
@@ -1446,6 +1451,49 @@ MQ.ui.photo = (function () {
         h('div', { class: 'photo__waits', text: '10〜30びょう くらい まってね' })
       ])
     ]);
+    /* ---- AIに 見てもらう（v6.0）。絵を 送って「なに か」を 文字で 答えて もらう。
+           絵は AIに かかせない（ゲームの 部品で 組み立てる）ので ほかの モンスターと そろう ---- */
+    const seeBtn = h('button', {
+      class: 'btn btn--small btn--cream photo__see', type: 'button', text: 'AIに 見てもらう',
+      onclick: function () { askSee(); }
+    });
+    const seeNote = h('span', { class: 'photo__seenote', hidden: 'hidden' });
+    const seeRow = h('div', { class: 'photo__seerow', hidden: 'hidden' }, [seeBtn, seeNote]);
+    function paintSee() {
+      const on = !!(MQ.ai && MQ.ai.ready() && MQ.ai.describe);
+      seeRow.hidden = !(on && img && !edited && cleanMode === 3);
+      seeBtn.disabled = aiSeeBusy || (MQ.ai && MQ.ai.left() <= 0);
+      seeBtn.textContent = aiSeeBusy ? 'AIが 見て いるよ…' : (aiSee ? 'もう1回 AIに 見てもらう' : 'AIに 見てもらう');
+      const nm = aiSee && aiSee.kinds && aiSee.kinds.length && MQ.monsterGen.kindName ? MQ.monsterGen.kindName(aiSee.kinds[0]) : '';
+      seeNote.hidden = !(aiSeeErr || nm);
+      seeNote.textContent = aiSeeErr ? aiSeeErr : (nm ? 'AIは「' + nm + '」だと 思ったよ' : '');
+      seeNote.classList.toggle('is-err', !!aiSeeErr);
+    }
+    function askSee() {
+      if (!img || aiSeeBusy || !MQ.ai || !MQ.ai.describe) return;
+      if (!MQ.ai.canUse()) { MQ.ui.toast(MQ.ai.message(MQ.ai.ready() ? 'limit' : 'nokey')); return; }
+      MQ.sfx.tap();
+      const src = origImg || img;
+      const c = origImg ? origCrop : crop;
+      let send = '';
+      try { send = sendCanvas(src, c).toDataURL('image/jpeg', 0.85); } catch (e) { send = ''; }
+      if (!send) { aiSeeErr = MQ.ai.message('unknown'); paintSee(); return; }
+      aiSeeBusy = true; aiSeeErr = '';
+      paintSee();
+      MQ.ai.describe(send, MQ.monsterGen.kindList ? MQ.monsterGen.kindList() : []).then(function (r) {
+        aiSeeBusy = false;
+        aiSee = r;
+        if (MQ.monsterGen.setHint) MQ.monsterGen.setHint({ eyes: r.eyes, horns: r.horns });
+        pickAt = 0;
+        if (r.name && nameIn && !nameIn.value) nameIn.value = r.name;
+        refresh(); paintSee();
+        MQ.sfx.rare();
+      }, function (e) {
+        aiSeeBusy = false;
+        aiSeeErr = MQ.ai.message(e);
+        paintSee();
+      });
+    }
     function paintAi() {
       const on = !!(MQ.ai && MQ.ai.ready());
       const n = on ? MQ.ai.left() : 0;
@@ -1611,6 +1659,7 @@ MQ.ui.photo = (function () {
         ])
       ]),
       emptyNote,
+      seeRow,
       pickRow,
       h('div', { class: 'photo__morerow' }, [moreBtn]),
       allRow,
@@ -1632,6 +1681,7 @@ MQ.ui.photo = (function () {
     function scheduleRefresh() { if (refreshReq) return; refreshReq = requestAnimationFrame(function () { refreshReq = 0; refresh(); }); }
     function refresh() {
       syncSizeRow();
+      paintSee();
       outUrl = edited || build();
       paintPicks();
       paintLetters();
@@ -1730,6 +1780,9 @@ MQ.ui.photo = (function () {
       pickAt = 0;
       letterPick = [];
       origImg = null; origCrop = null; aiUsed = false; aiError = ''; edited = '';
+      // 写真が かわったら AIの こたえは 消す（前の 絵の こたえを つかわない・v6.0）
+      aiSee = null; aiSeeErr = ''; aiSeeBusy = false;
+      if (MQ.monsterGen && MQ.monsterGen.setHint) MQ.monsterGen.setHint(null);
       crop = defaultCrop();
       autoCrop();
       drawStage();
@@ -1901,6 +1954,7 @@ MQ.ui.photo = (function () {
     build: build,
     // AI（v2.8）の いまの 状態（テスト用）
     aiState: function () { return { busy: aiBusy, ai: aiUsed, error: aiError, hasOrig: !!origImg, out: outUrl.length, edited: !!edited }; },
+    seeState: function () { return { busy: aiSeeBusy, error: aiSeeErr, see: aiSee }; },   // v6.0
     setOptions: function (o) { if (o.size) size = o.size; if (o.tol != null) tol = o.tol; if (o.ink != null) inkLv = o.ink; if (o.clean != null) cleanMode = Number(o.clean) || 0; }
   };
 })();

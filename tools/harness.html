@@ -360,6 +360,22 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     y.beginPath(); y.moveTo(740, 540); y.bezierCurveTo(880, 480, 900, 660, 790, 700); y.lineWidth = 26; y.strokeStyle = '#1c1a18'; y.stroke(); y.lineWidth = 12; y.strokeStyle = '#f2a23a'; y.stroke();   // しっぽ
     return c.toDataURL('image/png');
   }
+  /* にせの「見る AI」（v6.0）。絵を 送ると 文字（JSON）で かえって くる。
+     kind = ok（コウモリ）／mimic／bad（JSONで ない）／404（1つめの AIが 無く 2つめで 成功）／err */
+  function fakeSee(kind) {
+    let n404 = 0;
+    return function (url, init) {
+      const model = (url.match(/models\/([^:]+):/) || [])[1] || '';
+      say('see call: ' + model + ' body=' + (init.body ? init.body.length : 0));
+      if (kind === '404' && n404 === 0) { n404++; return Promise.resolve({ status: 404, json: { error: { code: 404, message: 'models/x is not found', status: 'NOT_FOUND' } } }); }
+      if (kind === 'err') return Promise.resolve({ status: 400, json: { error: { code: 400, message: 'API key not valid.', status: 'INVALID_ARGUMENT' } } });
+      const txt = kind === 'bad' ? 'ごめん わからない'
+        : kind === 'mimic' ? '{"kinds":["mimic","box","bat"],"eyes":2,"horns":2,"name":"タカラン"}'
+        : '```json\n{"kinds":["bat","devil","ghost"],"eyes":2,"horns":2,"name":"コウモリン"}\n```';
+      return Promise.resolve({ status: 200, json: { candidates: [{ finishReason: 'STOP', content: { parts: [{ text: txt }] } }] } });
+    };
+  }
+
   // にせの AI（transport）。kind = ok / wait / err / safety / busy
   function fakeAi(kind) {
     return function (url, init) {
@@ -902,6 +918,36 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const j = MQ.ui.battle.lastJudge();
       say('write judge: ' + JSON.stringify(j));
       say('write ui: msg=' + $('.arena__msg').textContent + ' | feedback=' + $('.feedback').textContent + ' | model=' + ($('.card__model') ? $('.card__model').textContent : '-') + ' | cmp=' + !!$('.wcmp') + ' | keys=' + Array.prototype.map.call(document.querySelectorAll('.key'), function (b) { return b.textContent; }).join('/'));
+      dump();
+      return;
+    }
+
+    /* AIに 見てもらう（v6.0）：#aisee = コウモリと 当てる／#aisee:mimic = たからばこ／
+       #aisee:bad = こたえが JSONで ない／#aisee:404 = 1つめの AIが 無い（2つめで 成功）／
+       #aisee:err = かぎが ちがう／#aisee:off = かぎ なし（ボタンが 出ない） */
+    if (mode.indexOf('aisee') === 0) {
+      fresh();
+      const kind = mode.split(':')[1] || 'ok';
+      MQ.ai._reset();
+      if (kind !== 'off') MQ.ai.setConfig({ key: 'AIzaTEST', limit: 20 });
+      MQ.ai.transport = fakeSee(kind);
+      MQ.ui.photo.render();
+      await new Promise(function (res) { MQ.ui.photo.render.load(kind === 'mimic' ? fakeDrawing2() : fakeDrawing(), function () { res(); }); });
+      await wait(100);
+      const btn = $('.photo__see');
+      say('see before: btn=' + (btn && !$('.photo__seerow').hidden ? 'shown' : 'hidden') + ' left=' + MQ.ai.left() + ' 1st=' + (MQ.ui.photo.picks()[0] || {}).kind);
+      if (kind === 'off') { dump(); return; }
+      btn.click();
+      let n = 0;
+      while (MQ.ui.photo.seeState().busy && n < 60) { await wait(50); n++; }
+      await wait(100);
+      const st = MQ.ui.photo.seeState();
+      say('see after: ' + JSON.stringify(st) + ' used=' + MQ.ai.usedToday() + ' seeModel=' + MQ.ai.config().seeModel);
+      say('see picks: ' + MQ.ui.photo.picks().slice(0, 5).map(function (p) { return p.kind; }).join(' '));
+      say('see ui: note=' + ($('.photo__seenote').hidden ? 'hidden' : $('.photo__seenote').textContent) + ' name=' + ($('.photo__form .input') ? $('.photo__form .input').value : ($('.input') ? $('.input').value : '')));
+      const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__preview');
+      if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 90;
+      await wait(150);
       dump();
       return;
     }
