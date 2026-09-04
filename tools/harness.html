@@ -572,6 +572,18 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     if (mode === 'dex') { fresh(); MQ.ui.dex.render('hero'); MQ.ui.show('screen-dex'); return; }
     if (mode === 'treasure') { fresh(); MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
+    // そうび（v5.4）：#gear = グレード1〜3 ／ #gear:all = 30点 ぜんぶ
+    if (mode === 'gear' || mode.indexOf('gear:') === 0) {
+      fresh({ allGear: mode.split(':')[1] === 'all' });
+      MQ.ui.dex.render('hero'); MQ.ui.show('screen-dex');
+      await wait(80);
+      const sec = $('.gearnow');
+      const wrap = $('#screen-dex .wrap');
+      if (sec && wrap) wrap.scrollTop = sec.offsetTop - 40;
+      say('gear: そうび ' + MQ.save.current().gear.length + ' 点／' + (sec ? sec.textContent : 'gearnow MISSING'));
+      dump();
+      return;
+    }
     if (mode === 'mons') { fresh(); MQ.ui.dex.render('mons'); MQ.ui.show('screen-dex'); return; }
     // 学期（v2.6）：#term1 1学期に した 地図／#parent1 おうちの人ページ（1学期）
     if (mode.indexOf('term1') === 0 || mode === 'parent1') {
@@ -911,12 +923,20 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     // どうぐ（v2.0）：#bag＝シートを 開いた ところ／#bagfx:<power>＝使った ときの 演出
     //                 #bagguard＝たてが まもった ところ／#bagdex＝ずかんの もちもの
-    const ITEM_OF = { burst: 'tr-wari', shield: 'tr-ookii', freeze: 'tr-jikoku', guide: 'tr-hissan', golden: 'tr-graph', chest: 'tr-amari', power: 'tr-kake', charge: 'tr-omosa' };
-    if (mode === 'bag' || mode.indexOf('bagfx') === 0 || mode === 'bagguard' || mode === 'bagre') {
+    const ITEM_OF = { burst: 'tr-wari', shield: 'tr-ookii', freeze: 'tr-jikoku', guide: 'tr-hissan', golden: 'tr-graph', chest: 'tr-amari', power: 'tr-kake', charge: 'tr-omosa',
+      bond: 'tr-nagasa', rush: 'tr-kaki', find: 'tr-chizu', swift: 'tr-mushi', elixir: 'tr-iro' };   // v5.4
+    if (mode === 'bag' || mode === 'bag2' || mode.indexOf('bagfx') === 0 || mode === 'bagguard' || mode === 'bagre') {
       const want = mode.split(':')[1] || 'burst';
-      fresh({ treasure: { 'tr-wari': 2, 'tr-ookii': 1, 'tr-graph': 1, 'tr-jikoku': 1, 'tr-hissan': 2, 'tr-amari': 1, 'tr-kake': 1, 'tr-omosa': 1 } });
+      fresh({ treasure: { 'tr-wari': 2, 'tr-ookii': 1, 'tr-graph': 1, 'tr-jikoku': 1, 'tr-hissan': 2, 'tr-amari': 1, 'tr-kake': 1, 'tr-omosa': 1,
+        'tr-nagasa': 1, 'tr-kaki': 2, 'tr-chizu': 1, 'tr-mushi': 1, 'tr-iro': 2 } });   // v5.4 の 5つも
       MQ.save.update(function (pl) {
-        pl.bag = mode === 'bag' ? ['tr-wari', 'tr-ookii', 'tr-graph'] : [ITEM_OF[mode === 'bagguard' ? 'shield' : want] || 'tr-wari'];
+        pl.bag = mode === 'bag' ? ['tr-wari', 'tr-ookii', 'tr-graph']
+          : mode === 'bag2' ? ['tr-nagasa', 'tr-kaki', 'tr-iro']
+          : [ITEM_OF[mode === 'bagguard' ? 'shield' : want] || 'tr-wari'];
+        // きずなの わ・なかまの くすりは 相棒が いる ときだけ 使える
+        if (mode === 'bag2' || want === 'bond' || want === 'elixir') {
+          MQ.pals.add(pl, 'slime-green'); MQ.pals.setActive(pl, 'slime-green');
+        }
       });
       MQ.ui.battle.start('sansu3-6');
       await wait(400);
@@ -925,7 +945,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         st.textContent = '.fx, .fx *, .hero, .hero::after, .enemy__img, .combo, .bagbtn__dot { animation-delay: -.3s !important; animation-play-state: paused !important; }';
         document.head.appendChild(st);
       };
-      if (mode === 'bag') { MQ.ui.battle.openBag(); say('bag: ' + $$('.bagrow').length + ' items'); return; }
+      if (mode === 'bag' || mode === 'bag2') { MQ.ui.battle.openBag(); say(mode + ': ' + $$('.bagrow').length + ' items'); return; }
       if (mode === 'bagre') {
         // つかいおわった アイテムに「もう1回」（コイン2まい）が 出る ところ
         MQ.ui.battle.demoItem('burst');

@@ -94,6 +94,24 @@ MQ.ui.dex = (function () {
       ]);
     }));
 
+    // いま つけている そうびの 効果（v5.4）
+    const gp = MQ.hero.gearPower(player);
+    const gearNow = h('div', { class: 'gearnow' }, [
+      h('span', { class: 'gearnow__t', text: 'いまの そうびの ちから' }),
+      h('div', { class: 'gearnow__chips' }, MQ.hero.slots.map(function (slot) {
+        const item = player.equipped[slot] && MQ.hero.getGear(player.equipped[slot]);
+        return h('span', { class: 'gearnow__chip' + (item ? '' : ' is-off') }, [
+          h('b', { text: MQ.hero.slotName[slot] }),
+          h('i', { text: item ? item.powerShort : 'なし' })
+        ]);
+      }).concat(gp.setName ? [
+        h('span', { class: 'gearnow__chip gearnow__chip--set' }, [
+          h('b', { text: gp.setName + ' 一式' }),
+          h('i', { text: 'けいけんち ×' + gp.setMul.toFixed(1) })
+        ])
+      ] : []))
+    ]);
+
     // そうび（グレードごと）
     const gearBlocks = MQ.hero.grades.map(function (g) {
       const items = MQ.hero.gear.filter(function (x) { return x.grade === g.id; });
@@ -113,7 +131,8 @@ MQ.ui.dex = (function () {
           }, [
             h('img', { class: 'sprite cell__img', src: owned ? MQ.hero.gearSprite(item.id) : MQ.hero.gearShadow(item.id), alt: '' }),
             h('span', { class: 'cell__name', text: owned ? item.name : '？？？' }),
-            h('span', { class: 'cell__tag', text: owned ? (on ? 'そうび中' : 'そうびする') : (g.id === 'densetsu' ? 'かけら／ラスボス' : '★2つで もらえる') })
+            h('span', { class: 'cell__pow', text: owned ? item.powerShort : '' }),
+            h('span', { class: 'cell__tag', text: owned ? (on ? 'そうび中' : 'そうびする') : g.how })
           ]);
         }))
       ]);
@@ -123,7 +142,8 @@ MQ.ui.dex = (function () {
       card,
       h('h2', { class: 'label', text: 'しょうごう（すきなものを えらべる）' }),
       titleGrid,
-      h('h2', { class: 'label', text: 'そうび（けん・たて・かぶと・よろい・マント × 4しゅるい）' })
+      h('h2', { class: 'label', text: 'そうび（けん・たて・かぶと・よろい・マント × 6しゅるい）' }),
+      gearNow
     ].concat(gearBlocks));
   }
 

@@ -178,7 +178,8 @@ MQ.ui.battle = (function () {
       MQ.battle.start({
         stage: found.stage, mode: 'tower',
         bossId: found.stage.bossId || 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3,
-        timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player)
+        timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
+        gear: MQ.hero.gearPower(player)
       });
     } else {
       // リベンジ（v3.1）：にげてから 時間が たった 敵だけ（古い ものから）。にげた その日は とっくんで
@@ -200,7 +201,8 @@ MQ.ui.battle = (function () {
         stage: found.stage, mode: 'normal',
         escaped: escaped, enemies: enemies, bossId: boss.id,
         rareId: rareId, trioIds: trioIds, chest: true, mobs: MOBS,
-        timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player)
+        timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
+        gear: MQ.hero.gearPower(player)
       });
     }
 
@@ -238,7 +240,8 @@ MQ.ui.battle = (function () {
       }),
       items: bagOf(player),
       coins: player.coins || 0,
-      pal: palOf(player)
+      pal: palOf(player),
+      gear: MQ.hero.gearPower(player)
     });
     d.heroImg.src = MQ.hero.sprite(player);
     syncPal(player);
@@ -569,6 +572,18 @@ MQ.ui.battle = (function () {
     } else if (res.power === 'charge') {
       comboShow(res.combo);
       d.msg.textContent = 'コンボ ＋' + res.val + '！ ' + chargeNote(res.combo);
+    } else if (res.power === 'bond') {
+      syncPalGauge();
+      d.msg.textContent = 'きずなの わが ひかる！ なかまゲージが ' + res.val + 'つ ずつ たまる！';
+    } else if (res.power === 'rush') {
+      d.msg.textContent = 'まきものが ひらいた！ コンボが ＋' + res.val + ' ずつ たまる！';
+    } else if (res.power === 'find') {
+      MQ.sfx.coin();
+      d.msg.textContent = 'コンパスが 光った！ コインが ' + res.val + 'まい 見つかった！';
+    } else if (res.power === 'swift') {
+      d.msg.textContent = 'かぜが 味方だ！ はやとき ボーナスが かならず もらえる！';
+    } else if (res.power === 'elixir') {
+      d.msg.textContent = 'くすりを のませた！ なかまの けいけんちが ' + res.val + 'ばい！';
     }
     setTimeout(function () { locked = false; }, 900);
   }
@@ -576,7 +591,7 @@ MQ.ui.battle = (function () {
   function chargeNote(combo) {
     const sp = specialOf(combo);
     if (sp) return 'つぎの 正解で ' + sp.name;
-    const next = TIER1_MIN;
+    const next = TIER1_MIN - specialBoost();
     return 'ひっさつまで あと ' + Math.max(0, next - combo) + '！';
   }
 
@@ -614,10 +629,11 @@ MQ.ui.battle = (function () {
     d.hero.classList.toggle('has-burst', b.dmg > 1);
     d.hero.classList.toggle('has-shield', b.shield > 0);
     d.hero.classList.toggle('has-freeze', b.freeze > 0);
-    d.hero.classList.toggle('has-power', b.xpMul > 1);
+    d.hero.classList.toggle('has-power', b.xpMul > 1 || b.comboPlus > 0 || b.palPlus > 0 || b.palXp > 1);
     if (!d.bagDots) return;
     d.bagDots.innerHTML = '';
-    [['burst', b.dmg > 1], ['shield', b.shield > 0], ['freeze', b.freeze > 0], ['power', b.xpMul > 1]].forEach(function (p) {
+    [['burst', b.dmg > 1], ['shield', b.shield > 0], ['freeze', b.freeze > 0],
+      ['power', b.xpMul > 1 || b.comboPlus > 0 || b.palPlus > 0 || b.palXp > 1]].forEach(function (p) {
       if (p[1]) d.bagDots.appendChild(h('i', { class: 'bagbtn__dot bagbtn__dot--' + p[0] }));
     });
   }
@@ -1254,9 +1270,14 @@ MQ.ui.battle = (function () {
     const area = (q && q.areaId) || (ctx && ctx.area && ctx.area.id) || '';
     return elementOf(area);
   }
+  // かぶと（そうび・v5.4）を つけて いると、ひっさつわざが N コンボ 早く 出る
+  function specialBoost() {
+    return (MQ.battle.specialBoost && MQ.battle.specialBoost()) || 0;
+  }
   function specialOf(combo) {
-    for (let i = 0; i < SPECIALS.length; i++) if (combo >= SPECIALS[i].min) return SPECIALS[i];
-    if (combo >= TIER1_MIN) return ELEMENTS[currentElement()];
+    const c = combo + specialBoost();
+    for (let i = 0; i < SPECIALS.length; i++) if (c >= SPECIALS[i].min) return SPECIALS[i];
+    if (c >= TIER1_MIN) return ELEMENTS[currentElement()];
     return null;
   }
   function specialById(id) {
@@ -1663,7 +1684,8 @@ MQ.ui.battle = (function () {
       });
       // なかま（v4.3）：けいけんちの 半分が 相棒にも 入る／たおした 中から「なかまに なりたい」1体
       if (MQ.pals) {
-        out.pal = MQ.pals.gain(p, sum.xp);
+        // なかまの くすり（v5.4）で 相棒の けいけんちが ばいに なる
+        out.pal = MQ.pals.gain(p, Math.round(sum.xp * (sum.palXpMul || 1)));
         out.palOffer = MQ.pals.offerFrom(p, sum.defeated);
       }
 
@@ -1731,11 +1753,22 @@ MQ.ui.battle = (function () {
         MQ.save.addLog(p, area.name + ' の まなびの かけらを 手に入れた');
       });
 
-      /* ---- ラスボスを たおした → でんせつ 一式の さいごの1点 ---- */
+      /* ---- ラスボスを たおした → でんせつ 一式の さいごの1点
+             でんせつが そろっていたら「やみ」の 一式を 1点ずつ（v5.4） ---- */
       if (sum.bossBeaten && ctx.stage.tower) {
-        const g = MQ.hero.nextDensetsu(p);
+        const g = MQ.hero.nextDensetsu(p) || MQ.hero.nextYami(p);
         if (g) { p.gear.push(g.id); p.equipped[g.slot] = g.id; out.densetsu.push(g); }
         MQ.save.addLog(p, 'さいごの塔で ' + MQ.content.lastBoss().name + 'を たおした！');
+      }
+
+      /* ---- ほし の 一式：★3の ステージが 3・6・9・12・15 に なったとき（v5.4） ---- */
+      if (!ctx.tokkun) {
+        const star3 = Object.keys(p.stars || {}).filter(function (k) { return p.stars[k] >= 3; }).length;
+        const g = MQ.hero.nextHoshi(p, star3);
+        if (g) {
+          p.gear.push(g.id); p.equipped[g.slot] = g.id; out.densetsu.push(g);
+          MQ.save.addLog(p, '★を あつめて ' + g.name + ' を 手に入れた');
+        }
       }
 
       out.fullSet = MQ.hero.equippedSetOf(p);

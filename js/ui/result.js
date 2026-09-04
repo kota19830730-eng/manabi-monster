@@ -187,7 +187,8 @@ MQ.ui.result = (function () {
         rw.gold ? 'rs__item--gold' : ''));
     }
     rw.densetsu.forEach(function (g) {
-      cards.push(itemCard(MQ.hero.gearSprite(g.id), g.name, { text: 'でんせつ', cls: 'rs__badge--gold' }, 'rs__item--gold'));
+      // でんせつ／ほし／やみ の 一式（v5.4）。バッジは その グレードの 名前
+      cards.push(itemCard(MQ.hero.gearSprite(g.id), g.name, { text: g.gradeName, cls: 'rs__badge--gold' }, 'rs__item--gold'));
     });
     rw.frags.forEach(function (a) {
       cards.push(itemCard(MQ.ui.fragSprite(), a.short + 'の かけら', { text: 'かけら', cls: 'rs__badge--gold' }, 'rs__item--gold'));

@@ -219,15 +219,15 @@ MQ.treasure = (function () {
       desc:  function (v) { return 'つぎの 正解が ' + v + 'ばい！ ボスには ' + v + 'ダメージ'; },
       short: function (v) { return '正解が ' + v + 'ばい'; },
       chips: function (v) { return ['正解 ×' + v, 'ボス ' + v + 'ダメージ']; } },
-    { id: 'shield', name: 'てっぺき まもり',   kind: 'def',  shapes: ['crown', 'ring'],            val: [1, 2],
+    { id: 'shield', name: 'てっぺき まもり',   kind: 'def',  shapes: ['crown'],                    val: [1, 2],
       desc:  function (v) { return 'まちがえても ' + v + '回 セーフ。てきは にげない'; },
       short: function (v) { return v + '回 セーフ'; },
       chips: function (v) { return ['セーフ ' + v + '回', 'にげられない']; } },
-    { id: 'freeze', name: '時とめ',            kind: 'def',  shapes: ['hourglass', 'feather'],     val: [1, 2],
+    { id: 'freeze', name: '時とめ',            kind: 'def',  shapes: ['hourglass'],                val: [1, 2],
       desc:  function (v) { return 'まちがえても コンボが 切れない（' + v + '回）'; },
       short: function (v) { return 'コンボを まもる'; },
       chips: function (v) { return ['コンボ キープ', v + '回']; } },
-    { id: 'guide',  name: 'みちしるべ',        kind: 'wis',  shapes: ['book', 'scroll', 'compass'], val: [1, 2],
+    { id: 'guide',  name: 'みちしるべ',        kind: 'wis',  shapes: ['book'],                     val: [1, 2],
       desc:  function (v) { return 'ヒントを 先に 見られる（' + v + '回）'; },
       short: function (v) { return '先に ヒント'; },
       chips: function (v) { return ['先に ヒント', v + '回']; } },
@@ -239,14 +239,37 @@ MQ.treasure = (function () {
       desc:  function (v) { return 'たからばこが もう1つ 出る（コイン ' + v + 'まい）'; },
       short: function (v) { return 'はこ ＋1'; },
       chips: function (v) { return ['たからばこ +1', 'コイン +' + v]; } },
-    { id: 'power',  name: 'パワーアップ',      kind: 'atk',  shapes: ['orb', 'potion'],            val: [1.5, 2],
+    { id: 'power',  name: 'パワーアップ',      kind: 'atk',  shapes: ['orb'],                      val: [1.5, 2],
       desc:  function (v) { return 'おわりまで けいけんち ' + v + 'ばい'; },
       short: function (v) { return 'けいけんち ' + v + 'ばい'; },
       chips: function (v) { return ['けいけんち ×' + v, 'おわりまで']; } },
     { id: 'charge', name: 'ひっさつ チャージ', kind: 'atk',  shapes: ['bell'],                     val: [3, 5],
       desc:  function (v) { return 'コンボ ＋' + v + '。ひっさつわざに 近づく'; },
       short: function (v) { return 'コンボ ＋' + v; },
-      chips: function (v) { return ['コンボ +' + v, 'ひっさつに 近づく']; } }
+      chips: function (v) { return ['コンボ +' + v, 'ひっさつに 近づく']; } },
+
+    /* ---- v5.4 で ふえた 5つ ----
+       ここも 大原則は 同じ：効果は「正解した とき」に 出る。 */
+    { id: 'bond',   name: 'きずなの わ',       kind: 'luck', shapes: ['ring'],                     val: [2, 3], palOnly: true,
+      desc:  function (v) { return '正解 1回で なかまゲージが ' + v + 'つ たまる'; },
+      short: function (v) { return 'ゲージ ' + v + 'つ'; },
+      chips: function (v) { return ['ゲージ ×' + v, 'なかまの 追い打ちが 早い']; } },
+    { id: 'rush',   name: 'コンボの まきもの', kind: 'atk',  shapes: ['scroll'],                   val: [1, 2],
+      desc:  function (v) { return '正解するたび コンボが ＋' + v + ' 多く たまる'; },
+      short: function (v) { return 'コンボ ＋' + v + 'ずつ'; },
+      chips: function (v) { return ['コンボ +' + v + ' ずつ', 'ひっさつが 早い']; } },
+    { id: 'find',   name: 'たからの コンパス', kind: 'luck', shapes: ['compass'],                  val: [2, 3],
+      desc:  function (v) { return 'コインが ' + v + 'まい 見つかる'; },
+      short: function (v) { return 'コイン ＋' + v; },
+      chips: function (v) { return ['コイン +' + v, 'すぐ もらえる']; } },
+    { id: 'swift',  name: 'はやての はね',     kind: 'luck', shapes: ['feather'],                  val: [30, 60],
+      desc:  function (v) { return 'はやとき ボーナス（けいけんち ＋' + v + '）が かならず もらえる'; },
+      short: function (v) { return 'はやとき ＋' + v; },
+      chips: function (v) { return ['はやとき かくてい', 'けいけんち +' + v]; } },
+    { id: 'elixir', name: 'なかまの くすり',   kind: 'wis',  shapes: ['potion'],                   val: [2, 3], palOnly: true,
+      desc:  function (v) { return '相棒の けいけんちが ' + v + 'ばい'; },
+      short: function (v) { return '相棒 ' + v + 'ばい'; },
+      chips: function (v) { return ['相棒の けいけんち ×' + v, 'おわりまで']; } }
   ];
   const KIND_NAME = { atk: 'こうげき', def: 'まもり', wis: 'かしこさ', luck: 'ラッキー' };
   const powerByShape = {};
@@ -277,7 +300,8 @@ MQ.treasure = (function () {
       id: id, name: t.name, power: pw.id, powerName: pw.name, kind: pw.kind, kindName: KIND_NAME[pw.kind],
       val: val, gold: gold,
       uses: pw.id === 'guide' ? val : 1,      // みちしるべだけ「回数」が 効果
-      desc: pw.desc(val), short: pw.short(val), chips: pw.chips(val), mobOnly: !!pw.mobOnly
+      desc: pw.desc(val), short: pw.short(val), chips: pw.chips(val),
+      mobOnly: !!pw.mobOnly, palOnly: !!pw.palOnly
     };
   }
 

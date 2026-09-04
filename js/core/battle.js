@@ -229,9 +229,24 @@ MQ.battle = (function () {
       return Object.assign({}, it, { left: it.uses || 1 });
     });
 
+    /* そうびの 効果（v5.4）。MQ.hero.gearPower(player) の かたち。
+       けん＝正解ごとの けいけんち／たて＝セーフ／かぶと＝ひっさつが 早い／
+       よろい＝コンボを まもる／マント＝おわりの コイン／セットは けいけんち ばい */
+    const gear = Object.assign(
+      { xpAdd: 0, safe: 0, special: 0, keep: 0, coins: 0, setMul: 1, setName: '' },
+      opts.gear || null
+    );
+
     s = {
       items: bag,
-      buff: { dmg: 1, shield: 0, freeze: 0, xpMul: 1 },   // どうぐの 効果（のこり）
+      gear: gear,
+      // どうぐ・そうびの 効果（のこり）
+      buff: {
+        dmg: 1,
+        shield: opts.timeAttack ? 0 : gear.safe,   // たて：はじめから セーフ
+        freeze: opts.timeAttack ? 0 : gear.keep,   // よろい：はじめから コンボを まもる
+        xpMul: 1, palPlus: 0, comboPlus: 0, fastSure: 0, palXp: 1
+      },
       itemsUsed: [],
       frozenQ: null,     // 時とめが 効いている 問題の id
       guidedQ: null,     // みちしるべを 使った 問題の id
@@ -351,7 +366,7 @@ MQ.battle = (function () {
      **まちがえても へらない**（アプリの「ばつを 与えない」きまりに そろえた） */
   function palHitNow() {
     if (!s.pal || !MQ.pals) return false;
-    s.palGauge++;
+    s.palGauge += 1 + (s.buff.palPlus || 0);     // きずなの わ（v5.4）で 早く たまる
     const need = MQ.pals.gaugeNeed();
     const hit = s.palGauge >= need;
     if (hit) { s.palGauge = 0; s.palHits++; }
@@ -368,7 +383,7 @@ MQ.battle = (function () {
       s.correct++;
       let crit = false;
       if (!wasRetry) {
-        s.combo++;
+        s.combo += 1 + (s.buff.comboPlus || 0);   // コンボの まきもの（v5.4）
         if (s.combo > s.maxCombo) s.maxCombo = s.combo;
         crit = s.combo >= 3;
       } else if (q.groupId) {
@@ -378,7 +393,7 @@ MQ.battle = (function () {
       /* ---- たからばこ ---- */
       if (q.chest) {
         const palHit = palHitNow();
-        const xp = gain(XP.chest + (palHit ? XP.pal : 0));
+        const xp = gain(XP.chest + (palHit ? XP.pal : 0) + s.gear.xpAdd);
         const coins = q.coins || 1;        // たからばこ よび（金色）は 2まい
         s.coins += coins;
         s.chestOpened = true;
@@ -395,6 +410,7 @@ MQ.battle = (function () {
         s.buff.dmg = 1;
         let xp = (wasRetry ? (last ? XP.lastHitRetry : XP.bossHitRetry) : (last ? XP.lastHit : XP.bossHit)) * dmg;
         if (crit) xp += XP.critBonus;
+        xp += s.gear.xpAdd;                  // けん（そうび）の 効果
         s.bossHp -= dmg;
         const defeated = s.bossHp <= 0;
         if (defeated) {
@@ -438,6 +454,7 @@ MQ.battle = (function () {
       // ばくれつ こうげき：この 1体ぶんの けいけんちが ばいに
       let burst = 0;
       if (s.buff.dmg > 1) { burst = s.buff.dmg; xp *= burst; s.buff.dmg = 1; }
+      xp += s.gear.xpAdd;                    // けん（そうび）の 効果
       xp = gain(xp);
       s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
       // ゴールデンスライムは コインを 落とす
@@ -504,13 +521,19 @@ MQ.battle = (function () {
        chest  … たからばこを もう1つ さしこむ（コイン val まい）
        power  … おわりまで けいけんち val ばい
        charge … コンボ ＋val
+     v5.4 で ふえた 5つ：
+       bond   … なかまゲージが 正解1回で val つ たまる（相棒が いる ときだけ）
+       rush   … 正解するたび コンボが ＋val 多く たまる（ひっさつが 早い）
+       find   … コインが その場で val まい
+       swift  … はやとき ボーナス（けいけんち val）が かならず もらえる
+       elixir … 相棒の けいけんちが val ばい（相棒が いる ときだけ）
      効果は 正解した ときに 出る。正解しなくても てきが たおれる わざは ない。
      ======================================================= */
   function goldenId() { return MQ.enemies && MQ.enemies.goldenId ? MQ.enemies.goldenId() : 'slime-golden'; }
 
-  // けいけんちを 足す（パワーアップの ばいりつ こみ・四捨五入）
+  // けいけんちを 足す（パワーアップと そうびセットの ばいりつ こみ・四捨五入）
   function gain(xp) {
-    const v = Math.round(xp * (s.buff.xpMul || 1));
+    const v = Math.round(xp * (s.buff.xpMul || 1) * (s.gear.setMul || 1));
     s.xp += v;
     return v;
   }
@@ -548,6 +571,7 @@ MQ.battle = (function () {
     if (s.phase === 'done') return { ok: false, why: 'おわった' };
     if (it.left <= 0) return { ok: false, why: 'つかった' };
     if (it.mobOnly && s.phase !== 'mob') return { ok: false, why: 'ボスには つかえない' };
+    if (it.palOnly && !s.pal) return { ok: false, why: 'なかまが いない' };
     if (it.power === 'golden' && !goldenTargets(1).length) return { ok: false, why: 'もう ザコが いない' };
     if (it.power === 'guide' && current() && s.guidedQ === current().id) return { ok: false, why: 'もう 見た' };
     return { ok: true };
@@ -598,6 +622,18 @@ MQ.battle = (function () {
       s.combo += it.val;
       if (s.combo > s.maxCombo) s.maxCombo = s.combo;
       out.combo = s.combo;
+    } else if (it.power === 'bond') {
+      s.buff.palPlus = Math.max(s.buff.palPlus, it.val - 1);
+      out.gauge = s.palGauge;
+    } else if (it.power === 'rush') {
+      s.buff.comboPlus = Math.max(s.buff.comboPlus, it.val);
+    } else if (it.power === 'find') {
+      s.coins += it.val;
+      out.coins = it.val;
+    } else if (it.power === 'swift') {
+      s.buff.fastSure = Math.max(s.buff.fastSure, it.val);
+    } else if (it.power === 'elixir') {
+      s.buff.palXp = Math.max(s.buff.palXp, it.val);
     }
     out.buff = buffs();
     return out;
@@ -614,8 +650,11 @@ MQ.battle = (function () {
   }
   // のこっている 効果（画面用）
   function buffs() {
-    if (!s) return { dmg: 1, shield: 0, freeze: 0, xpMul: 1 };
-    return { dmg: s.buff.dmg, shield: s.buff.shield, freeze: s.buff.freeze, xpMul: s.buff.xpMul };
+    if (!s) return { dmg: 1, shield: 0, freeze: 0, xpMul: 1, palPlus: 0, comboPlus: 0, palXp: 1 };
+    return {
+      dmg: s.buff.dmg, shield: s.buff.shield, freeze: s.buff.freeze, xpMul: s.buff.xpMul,
+      palPlus: s.buff.palPlus, comboPlus: s.buff.comboPlus, palXp: s.buff.palXp
+    };
   }
 
   /* =======================================================
@@ -698,10 +737,13 @@ MQ.battle = (function () {
   function summary() {
     const time = elapsed();
     const fast = s.answered > 0 && time <= s.answered * SEC_PER_Q;
-    const fastBonus = fast ? XP.fast : 0;
+    // はやての はね（v5.4）を つかった ときは かならず もらえる
+    const fastBonus = Math.max(fast ? XP.fast : 0, s.answered > 0 ? (s.buff.fastSure || 0) : 0);
     const stars = starsFor(s.correct, s.answered);
     // ★3で コイン +1（とっくんは のぞく）
     const starCoins = s.mode !== 'tokkun' && s.answered > 0 && stars === 3 ? 1 : 0;
+    // マント（そうび）の コイン（とっくんは のぞく）
+    const gearCoins = s.mode !== 'tokkun' && s.answered > 0 ? (s.gear.coins || 0) : 0;
     return {
       stageId: s.stage.id,
       mode: s.mode,
@@ -711,8 +753,11 @@ MQ.battle = (function () {
       baseXp: s.xp,
       fastBonus: fastBonus,
       time: time,
-      coins: s.coins + starCoins,
+      coins: s.coins + starCoins + gearCoins,
       starCoins: starCoins,
+      gearCoins: gearCoins,
+      gearSet: s.gear.setName || '',
+      palXpMul: s.buff.palXp || 1,
       coinsSpent: s.coinsSpent,
       chestOpened: s.chestOpened,
       multiKO: s.multiKO.slice(),
@@ -755,6 +800,9 @@ MQ.battle = (function () {
     combo: function () { return s.combo; },
     palGauge: function () { return s.palGauge; },
     palGaugeNeed: function () { return MQ.pals ? MQ.pals.gaugeNeed() : 3; },
+    // かぶと（そうび）で ひっさつわざが 何コンボ 早く 出るか（v5.4）
+    specialBoost: function () { return (s && s.gear && s.gear.special) || 0; },
+    gear: function () { return s ? s.gear : null; },
     correct: function () { return s.correct; },
     isRetry: function () { return s.retry; },
     stage: function () { return s.stage; },

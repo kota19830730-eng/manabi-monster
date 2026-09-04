@@ -146,9 +146,17 @@
     const items = [];
     for (let i = 0; i < 8; i++) items.push({ name: '', src: MQ.hero.sprite({ look: MQ.hero.randomLook(), equipped: eq }) });
     block('いろいろな 子', 'full', items);
-    ['kihon','tetsu','ryu','densetsu'].forEach(function(gr){
-      const e = {}; MQ.hero.slots.forEach(function(sl){ e[sl] = gr + '-' + sl; });
-      block(gr, 'full', [{ name: gr, src: MQ.hero.sprite({ look: one, equipped: e }) }]);
+    // 6グレードを 一式で（v5.4）
+    block('グレード 6しゅるい（一式）', 'big', MQ.hero.grades.map(function (g) {
+      const e = {}; MQ.hero.slots.forEach(function (sl) { e[sl] = g.id + '-' + sl; });
+      return { name: g.name, src: MQ.hero.sprite({ look: one, equipped: e }) };
+    }));
+    // 部位ごとに 6つ ならべる（かたちの ちがいを 見る）
+    MQ.hero.slots.forEach(function (slot) {
+      block(MQ.hero.slotName[slot], 'full', MQ.hero.grades.map(function (g) {
+        const id = g.id + '-' + slot;
+        return { name: g.name + '／' + MQ.hero.getGear(id).powerShort, src: MQ.hero.gearSprite(id) };
+      }));
     });
   }
 })();

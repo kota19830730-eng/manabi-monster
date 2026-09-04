@@ -1784,6 +1784,24 @@ body {
 .cell__name { font-size: 12px; line-height: 1.2; }
 .cell__tag { font-size: 10px; color: var(--tx-sub); }
 .cell__count { font-size: 10px; color: var(--gold); }
+/* そうびの ちから（v5.4） */
+.cell__pow { font-size: 10px; color: var(--gold); line-height: 1.2; }
+.gearnow {
+  margin: 0 0 10px; padding: 8px 10px; border-radius: 12px;
+  background: linear-gradient(var(--hd-1), var(--hd-2));
+  box-shadow: 0 3px 0 var(--hd-edge), inset 0 0 0 2px var(--gold);
+}
+.gearnow__t { display: block; font-size: 11px; color: var(--gold); margin-bottom: 6px; }
+.gearnow__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.gearnow__chip {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 3px 6px; border-radius: 8px; background: rgba(0,0,0,.28);
+}
+.gearnow__chip b { font-size: 10px; color: var(--tx-sub); font-weight: normal; }
+.gearnow__chip i { font-size: 11px; color: var(--tx); font-style: normal; }
+.gearnow__chip.is-off i { color: var(--tx-sub); }
+.gearnow__chip--set { background: rgba(255,212,71,.18); }
+.gearnow__chip--set i { color: var(--gold); }
 .cell.is-unknown { opacity: .55; }
 .cell.is-unknown .cell__img { filter: brightness(.3); }
 .cell.is-on { box-shadow: 0 4px 0 var(--gold-sh), inset 0 0 0 3px var(--gold); }

@@ -105,7 +105,7 @@ MQ.save = (function () {
     if (!p.missions || typeof p.missions !== 'object') p.missions = null;
     if (typeof p.missionsDone !== 'number') p.missionsDone = 0;   // クリアした ミッションの 数
     if (typeof p.missionDays !== 'number') p.missionDays = 0;     // 3つ ぜんぶ クリアした 日の 数
-    // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい20点に 置きかわる）
+    // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {
       if (p.equipped[slot] && MQ.hero && !MQ.hero.getGear(p.equipped[slot])) p.equipped[slot] = null;

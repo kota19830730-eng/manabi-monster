@@ -655,7 +655,42 @@ const trIds = MQ.treasure.list.map(function (t) { return t.id; });
 check(new Set(trIds).size === trIds.length, 'たからものの id が かぶっていない');
 
 /* ---- 主人公・そうび ---- */
-check(MQ.hero.gear.length === 20, 'そうび 20点: ' + MQ.hero.gear.length);
+check(MQ.hero.gear.length === 30, 'そうび 30点（5部位 × 6グレード）: ' + MQ.hero.gear.length);
+check(MQ.hero.grades.length === 6, 'グレード 6しゅるい: ' + MQ.hero.grades.length);
+(function () {
+  // v5.4：かたちが グレードごとに ちがう（前は 色だけ ちがった）
+  MQ.hero.slots.forEach(function (slot) {
+    const shapes = MQ.hero.gear.filter(function (g) { return g.slot === slot; })
+      .map(function (g) { return g.rows.join('\n'); });
+    check(new Set(shapes).size === 6, slot + ' の かたちが 6つ とも ちがう: ' + new Set(shapes).size);
+  });
+  // そうびの 効果：どの グレードも 0 では ない・上の グレードほど 強い
+  MQ.hero.slots.forEach(function (slot) {
+    const vals = MQ.hero.gearSlotPower[slot].vals;
+    check(vals.length === 6 && vals[0] >= 1, slot + ' の 効果は 6つ・かわでも 1いじょう');
+    for (let i = 1; i < 6; i++) check(vals[i] >= vals[i - 1], slot + ' の 効果は 下がらない');
+  });
+  const none = MQ.hero.gearPower({ equipped: {} });
+  check(none.xpAdd === 0 && none.setMul === 1, 'そうび なしなら 効果 0');
+  const full = {};
+  MQ.hero.slots.forEach(function (slot) { full[slot] = 'yami-' + slot; });
+  const gp = MQ.hero.gearPower({ equipped: full });
+  check(gp.xpAdd === 10 && gp.safe === 3 && gp.special === 2 && gp.keep === 3 && gp.coins === 3, 'やみ 一式の 効果: ' + JSON.stringify(gp));
+  check(Math.abs(gp.setMul - 1.6) < 1e-9 && gp.setName === 'やみ', 'セットボーナス ×1.6');
+  // もらい方：★2の ごほうびで でんせつ・ほし・やみ は 出ない
+  const pl = { gear: [], equipped: {} };
+  for (let i = 0; i < 30; i++) {
+    const g = MQ.hero.nextGear(pl);
+    if (!g) break;
+    check(!MQ.hero.isSpecial(g.id), '★2で もらえるのは グレード1〜3 だけ: ' + g.id);
+    pl.gear.push(g.id);
+  }
+  check(pl.gear.length === 15 && MQ.hero.nextGear(pl) === null, '★2で もらえるのは 15点: ' + pl.gear.length);
+  check(MQ.hero.nextHoshi({ gear: [] }, 2) === null, '★3が 2つでは ほしは まだ');
+  check(MQ.hero.nextHoshi({ gear: [] }, 3).id === 'hoshi-weapon', '★3が 3つで ほしの けん');
+  check(MQ.hero.nextHoshi({ gear: ['hoshi-weapon'] }, 3) === null, 'つぎの ほしは ★3が 6つから');
+  check(MQ.hero.nextYami({ gear: [] }).id === 'yami-weapon', 'やみは 塔を クリアするたび');
+})();
 check(MQ.hero.bodyRows.length === 48 && MQ.hero.bodyRows[0].length === 48, '主人公は 48×48');
 MQ.hero.gear.forEach(function (g) {
   check(g.rows.length === 48, 'そうび ' + g.id + ' rows');
@@ -687,6 +722,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     best: { 'sansu3-1': { correct: 13, total: 13, time: 100 } },
     fastCount: 9, bestCombo: 18, itemUses: 12, custom: [{ id: 'c1' }],
     missionsDone: 12, revengeWins: 6,  // v3.1 の しょうごう
+    gear: MQ.hero.gear.map(function (g) { return g.id; }),   // v5.4 の そうびの しょうごう
     // v5.2 の しょうごう：なかま 10体・そのうち 1体は Lv10
     pals: (function () {
       const o = {};
@@ -1178,14 +1214,17 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
    ======================================================= */
 (function () {
   // わざの 表
-  check(MQ.treasure.powers.length === 8, 'わざは 8しゅるい: ' + MQ.treasure.powers.length);
+  check(MQ.treasure.powers.length === 13, 'わざは 13しゅるい: ' + MQ.treasure.powers.length);
   const perPower = {};
   MQ.treasure.list.forEach(function (t) {
     const pw = MQ.treasure.powerOf(t.id);
     check(!!pw, 'たからもの ' + t.id + '（' + t.shape + '）に わざが ない');
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
-  const want = { burst: 12, shield: 13, freeze: 12, guide: 25, golden: 7, chest: 7, power: 15, charge: 8 };
+  const want = {
+    burst: 12, shield: 7, freeze: 5, guide: 8, golden: 7, chest: 7, power: 9, charge: 8,
+    bond: 6, rush: 9, find: 8, swift: 7, elixir: 6      // v5.4 で ふえた 5つ
+  };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
     check(typeof p.desc(p.val[0]) === 'string' && p.desc(p.val[0]).length > 0 && p.short(p.val[1]).length > 0, 'わざ ' + p.id + ' の せつめい');
@@ -1351,6 +1390,100 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
   check(u.combo === 3 && MQ.battle.combo() === 3, 'チャージで コンボ 3');
   r = MQ.battle.answer(correctValue(MQ.battle.current()));
   check(r.crit === true && r.combo === 4 && r.xp === 15, 'チャージの あとは クリティカル: ' + r.xp);
+
+  /* =======================================================
+     v5.4 で ふえた 5つの わざ
+     ======================================================= */
+  const PAL = { id: 'slime-green', name: 'みどりん' };
+
+  /* ---- きずなの わ：なかまゲージが 早く たまる（相棒が いる ときだけ） ---- */
+  startWith([it('tr-nagasa')]);
+  check(MQ.battle.canUse('tr-nagasa').why === 'なかまが いない', '相棒が いないと きずなの わは 使えない');
+  startWith([it('tr-nagasa')], { pal: PAL });
+  u = MQ.battle.useItem('tr-nagasa');
+  check(u.ok && u.power === 'bond' && MQ.battle.buffs().palPlus === 1, 'きずなの わを 使う');
+  r = MQ.battle.answer(correctValue(MQ.battle.current()));
+  check(MQ.battle.palGauge() === 2, '1問で ゲージ 2つ: ' + MQ.battle.palGauge());
+  MQ.battle.next();
+  r = MQ.battle.answer(correctValue(MQ.battle.current()));
+  check(r.palHit === true, '2問で 追い打ち（ふつうは 3問）');
+
+  /* ---- コンボの まきもの：コンボが ＋1 ずつ 多く たまる ---- */
+  startWith([it('tr-kaki')]);
+  MQ.battle.useItem('tr-kaki');
+  r = MQ.battle.answer(correctValue(MQ.battle.current()));
+  check(r.combo === 2, 'まきもので 1問め から コンボ 2: ' + r.combo);
+  MQ.battle.next();
+  r = MQ.battle.answer(correctValue(MQ.battle.current()));
+  check(r.combo === 4 && r.crit === true, '2問めで コンボ 4: ' + r.combo);
+  check(MQ.battle.summary().maxCombo === 4, 'さいだいコンボにも 入る');
+
+  /* ---- たからの コンパス：コインが その場で ---- */
+  startWith([it('tr-chizu', true)]);
+  u = MQ.battle.useItem('tr-chizu');
+  check(u.ok && u.coins === 3, '金色の コンパスは コイン 3まい: ' + u.coins);
+  MQ.battle.answer(correctValue(MQ.battle.current()));
+  check(MQ.battle.summary().coins >= 3, 'summary の コインに 入る');
+
+  /* ---- はやての はね：はやとき ボーナスが かならず ---- */
+  startWith([]);
+  MQ.battle.answer(correctValue(MQ.battle.current()));
+  const slowSum = MQ.battle.summary();
+  startWith([it('tr-mushi')]);
+  MQ.battle.useItem('tr-mushi');
+  MQ.battle.answer(correctValue(MQ.battle.current()));
+  check(MQ.battle.summary().fastBonus === 30, 'はやての はねで ボーナス 30: ' + MQ.battle.summary().fastBonus);
+  check(typeof slowSum.fastBonus === 'number', 'ふつうの はやときも これまでどおり');
+
+  /* ---- なかまの くすり：相棒の けいけんちが ばいに ---- */
+  startWith([it('tr-iro')]);
+  check(MQ.battle.canUse('tr-iro').why === 'なかまが いない', '相棒が いないと くすりは 使えない');
+  startWith([it('tr-iro', true)], { pal: PAL });
+  u = MQ.battle.useItem('tr-iro');
+  check(u.ok && u.power === 'elixir', 'なかまの くすりを 使う');
+  MQ.battle.answer(correctValue(MQ.battle.current()));
+  check(MQ.battle.summary().palXpMul === 3, '金色は 相棒の けいけんち 3ばい: ' + MQ.battle.summary().palXpMul);
+
+  /* =======================================================
+     そうびの 効果（v5.4）。gear を わたした ときだけ 効く
+     ======================================================= */
+  (function () {
+    const one = function (slot, grade) { const o = {}; o[slot] = grade + '-' + slot; return MQ.hero.gearPower({ equipped: o }); };
+    // けん：正解 1もんごとに けいけんち ＋
+    startWith([], { gear: one('weapon', 'yami') });
+    let rr = MQ.battle.answer(correctValue(MQ.battle.current()));
+    check(rr.xp === 20, 'やみの 大けんで ザコ 10 → 20: ' + rr.xp);
+    // たて：はじめから セーフ
+    startWith([], { gear: one('shield', 'kihon') });
+    check(MQ.battle.buffs().shield === 1, 'かわの たてで セーフ 1回');
+    const qq = MQ.battle.current();
+    MQ.battle.answer(wrongValue(qq));
+    check(MQ.battle.answer(wrongValue(qq)).outcome === 'shielded', 'たてが まもる');
+    // よろい：はじめから コンボを まもる
+    startWith([], { gear: one('armor', 'ryu') });
+    check(MQ.battle.buffs().freeze === 2, 'りゅうの よろいで コンボを 2回 まもる');
+    // かぶと：ひっさつが 早い（core は 数だけ、絵は ui）
+    startWith([], { gear: one('helm', 'densetsu') });
+    check(MQ.battle.specialBoost() === 2, 'でんせつの かぶとで 2コンボ 早い');
+    // マント：おわりに コイン
+    startWith([], { gear: one('cape', 'yami') });
+    clearMobs(9);
+    while (!MQ.battle.isOver()) { const x = MQ.battle.answer(correctValue(MQ.battle.current())); if (!x.defeated && !x.fled) MQ.battle.next(); }
+    check(MQ.battle.summary().gearCoins === 3, 'やみの マントで コイン ＋3');
+    // セット：けいけんちが ふえる
+    const setEq = {}; MQ.hero.slots.forEach(function (slot) { setEq[slot] = 'kihon-' + slot; });
+    startWith([], { gear: MQ.hero.gearPower({ equipped: setEq }) });
+    rr = MQ.battle.answer(correctValue(MQ.battle.current()));
+    check(rr.xp === 12, 'かわ 一式（10＋けん1）×1.1 = 12: ' + rr.xp);
+    check(MQ.battle.summary().gearSet === 'かわ', 'summary に セットの 名前');
+    // タイムアタックでは たて・よろいは 効かない（きろくの 公平さ）
+    startWith([], { gear: MQ.hero.gearPower({ equipped: setEq }), timeAttack: 20 });
+    check(MQ.battle.buffs().shield === 0 && MQ.battle.buffs().freeze === 0, 'タイムアタックでは たて・よろいは なし');
+    // とっくんに マントの コインは ない
+    MQ.battle.start({ stage: stK, mode: 'tokkun', gear: one('cape', 'yami'), escaped: [{ key: 'z8', q: { id: 'z8', type: 'number', prompt: '1+1は？', answer: 2, unit: 'テスト' }, enemyId: 'slime-green', areaId: 'kokugo' }] });
+    MQ.battle.answer(2);
+    check(MQ.battle.summary().gearCoins === 0, 'とっくんに マントの コインは ない');
+  })();
 
   /* ---- タイムアタックでは 使えない ---- */
   startWith([it('tr-wari')], { timeAttack: 20 });

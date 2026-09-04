@@ -157,7 +157,24 @@ MQ.hero = (function () {
   }
 
   /* =======================================================
-     そうび（5部位 × 4グレード ＝ 20点）
+     そうび（5部位 × 6グレード ＝ 30点）
+
+     v5.4：
+       ・グレードを 4 → 6 に ふやした（かわ／てつ／りゅう／でんせつ／ほし／やみ）
+       ・**かたちも グレードごとに ちがう**（前は 色だけ ちがった）
+       ・そうびに **戦いの 効果**が ついた（下の GEAR_POWER）
+
+     かたちの 作り方：
+       「てつ」の 一式（デザインモックの 騎士）を 元の かたち（BASE）に して、
+       ほかの グレードは その マス目を 少し けずったり、かざり（e）を
+       足したり して 作る。こうすると ぜんぶが 同じ 世界の 絵に なる。
+       手で 48×48 を 打たない（face.js と 同じ やり方）。
+
+     マス目の 文字：
+       A/w/y … けんの 刃・光・つか      S/s … たての ふち・中
+       H/<   … かぶとの 金ぞく・かざり   A/g … よろいの 本体・ふち
+       C/c   … マントの 表・ふちどり
+       e     … その グレードだけの かざり（つの・はね・宝石・とげ）
      ======================================================= */
   // かたちは 共通で、色だけ グレードごとに かえます。
   // かぶとは 行9より 下を 横だけに して、まゆ・目・口が 見えるように
@@ -415,45 +432,236 @@ MQ.hero = (function () {
 
   const SLOTS = ['cape', 'armor', 'helm', 'shield', 'weapon'];
   const SLOT_NAME = { weapon: 'けん', shield: 'たて', helm: 'かぶと', armor: 'よろい', cape: 'マント' };
-  const SHAPE = { weapon: swordRows, shield: shieldRows, helm: helmRows, armor: armorRows, cape: capeRows };
+  const BASE = { weapon: swordRows, shield: shieldRows, helm: helmRows, armor: armorRows, cape: capeRows };
+
+  /* ---- マス目を いじる 小さな 道具 ---- */
+  const GW = 48;
+  function gGrid(rows) { return rows.map(function (r) { return r.split(''); }); }
+  function gRows(g) { return g.map(function (r) { return r.join(''); }); }
+  function gPut(g, x, y, ch) { if (x >= 0 && x < GW && y >= 0 && y < GW) g[y][x] = ch; }
+  function gRect(g, x0, y0, x1, y1, ch) {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) gPut(g, x, y, ch);
+  }
+  // すでに 何か ある ところだけ ぬりかえる（体から はみ出さない かざり用）
+  function gPaint(g, x0, y0, x1, y1, ch) {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (x >= 0 && x < GW && y >= 0 && y < GW && g[y][x] !== '.') g[y][x] = ch;
+    }
+  }
+  function gClear(g, x0, y0, x1, y1) { gRect(g, x0, y0, x1, y1, '.'); }
+  // それぞれの たての ならびで いちばん 下の マスを ch に する（ふちどり）
+  function gHem(g, ch) {
+    for (let x = 0; x < GW; x++) {
+      for (let y = GW - 1; y >= 0; y--) {
+        if (g[y][x] !== '.') { g[y][x] = ch; break; }
+      }
+    }
+  }
+
+  /* ---- グレードごとの かたち（1=かわ … 6=やみ） ----
+       てつ（2）は デザインモックの 騎士 そのまま。ほかは そこから 作る。 */
+  const SHAPER = {
+    weapon: {
+      1: function (g) {                      // かわ：みじかい 木のけん・つばも 小さい
+        gClear(g, 0, 6, 47, 15);
+        gClear(g, 33, 32, 34, 33); gClear(g, 41, 32, 42, 33);
+      },
+      3: function (g) {                      // りゅう：刃が ギザギザ・つばに 宝石
+        [12, 16, 20, 24, 28].forEach(function (y) { gClear(g, 38, y, 38, y); });
+        gRect(g, 36, 4, 38, 6, 'A'); gRect(g, 35, 4, 35, 6, 'w');
+        gRect(g, 37, 32, 38, 33, 'e');
+      },
+      4: function (g) {                      // でんせつ：長くて 太い 刃・つばに はね
+        gRect(g, 36, 3, 38, 6, 'A'); gRect(g, 35, 3, 35, 6, 'w');
+        gRect(g, 39, 7, 39, 31, 'A');
+        gRect(g, 30, 31, 32, 33, 'e'); gRect(g, 43, 31, 45, 33, 'e');
+      },
+      5: function (g) {                      // ほし：先が かがやき・にぎりに 星
+        gRect(g, 36, 3, 38, 6, 'e'); gRect(g, 35, 4, 35, 6, 'w');
+        gRect(g, 39, 8, 39, 31, 'A');
+        gRect(g, 35, 40, 40, 42, 'e'); gRect(g, 37, 43, 38, 43, 'e');
+      },
+      6: function (g) {                      // やみ：はば広の 大けん・とげの つば
+        gRect(g, 39, 7, 40, 31, 'A'); gRect(g, 34, 7, 34, 31, 'w');
+        gRect(g, 36, 4, 40, 6, 'A');
+        gRect(g, 30, 30, 33, 33, 'e'); gRect(g, 42, 30, 45, 33, 'e');
+      }
+    },
+    shield: {
+      1: function (g) {                      // かわ：小さくて まるい
+        gClear(g, 0, 27, 47, 28); gClear(g, 5, 0, 6, 47); gClear(g, 17, 0, 18, 47);
+        gRect(g, 7, 29, 16, 29, 'S');
+      },
+      3: function (g) {                      // りゅう：ふちに とげ
+        gRect(g, 3, 30, 4, 31, 'e'); gRect(g, 3, 34, 4, 35, 'e'); gRect(g, 6, 41, 8, 42, 'e');
+      },
+      4: function (g) {                      // でんせつ：十字の しるし
+        gRect(g, 11, 30, 12, 37, 'e'); gRect(g, 8, 32, 15, 33, 'e');
+      },
+      5: function (g) {                      // ほし：星の しるし
+        gRect(g, 10, 29, 13, 30, 'e'); gRect(g, 8, 31, 15, 33, 'e');
+        gRect(g, 9, 34, 10, 36, 'e'); gRect(g, 13, 34, 14, 36, 'e');
+      },
+      6: function (g) {                      // やみ：ふちが とげだらけ
+        gRect(g, 3, 29, 4, 31, 'e'); gRect(g, 3, 33, 4, 35, 'e'); gRect(g, 3, 37, 4, 38, 'e');
+        gRect(g, 19, 29, 20, 31, 'e'); gRect(g, 19, 33, 20, 35, 'e');
+        gRect(g, 10, 32, 13, 35, 'e');
+      }
+    },
+    helm: {
+      1: function (g) {                      // かわ：かざりの ない ぼうし・横は みじかい
+        gClear(g, 0, 2, 47, 3); gClear(g, 0, 16, 47, 20);
+        gRect(g, 12, 15, 14, 16, 'H'); gRect(g, 33, 15, 35, 16, 'H');
+      },
+      3: function (g) {                      // りゅう：つの
+        gRect(g, 9, 3, 11, 8, 'e'); gRect(g, 36, 3, 38, 8, 'e');
+        gRect(g, 7, 1, 10, 4, 'e'); gRect(g, 37, 1, 40, 4, 'e');
+      },
+      4: function (g) {                      // でんせつ：よこの はね
+        gRect(g, 7, 6, 11, 8, 'e'); gRect(g, 36, 6, 40, 8, 'e');
+        gRect(g, 4, 4, 9, 6, 'e'); gRect(g, 38, 4, 43, 6, 'e');
+      },
+      5: function (g) {                      // ほし：かんむりの とがり 3つ
+        gClear(g, 0, 2, 47, 3);
+        gRect(g, 15, 1, 17, 4, 'e'); gRect(g, 22, 0, 25, 4, 'e'); gRect(g, 30, 1, 32, 4, 'e');
+      },
+      6: function (g) {                      // やみ：大きな つの＋前立て
+        gRect(g, 8, 0, 11, 8, 'e'); gRect(g, 36, 0, 39, 8, 'e');
+        gRect(g, 5, 2, 9, 5, 'e'); gRect(g, 38, 2, 42, 5, 'e');
+        gRect(g, 21, 1, 26, 3, 'e');
+      }
+    },
+    armor: {
+      1: function (g) {                      // かわ：えりなし・かた当てなし
+        gClear(g, 0, 24, 47, 26);
+        gClear(g, 7, 27, 9, 30); gClear(g, 38, 27, 40, 30);
+      },
+      3: function (g) {                      // りゅう：大きな かた当て
+        gRect(g, 2, 27, 8, 31, 'e'); gRect(g, 39, 27, 45, 31, 'e');
+      },
+      4: function (g) {                      // でんせつ：むねの 宝石
+        gRect(g, 22, 29, 25, 32, 'e'); gRect(g, 21, 30, 26, 31, 'e');
+      },
+      5: function (g) {                      // ほし：むねの 星＋かたの かざり
+        gRect(g, 21, 28, 26, 29, 'e'); gRect(g, 19, 30, 28, 31, 'e');
+        gRect(g, 21, 32, 22, 34, 'e'); gRect(g, 25, 32, 26, 34, 'e');
+        gRect(g, 5, 27, 8, 28, 'e'); gRect(g, 39, 27, 42, 28, 'e');
+      },
+      6: function (g) {                      // やみ：かたの とげ
+        gRect(g, 4, 23, 8, 27, 'e'); gRect(g, 39, 23, 43, 27, 'e');
+        gRect(g, 2, 25, 5, 27, 'e'); gRect(g, 42, 25, 45, 27, 'e');
+        gPaint(g, 20, 30, 27, 34, 'e');
+      }
+    },
+    cape: {
+      1: function (g) { gClear(g, 0, 36, 47, 47); },          // かわ：みじかい たびマント
+      3: function (g) { gHem(g, 'c'); },                       // りゅう：ふちどり
+      4: function (g) {                                        // でんせつ：えり つき
+        gRect(g, 13, 24, 34, 25, 'c'); gHem(g, 'c');
+      },
+      5: function (g) {                                        // ほし：ふちどり＋きらめき
+        gHem(g, 'c');
+        [[8, 30], [5, 34], [10, 37], [3, 39], [16, 28]].forEach(function (p) {
+          gPaint(g, p[0], p[1], p[0] + 1, p[1] + 1, 'c');
+        });
+      },
+      6: function (g) {                                        // やみ：すそが ボロボロ
+        [[1, 40], [4, 41], [7, 40], [2, 42], [5, 43], [9, 38]].forEach(function (p) {
+          gClear(g, p[0], p[1], p[0] + 1, 47);
+        });
+        gHem(g, 'c');
+      }
+    }
+  };
+
+  function shapeFor(slot, gradeNo) {
+    const fn = SHAPER[slot][gradeNo];
+    if (!fn) return BASE[slot];
+    const g = gGrid(BASE[slot]);
+    fn(g);
+    return gRows(g);
+  }
+
+  /* =======================================================
+     そうびの 効果（v5.4）
+
+     大原則は アイテムと 同じ：**効果は「正解した とき」に 出る**。
+     答えを 見せる・問題を とばす そうびは 作らない。
+     中身は js/core/battle.js（start の gear）。ここは 名前と 数字だけ。
+     ======================================================= */
+  const GEAR_POWER = {
+    weapon: { key: 'xpAdd',   vals: [1, 2, 3, 5, 7, 10],
+      text: function (v) { return '正解 1もんごとに けいけんち ＋' + v; },
+      short: function (v) { return 'けいけんち ＋' + v; } },
+    shield: { key: 'safe',    vals: [1, 1, 2, 2, 3, 3],
+      text: function (v) { return 'まちがえても ' + v + '回 てきが にげない'; },
+      short: function (v) { return 'セーフ ' + v + '回'; } },
+    helm:   { key: 'special', vals: [1, 1, 1, 2, 2, 2],
+      text: function (v) { return 'ひっさつわざが ' + v + 'コンボ 早く 出る'; },
+      short: function (v) { return 'ひっさつ ' + v + '早い'; } },
+    armor:  { key: 'keep',    vals: [1, 1, 2, 2, 3, 3],
+      text: function (v) { return 'まちがえても ' + v + '回 コンボが 切れない'; },
+      short: function (v) { return 'コンボ ' + v + '回 まもる'; } },
+    cape:   { key: 'coins',   vals: [1, 1, 1, 2, 2, 3],
+      text: function (v) { return 'たたかいの おわりに コイン ＋' + v; },
+      short: function (v) { return 'コイン ＋' + v; } }
+  };
+  // 同じ グレードを 5点 そろえたら、けいけんちが ふえる（セットボーナス）
+  function setMulFor(gradeNo) { return 1 + 0.1 * gradeNo; }
 
   // グレード（手に入る 順番も この順）
   const grades = [
-    { id: 'kihon',    no: 1, name: 'かわ' },
-    { id: 'tetsu',    no: 2, name: 'てつ' },
-    { id: 'ryu',      no: 3, name: 'りゅう' },
-    { id: 'densetsu', no: 4, name: 'でんせつ' }
+    { id: 'kihon',    no: 1, name: 'かわ',     how: '★2つで もらえる' },
+    { id: 'tetsu',    no: 2, name: 'てつ',     how: '★2つで もらえる' },
+    { id: 'ryu',      no: 3, name: 'りゅう',   how: '★2つで もらえる' },
+    { id: 'densetsu', no: 4, name: 'でんせつ', how: 'かけら／ラスボス' },
+    { id: 'hoshi',    no: 5, name: 'ほし',     how: '★3を あつめると' },
+    { id: 'yami',     no: 6, name: 'やみ',     how: 'さいごの塔を クリア' }
   ];
 
   const GEAR_DEF = {
     kihon: {
-      weapon: { name: '木のけん',       palette: { A: '#8B5A2B', y: '#5C3A16', w: '#C69C6D' } },
-      shield: { name: '木のたて',       palette: { S: '#8B5A2B', s: '#C69C6D' } },
-      helm:   { name: 'かわの かぶと',   palette: { H: '#8A6A3C', '<': '#C99A55' } },
-      armor:  { name: 'かわの よろい',   palette: { A: '#9A7040', g: '#C99A55' } },
-      cape:   { name: 'たびの マント',   palette: { C: '#7A6A4A' } }
+      weapon: { name: '木のけん',       palette: { A: '#8B5A2B', y: '#5C3A16', w: '#C69C6D', e: '#C69C6D' } },
+      shield: { name: '木のたて',       palette: { S: '#8B5A2B', s: '#C69C6D', e: '#5C3A16' } },
+      helm:   { name: 'かわの ぼうし',   palette: { H: '#8A6A3C', '<': '#C99A55', e: '#C99A55' } },
+      armor:  { name: 'かわの よろい',   palette: { A: '#9A7040', g: '#C99A55', e: '#C99A55' } },
+      cape:   { name: 'たびの マント',   palette: { C: '#7A6A4A', c: '#C0AE86' } }
     },
     // ★モックの 騎士の 一式（白〜水色に 光る けん・金ぶちの たて・赤い マント）
     tetsu: {
-      weapon: { name: 'ひかる けん',     palette: { A: '#9fd8ff', y: '#ffd447', w: '#FFFFFF' } },
-      shield: { name: 'きんぶちの たて', palette: { S: '#ffd447', s: '#4d7ddc' } },
-      helm:   { name: 'きしの かぶと',   palette: { H: '#b9c6e6', '<': '#ff5e5e' } },
-      armor:  { name: 'きしの よろい',   palette: { A: '#8ea6d8', g: '#ffd447' } },
-      cape:   { name: 'あかい マント',   palette: { C: '#e3554f' } }
+      weapon: { name: 'ひかる けん',     palette: { A: '#9fd8ff', y: '#ffd447', w: '#FFFFFF', e: '#ffd447' } },
+      shield: { name: 'きんぶちの たて', palette: { S: '#ffd447', s: '#4d7ddc', e: '#FFFFFF' } },
+      helm:   { name: 'きしの かぶと',   palette: { H: '#b9c6e6', '<': '#ff5e5e', e: '#ff5e5e' } },
+      armor:  { name: 'きしの よろい',   palette: { A: '#8ea6d8', g: '#ffd447', e: '#ffd447' } },
+      cape:   { name: 'あかい マント',   palette: { C: '#e3554f', c: '#ffd447' } }
     },
     ryu: {
-      weapon: { name: 'ほのおのけん',   palette: { A: '#ffb066', y: '#7A2E0E', w: '#fff0c0' } },
-      shield: { name: 'りゅうの たて',   palette: { S: '#7A2E0E', s: '#F26B2B' } },
-      helm:   { name: 'りゅうの かぶと', palette: { H: '#D2622A', '<': '#FFC46B' } },
-      armor:  { name: 'りゅうの よろい', palette: { A: '#C4552A', g: '#FFC46B' } },
-      cape:   { name: 'ほのおの マント', palette: { C: '#8A2418' } }
+      weapon: { name: 'ほのおのけん',   palette: { A: '#ffb066', y: '#7A2E0E', w: '#fff0c0', e: '#E8443A' } },
+      shield: { name: 'りゅうの たて',   palette: { S: '#7A2E0E', s: '#F26B2B', e: '#FFC46B' } },
+      helm:   { name: 'りゅうの かぶと', palette: { H: '#D2622A', '<': '#FFC46B', e: '#FFE0A0' } },
+      armor:  { name: 'りゅうの よろい', palette: { A: '#C4552A', g: '#FFC46B', e: '#FFE0A0' } },
+      cape:   { name: 'ほのおの マント', palette: { C: '#8A2418', c: '#F26B2B' } }
     },
     densetsu: {
-      weapon: { name: 'ひかりのけん',     palette: { A: '#dff0ff', y: '#B8860B', w: '#FFFFFF' } },
-      shield: { name: 'ゆうしゃの たて',   palette: { S: '#B8860B', s: '#6FA8FF' } },
-      helm:   { name: 'ひかりの かぶと',   palette: { H: '#F2D06A', '<': '#FFF6C9' } },
-      armor:  { name: 'ひかりの よろい',   palette: { A: '#EFC85C', g: '#FFF6C9' } },
-      cape:   { name: 'でんせつの マント', palette: { C: '#7A1F3D' } }
+      weapon: { name: 'ひかりのけん',     palette: { A: '#dff0ff', y: '#B8860B', w: '#FFFFFF', e: '#FFE96B' } },
+      shield: { name: 'ゆうしゃの たて',   palette: { S: '#B8860B', s: '#6FA8FF', e: '#FFF6C9' } },
+      helm:   { name: 'ひかりの かぶと',   palette: { H: '#F2D06A', '<': '#FFF6C9', e: '#FFFFFF' } },
+      armor:  { name: 'ひかりの よろい',   palette: { A: '#EFC85C', g: '#FFF6C9', e: '#6FA8FF' } },
+      cape:   { name: 'でんせつの マント', palette: { C: '#7A1F3D', c: '#F2D06A' } }
+    },
+    hoshi: {
+      weapon: { name: 'ほしくずの けん',   palette: { A: '#e8f0ff', y: '#4d7ddc', w: '#FFFFFF', e: '#FFE96B' } },
+      shield: { name: 'ほしの たて',       palette: { S: '#6FD3FF', s: '#eaf4ff', e: '#FFE96B' } },
+      helm:   { name: 'ほしの かぶと',     palette: { H: '#eaf4ff', '<': '#6FD3FF', e: '#FFE96B' } },
+      armor:  { name: 'ほしの よろい',     palette: { A: '#dfe9ff', g: '#6FD3FF', e: '#FFE96B' } },
+      cape:   { name: 'ぎんがの マント',   palette: { C: '#2E4FA8', c: '#9fd8ff' } }
+    },
+    yami: {
+      weapon: { name: 'やみの 大けん',   palette: { A: '#8a6be0', y: '#2A1F3D', w: '#e0b6ff', e: '#FF5EC8' } },
+      shield: { name: 'やみの たて',     palette: { S: '#3A2B52', s: '#8a6be0', e: '#FF5EC8' } },
+      helm:   { name: 'やみの かぶと',   palette: { H: '#3A2B52', '<': '#FF5EC8', e: '#8a6be0' } },
+      armor:  { name: 'やみの よろい',   palette: { A: '#3A2B52', g: '#8a6be0', e: '#FF5EC8' } },
+      cape:   { name: 'やみの マント',   palette: { C: '#241A33', c: '#8a6be0' } }
     }
   };
 
@@ -470,8 +678,11 @@ MQ.hero = (function () {
         gradeNo: g.no,
         gradeName: g.name,
         name: def.name,
-        rows: SHAPE[slot],
-        palette: def.palette
+        rows: shapeFor(slot, g.no),
+        palette: def.palette,
+        power: GEAR_POWER[slot].vals[g.no - 1],
+        powerText: GEAR_POWER[slot].text(GEAR_POWER[slot].vals[g.no - 1]),
+        powerShort: GEAR_POWER[slot].short(GEAR_POWER[slot].vals[g.no - 1])
       });
     });
   });
@@ -480,27 +691,61 @@ MQ.hero = (function () {
 
   function getGear(id) { return gearById[id]; }
 
-  // グレード4「でんせつ」は かけら／ラスボスでしか 手に入らない
+  /* グレード4いじょうは 特別な もらい方（★2では 出ない）
+       でんせつ … まなびの かけら（1つ＝1点）＋ ラスボスで 5点目
+       ほし     … ★3の ステージが 3・6・9・12・15 に なったとき（v5.4）
+       さいごの塔を クリアする たびに 1点（v5.4） */
+  const SPECIAL_GRADES = ['densetsu', 'hoshi', 'yami'];
   function isDensetsu(id) { return String(id).indexOf('densetsu-') === 0; }
+  function isSpecial(id) {
+    return SPECIAL_GRADES.some(function (g) { return String(id).indexOf(g + '-') === 0; });
+  }
+  const HOSHI_STARS = [3, 6, 9, 12, 15];   // ★3の ステージが これだけ たまるたび 1点
 
   // つぎに 手に入る そうび（グレード1〜3の うち まだ持っていない 最初のもの）
   function nextGear(player) {
     const owned = player.gear || [];
     for (let i = 0; i < gear.length; i++) {
-      if (isDensetsu(gear[i].id)) continue;
+      if (isSpecial(gear[i].id)) continue;
       if (owned.indexOf(gear[i].id) === -1) return gear[i];
     }
     return null;
   }
 
-  // でんせつ の 5点を 1つずつ わたす（かけら1つ＝1点、ラスボスで 5点目）
-  function nextDensetsu(player) {
+  // グレードの 5点を 1つずつ わたす（もう ぜんぶ 持っていれば null）
+  function nextOfGrade(player, gradeId) {
     const owned = player.gear || [];
     for (let i = 0; i < ORDER.length; i++) {
-      const id = 'densetsu-' + ORDER[i];
+      const id = gradeId + '-' + ORDER[i];
       if (owned.indexOf(id) === -1) return gearById[id];
     }
     return null;
+  }
+  function nextDensetsu(player) { return nextOfGrade(player, 'densetsu'); }
+  function nextYami(player) { return nextOfGrade(player, 'yami'); }
+
+  // ★3の ステージの 数で もらえる「ほし」の 一式。もらえる ぶんだけ かえす
+  function nextHoshi(player, star3) {
+    const owned = player.gear || [];
+    const have = ORDER.filter(function (slot) { return owned.indexOf('hoshi-' + slot) !== -1; }).length;
+    if (have >= ORDER.length) return null;
+    if ((star3 || 0) < HOSHI_STARS[have]) return null;
+    return gearById['hoshi-' + ORDER[have]];
+  }
+
+  /* いま つけている そうびの 効果を まとめる（core/battle.js に わたす）
+       { xpAdd, safe, special, keep, coins, setMul, setName } */
+  function gearPower(player) {
+    const eq = (player && player.equipped) || {};
+    const out = { xpAdd: 0, safe: 0, special: 0, keep: 0, coins: 0, setMul: 1, setName: '' };
+    ORDER.forEach(function (slot) {
+      const g = eq[slot] && gearById[eq[slot]];
+      if (!g) return;
+      out[GEAR_POWER[slot].key] += g.power;
+    });
+    const set = equippedSetOf(player);
+    if (set) { out.setMul = setMulFor(set.no); out.setName = set.name; }
+    return out;
   }
 
   // 同じグレードを 5点 そろえたか（見た目の ごほうび演出用）
@@ -512,6 +757,12 @@ MQ.hero = (function () {
       if (all) best = g;
     });
     return best;
+  }
+
+  // その グレードの 5点を ぜんぶ 持っているか
+  function hasSet(player, gradeId) {
+    const owned = (player && player.gear) || [];
+    return ORDER.every(function (slot) { return owned.indexOf(gradeId + '-' + slot) !== -1; });
   }
 
   function equippedSetOf(player) {
@@ -722,7 +973,7 @@ MQ.hero = (function () {
     return Object.keys(b).some(function (k) { return b[k] && b[k].total >= 10 && b[k].correct === b[k].total; });
   }
 
-  /* 34しゅるい（v2.0 で 23・v2.5 で 1・v3.1 で 2 ふやした）。ならびは だいたい 手に入る 順。
+  /* 42しゅるい（v2.0 で 23・v2.5 で 1・v3.1 で 2・v5.2 で 3・v5.4 で 4 ふやした）。ならびは だいたい 手に入る 順。
      新しく もらった ものが 自動で つくので、あとの ほうほど「えらい」しょうごうに してある。 */
   const titles = [
     { id: 't-minarai',   name: 'みならい ぼうけんしゃ', how: 'さいしょから',              test: function () { return true; } },
@@ -771,7 +1022,12 @@ MQ.hero = (function () {
     // なかま（v5.2）
     { id: 't-pal1',      name: 'なかまと ともに',        how: 'なかまを 1体 つくる',       test: function (p) { return palCount(p) >= 1; } },
     { id: 't-pal10',     name: 'なかまの リーダー',       how: 'なかまを 10体 あつめる',     test: function (p) { return palCount(p) >= 10; } },
-    { id: 't-palLv10',   name: 'きずなの あかし',        how: '相棒を Lv.10 に そだてる',   test: function (p) { return palBestLv(p) >= 10; } }
+    { id: 't-palLv10',   name: 'きずなの あかし',        how: '相棒を Lv.10 に そだてる',   test: function (p) { return palBestLv(p) >= 10; } },
+    // そうび（v5.4）
+    { id: 't-gearset',   name: 'そろいの きし',          how: 'そうびを 1しゅるい そろえる', test: function (p) { return !!fullSetOf(p); } },
+    { id: 't-hoshiset',  name: 'ほしの ゆうしゃ',        how: 'ほしの そうびを そろえる',    test: function (p) { return hasSet(p, 'hoshi'); } },
+    { id: 't-yamiset',   name: 'やみを まとう者',        how: 'やみの そうびを そろえる',    test: function (p) { return hasSet(p, 'yami'); } },
+    { id: 't-gearall',   name: 'そうび マスター',        how: 'そうびを 30点 ぜんぶ あつめる', test: function (p) { return (p.gear || []).length >= gear.length; } }
   ];
   const titleById = {};
   titles.forEach(function (t) { titleById[t.id] = t; });
@@ -809,7 +1065,9 @@ MQ.hero = (function () {
     bodyPalette: bodyPalette, palettes: palettes, colorOf: colorOf,
     gear: gear, grades: grades, slots: ORDER, slotName: SLOT_NAME,
     getGear: getGear, nextGear: nextGear, nextDensetsu: nextDensetsu, isDensetsu: isDensetsu,
-    fullSetOf: fullSetOf, equippedSetOf: equippedSetOf,
+    nextHoshi: nextHoshi, nextYami: nextYami, isSpecial: isSpecial, hoshiStars: HOSHI_STARS,
+    gearPower: gearPower, gearSlotPower: GEAR_POWER, setMulFor: setMulFor,
+    fullSetOf: fullSetOf, hasSet: hasSet, equippedSetOf: equippedSetOf,
     sprite: sprite, faceSprite: faceSprite, bodySprite: bodySprite, partSprite: partSprite, poster: poster,
     gearSprite: gearSprite, gearShadow: gearShadow, layersFor: layersFor,
     xpForLevel: xpForLevel, levelOf: levelOf, progress: progress,
