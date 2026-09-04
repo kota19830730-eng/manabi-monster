@@ -155,7 +155,10 @@ MQ.treasure = (function () {
     { stage: 'eigo4-4',   id: 'tr4-want',    name: 'ほしいものの たま',      shape: 'orb',       colors: c('#4CD164', '#1E7A3C') },
 
     /* ---- 小4 さいごの塔（v4.8） ---- */
-    { stage: 'tower4',    id: 'tr4-dark',    name: 'やみの かんむり',        shape: 'crown',     colors: c('#7A4BC2', '#2A1240') }
+    { stage: 'tower4',    id: 'tr4-dark',    name: 'やみの かんむり',        shape: 'crown',     colors: c('#7A4BC2', '#2A1240') },
+    // 小1・小2の さいごの とう（v6.4）
+    { stage: 'tower1',    id: 'tr1-obake',   name: 'おばけの かんむり',      shape: 'crown',     colors: c('#C9B8FF', '#6A4FB8') },
+    { stage: 'tower2',    id: 'tr2-kaizoku', name: 'かいぞくの かんむり',    shape: 'crown',     colors: c('#C42B2B', '#5A1010') }
   ];
 
   const byStage = {};

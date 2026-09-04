@@ -228,6 +228,13 @@ MQ.enemies = (function () {
     { id: 'boss-dark', area: 'tower4', name: 'ダークロード', shape: 'dark', last: true,
       colors: { A: '#4A3A7A', B: '#241844', r: '#C24BFF', y: '#F2C14E', w: '#E8E4FF' },
       phase2: { A: '#7A3AA8', B: '#3C1466', r: '#FF3B30', y: '#FFF3B8', w: '#FFFFFF' } },
+    /* 小1・小2の ラスボス（v6.4）。名前は ひらがな・カタカナだけ */
+    { id: 'boss-obake', area: 'tower1', name: 'おばけキング', shape: 'obakeking', last: true,
+      colors: { A: '#F2EEFF', B: '#B9A9E6', y: '#F2C14E', r: '#C24BFF', e: '#2A2440', w: '#FFFFFF', k: '#2A2440' },
+      phase2: { A: '#E2D0FF', B: '#8E6AD8', y: '#FFE08A', r: '#FF3B30', e: '#FF3B30', w: '#FFFFFF', k: '#2A2440' } },
+    { id: 'boss-kaizoku', area: 'tower2', name: 'かいぞくキャプテン', shape: 'kaizoku', last: true,
+      colors: { A: '#C42B2B', B: '#3A2418', s: '#F5C9A0', y: '#F2C14E', k: '#181828', w: '#F4F4F4', e: '#1A1A2A' },
+      phase2: { A: '#FF3B30', B: '#2A1810', s: '#F5C9A0', y: '#FFE08A', k: '#181828', w: '#FFFFFF', e: '#FF3B30' } },
     /* ラスボス。HPを 2つ けずると 第2形態（色が かわる）に なる */
     { id: 'boss-maou', area: 'tower', name: 'まおう', shape: 'maou', last: true,
       colors: { A: '#7A2436', B: '#3A0E18', r: '#FF3B30', y: '#FFD447', w: '#F2F2F2' },

@@ -237,9 +237,15 @@ MQ.content = (function () {
     return q;
   }
 
+  // 小1・小2は 2教科（さんすう・こくご）が こうたいで 出る（v6.4）
+  const TOWER_ORDER12 = [
+    { kind: 'sansu',  label: 'さんすう' },
+    { kind: 'kokugo', label: 'こくご' }
+  ];
+
   function makeTowerStage(grade, order, bossId) {
     return {
-      id: 'tower' + grade, no: 1, name: 'さいごの 塔', available: true, tower: true,
+      id: 'tower' + grade, no: 1, name: grade <= 2 ? 'さいごの とう' : 'さいごの 塔', available: true, tower: true,
       bossId: bossId, order: order,
       make: function (n, opts) {
         const out = [];
@@ -258,6 +264,8 @@ MQ.content = (function () {
 
   const towerStage = makeTowerStage(3, TOWER_ORDER3, 'boss-maou');
   const towerStage4 = makeTowerStage(4, TOWER_ORDER4, 'boss-dark');
+  const towerStage1 = makeTowerStage(1, TOWER_ORDER12, 'boss-obake');      // 小1：おばけキング（v6.4）
+  const towerStage2 = makeTowerStage(2, TOWER_ORDER12, 'boss-kaizoku');    // 小2：かいぞくキャプテン（v6.4）
 
   /* =======================================================
      小3ワールド
@@ -327,7 +335,7 @@ MQ.content = (function () {
 
   /* =======================================================
      小1ワールド（v2.2）
-     小1には 理科社会・英語・さいごの塔は ない（2エリア）。
+     小1には 理科社会・英語は ない（2教科）。さいごの とう は v6.4 で ついた。
      名前は ぜんぶ ひらがな（小1が じぶんで 読める ように）。
      ======================================================= */
   const kokugo1 = function () { return MQ.kokugo1.questions; };
@@ -362,12 +370,17 @@ MQ.content = (function () {
             make: writeMixStage(kokugo1, 'kokugo', 4, 1) },
           stage('kokugo', 5, 'ことばの きまり', kokugo1, 1)
         ]
+      },
+      /* 小1の さいごの とう（v6.4）。2教科の かけらで 開く。名前は ひらがな */
+      {
+        id: 'tower', name: 'さいごの とう', short: 'とう', color: 'var(--c-tower)', biome: 'tower',
+        stages: [towerStage1]
       }
     ]
   };
 
   /* =======================================================
-     小2ワールド（v2.3）。小1と 同じく さんすう＋こくごの 2エリア・塔なし
+     小2ワールド（v2.3）。小1と 同じく さんすう＋こくごの 2教科（＋v6.4 で さいごの とう）
      ======================================================= */
   const kokugo2 = function () { return MQ.kokugo2.questions; };
 
@@ -402,6 +415,11 @@ MQ.content = (function () {
           stage('kokugo', 3, 'ことばの きまり', kokugo2, 2),
           stage('kokugo', 4, 'ことばの いみ', kokugo2, 2)
         ]
+      },
+      /* 小2の さいごの とう（v6.4） */
+      {
+        id: 'tower', name: 'さいごの とう', short: 'とう', color: 'var(--c-tower)', biome: 'tower',
+        stages: [towerStage2]
       }
     ]
   };
@@ -605,6 +623,8 @@ MQ.content = (function () {
   }
 
   function hasTower() { return !!towerArea(); }
+  // 塔の 名前（小1・小2は「さいごの とう」・ほかは「さいごの 塔」。画面の 文字は ここを 見る・v6.4）
+  function towerName() { const a = towerArea(); return (a && a.name) || 'さいごの 塔'; }
   function towerOpen(player) {
     if (!hasTower()) return false;
     return fragCount(player) >= subjectAreas().length;
@@ -659,7 +679,8 @@ MQ.content = (function () {
     isAvailable: isAvailable, lockedReason: lockedReason, MIN_POOL: MIN_POOL,
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,
     fragCount: fragCount, towerOpen: towerOpen, fragKey: fragKey,
-    lastBoss: lastBoss, towerStageId: towerStageId,
+    lastBoss: lastBoss, towerStageId: towerStageId, towerName: towerName,
+    towerStage1: towerStage1, towerStage2: towerStage2,
     towerStage: towerStage, towerStage4: towerStage4,
     TOWER_ORDER: TOWER_ORDER3, TOWER_ORDER3: TOWER_ORDER3, TOWER_ORDER4: TOWER_ORDER4
   };

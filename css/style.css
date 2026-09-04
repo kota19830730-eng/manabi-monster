@@ -850,6 +850,9 @@ body {
    （たてに ならべると 頭が バトル画面から はみ出す） */
 .enemy--boss .enemy__name { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 2px; }
 .enemy--boss .bosshp { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 28px; }
+/* ラスボス（112px）は 足もとが 右下の アイテムボタンに かくれる ので、名前と HP は 頭の 上に（v6.4） */
+.enemy--last .enemy__name { top: auto; bottom: 100%; left: auto; right: 0; transform: none; margin: 0 0 3px; }
+.enemy--last .bosshp { margin-top: 2px; }
 
 /* ---- 当たった／よけた などの うごき ---- */
 .is-appear { animation: popin .22s ease-out; }

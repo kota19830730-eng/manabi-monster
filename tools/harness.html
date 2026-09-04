@@ -34,6 +34,7 @@
     #kokugo4 #koku4:N … 小4 国語（v4.5・かん字 219字＋ことば。N=1〜4）
     #rika4:N #shakai4:N #eigo4:N … 小4 理科・社会・英語（v4.6/v4.7・N=1〜4）
     #last4 #last4map … 小4の さいごの塔（v4.8・ダークロード）
+    #last1 #last1map #last2 #last2map … 小1・小2の さいごの とう（v6.4・おばけキング／かいぞくキャプテン）
     #zu #chizu … 問題の 図（v4.9・地図記号・方位・じしゃく・回路・月）／地図と方位の バトル
 
   例:
@@ -1472,6 +1473,20 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('tower: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
       return;
     }
+    // 小1・小2の さいごの とう（v6.4）：#last1 #last2 バトル／#last1map #last2map 塔が 開いた 地図
+    if (/^last[12](map)?$/.test(mode)) {
+      const g = parseInt(mode.charAt(4), 10);
+      fresh({ frags: {} });
+      MQ.save.update(function (pl) {
+        pl.grade = g; pl.playGrade = g;
+        ['sansu', 'kokugo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; });
+      });
+      if (mode.indexOf('map') > 0) { MQ.ui.goMap(); await wait(300); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; say('tower' + g + ' map: ' + ($('#screen-map .tower__sign') ? $('#screen-map .tower__sign').textContent + ' / ' + $('#screen-map .tower__sub').textContent : 'MISSING')); return; }
+      MQ.ui.battle.start('tower' + g);
+      await wait(3200);
+      say('tower' + g + ': ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none') + ' boss=' + MQ.content.lastBoss().name);
+      return;
+    }
     // 小4の さいごの塔（v4.8）：#last4 バトル／#last4map 塔が 開いた 地図
     if (mode === 'last4' || mode === 'last4map') {
       fresh({ frags: {} });
@@ -1828,6 +1843,21 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await playBattle('tower4');
     await wait(900);
     say('tower4 result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
+
+    say('--- 小1・小2の さいごの とう（v6.4） ---');
+    for (const g of [1, 2]) {
+      MQ.save.setPlayGrade(g);
+      MQ.save.update(function (pl) { ['sansu', 'kokugo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); });
+      MQ.ui.goMap();
+      await wait(400);
+      say('小' + g + ' 塔: ' + ($('#screen-map .tower__sign') ? $('#screen-map .tower__sign').textContent : 'MISSING') + ' / 開いた: ' + (MQ.content.towerOpen(MQ.save.current()) ? 'ok' : 'MISSING') + ' / ラスボス: ' + MQ.content.lastBoss().name);
+      MQ.ui.battle.start('tower' + g);
+      await wait(3200);
+      say('tower' + g + ' の 1問め: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'MISSING'));
+      await playBattle('tower' + g);
+      await wait(900);
+      say('tower' + g + ' result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
+    }
 
     say('--- 学年ごとの 地図（v4.7） ---');
     for (const g of [1, 2, 3, 4]) {

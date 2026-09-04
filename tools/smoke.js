@@ -545,9 +545,9 @@ function checkWorldStages(wld) { wld.areas.forEach(function (area) {
 checkWorldStages(w3);
 checkWorldStages(w1);
 checkWorldStages(w2);
-check(w2.areas.length === 2 && w2.areas[0].stages.length === 14 && w2.areas[1].stages.length === 4, '小2は さんすう14＋こくご4');
+check(w2.areas.length === 3 && w2.areas[0].stages.length === 14 && w2.areas[1].stages.length === 4 && w2.areas[2].id === 'tower', '小2は さんすう14＋こくご4＋とう');
 check(w2.areas[1].stages[1].make(8, {}).some(function (q) { return q.type === 'write' && q.prompt.indexOf('かこう') !== -1; }), '小2の かん字を かく問題も ひらがなの 言いかた');
-check(w1.areas.length === 2 && w1.areas[0].stages.length === 12 && w1.areas[1].stages.length === 5, '小1は さんすう12＋こくご5');
+check(w1.areas.length === 3 && w1.areas[0].stages.length === 12 && w1.areas[1].stages.length === 5 && w1.areas[2].id === 'tower', '小1は さんすう12＋こくご5＋とう');
 // とけいの 絵：はりの むきが 正しい（8じ47ふん → みじかい はり 263.5度・ながい はり 282度）
 (function () {
   const q = MQ.sansu1.make(12, 20).filter(function (x) { return x.prompt.indexOf('class="clock"') !== -1; })[0];
@@ -606,6 +606,40 @@ check(JSON.stringify(kinds) === JSON.stringify(['sansu', 'kokugo', 'romaji', 'ri
   check(!!MQ.treasure.forStage('tower4'), '小4の 塔の たからもの');
   check(MQ.enemies.get('boss-dark').shape === 'dark' && !!MQ.monsterArt.mons.dark, 'ダークロードの 絵');
 })();
+
+/* ---- 小1・小2の さいごの とう（v6.4） ---- */
+[[1, 'boss-obake', 'おばけキング', 'obakeking', MQ.content.world('g1')], [2, 'boss-kaizoku', 'かいぞくキャプテン', 'kaizoku', MQ.content.world('g2')]].forEach(function (row) {
+  const g = row[0], w = row[4];
+  const area = w.areas.filter(function (a) { return a.id === 'tower'; })[0];
+  check(!!area && area.stages.length === 1 && area.name === 'さいごの とう', '小' + g + 'に さいごの とう が ある（ひらがな）');
+  const st = area.stages[0];
+  check(st.id === 'tower' + g && st.tower === true && st.bossId === row[1] && st.name === 'さいごの とう', '小' + g + 'の 塔: ' + st.id + ' ' + st.bossId + ' ' + st.name);
+  MQ.terms.forcePlayer({ grade: g, term: 0, units: {} });
+  MQ.content.setActive(w);
+  const qs = [];
+  for (let i = 0; i < 4; i++) qs.push(st.make(1, { boss: true, index: i })[0]);
+  qs.forEach(function (q, i) { validate(q, 'tower' + g + '#' + i); check(q.lv === 3, 'tower' + g + '#' + i + ' は lv3'); });
+  const kinds = qs.map(function (q) { return q.id.split(':')[1]; });
+  check(JSON.stringify(kinds) === JSON.stringify(['sansu', 'kokugo', 'sansu', 'kokugo']), '小' + g + 'の 塔は さんすう→こくご→さんすう→こくご: ' + kinds.join(','));
+  check(st.make(8, { boss: true }).length === 8, '小' + g + 'の 塔は 8問 出る');
+  // 問題文は ひらがな中心（小1は かん字なし・小2は 小1の かん字まで）＝ ふつうの ステージと 同じ きまり
+  st.make(20, { boss: true }).forEach(function (q) { check(q.unit.indexOf('さいごの もんだい') === 0, '小' + g + 'の 塔の unit: ' + q.unit); });
+  check(MQ.content.lastBoss().name === row[2] && MQ.content.towerStageId() === 'tower' + g && MQ.content.towerName() === 'さいごの とう', '小' + g + 'の lastBoss: ' + MQ.content.lastBoss().name);
+  // かけらは 2つ（2教科）
+  const p = { grade: g, playGrade: g, frags: {} };
+  check(MQ.content.towerOpen(p) === false, 'かけらが ないと 小' + g + 'の 塔は 開かない');
+  p.frags[MQ.content.fragKey('sansu', p)] = true;
+  check(MQ.content.towerOpen(p) === false, 'かけら 1つでは 小' + g + 'の 塔は まだ');
+  p.frags[MQ.content.fragKey('kokugo', p)] = true;
+  check(MQ.content.towerOpen(p) === true, 'かけら 2つで 小' + g + 'の 塔が 開く');
+  MQ.content.setActive(null);
+  MQ.terms.forcePlayer(null);
+  check(!!MQ.treasure.forStage('tower' + g), '小' + g + 'の 塔の たからもの');
+  const e = MQ.enemies.get(row[1]);
+  check(!!e && e.last === true && e.shape === row[3] && !!e.phase2 && !!MQ.monsterArt.mons[row[3]], row[2] + 'の データと 絵');
+  check(/^[ぁ-んァ-ヶー]+$/.test(e.name), row[2] + ' の 名前は ひらがな・カタカナだけ');
+});
+check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-kaizoku'; }), 'しょうごう おばけ・うみの ゆうしゃ');
 
 /* ---- 問題の 図（v4.9）：地図記号・方位・じしゃく・回路・月 ---- */
 (function () {
@@ -675,8 +709,8 @@ check(JSON.stringify(kinds) === JSON.stringify(['sansu', 'kokugo', 'romaji', 'ri
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 99, 'たからもの 99個（小3 32＋小1 17＋小2 18＋小4 32）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 17 && MQ.treasure.listFor(w2).length === 18 && MQ.treasure.listFor(w4).length === 32, 'listFor: 小3 32・小1 17・小2 18・小4 32');
+check(MQ.treasure.total() === 101, 'たからもの 101個（小3 32＋小1 18＋小2 19＋小4 32）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32, 'listFor: 小3 32・小1 18・小2 19・小4 32');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -744,7 +778,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
   // ぜんぶ そろった プレイヤーは ぜんぶ もらえる
   const dex = {};
   MQ.enemies.list.slice(0, 80).forEach(function (e) { dex[e.id] = 1; });
-  ['boss-dragon', 'boss-oni', 'boss-knight', 'boss-slime', 'boss-titan', 'boss-maou', 'boss-dark', 'slime-golden'].forEach(function (id) { dex[id] = 1; });
+  ['boss-dragon', 'boss-oni', 'boss-knight', 'boss-slime', 'boss-titan', 'boss-maou', 'boss-dark', 'boss-obake', 'boss-kaizoku', 'slime-golden'].forEach(function (id) { dex[id] = 1; });
   const stars = {}; MQ.content.subjectAreas().forEach(function (a) { a.stages.forEach(function (st) { stars[st.id] = 3; }); });
   const tr = {}; MQ.treasure.list.forEach(function (t) { tr[t.id] = 2; });
   const rich = {
@@ -920,7 +954,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 153, '図かんは 153体（' + dex + '）');
+  check(dex === 155, '図かんは 155体（' + dex + '）');
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -1253,7 +1287,7 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
   const want = {
-    burst: 12, shield: 7, freeze: 5, guide: 8, golden: 7, chest: 7, power: 9, charge: 8,
+    burst: 12, shield: 9, freeze: 5, guide: 8, golden: 7, chest: 7, power: 9, charge: 8,
     bond: 6, rush: 9, find: 8, swift: 7, elixir: 6      // v5.4 で ふえた 5つ
   };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
@@ -1592,7 +1626,8 @@ check(MQ.content.worldForGrade(5).locked === true && MQ.content.worldForGrade(6)
 (function () {
   MQ.save.createPlayer('小1テスト', null, 1);
   check(MQ.content.activeWorld().id === 'g1', 'がくねん 1 の プレイヤーは 小1ワールド: ' + MQ.content.activeWorld().id);
-  check(MQ.content.subjectAreas().length === 2 && !MQ.content.hasTower(), '小1は 2エリアで 塔なし');
+  check(MQ.content.subjectAreas().length === 2 && MQ.content.hasTower(), '小1は 2教科＋さいごの とう（v6.4）');
+  check(MQ.content.towerName() === 'さいごの とう' && MQ.content.lastBoss().id === 'boss-obake' && MQ.content.towerStageId() === 'tower1', '小1の 塔: ' + MQ.content.towerName() + ' / ' + MQ.content.lastBoss().name);
   check(MQ.content.areaOf('sansu').name === 'さんすうの やま' && MQ.content.areaOf('eigo').id === 'eigo', '小1の areaOf（ほかの 学年の エリアも 見つかる）');
   check(MQ.content.towerOpen(MQ.save.current()) === false, '小1では 塔は 開かない');
   MQ.save.createPlayer('小2テスト', null, 2);

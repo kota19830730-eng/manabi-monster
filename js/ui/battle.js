@@ -283,7 +283,8 @@ MQ.ui.battle = (function () {
       const box = h('div', { class: cls }, [
         MQ.enemies.node(id, { size: size, cls: 'enemy__img', enrage: enraged }),
         h('div', { class: 'shadow shadow--foe' }),
-        h('span', { class: 'enemy__name', text: (boss ? (last ? 'ラスボス ' : 'ボス ') : '') + e.name }),
+        // ラスボスは 名前が 長い（かいぞくキャプテン）ので「ラスボス」は 左上の ピルに まかせて 名前だけ（v6.4）
+        h('span', { class: 'enemy__name', text: (boss && !last ? 'ボス ' : '') + e.name }),
         q.revenge && i === pos && !boss ? h('span', { class: 'enemy__ribbon', text: 'リベンジ' }) : null,
         boss ? h('div', { class: 'bosshp' }) : null
       ]);
@@ -1801,7 +1802,7 @@ MQ.ui.battle = (function () {
       if (sum.bossBeaten && ctx.stage.tower) {
         const g = MQ.hero.nextDensetsu(p) || MQ.hero.nextYami(p);
         if (g) { p.gear.push(g.id); p.equipped[g.slot] = g.id; out.densetsu.push(g); }
-        MQ.save.addLog(p, 'さいごの塔で ' + MQ.content.lastBoss().name + 'を たおした！');
+        MQ.save.addLog(p, MQ.content.towerName().replace(' ', '') + 'で ' + MQ.content.lastBoss().name + 'を たおした！');
       }
 
       /* ---- ほし の 一式：★3の ステージが 3・6・9・12・15 に なったとき（v5.4） ---- */

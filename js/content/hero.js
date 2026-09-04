@@ -1019,6 +1019,9 @@ MQ.hero = (function () {
     { id: 't-beat500',   name: 'モンスターの 王',        how: 'モンスターを 500たい たおす', test: function (p) { return (p.defeated || 0) >= 500; } },
     { id: 't-yusha',     name: 'でんせつの ゆうしゃ',     how: 'ラスボスを たおす',          test: function (p) { return beaten(p, 'boss-maou'); } },
     { id: 't-yami',      name: 'やみを こえた 者',        how: 'ダークロードを たおす',      test: function (p) { return beaten(p, 'boss-dark'); } },
+    // 小1・小2の ラスボス（v6.4・ひらがなだけ）
+    { id: 't-obake',     name: 'おばけの ゆうしゃ',      how: 'おばけキングを たおす',      test: function (p) { return beaten(p, 'boss-obake'); } },
+    { id: 't-kaizoku',   name: 'うみの ゆうしゃ',        how: 'かいぞくキャプテンを たおす', test: function (p) { return beaten(p, 'boss-kaizoku'); } },
     // なかま（v5.2）
     { id: 't-pal1',      name: 'なかまと ともに',        how: 'なかまを 1体 つくる',       test: function (p) { return palCount(p) >= 1; } },
     { id: 't-pal10',     name: 'なかまの リーダー',       how: 'なかまを 10体 あつめる',     test: function (p) { return palCount(p) >= 10; } },

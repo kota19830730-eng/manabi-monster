@@ -245,6 +245,7 @@ MQ.ui.map = (function () {
     const need = MQ.content.subjectAreas().length;          // 小3は 4教科・小4は 5教科（v4.8）
     const last = MQ.content.lastBoss();
     const beaten = (player.dex && player.dex[last.id]) > 0;
+    const kid = (MQ.content.activeWorld().grade || 3) <= 2;   // 小1・小2は ひらがなで（v6.4）
 
     return h('button', {
       class: 'tower' + (open ? '' : ' tower--lock'), type: 'button',
@@ -256,8 +257,8 @@ MQ.ui.map = (function () {
       }
     }, [
       h('span', { class: 'tower__aura' }),
-      h('span', { class: 'tower__sign', text: 'さいごの塔' }),
-      h('span', { class: 'tower__sub', text: open ? (beaten ? 'もう一度 いどむ' : last.name + 'が 待つ！') : 'かけら ' + gotN + ' / ' + need }),
+      h('span', { class: 'tower__sign', text: MQ.content.towerName().replace(' ', '') }),
+      h('span', { class: 'tower__sub', text: open ? (beaten ? (kid ? 'もういちど いどむ' : 'もう一度 いどむ') : last.name + (kid ? 'が まって いる！' : 'が 待つ！')) : 'かけら ' + gotN + ' / ' + need }),
       h('span', { class: 'tower__art' }, [
         h('span', { class: 'tower__bat' }, [h('i'), h('i'), h('i'), h('i'), h('i')]),
         h('span', { class: 'tower__body' }, [
