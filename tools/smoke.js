@@ -2059,7 +2059,12 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     // v5.8
     'dino', 'shark', 'crab', 'rabbit', 'cat', 'bear', 'turtle', 'frog', 'penguin', 'golem',
     'pumpkin', 'tree', 'mushroom', 'devil', 'angel', 'king', 'wizard', 'sword', 'star', 'flame',
-    'cloud', 'rocket', 'ufo', 'snowman', 'bee', 'butterfly', 'scorpion', 'ship', 'plane'];
+    'cloud', 'rocket', 'ufo', 'snowman', 'bee', 'butterfly', 'scorpion', 'ship', 'plane',
+    // v5.9
+    'giraffe', 'croc', 'wolf', 'elephant', 'lion', 'horse', 'dolphin', 'whale', 'jelly', 'mouse',
+    'monkey', 'pig', 'sheep', 'snail', 'dragonfly', 'ant', 'witch', 'ninja', 'samurai', 'knight',
+    'pirate', 'mummy', 'skeleton', 'eyeball', 'castle', 'train', 'bike', 'house', 'cactus', 'flower',
+    'book', 'pencil', 'crystal', 'bomb', 'sun', 'moon', 'rainbow', 'egg', 'clock', 'key'];
   const N = 64;
   // まる／たまご形の 絵を 作る（目 2つ つき）
   function blobArt(cx, cy, rx, ry, col, eyes) {
@@ -2133,6 +2138,18 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     let thin = 0;
     KINDS.forEach(function (k) { if (G.bodies[k]().length < 5) thin++; });
     check(thin === 0, 'どの しゅるいも 四角 5個 いじょう（' + thin + '）');
+    // v5.9：しゅるいごとに 名前と なかま分けが ある
+    let noName = 0, noGroup = 0;
+    KINDS.forEach(function (k) {
+      if (!G.kindName(k) || G.kindName(k) === k) noName++;
+      if (!G.kindGroup(k)) noGroup++;
+    });
+    check(noName === 0, 'ぜんぶの しゅるいに 日本語の 名前が ある（ない ' + noName + '）');
+    check(noGroup === 0, 'ぜんぶの しゅるいに なかま分けが ある（ない ' + noGroup + '）');
+    const gids = G.groups.map(function (g) { return g.id; });
+    let badG = 0;
+    KINDS.forEach(function (k) { if (gids.indexOf(G.kindGroup(k)) < 0) badG++; });
+    check(badG === 0, 'なかま分けは ' + gids.length + 'つの どれか（ちがう ' + badG + '）');
   })();
   // ミミック（v5.7）：はこ＋中の 生きもの。M の 色が 中の 生きものの 色に なり、目の 数は 中から
   (function () {

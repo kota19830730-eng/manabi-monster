@@ -524,8 +524,13 @@ MQ.ui.photo = (function () {
       }
     }
     lastInner.why = 'enclosed'; lastInner.enclosed = Math.round(enclosedN / area * 100); lastInner.deep = Math.round(deepN / inkN * 100);
-    // 本体が ある：ぬりつぶした 本体（奥の 線 2割 いじょう）か、線で かこまれた 大きな 中身（8% いじょう）
-    if (!((deepN >= inkN * 0.2 && enclosedN >= area * 0.01) || enclosedN >= area * 0.08)) return null;
+    /* 本体が ある か：つぎの どれか（v5.9 で ゆるめた）
+         ・奥の 線が 3.5割 いじょう＝えんぴつで ぬりつぶした 本体が まん中に ある（かこまれた ところは 0でも よい）
+         ・奥の 線 2割 ＋ かこまれた ところ 1%
+         ・かこまれた ところ 8%＝線で かこんだ 大きな 中身
+       ぬりつぶした 絵は かこまれた ところが ほとんど 出ない（ぜんぶ 線に なる）ので、
+       enclosed だけを 見て いると 同じ 絵でも 出たり 出なかったり した */
+    if (!(deepN >= inkN * 0.35 || (deepN >= inkN * 0.2 && enclosedN >= area * 0.01) || enclosedN >= area * 0.08)) return null;
     lastInner.why = 'ok';
     // 消す：たどりつける ところ ＋ その となり（3px）に あって かこまれた ところに 面して いない 線
     const nearEnc = dilate(enclosed, W, H, 4);
@@ -1543,8 +1548,18 @@ MQ.ui.photo = (function () {
       pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'どれに する？' }));
       picks.slice(0, 12).forEach(function (p, i) { pickRow.appendChild(pickTile(p, i)); });
       if (!showAll) return;
-      allRow.appendChild(h('span', { class: 'photo__lbl', text: 'ぜんぶの すがた' }));
-      picks.forEach(function (p, i) { if (i >= 12) allRow.appendChild(pickTile(p, i)); });
+      /* ぜんぶの すがた（v5.9・85しゅるい）は なかま分けして ならべる。
+         いきもの／むし／おばけ・ひと／もの・のりもの／しぜん の 見出しつき */
+      const groups = (MQ.monsterGen.groups || [{ id: 'obake', name: 'すがた' }]);
+      groups.forEach(function (g) {
+        const mine = [];
+        picks.forEach(function (p, i) {
+          if (MQ.monsterGen.kindGroup(p.tag || p.kind) === g.id) mine.push([p, i]);
+        });
+        if (!mine.length) return;
+        allRow.appendChild(h('span', { class: 'photo__glbl', text: g.name }));
+        mine.forEach(function (pair) { allRow.appendChild(pickTile(pair[0], pair[1])); });
+      });
     }
     /* もじを えらぶ（v4.0）。
        絵から もじを 当てるのは むずかしい ので、**子どもが タップで 直せる** ように する。
