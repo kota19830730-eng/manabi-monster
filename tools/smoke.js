@@ -1888,7 +1888,9 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   for (let i = 0; i < 40; i++) rs[1].make(12, {}).forEach(function (q) { check(T.unitEntryOf(q.unit, 3).term <= 2, '2学期に 3学期の 単元: ' + q.unit); });
   // 単元の 上書き：1学期でも「理科：電気」を ならった ことに できる／逆に こん虫を 外せる
   T.forcePlayer({ grade: 3, term: 1, units: { 'unit:理科／こん虫': false } });
-  check(!MQ.content.isAvailable(rs[0]), '上書き: こん虫を 外すと 理社1は 閉じる（植物だけでは 少ない）');
+  check(MQ.content.isAvailable(rs[0]), '上書き: こん虫を 外しても 理社1は 開く（v6.1で 植物だけでも 12問 いじょう）');
+  T.forcePlayer({ grade: 3, term: 0, units: { 'unit:理科／太陽とかげ': false, 'unit:理科／光': false, 'unit:理科／音': false, 'unit:理科／風とゴム': false, 'unit:理科／じしゃく': false, 'unit:理科／電気': false } });
+  check(!MQ.content.isAvailable(rs[1]), '上書き: 重さだけでは 少ないので 理社2は 閉じる');
   T.forcePlayer({ grade: 3, term: 0, units: { 'unit:曜日': false, 'unit:月': false, 'unit:天気': false, 'unit:季節': false } });
   check(!MQ.content.isAvailable(es[3]), '上書き: ぜんぶ でも 英語4の 単元を 外せば 閉じる');
   // おうちの人ページの 一覧
