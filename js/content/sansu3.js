@@ -23,8 +23,16 @@ MQ.sansu3 = (function () {
     return '<span class="num">' + a + ' ' + sign + ' ' + b + '</span>';
   }
 
+  /* 図（グラフ・円・表 など）の ある 問題に メモ欄は 出さない。
+     たて700の 端末では 図と メモ欄が 両方 入らず、**問題文が 切れて 読めなく なる**
+     （v4.4 で 小4に 決めた きまり。v5.6 で 小3も 自動で そろえた）。
+     `extra` で `scratch: true` を 書けば わざと 出す ことも できる。 */
+  const HAS_FIG = /figbox|class="graph"|class="figwide"|class="tbl"|<svg/;
   function num(unit, prompt, answer, extra) {
-    return Object.assign({ type: 'number', unit: unit, prompt: prompt, answer: answer, scratch: true }, extra || {});
+    return Object.assign(
+      { type: 'number', unit: unit, prompt: prompt, answer: answer, scratch: !HAS_FIG.test(String(prompt)) },
+      extra || {}
+    );
   }
 
   function vertical(unit, a, sign, b, answer, extra) {

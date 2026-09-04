@@ -44,6 +44,8 @@ MQ.stage = (function () {
     el.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
 
     document.documentElement.style.setProperty('--stage-h', height + 'px');
+    // 単位の ない 数（CSS の calc で わり算に つかう。--stage-h は px つきなので われない）
+    document.documentElement.style.setProperty('--stage-hn', String(height));
   }
 
   // 画面の 1ピクセルが 実際の 何ピクセルか（Canvas を くっきり 描くのに 使う）

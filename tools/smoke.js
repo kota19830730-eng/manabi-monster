@@ -252,18 +252,23 @@ console.log('sansu4 generated ok: ' + sansu4Count);
   MQ.content.setActive(null);
 })();
 check(MQ.sansu4.make(2, 12).filter(function (q) { return q.prompt.indexOf('class="graph"') !== -1; }).length >= 7, '小4の おれ線グラフは ほとんど 図つき（きまりの 問題だけ 文字）');
-/* 図と メモ欄は たて700の 端末で 両方 入らない（v4.4）。図の ある 問題は scratch:false */
+/* 図と メモ欄は たて700の 端末（＝タブレット）で 両方 入らない（v4.4）。図の ある 問題は scratch:false。
+   v5.6：小4だけ 見て いたので **小3の ぼうグラフ・球の 問題が すりぬけて いた**
+   （実機の 写真で「問題が 見えない」と 分かった）。ぜんぶの 学年を しらべる。 */
 (function () {
-  const FIG = /figbox|class="graph"|class="figwide"|class="tbl"/;
-  for (let s = 1; s <= 15; s++) {
-    [MQ.sansu4.make(s, 40), MQ.sansu4.make(s, 6, { boss: true })].forEach(function (list) {
-      list.forEach(function (q) {
-        if (q.type !== 'choice' && FIG.test(q.prompt)) {
-          check(q.scratch === false, 'sansu4-' + s + ' 図の ある 問題に メモ欄が ある: ' + MQ.util.stripTags(q.prompt).slice(0, 30));
-        }
+  const FIG = /figbox|class="graph"|class="figwide"|class="tbl"|class="clock"|<svg/;
+  [['sansu1', 12], ['sansu2', 14], ['sansu3', 13], ['sansu4', 15]].forEach(function (pair) {
+    const mod = MQ[pair[0]];
+    for (let s = 1; s <= pair[1]; s++) {
+      [mod.make(s, 40), mod.make(s, 6, { boss: true })].forEach(function (list) {
+        list.forEach(function (q) {
+          if (q.type !== 'choice' && FIG.test(q.prompt)) {
+            check(q.scratch === false, pair[0] + '-' + s + ' 図の ある 問題に メモ欄が ある: ' + MQ.util.stripTags(q.prompt).slice(0, 30));
+          }
+        });
       });
-    });
-  }
+    }
+  });
 })();
 check(MQ.sansu4.make(4, 12).filter(function (q) { return q.prompt.indexOf('<svg') !== -1; }).length >= 3, '小4の 角に 図が 出る');
 check(MQ.sansu4.make(7, 12).every(function (q) { return q.prompt.indexOf('class="tbl"') !== -1 || q.type === 'choice'; }), '小4の 整理の しかたは 表つき');

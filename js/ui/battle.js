@@ -385,6 +385,7 @@ MQ.ui.battle = (function () {
     d.fx.className = 'fx';
     d.hint.hidden = true;
     d.hint.innerHTML = '';
+    d.panel.classList.remove('has-hint');
     d.unit.textContent = q.unit || '';
     renderCount();
     comboShow(MQ.battle.combo());
@@ -419,6 +420,7 @@ MQ.ui.battle = (function () {
     }
 
     renderAnswerArea(q);
+    fitPrompt();      // メモ欄・キーが そろった あとで もう一度（v5.6）
   }
 
   // 上の バー（ザコの ときは のこりの数、ボスの ときは 出題数と HP）
@@ -660,13 +662,43 @@ MQ.ui.battle = (function () {
   }
 
   /* ---- 答える ところ ---- */
+  /* 問題文の 大きさを 決める。
+     v5.6：字の 数だけで 決めて いたので、**たて700の 端末（タブレット）では
+     問題文が 下で 切れて 読めなかった**。いまは 決めた あと
+     **ほんとうに はみ出して いないかを はかって、入るまで 小さくする**。
+     それでも 入らない ときは 図を 小さくする（`card--tight`）。 */
+  const Q_SIZES = [' card__q--xl', ' card__q--l', '', ' card__q--m', ' card__q--s', ' card__q--xs'];
+  // 図（グラフ・表・とけい・かたち・見くらべ）が 入って いるか
+  const HAS_FIG = /class="(graph|tbl|figwide|figbox|clockbox|figpair|wcmp)/;
+  /* 入らない ときの 手（上から じゅんに ためす）。
+       [図の 大きさ, 字を いくつ 小さくするか]
+     字を 1つ 小さく → 図を 少し → また 字 … と かわりばんこに して、
+     どちらか 一方だけが むりに 小さく ならない ように して ある。 */
+  const FIT_STEPS = [[1, 0], [1, 1], [0.85, 1], [0.85, 2], [0.7, 2], [0.7, 3], [0.55, 3], [0.45, 3]];
   function fitPrompt() {
-    const n = (d.prompt.textContent || '').replace(/s/g, '').length;
+    const n = (d.prompt.textContent || '').replace(/\s/g, '').length;
     const q = MQ.battle.current();
     const vert = !!(q && q.layout === 'vertical');   // ひっさん：メモ欄に 数字が あるので カードは 小さめ
     // グラフや 表が 入って いる ときは 図に 場所を ゆずる（v4.4）
-    const fig = !!(q && q.prompt && (q.prompt.indexOf('class="graph"') !== -1 || q.prompt.indexOf('class="tbl"') !== -1 || q.prompt.indexOf('class="figwide"') !== -1));
-    d.prompt.className = 'card__q' + (n > 30 || fig ? ' card__q--s' : (n > 14 || vert ? ' card__q--m' : ''));
+    const fig = HAS_FIG.test(d.prompt.innerHTML || '');
+    let start = (n > 30 || fig) ? 4 : (n > 14 || vert) ? 3 : 2;
+    // メモ欄が ない 問題は 下が あく → 大きい 字から ためす（v5.6・「見やすく」）。
+    // 長い 文が でかく なりすぎない ように、字の 数で 上限を 決める
+    if (d.memo.hidden && !fig) start = Math.min(start, n <= 10 ? 0 : n <= 20 ? 1 : 2);
+    d.root.classList.remove('is-cram');
+    // 2周する。1周めで だめなら バトル画面（上）を 少し ちぢめて もう一度
+    for (let round = 0; round < 2; round++) {
+      for (let s = 0; s < FIT_STEPS.length; s++) {
+        d.card.style.setProperty('--figk', FIT_STEPS[s][0]);
+        d.prompt.className = 'card__q' + Q_SIZES[Math.min(Q_SIZES.length - 1, start + FIT_STEPS[s][1])];
+        if (!overflowing()) return;
+      }
+      d.root.classList.add('is-cram');
+    }
+  }
+  // カードから 中身が はみ出して いるか（カードが 見えて いない ときは しらべない）
+  function overflowing() {
+    return d.card && !d.card.hidden && d.card.clientHeight > 0 && d.card.scrollHeight > d.card.clientHeight + 1;
   }
 
   /* よみあげ（v5.3）：英語の 文（英語ステージ）／小1の 問題文 に「きく」を つける。
@@ -688,14 +720,15 @@ MQ.ui.battle = (function () {
 
   function renderAnswerArea(q) {
     d.prompt.innerHTML = q.prompt || '';
-    fitPrompt();
+    d.card.hidden = false;      // 先に 見えるように する（fitPrompt が 高さを はかるため・v5.6）
     renderListen(q);
-    d.card.hidden = false;
+    fitPrompt();
 
     // えらぶ
     if (q.type === 'choice') {
       d.choices.hidden = false;
       d.memo.hidden = true;
+      d.panel.classList.remove('has-memo');
       d.spacer.hidden = true;
       d.displays.hidden = true;
       d.keys.hidden = true;
@@ -715,6 +748,7 @@ MQ.ui.battle = (function () {
     // かん字を 書く（じぶんで 答え合わせ）
     if (q.type === 'write') {
       d.memo.hidden = false;
+      d.panel.classList.add('has-memo');
       d.spacer.hidden = true;
       d.hissan.hidden = true;
       d.memoHint.textContent = 'ここに ゆびで かん字を かこう';
@@ -729,6 +763,7 @@ MQ.ui.battle = (function () {
     // 数字 / わりざん / ローマ字
     const useMemo = q.scratch !== false;
     d.memo.hidden = !useMemo;
+    d.panel.classList.toggle('has-memo', useMemo);
     d.spacer.hidden = useMemo;      // メモが ない ときだけ 下に よせる
     d.displays.hidden = false;
     d.keys.hidden = false;
@@ -843,10 +878,15 @@ MQ.ui.battle = (function () {
     return q.prompt + (writeModel ? '<span class="card__model">おてほん<b>' + MQ.util.esc(q.answer) + '</b></span>' : '');
   }
   // きみの 字 と おてほん を ならべる
+  /* きみの 字 と おてほん を ならべる。
+     v5.6：前は 上に 黒い ふきだしを 出して いたが、それが **ならべた 2つの 字の 上に
+     かぶさって、くらべる ものが 見えなかった**（実機の 写真で わかった）。
+     いまは 言うことを カードの 中（絵の すぐ 上）に 書く。 */
   function showWriteCompare(q) {
     let url = '';
     try { url = MQ.handwrite.cropUrl(d.canvas, 96); } catch (e) { url = ''; }
     d.prompt.innerHTML = q.prompt +
+      '<span class="wcmp__say">おなじ 形に かけたら ◯、ちがったら ✕</span>' +
       '<span class="wcmp">' +
         '<span class="wcmp__box"><img class="wcmp__img" alt="きみの 字" src="' + url + '"><span class="wcmp__cap">きみの 字</span></span>' +
         '<span class="wcmp__box"><span class="wcmp__k">' + MQ.util.esc(q.answer) + '</span><span class="wcmp__cap">おてほん</span></span>' +
@@ -877,7 +917,8 @@ MQ.ui.battle = (function () {
     }
     writeState = 'check';
     showWriteCompare(q);
-    feedback('おてほんと くらべてみよう。', 'おなじ 形に かけたら ◯、ちがったら ✕');
+    // ふきだしは 出さない（くらべる 字の 上に かぶさる）。言うことは カードの 中に ある
+    d.msg.textContent = 'おてほんと くらべてみよう';
     renderWriteKeys(q);
   }
 
@@ -1193,6 +1234,8 @@ MQ.ui.battle = (function () {
   function showHint(hint, q, picked) {
     d.hint.hidden = false;
     d.hint.innerHTML = '<span class="hintbox__label">ヒント</span>' + MQ.util.esc(hint.text);
+    d.panel.classList.add('has-hint');
+    fitPrompt();      // ヒントの ぶん 場所が へるので、問題文の 大きさを 合わせ直す（v5.6）
     if (q.type !== 'choice') return;
     d.choices.querySelectorAll('.choice').forEach(function (b) {
       const i = Number(b.getAttribute('data-i'));

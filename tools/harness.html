@@ -1113,6 +1113,89 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         return;
       }
     }
+    /* 問題が 切れて いないか（v5.6）。
+       たて700の 端末（＝タブレット。よこが 広いので scale が 高さで 決まり stage-h が 700に なる）で
+       問題カードから 中身が はみ出して いないかを、いろいろな ステージで 見る。
+       #fit（小3ちゅうしん）／#fit:all（小1〜小4）  */
+    // #fitdbg … 1問の カードの 中身の 高さを ぜんぶ 出す（はみ出しの 犯人さがし）
+    if (mode.indexOf('fitdbg') === 0) {
+      const id = mode.split(':')[1] || 'sansu1-8';
+      const g = Number(mode.split(':')[2] || (id.indexOf('sansu1') === 0 ? 1 : 3));
+      fresh({ stars: {}, treasure: {}, frags: {} });
+      MQ.save.update(function (pl) { pl.grade = g; pl.playGrade = g; pl.best = {}; });
+      MQ.ui.battle.start(id); await wait(400);
+      function dumpCard(when) {
+        const card = $('.card'), body = $('.battle__body');
+        const parts = [];
+        Array.prototype.forEach.call(card.children, function (el) {
+          const cs = getComputedStyle(el);
+          parts.push(el.className + '=' + el.offsetHeight + '@' + el.offsetTop + '(m' + cs.marginTop + '/' + cs.marginBottom + ' d' + cs.display + ')');
+        });
+        parts.push('cardpad=' + getComputedStyle(card).paddingTop + '/' + getComputedStyle(card).paddingBottom);
+        const cb = $('.clockbox'), cq = $('.clockq');
+        say(when + ': card ' + card.clientHeight + '←' + card.scrollHeight + ' figk=' + (card.style.getPropertyValue('--figk') || '-')
+          + ' body ' + body.clientHeight + '←' + body.scrollHeight
+          + ' | ' + parts.join(' ')
+          + (cq ? ' | clockq=' + Math.round(cq.getBoundingClientRect().height / MQ.stage.size().scale) : '')
+          + (cb ? ' clockbox=' + Math.round(cb.getBoundingClientRect().height / MQ.stage.size().scale) + ' cs=' + getComputedStyle(cb).getPropertyValue('--cs') : ''));
+      }
+      dumpCard('ふつう');
+      answerViaUI(false); await wait(1200);
+      dumpCard('ヒント');
+      dump();
+      return;
+    }
+    if (mode === 'fit' || mode === 'fit:all') {
+      const STAGES = mode === 'fit:all'
+        ? [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'sansu3-11'], [3, 'sansu3-12'], [3, 'kokugo3-2'], [3, 'kokugo3-3'], [3, 'rikashakai3-1'], [3, 'eigo3-1'],
+           [1, 'sansu1-8'], [2, 'sansu2-2'], [2, 'sansu2-9'], [4, 'sansu4-2'], [4, 'sansu4-7'], [4, 'sansu4-11'], [4, 'sansu4-15']]
+        : [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'kokugo3-2'], [3, 'eigo3-1']];
+      let worst = 0, worstQ = "", checked = 0, bad = 0, badCard = 0, badBody = 0;
+      // カードから 問題文が はみ出して いないか ＋ キーや ヒントが 下で 切れて いないか
+      function measure(id, q, when) {
+        const card = $('.card'), body = $('.battle__body');
+        if (!card || card.hidden || !body) return;
+        const oc = card.scrollHeight - card.clientHeight;
+        const ob = body.scrollHeight - body.clientHeight;
+        const over = Math.max(oc, ob);
+        checked++;
+        if (over > 1) {
+          bad++;
+          if (oc > 1) badCard++;
+          if (ob > 1) badBody++;
+          if (over > worst) {
+            worst = over;
+            const pr = $('.card__q');
+            worstQ = id + '（' + when + '・カード' + oc + '/ぜんたい' + ob + '）/ ' + (MQ.util.stripTags(q.prompt) || '').slice(0, 20)
+              + ' [card ' + card.clientHeight + '←' + card.scrollHeight + ' figk=' + (card.style.getPropertyValue('--figk') || '?')
+              + ' cls=' + (pr ? pr.className : '?') + ' type=' + q.type + ']';
+          }
+        }
+      }
+      for (let si = 0; si < STAGES.length; si++) {
+        const g = STAGES[si][0], id = STAGES[si][1];
+        fresh({ stars: {}, treasure: {}, frags: {} });
+        MQ.save.update(function (pl) { pl.grade = g; pl.playGrade = g; pl.best = {}; });
+        MQ.ui.battle.start(id);
+        await wait(400);
+        for (let k = 0; k < 8; k++) {
+          const q = MQ.battle.current();
+          if (!q) break;
+          measure(id, q, 'ふつう');
+          // 1回 まちがえて ヒントを 出した ところも 見る（いちばん せまい）
+          if (k % 2 === 1 && q.type !== 'write') {
+            answerViaUI(false);
+            await wait(1200);
+            measure(id, q, 'ヒント');
+          }
+          if (!answerViaUI(true)) break;
+          await wait(2600);
+        }
+      }
+      say('fit: しらべた ' + checked + '回 / はみ出し ' + bad + '回（カード ' + badCard + ' ぜんたい ' + badBody + '）' + (bad ? '（さいだい ' + worst + 'px：' + worstQ + '）' : ' → OK'));
+      dump();
+      return;
+    }
     // メモを ひろげる（v2.4.1）：#wide 小2 ひっさん／#wide3 小3 わりざん
     if (mode === 'wide' || mode === 'wide3') {
       if (mode === 'wide') {
