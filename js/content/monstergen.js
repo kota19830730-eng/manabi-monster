@@ -96,6 +96,14 @@ MQ.monsterGen = (function () {
     for (let i = 1; i < list.length; i++) {
       if (far(list[i].c, main) && list[i].n > n * 0.03) { accent = list[i].c; break; }
     }
+    // えんぴつで ぬりつぶした 絵（コウモリ など）：色の マスより 線の マスが ずっと 多い → 体は こい 灰色、いちばん 多い 色は かざり（v5.7）
+    let inkCells = 0;
+    for (let k = 0; k < N * N; k++) if (cells[k] && cells[k].ink) inkCells++;
+    const dark = inkCells >= (n - inkCells) * 1.5;
+    if (dark) {
+      accent = list.length && list[0].n > n * 0.03 ? list[0].c : null;
+      main = [74, 72, 84];
+    }
 
     /* はしの でこぼこを 数える。列ごとに いちばん 上（か 下）の 場所を とり、
        まん中あたり（中央値）より どれだけ 出っぱっているかで 数える。
@@ -454,6 +462,7 @@ MQ.monsterGen = (function () {
       skull: isSkull(),
       boxish: isBox(),
       teeth: jag >= 4,
+      dark: dark,
       // ゆびもん：同じ 絵なら いつも 同じ すがた、ちがう 絵なら ちがう すがたに なる ための 数
       seed: Math.abs(Math.round(main[0] * 7 + main[1] * 13 + main[2] * 17 + n * 3 + ratio * 991 + bw * 5 + bh * 11))
     };
@@ -494,7 +503,9 @@ MQ.monsterGen = (function () {
     squid:    { y: 12, size: 8, xs: [14, 27], cx: 20 },
     ghost:    { y: 12, size: 8, xs: [13, 27], cx: 20 },
     vehicle:  { y: 11, size: 7, xs: [14, 24], cx: 18 },
-    spider:   { y: 9, size: 5, xs: [18, 26], cx: 21 }
+    spider:   { y: 9, size: 5, xs: [18, 26], cx: 21 },
+    bat:      { y: 9, size: 6, xs: [17, 25], cx: 21 },
+    mimic:    { y: 13, size: 6, xs: [13, 29], cx: 21 }
   };
 
   function eyesFor(kind, n) {
@@ -682,8 +693,42 @@ MQ.monsterGen = (function () {
         [17, 6, 14, 11, 'A', 'h'],                                      // あたま
         [18, 15, 3, 4, 'w', 'n'], [27, 15, 3, 4, 'w', 'n']              // きば
       ];
+    },
+    // コウモリ（はねを 左右に 大きく ひろげる・とがった 耳・ぎざぎざの すそ。v5.7・息子さんの 絵から）
+    bat: function () {
+      return [
+        [0, 12, 10, 6, 'B'], [38, 12, 10, 6, 'B'],                      // はねの さき（上に あがる）
+        [0, 16, 17, 10, 'B', 'h'], [31, 16, 17, 10, 'B', 'h'],          // はね
+        [2, 26, 14, 5, 'B'], [32, 26, 14, 5, 'B'],                      // はねの 下
+        [1, 31, 4, 3, 'B'], [9, 31, 4, 3, 'B'], [35, 31, 4, 3, 'B'], [43, 31, 4, 3, 'B'],   // ぎざぎざの すそ
+        [16, 1, 4, 8, 'A'], [28, 1, 4, 8, 'A'],                         // とがった 耳
+        [14, 7, 20, 14, 'A', 'h'],                                      // 頭
+        [17, 16, 14, 3, 'k', 'n'],                                      // 口
+        [17, 21, 14, 14, 'A', 'h'],                                     // 体
+        [20, 24, 8, 8, 'C', 'n'],                                       // おなか
+        [18, 35, 4, 5, 'B'], [26, 35, 4, 5, 'B']                        // あし
+      ];
     }
   };
+
+  /* ミミック＝たからばこの 中に 生きものが いる（v5.7・息子さんの「たからばこの モンスター」）。
+     はこ（オレンジ など 絵の 色）＋上が まるい ふた＋口の 中に こい 色の 生きもの（左右に はねが はみ出す）＋白い 歯＋金の かぎあな。
+     目の 数は 中の 生きものから。色の キー：A はこ／M 中の 生きもの */
+  function mimicBody(inner) {
+    const s = [
+      [4, 22, 40, 24, 'A', 'h'],                                     // はこ
+      [4, 22, 40, 4, 'B', 'n'],                                      // はこの 上の ふち
+      [4, 34, 40, 3, 'B', 'n'],                                      // 金具の 帯
+      [4, 22, 4, 24, 'B'], [40, 22, 4, 24, 'B'],                     // はこの かど
+      [7, 0, 34, 7, 'A', 'h'], [4, 4, 40, 6, 'A'],                   // ふた（上が まるい・大きく あいて いる）
+      [4, 10, 40, 2, 'B', 'n'],                                      // ふたの ふち
+      [6, 12, 36, 10, 'M', 'n'],                                     // 口の 中（生きもの）
+      [0, 13, 7, 8, 'M'], [41, 13, 7, 8, 'M'],                       // 左右に はみ出す はね・つめ
+      [20, 26, 8, 8, 'y', 'g'], [22, 30, 4, 3, 'k', 'n']             // 金の かぎあな
+    ];
+    for (let i = 0; i < 8; i++) s.push([8 + i * 4, 20, 2, 3, 'w', 'n']);   // 歯
+    return s.concat(eyesFor('mimic', inner && inner.eyes ? inner.eyes : 2));
+  }
 
   /* ---------- おまけの 部品 ---------- */
   // ガイコツの 頭（白と 黒が はっきりした 絵）。体の 頭の 場所に かぶせる
@@ -692,7 +737,7 @@ MQ.monsterGen = (function () {
     humanoid: [13, 3, 22, 19], bird: [15, 2, 18, 15], bug: [16, 3, 16, 14],
     box: [13, 13, 22, 20], triple: [16, 11, 16, 18],
     dragon: [10, 5, 28, 16], robot: [12, 4, 24, 15], snake: [22, 4, 18, 11], squid: [13, 6, 22, 18],
-    ghost: [11, 6, 26, 20], vehicle: [13, 8, 18, 12], spider: [17, 6, 14, 11]
+    ghost: [11, 6, 26, 20], vehicle: [13, 8, 18, 12], spider: [17, 6, 14, 11], bat: [14, 7, 20, 14]
   };
   function skullHead(kind) {
     const a = SKULL_AT[kind] || SKULL_AT.blob;
@@ -722,7 +767,8 @@ MQ.monsterGen = (function () {
     squid: [[13, 0, 4, 5], [31, 0, 4, 5], [22, 0, 4, 4]],
     ghost: [[11, 0, 5, 7], [32, 0, 5, 7], [22, 0, 4, 5]],
     vehicle: [[12, 3, 4, 6], [28, 3, 4, 6], [20, 2, 4, 6]],
-    spider: [[16, 1, 4, 6], [28, 1, 4, 6], [22, 0, 4, 5]]
+    spider: [[16, 1, 4, 6], [28, 1, 4, 6], [22, 0, 4, 5]],
+    bat: [[11, 2, 4, 7], [33, 2, 4, 7], [22, 0, 4, 6]]
   };
   function horns(kind, n) {
     const a = HORN_AT[kind] || HORN_AT.blob;
@@ -744,7 +790,8 @@ MQ.monsterGen = (function () {
     robot: [[0, 12, 10, 13], [38, 12, 10, 13]],
     snake: null, squid: null,
     ghost: [[0, 9, 9, 14], [39, 9, 9, 14]],
-    vehicle: null, spider: null
+    vehicle: null, spider: null,
+    bat: null                                        // はねは 体に 入って いる
   };
   function wings(kind) {
     const a = WING_AT[kind];
@@ -762,7 +809,7 @@ MQ.monsterGen = (function () {
     box: null,
     triple: null,
     dragon: null,                                    // しっぽは 体に 入って いる
-    robot: null, snake: null, squid: null, ghost: null, vehicle: null, spider: null
+    robot: null, snake: null, squid: null, ghost: null, vehicle: null, spider: null, bat: null
   };
   function tail(kind) {
     const a = TAIL_AT[kind];
@@ -772,7 +819,7 @@ MQ.monsterGen = (function () {
   // きば（口の ところに 白い ギザギザ）
   const TEETH_AT = {
     blob: [17, 30], beast: [1, 20], fish: [2, 27], bird: [31, 12], humanoid: [18, 17], bug: [19, 14], box: [17, 29], triple: [18, 30],
-    dragon: [18, 22], robot: [18, 15], snake: [23, 12], squid: [16, 20], ghost: [21, 22], vehicle: [14, 17], spider: [18, 15]
+    dragon: [18, 22], robot: [18, 15], snake: [23, 12], squid: [16, 20], ghost: [21, 22], vehicle: [14, 17], spider: [18, 15], bat: [18, 16]
   };
   function teeth(kind) {
     const a = TEETH_AT[kind] || TEETH_AT.blob;
@@ -1510,7 +1557,8 @@ MQ.monsterGen = (function () {
       squid: (f.legs >= 3 ? 3 : 0) + (f.tall ? 2 : 0),
       ghost: (f.legs === 0 ? 2 : 0) + (f.tall ? 3 : 0) + 1,
       vehicle: (f.wide ? 2 : 0) + (f.rectness >= 0.86 ? 5 : 0),                     // 四角い よこ長＝のりもの
-      spider: (f.legs >= 4 ? 4 : 0) + (f.sideOut ? 2 : 0)
+      spider: (f.legs >= 4 ? 4 : 0) + (f.sideOut ? 2 : 0),
+      bat: (f.wings ? 4 : 0) + (f.horns >= 2 ? 2 : 0) + (f.teeth ? 1 : 0) + (f.dark ? 2 : 0)   // はね＋耳＋歯・えんぴつで ぬった 黒い 絵
     };
     // 同じ 点数の ときは 絵の ゆびもんで 順番を 変える（絵ごとに ちがう 顔ぶれに なる）
     const seed = f.seed || 0;
@@ -1559,6 +1607,13 @@ MQ.monsterGen = (function () {
       const cl = { A: hex(f.main) };
       if (f.accent) cl.C = hex(f.accent);
       return { shape: riderBody(kind === 'rider'), colors: cl, kind: kind };
+    }
+    /* ミミック（v5.7）：はこは 絵の 色、中の 生きものは f.inner（中だけを 読んだ 特徴）の 色と 目の 数 */
+    if (kind === 'mimic') {
+      const inner = f.inner || f;
+      const cl = { A: hex(f.main), M: hex(inner.main || [58, 56, 68]) };
+      if (f.accent) cl.C = hex(f.accent);
+      return { shape: mimicBody(inner), colors: cl, kind: 'mimic' };
     }
     let shape = BODIES[kind]();
     if (f.horns >= 2) shape = horns(kind, f.horns).concat(shape);
@@ -2008,12 +2063,38 @@ MQ.monsterGen = (function () {
     plan.push([order[0].kind, order[0].kind]);
     if (f.eyes === 2 && !f.skull) plan.push([order[0].kind, 'skull', skullF]);
     plan.push([order[1].kind, order[1].kind]);
+    plan.push(['bat', 'bat']);                                   // コウモリも いつでも えらべる（はねが 読めない ことが ある・v5.7）
     if (!riderOk) plan.push(['rider', 'rider']);                 // のりものは いつでも えらべる ように
     plan.push([order[2].kind, order[2].kind]);
     plan.push(['letters', 'letters']);                           // 字も いつでも えらべる（もじは あとから 直せる）
     if (!f.boxish) plan.push(['box', 'box']);
     for (let i = 3; i < order.length; i++) plan.push([order[i].kind, order[i].kind]);
     plan.forEach(function (p) { add(p[0], p[1], p[2]); });
+    return out.slice(0, want);
+  }
+
+  /* はこ（たからばこ・わく）の 中に 生きものが いる 絵（v5.7）。
+     まるごと（cellsW）と 中の 生きもの（cellsI）の 両方を 読んで、
+     ①ミミック（はこ＋中の 生きものの 目）②はこ ③中の 生きものの 候補 の じゅんに ならべる。
+     features() は まるごとの 特徴（inner に 中の 特徴）を かえす */
+  function variantsInner(cellsW, cellsI, N, n) {
+    const fW = analyze(cellsW, N);
+    const fI = analyze(cellsI, N);
+    if (!fW) return [];
+    if (!fI) return variants(cellsW, N, n);
+    const want = n || 8;
+    const innerList = variants(cellsI, N, want);
+    fW.inner = fI;
+    lastF = fW;
+    const out = [], done = {};
+    function add(m, tag) {
+      if (out.length >= want || done[tag] || !m) return;
+      done[tag] = 1;
+      out.push({ png: png(m.shape, m.colors), kind: m.kind, tag: tag, shape: m.shape, colors: m.colors, letters: m.letters || null, cols: m.cols || null });
+    }
+    add(make(fW, 'mimic'), 'mimic');
+    add(make(fW, 'box'), 'box');
+    innerList.forEach(function (v) { if (out.length < want && !done[v.tag]) { done[v.tag] = 1; out.push(v); } });
     return out.slice(0, want);
   }
 
@@ -2028,6 +2109,8 @@ MQ.monsterGen = (function () {
     analyze: analyze,
     fromDrawing: fromDrawing,
     variants: variants,
+    variantsInner: variantsInner,
+    mimicBody: mimicBody,
     bodies: BODIES,
     letterGuess: letterGuess,
     letterPng: function (chars, cols) { return png(letterBody(chars, cols), {}); },

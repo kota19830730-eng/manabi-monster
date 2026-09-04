@@ -87,9 +87,9 @@
     const ids = mode.slice(5).split(',');
     blockNode('ズーム', 'big', ids.map(function (id) { return { name: id, node: MQ.enemies.node(id, { size: 200 }) }; }));
   } else if (mode === 'bodies') {
-    // 写真から 作る モンスターの 体 15しゅるい（v4.1）
+    // 写真から 作る モンスターの 体 16しゅるい（v4.1・v5.7 コウモリ）
     const G = MQ.monsterGen;
-    const COL = { blob: '#4fbf6a', beast: '#c98a3f', fish: '#4f9bf0', bird: '#e8c04e', humanoid: '#5fb0c8', bug: '#8fbf4f', box: '#c9772f', triple: '#e8544e', dragon: '#7a4fd6', robot: '#8fa2c0', snake: '#4fbf6a', squid: '#e0559b', ghost: '#cfd8ee', vehicle: '#c9772f', spider: '#4a4f6b' };
+    const COL = { blob: '#4fbf6a', beast: '#c98a3f', fish: '#4f9bf0', bird: '#e8c04e', humanoid: '#5fb0c8', bug: '#8fbf4f', box: '#c9772f', triple: '#e8544e', dragon: '#7a4fd6', robot: '#8fa2c0', snake: '#4fbf6a', squid: '#e0559b', ghost: '#cfd8ee', vehicle: '#c9772f', spider: '#4a4f6b', bat: '#4a4a5c' };
     function feat(o) {
       const f = { main: [160, 160, 180], accent: null, eyes: 2, horns: 0, legs: 0, wings: false, skull: false, teeth: false, wide: false, tall: false, parts: 1, rectness: 0.5, sideOut: false };
       Object.keys(o || {}).forEach(function (k) { f[k] = o[k]; });
@@ -98,7 +98,11 @@
     const kinds = Object.keys(G.bodies);
     block('体 ' + kinds.length + 'しゅるい', 'full', kinds.map(function (k) {
       return { name: k, src: G.png(G.make(feat({}), k).shape, { A: COL[k] || '#8fa2c0' }) };
-    }));
+    }).concat([(function () {
+      // ミミック（v5.7）：はこは オレンジ・中の 生きものは こい 灰色・目 2つ
+      const mm = G.make(feat({ main: [226, 150, 95], accent: [242, 201, 59], inner: { main: [58, 56, 68], eyes: 2 } }), 'mimic');
+      return { name: 'mimic', src: G.png(mm.shape, mm.colors) };
+    })()]));
     block('おまけ つき（つの・はね・きば・目3・ガイコツ頭）', 'full', kinds.map(function (k) {
       return { name: k, src: G.png(G.make(feat({ eyes: 3, horns: 3, wings: true, skull: true, teeth: true, legs: 4 }), k).shape, { A: COL[k] || '#8fa2c0', C: '#f5c542' }) };
     }));

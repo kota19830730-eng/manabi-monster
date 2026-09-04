@@ -6,7 +6,7 @@
    ※ファイルを 増やしたら FILES にも 足してください。
    --------------------------------------------------------- */
 
-const CACHE_NAME = 'manabi-monster-v71';
+const CACHE_NAME = 'manabi-monster-v72';
 
 const FILES = [
   './',

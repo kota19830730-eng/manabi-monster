@@ -434,6 +434,114 @@ MQ.ui.photo = (function () {
     return out;
   }
 
+  /* はこ（たからばこ・わく）の 中に 生きものが いる 絵（v5.7・息子さんの「たからばこの モンスター」）。
+     オレンジで ぬった はこの 中に、えんぴつで ぬった 生きもの（はね・とがった 耳・ギザギザの 歯）が いる 絵。
+     いままでは はこも ぬりも「絵の 一部」として 1つに 読んで いた ので、生きものは 消えて 四角い はこに なった。
+     ここでは **中の 生きものだけ**の マスクを 作る（まるごとの マスクは そのまま のこす）。
+     候補には ①ミミック（はこ＋中の 顔）②はこ ③中の 生きもの が 出て、子どもが えらぶ。
+     見わけ方（3つ そろったら「はこの 中に 生きもの」と 見る）：
+       ① えんぴつの 線を かべに して、はんいの ふち（外がわ 6%）から ぬって いくと、たどりつける **色の ついた ところ**が
+          上下左右の 3辺 いじょうに ある（＝絵の まわりが ぬられて いる。ふつうの 絵は まわりが 紙＝色が ない）
+       ② たどりつけない ところ（線で かこまれた 中＝本体の 顔・体）が はんいの 4% いじょう
+       ③ たどりつける ところから 5px より 遠い 線（本体の ぬりつぶし・中の 線）が 線ぜんたいの 2割 いじょう、
+          か かこまれた ところが 1割 いじょう（本体が ちゃんと ある）
+     中の 生きもの＝たどりつける ところ（ぬり・紙）を のぞき、その となり（5px）に あって かこまれた ところ（4px）に
+       面して いない 線（＝はこの 線・地面の 線）も のぞいた もの。生きものの 輪かくは 中の 顔や 体に 面して いる ので のこる。
+     かえり値：null（ふつうの 絵）か { fg（中の 生きものだけ）, removed, sides, enclosed, deep } */
+  let lastInner = null;   // はこの 中の 生きものの 見わけの 記録（テスト用）
+  function innerFigure(fg, q, W, H, lineD) {
+    lastInner = null;
+    const box = bbox(fg, W, H);
+    if (!box) return null;
+    const bw = box.x1 - box.x0 + 1, bh = box.y1 - box.y0 + 1;
+    if (bw < 40 || bh < 40) return null;
+    const area = bw * bh;
+    function inBox(k) { const x = k % W, y = (k - x) / W; return x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1; }
+    // えんぴつの 線（暗くて 色みが ない）と 色の ついた ところ
+    const ink = new Uint8Array(W * H), col = new Uint8Array(W * H);
+    let inkN = 0;
+    for (let y = box.y0; y <= box.y1; y++) {
+      for (let x = box.x0; x <= box.x1; x++) {
+        const k = y * W + x;
+        if (!fg[k]) continue;
+        const r = q[k * 3], g = q[k * 3 + 1], b = q[k * 3 + 2];
+        const d = 255 - lumOf(r, g, b), s = Math.max(r, g, b) - Math.min(r, g, b);
+        if (d > lineD && s < 14 + d * 0.08) { ink[k] = 1; inkN++; }
+        else if (s > 22) col[k] = 1;
+      }
+    }
+    lastInner = { why: 'ink', ink: Math.round(inkN / area * 1000) / 10 };
+    if (inkN < area * 0.01) return null;
+    // ① 線を かべに して ふちの 帯から ぬる（帯の 中の 線で ない ところ ぜんぶが 出発点。わくの 外の 紙も 中の ぬりも）
+    const wall = dilate(ink, W, H, 2);
+    const reach = new Uint8Array(W * H);
+    const st = [];
+    function push(k) { if (reach[k] || wall[k]) return; reach[k] = 1; st.push(k); }
+    const mx = Math.max(3, Math.round(bw * 0.06)), my = Math.max(3, Math.round(bh * 0.06));
+    // はんいの 外は ぜんぶ 出発点（わくの 線の 外がわの ふちも「たどりつける ところの となり」に なる）
+    for (let y = 0; y < H; y++) {
+      const edgeY = y < box.y0 + my || y > box.y1 - my;
+      for (let x = 0; x < W; x++) {
+        if (edgeY || x < box.x0 + mx || x > box.x1 - mx) push(y * W + x);
+      }
+    }
+    while (st.length) {
+      const k = st.pop();
+      const x = k % W, y = (k - x) / W;
+      if (x + 1 < W) push(k + 1);
+      if (x > 0) push(k - 1);
+      if (y + 1 < H) push(k + W);
+      if (y > 0) push(k - W);
+    }
+    // 帯ごとに「色が ついて いて たどりつける」列が どれだけ あるか（辺ごと）
+    function bandCol(x0, y0, x1, y1, alongX) {
+      let hit = 0, tot = 0;
+      if (alongX) { for (let x = x0; x <= x1; x++) { tot++; for (let y = y0; y <= y1; y++) { const k = y * W + x; if (reach[k] && col[k]) { hit++; break; } } } }
+      else { for (let y = y0; y <= y1; y++) { tot++; for (let x = x0; x <= x1; x++) { const k = y * W + x; if (reach[k] && col[k]) { hit++; break; } } } }
+      return tot ? hit / tot : 0;
+    }
+    const band = Math.max(mx, my) * 2;   // 色は わくの 線より 内がわに ある ので 帯を 2倍に して 見る
+    const sides = [
+      bandCol(box.x0, box.y0, box.x1, Math.min(box.y1, box.y0 + band), true),
+      bandCol(box.x0, Math.max(box.y0, box.y1 - band), box.x1, box.y1, true),
+      bandCol(box.x0, box.y0, Math.min(box.x1, box.x0 + band), box.y1, false),
+      bandCol(Math.max(box.x0, box.x1 - band), box.y0, box.x1, box.y1, false)
+    ];
+    const colSides = sides.filter(function (v) { return v >= 0.25; }).length;
+    lastInner.why = 'sides'; lastInner.sides = sides.map(function (v) { return Math.round(v * 100) / 100; });
+    if (colSides < 3) return null;
+    // ② かこまれた ところ（たどりつけない・線でも ない）と ③ 奥の 線（たどりつける ところから 3px より 遠い）
+    // となり＝5px（線の かべは 2px ふとらせて ある ので、2〜3px の 線の まん中まで とどく ように）
+    const near = dilate(reach, W, H, 5);
+    let enclosedN = 0, deepN = 0;
+    const enclosed = new Uint8Array(W * H);
+    for (let y = box.y0; y <= box.y1; y++) {
+      for (let x = box.x0; x <= box.x1; x++) {
+        const k = y * W + x;
+        if (!reach[k] && !wall[k]) { enclosed[k] = 1; enclosedN++; }
+        if (ink[k] && !near[k]) deepN++;
+      }
+    }
+    lastInner.why = 'enclosed'; lastInner.enclosed = Math.round(enclosedN / area * 100); lastInner.deep = Math.round(deepN / inkN * 100);
+    // 本体が ある：ぬりつぶした 本体（奥の 線 2割 いじょう）か、線で かこまれた 大きな 中身（8% いじょう）
+    if (!((deepN >= inkN * 0.2 && enclosedN >= area * 0.01) || enclosedN >= area * 0.08)) return null;
+    lastInner.why = 'ok';
+    // 消す：たどりつける ところ ＋ その となり（3px）に あって かこまれた ところに 面して いない 線
+    const nearEnc = dilate(enclosed, W, H, 4);
+    const out = new Uint8Array(fg);
+    let removed = 0;
+    for (let y = box.y0; y <= box.y1; y++) {
+      for (let x = box.x0; x <= box.x1; x++) {
+        const k = y * W + x;
+        if (!fg[k]) continue;
+        if (reach[k] || (near[k] && !nearEnc[k])) { out[k] = 0; removed++; }
+      }
+    }
+    lastInner.removed = Math.round(removed / area * 100);
+    if (removed < area * 0.05) { lastInner.why = 'removed'; return null; }
+    return { fg: out, removed: removed, sides: sides.map(function (v) { return Math.round(v * 100) / 100; }), enclosed: Math.round(enclosedN / area * 100), deep: Math.round(deepN / inkN * 100) };
+  }
+
   // 絵が ある はんい（絵の まわりの 余白を 切る ため）
   function bbox(fg, w, hh) {
     let x0 = w, y0 = hh, x1 = -1, y1 = -1, n = 0;
@@ -1027,96 +1135,113 @@ MQ.ui.photo = (function () {
     const auto = thresholds(q, W, H);
     const kTol = tol / 55;                                   // スライダー「はいけいを 消す」（55 = 自動の まま）
     const thr = { d: auto.d * kTol, s: auto.s * kTol };
-    let fg = foregroundMask(q, W, H, thr);
-    fg = keepMain(fg, W, H);
-    const box = bbox(fg, W, H);
-    if (!box || box.n < 30) { lastInfo = { empty: true, thr: thr }; return ''; }
-
     // 線と 見なす こさ：紙との 差が「紙でない」しきい値の 0.4〜2.2倍（スライダー「線を こく」で 変わる。50 = 1.3倍）
     const lineD = Math.max(10, thr.d * (2.2 - inkLv * 0.018));
     const lineS = Math.max(16, thr.s * 1.4);                 // これより 色が あれば「色」
 
-    // 絵の まわりの 余白を 切って、正方形に する（少し 余白を のこす）
-    const bw = box.x1 - box.x0 + 1, bh = box.y1 - box.y0 + 1;
-    const side = Math.max(bw, bh) * 1.06;
-    const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
-    const ox = cx - side / 2, oy = cy - side / 2;
+    let fg = foregroundMask(q, W, H, thr);
+    fg = keepMain(fg, W, H);
+    const box = bbox(fg, W, H);
+    if (!box || box.n < 30) { lastInfo = { empty: true, thr: thr }; return ''; }
+    // はこ（たからばこ・わく）の 中に 生きものが いる 絵（v5.7）：中の 生きものだけの マスクも 作る（候補に ミミックと 中の 生きものを 出す ため）
+    const inn = cleanMode === 3 ? innerFigure(fg, q, W, H, lineD) : null;
+    const innerFg = inn ? keepMain(inn.fg, W, H) : null;
 
     const N = cleanMode === 3 ? 64 : cleanMode === 2 ? 48 : size;   // モンスターは 特徴を 読む ため 64／ゲームふうは 48（もとの てきと 同じ ドットの 大きさ）
-    const cell = side / N;
     const M = 6;                                  // 1マスの 中で しらべる 点の 数（M×M）
-    const cells = new Array(N * N);
-    const fills = [];
-    for (let j = 0; j < N; j++) {
-      for (let i = 0; i < N; i++) {
-        let fgN = 0, total = 0, darkN = 0, colN = 0, fn = 0;
-        let dl = 0, dr = 0, dg = 0, db = 0;         // えんぴつの 明るさ・色（合計）
-        let cr = 0, cg = 0, cb = 0;                 // 色（ぬり・色の 線）
-        let fr = 0, fgc = 0, fb = 0;                // 白っぽい ところ（囲まれた 紙）
-        for (let v = 0; v < M; v++) {
-          for (let u = 0; u < M; u++) {
-            const x = Math.floor(ox + (i + (u + 0.5) / M) * cell);
-            const y = Math.floor(oy + (j + (v + 0.5) / M) * cell);
-            total++;
-            if (x < 0 || y < 0 || x >= W || y >= H) continue;
-            const k = y * W + x;
-            if (!fg[k]) continue;
-            fgN++;
-            const r = q[k * 3], g = q[k * 3 + 1], b = q[k * 3 + 2];
-            const d = 255 - lumOf(r, g, b);
-            const s = Math.max(r, g, b) - Math.min(r, g, b);
-            if (d > lineD && s < 14 + d * 0.08) { darkN++; dl += 255 - d; dr += r; dg += g; db += b; }    // えんぴつ・ペン：暗くて ほんとうに 灰色
-            else if (s > lineS) { colN++; cr += r; cg += g; cb += b; }         // 色：ぬり・色の 線（うすくても 色）
-            else { fn++; fr += r; fgc += g; fb += b; }                         // 白っぽい：線で 囲まれた 紙
+    /* マスク（fg）と その はんい（box）から N×N の マス目を 作る。
+       絵の まわりの 余白を 切って 正方形に する（少し 余白を のこす）。かえり値：{ cells, fills } */
+    function cellsFrom(fg, box) {
+      const bw = box.x1 - box.x0 + 1, bh = box.y1 - box.y0 + 1;
+      const side = Math.max(bw, bh) * 1.06;
+      const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
+      const ox = cx - side / 2, oy = cy - side / 2;
+      const cell = side / N;
+      const cells = new Array(N * N);
+      const fills = [];
+      for (let j = 0; j < N; j++) {
+        for (let i = 0; i < N; i++) {
+          let fgN = 0, total = 0, darkN = 0, colN = 0, fn = 0;
+          let dl = 0, dr = 0, dg = 0, db = 0;         // えんぴつの 明るさ・色（合計）
+          let cr = 0, cg = 0, cb = 0;                 // 色（ぬり・色の 線）
+          let fr = 0, fgc = 0, fb = 0;                // 白っぽい ところ（囲まれた 紙）
+          for (let v = 0; v < M; v++) {
+            for (let u = 0; u < M; u++) {
+              const x = Math.floor(ox + (i + (u + 0.5) / M) * cell);
+              const y = Math.floor(oy + (j + (v + 0.5) / M) * cell);
+              total++;
+              if (x < 0 || y < 0 || x >= W || y >= H) continue;
+              const k = y * W + x;
+              if (!fg[k]) continue;
+              fgN++;
+              const r = q[k * 3], g = q[k * 3 + 1], b = q[k * 3 + 2];
+              const d = 255 - lumOf(r, g, b);
+              const s = Math.max(r, g, b) - Math.min(r, g, b);
+              if (d > lineD && s < 14 + d * 0.08) { darkN++; dl += 255 - d; dr += r; dg += g; db += b; }    // えんぴつ・ペン：暗くて ほんとうに 灰色
+              else if (s > lineS) { colN++; cr += r; cg += g; cb += b; }         // 色：ぬり・色の 線（うすくても 色）
+              else { fn++; fr += r; fgc += g; fb += b; }                         // 白っぽい：線で 囲まれた 紙
+            }
           }
-        }
-        if (!fgN) { cells[j * N + i] = null; continue; }
-        // えんぴつ・ペンの 線：マスの 中に 3点 あれば 線（細い 線でも 消えない・ごみは ひろわない）。しっかり 暗く（うすい 線ほど 少し 明るい 灰色）
-        if (darkN >= 3 && darkN >= fgN * 0.1 && darkN * 2.5 >= colN) {
-          const ac = [dr / darkN, dg / darkN, db / darkN];
-          const as = Math.max(ac[0], ac[1], ac[2]) - Math.min(ac[0], ac[1], ac[2]);
-          if (as >= 10) {
-            // 1点ずつは 灰色に 見えても、平均すると 色が ある → 色えんぴつの 線（黄色い 電灯の 下の 水色 など）。
-            // 色の 点も 合わせた 平均に する（すじの あいだの 明るい ところも 入れて、その 色えんぴつの 明るさに）
-            const tn = darkN + colN;
-            const col = vivid((dr + cr) / tn, (dg + cg) / tn, (db + cb) / tn);
+          if (!fgN) { cells[j * N + i] = null; continue; }
+          // えんぴつ・ペンの 線：マスの 中に 3点 あれば 線（細い 線でも 消えない・ごみは ひろわない）。しっかり 暗く（うすい 線ほど 少し 明るい 灰色）
+          if (darkN >= 3 && darkN >= fgN * 0.1 && darkN * 2.5 >= colN) {
+            const ac = [dr / darkN, dg / darkN, db / darkN];
+            const as = Math.max(ac[0], ac[1], ac[2]) - Math.min(ac[0], ac[1], ac[2]);
+            if (as >= 10) {
+              // 1点ずつは 灰色に 見えても、平均すると 色が ある → 色えんぴつの 線（黄色い 電灯の 下の 水色 など）。
+              // 色の 点も 合わせた 平均に する（すじの あいだの 明るい ところも 入れて、その 色えんぴつの 明るさに）
+              const tn = darkN + colN;
+              const col = vivid((dr + cr) / tn, (dg + cg) / tn, (db + cb) / tn);
+              cells[j * N + i] = { ink: false, c: col };
+              fills.push(col);
+              continue;
+            }
+            const dk = clamp((255 - dl / darkN) / 70, 0.4, 1);
+            const lv = Math.round(120 - 95 * dk);
+            cells[j * N + i] = { ink: true, c: [lv, lv, lv + 8] };
+            continue;
+          }
+          // 色（ぬり・色の 線）：3点 あれば その 色（色えんぴつの すじの あいだも ぬる）。細い 色の 線（マスの 3分の1 より 少ない）は 少し こく
+          if (colN >= 3 && colN >= fgN * 0.1) {
+            let col = vivid.apply(null, dense([cr / colN, cg / colN, cb / colN]));
+            if (colN < total * 0.35) col = [col[0] * 0.8, col[1] * 0.8, col[2] * 0.8];
             cells[j * N + i] = { ink: false, c: col };
             fills.push(col);
             continue;
           }
-          const dk = clamp((255 - dl / darkN) / 70, 0.4, 1);
-          const lv = Math.round(120 - 95 * dk);
-          cells[j * N + i] = { ink: true, c: [lv, lv, lv + 8] };
-          continue;
+          // ふち（マスの 一部だけ 絵）は 消して きれいな 輪かくに
+          if (fgN < total * 0.4) { cells[j * N + i] = null; continue; }
+          if (!fn) { cells[j * N + i] = null; continue; }
+          const vc = vivid(fr / fn, fgc / fn, fb / fn);
+          cells[j * N + i] = { ink: false, c: vc };
+          fills.push(vc);
         }
-        // 色（ぬり・色の 線）：3点 あれば その 色（色えんぴつの すじの あいだも ぬる）。細い 色の 線（マスの 3分の1 より 少ない）は 少し こく
-        if (colN >= 3 && colN >= fgN * 0.1) {
-          let col = vivid.apply(null, dense([cr / colN, cg / colN, cb / colN]));
-          if (colN < total * 0.35) col = [col[0] * 0.8, col[1] * 0.8, col[2] * 0.8];
-          cells[j * N + i] = { ink: false, c: col };
-          fills.push(col);
-          continue;
-        }
-        // ふち（マスの 一部だけ 絵）は 消して きれいな 輪かくに
-        if (fgN < total * 0.4) { cells[j * N + i] = null; continue; }
-        if (!fn) { cells[j * N + i] = null; continue; }
-        const vc = vivid(fr / fn, fgc / fn, fb / fn);
-        cells[j * N + i] = { ink: false, c: vc };
-        fills.push(vc);
       }
+      return { cells: cells, fills: fills };
     }
+    const made = cellsFrom(fg, box);
+    const cells = made.cells, fills = made.fills;
     // しあげ（v3.3〜）：ごみ・線の すきま・あな・白い ぬけ・ぬりむら・輪かく → さらに ゲームふう（v3.4）
     if (cleanMode >= 1) cleanCells(cells, N, cleanMode >= 2);
     if (cleanMode === 2) { solidify(cells, N); cleanCells(cells, N, true); gameStyle(cells, N); }
     if (cleanMode === 3) {
       // 絵から 特徴（色・かたち・つの・目の数）を 読んで、ゲームの 部品で 3体の 候補を 作る（v3.8）
       lastCells = { cells: cells, N: N };
-      const list = MQ.monsterGen ? MQ.monsterGen.variants(cells, N, 8) : [];
+      let list = [];
+      if (MQ.monsterGen) {
+        // はこの 中に 生きものが いる 絵（v5.7）：中の 生きものの マス目も 読んで、ミミック → はこ → 中の 生きもの の じゅんに 候補を 出す
+        let cellsI = null;
+        if (innerFg) {
+          const boxI = bbox(innerFg, W, H);
+          if (boxI && boxI.n >= 30) { cellsI = cellsFrom(innerFg, boxI).cells; cleanCells(cellsI, N, true); }
+        }
+        list = cellsI && MQ.monsterGen.variantsInner ? MQ.monsterGen.variantsInner(cells, cellsI, N, 8) : MQ.monsterGen.variants(cells, N, 8);
+      }
       if (list.length) {
         picks = list;
         if (pickAt >= picks.length) pickAt = 0;
         const cur = picks[pickAt];
-        lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, kinds2: list.map(function (v) { return v.tag; }), letters: letterPick.join(''), box: box };
+        lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, kinds2: list.map(function (v) { return v.tag; }), letters: letterPick.join(''), box: box, inner: inn ? { sides: inn.sides, enclosed: inn.enclosed, deep: inn.deep } : null };
         // 字の モンスター：子どもが えらんだ もじが あれば その もじで（絵から 読んだ もじは 目やす）
         if (cur.letters && letterPick.length && MQ.monsterGen.letterPng) {
           return MQ.monsterGen.letterPng(letterPick, cur.cols || null);
@@ -1143,7 +1268,7 @@ MQ.ui.photo = (function () {
       drawn++;
     }
     ox2.putImageData(od, 0, 0);
-    lastInfo = { size: N, drawn: drawn, colors: pal.length, clean: cleanMode, box: box, thr: { d: Math.round(thr.d * 10) / 10, s: Math.round(thr.s * 10) / 10, line: Math.round(lineD * 10) / 10 } };
+    lastInfo = { size: N, drawn: drawn, colors: pal.length, clean: cleanMode, box: box, thr: { d: Math.round(thr.d * 10) / 10, s: Math.round(thr.s * 10) / 10, line: Math.round(lineD * 10) / 10 }, inner: inn ? { sides: inn.sides, enclosed: inn.enclosed, deep: inn.deep } : null };
     return out.toDataURL('image/png');
   }
 
@@ -1692,15 +1817,22 @@ MQ.ui.photo = (function () {
     const auto = thresholds(q, W, H);
     const kTol = tol / 55;
     const thr = { d: auto.d * kTol, s: auto.s * kTol };
-    const fg = keepMain(foregroundMask(q, W, H, thr), W, H);
     const lineD = Math.max(10, thr.d * (2.2 - inkLv * 0.018)), lineS = Math.max(16, thr.s * 1.4);
+    const fg0 = keepMain(foregroundMask(q, W, H, thr), W, H);
+    const back = innerFigure(fg0, q, W, H, lineD);
+    const fg = back ? keepMain(back.fg, W, H) : fg0;
     const a = document.createElement('canvas'); a.width = W; a.height = H;
     const b = document.createElement('canvas'); b.width = W; b.height = H;
     const ad = a.getContext('2d').createImageData(W, H), bd = b.getContext('2d').createImageData(W, H);
     for (let k = 0; k < W * H; k++) {
       const r = q[k * 3], g = q[k * 3 + 1], bl = q[k * 3 + 2];
       ad.data[k * 4] = r; ad.data[k * 4 + 1] = g; ad.data[k * 4 + 2] = bl; ad.data[k * 4 + 3] = 255;
-      if (!fg[k]) { bd.data[k * 4 + 3] = 0; continue; }
+      if (!fg[k]) {
+        // はこ（外がわ）として のぞいた ところは うすい ピンク（中の 生きものだけが 色つきで のこる）
+        if (fg0[k]) { bd.data[k * 4] = 255; bd.data[k * 4 + 1] = 200; bd.data[k * 4 + 2] = 210; bd.data[k * 4 + 3] = 255; }
+        else bd.data[k * 4 + 3] = 0;
+        continue;
+      }
       const d = 255 - lumOf(r, g, bl), s = Math.max(r, g, bl) - Math.min(r, g, bl);
       let c;
       if (d > lineD && s < 14 + d * 0.08) c = [0, 0, 0];
@@ -1717,6 +1849,7 @@ MQ.ui.photo = (function () {
     render: render,
     // テスト用：さいごの できあがりの 情報／作り直し
     info: function () { return lastInfo; },
+    inner: function () { return lastInner; },   // テスト用：はこの 中の 生きものの 見わけ（v5.7）
     debug: debugImages,
     crop: function () { return crop; },
     picks: function () { return picks.map(function (p) { return { kind: p.kind, png: p.png, letters: p.letters || null }; }); },   // テスト用：候補

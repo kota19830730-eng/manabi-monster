@@ -2055,7 +2055,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   const G = MQ.monsterGen;
   check(!!G, 'monsterGen が ある');
   const KINDS = ['blob', 'beast', 'fish', 'bird', 'humanoid', 'bug', 'box', 'triple',
-    'dragon', 'robot', 'snake', 'squid', 'ghost', 'vehicle', 'spider'];
+    'dragon', 'robot', 'snake', 'squid', 'ghost', 'vehicle', 'spider', 'bat'];
   const N = 64;
   // まる／たまご形の 絵を 作る（目 2つ つき）
   function blobArt(cx, cy, rx, ry, col, eyes) {
@@ -2105,7 +2105,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   // ⑤ できあがりの きまりごと
   const m = G.make(fWide);
   check(m.shape.length >= 8, '四角の ならびが できる（' + m.shape.length + '個）');
-  check(KINDS.indexOf(m.kind) >= 0, 'しゅるいは 15の どれか');
+  check(KINDS.indexOf(m.kind) >= 0, 'しゅるいは ' + KINDS.length + 'の どれか');
   check(Object.keys(G.bodies).length === KINDS.length, '体は ' + KINDS.length + 'しゅるい（' + Object.keys(G.bodies).length + '）');
   // あたらしい 7しゅるいも 部品が そろって いる（目・つの・きばの 場所が ある）
   let miss = 0;
@@ -2115,6 +2115,18 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     if (!sp.shape.some(function (p) { return p[4] === 'w'; })) miss++;      // 目か きばの 白が ある
   });
   check(miss === 0, 'あたらしい 7しゅるいに 目と 部品が ある（' + miss + '）');
+  // ミミック（v5.7）：はこ＋中の 生きもの。M の 色が 中の 生きものの 色に なり、目の 数は 中から
+  (function () {
+    const mm = G.make({ main: [226, 150, 95], accent: [242, 201, 59], inner: { main: [58, 56, 68], eyes: 3 }, eyes: 2 }, 'mimic');
+    check(mm && mm.kind === 'mimic' && mm.shape.length >= 14, 'ミミックが 組み立てられる（' + (mm ? mm.shape.length : 0) + '個）');
+    check(mm.colors.M === '#3a3844', 'ミミックの 中の 色は 中の 生きものの 色（' + mm.colors.M + '）');
+    check(mm.shape.filter(function (p) { return p[4] === 'w' && p[2] === 2 && p[3] === 3; }).length === 8, 'ミミックに 歯が 8本');
+    const eyesW = mm.shape.filter(function (p) { return p[4] === 'w' && !(p[2] === 2 && p[3] === 3); }).length;
+    check(eyesW === 3, 'ミミックの 目は 中の 生きものの 数（3）＝' + eyesW);
+    const ov = mm.shape.filter(function (p) { return p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48; });
+    check(ov.length === 0, 'ミミックは 48マスから はみ出さない');
+    check(typeof G.variantsInner === 'function', 'variantsInner が ある');
+  })();
   check(/^#[0-9a-f]{6}$/.test(m.colors.A), '色 A が #xxxxxx（' + m.colors.A + '）');
   const over = m.shape.filter(function (p) { return p[0] < 0 || p[1] < 0 || p[0] + p[2] > 48 || p[1] + p[3] > 48; });
   check(over.length === 0, '48マスから はみ出さない（はみ出し ' + over.length + '個）');

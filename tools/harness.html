@@ -285,6 +285,59 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     return c.toDataURL('image/jpeg', 0.82);
   }
 
+  /* v5.7：「わくを かいて まわりを ぬった 絵」（息子さんの コウモリ）に 見せかけた 画像。
+     えんぴつの わく（上が まるい）→ 中を オレンジの 色えんぴつで ぬる → まん中に えんぴつで ぬった コウモリ
+     （頭は うすい 灰色・とがった 耳・ギザギザの 歯）→ 上に 黄色い 月・下に 黄色い 光の 四角（とびらの ような たての 線つき）
+     → はねを 横切る 地面の 線。#photo2b で つかう */
+  function fakeDrawing2() {
+    const W = 900, H = 1200;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d');
+    const g = x.createRadialGradient(300, 300, 100, 450, 600, 1000);
+    g.addColorStop(0, '#f3efe6'); g.addColorStop(1, '#cbc5b8');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 6000; i++) { x.fillStyle = 'rgba(0,0,0,' + (Math.random() * 0.06) + ')'; x.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+    x.fillStyle = '#5a4a3a'; x.fillRect(0, 1120, W, 80);   // つくえ
+    const d = document.createElement('canvas'); d.width = W; d.height = H;
+    const y = d.getContext('2d');
+    y.lineJoin = 'round'; y.lineCap = 'round';
+    // わく（左上が まるい）
+    y.beginPath(); y.moveTo(230, 900); y.lineTo(210, 420); y.quadraticCurveTo(220, 250, 400, 250); y.lineTo(680, 260); y.lineTo(700, 900); y.lineTo(240, 910); y.closePath();
+    y.lineWidth = 3.4; y.strokeStyle = '#3a3634'; y.stroke();
+    // オレンジの ぬり（すじの ある 色えんぴつ）
+    y.save(); y.clip();
+    y.strokeStyle = 'rgba(226,150,95,.55)'; y.lineWidth = 3;
+    for (let i = 0; i < 900; i++) { const px = 215 + Math.random() * 480, py = 255 + Math.random() * 650; const a = Math.random() * Math.PI; y.beginPath(); y.moveTo(px, py); y.lineTo(px + Math.cos(a) * 28, py + Math.sin(a) * 28); y.stroke(); }
+    y.restore();
+    // とびらの たての 線 と 黄色い 月・光
+    y.strokeStyle = '#3a3634'; y.lineWidth = 3; y.strokeRect(390, 340, 120, 460);
+    y.strokeStyle = 'rgba(240,215,60,.8)'; y.lineWidth = 4;
+    for (let i = 0; i < 60; i++) { const px = 400 + Math.random() * 100, py = 350 + Math.random() * 60; y.beginPath(); y.moveTo(px, py); y.lineTo(px + 20 - Math.random() * 40, py + 8); y.stroke(); }
+    for (let i = 0; i < 80; i++) { const px = 400 + Math.random() * 100, py = 690 + Math.random() * 100; y.beginPath(); y.moveTo(px, py); y.lineTo(px + 20 - Math.random() * 40, py + 8); y.stroke(); }
+    // コウモリ：はね（えんぴつで ぬりつぶし＋すじ）
+    function wing(sign) {
+      y.beginPath(); y.moveTo(450, 560);
+      y.lineTo(450 + sign * 150, 480); y.lineTo(450 + sign * 190, 650); y.lineTo(450 + sign * 150, 640); y.lineTo(450 + sign * 130, 690); y.lineTo(450 + sign * 90, 660); y.lineTo(450 + sign * 60, 700); y.lineTo(450 + sign * 30, 660); y.closePath();
+      y.fillStyle = 'rgba(60,58,56,.78)'; y.fill(); y.lineWidth = 3; y.strokeStyle = '#2e2a28'; y.stroke();
+      y.strokeStyle = 'rgba(30,28,26,.5)'; y.lineWidth = 2;
+      for (let i = 0; i < 40; i++) { const px = 450 + sign * (20 + Math.random() * 150), py = 500 + Math.random() * 180; y.beginPath(); y.moveTo(px, py); y.lineTo(px + 6, py + 26); y.stroke(); }
+    }
+    wing(-1); wing(1);
+    // 体
+    y.beginPath(); y.ellipse(450, 610, 45, 60, 0, 0, Math.PI * 2); y.fillStyle = 'rgba(70,68,66,.85)'; y.fill(); y.lineWidth = 3; y.strokeStyle = '#2e2a28'; y.stroke();
+    // 耳 と 頭（うすい 灰色）
+    [[415, 470], [485, 470]].forEach(function (p, i) { y.beginPath(); y.moveTo(p[0] - 18, p[1] + 30); y.lineTo(p[0] + (i ? 10 : -10), p[1] - 60); y.lineTo(p[0] + 18, p[1] + 30); y.closePath(); y.fillStyle = 'rgba(160,158,156,.5)'; y.fill(); y.lineWidth = 3; y.strokeStyle = '#2e2a28'; y.stroke(); });
+    y.beginPath(); y.ellipse(450, 520, 58, 52, 0, 0, Math.PI * 2); y.fillStyle = 'rgba(175,173,170,.55)'; y.fill(); y.lineWidth = 3.4; y.strokeStyle = '#2e2a28'; y.stroke();
+    // 目（V）と ギザギザの 口
+    y.beginPath(); y.moveTo(420, 505); y.lineTo(436, 520); y.lineTo(450, 505); y.lineTo(464, 520); y.lineTo(480, 505); y.lineWidth = 2.6; y.stroke();
+    y.beginPath(); y.moveTo(408, 540); for (let i = 0; i < 6; i++) { y.lineTo(415 + i * 14, i % 2 ? 540 : 562); } y.lineTo(492, 540); y.closePath(); y.fillStyle = '#f2f0ec'; y.fill(); y.lineWidth = 2.4; y.stroke();
+    // 地面の 線（はねを 横切って わくから わくまで）
+    y.beginPath(); y.moveTo(232, 662); y.lineTo(690, 655); y.lineWidth = 2.8; y.strokeStyle = '#3a3634'; y.stroke();
+    try { x.filter = 'blur(0.8px)'; } catch (e) {}
+    x.drawImage(d, 0, 0);
+    return c.toDataURL('image/jpeg', 0.82);
+  }
+
   /* AIが かえしそうな 絵（太い 線・ベタ塗り・白い 背景）。#ai の にせの こたえ */
   function fakeAiArt() {
     const S = 1024;
@@ -605,7 +658,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     // #set2 … よみあげの スイッチが 出る せってい画面（にせの 声・v5.3）
     if (mode === 'set2') { fakeVoices(); fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); await wait(200); say('set2: スイッチ=' + Array.prototype.map.call(document.querySelectorAll('.sw'), function (b) { return b.textContent; }).join('/')); dump(); return; }
     if (mode === 'photo') { fresh(); MQ.ui.photo.render(); return; }
-    // 写真から モンスター（v2.7）：#photo2 = 子どもの 絵に 見せかけた 画像／#photo3:<file URL>[:<マス数>[:<x,y,w[,h]>[:<消す,こく>]]] = 本物の 画像
+    // 写真から モンスター（v2.7）：#photo2 = 子どもの 絵に 見せかけた 画像／#photo2b = たからばこの 中に 生きものが いる 絵（v5.7・ミミック）／#photo3:<file URL>[:<マス数>[:<x,y,w[,h]>[:<消す,こく>]]] = 本物の 画像
     //   x,y,w,h は わくの 場所（写真に 対する わりあい 0〜1。h を 書かなければ 写真の px で 正方形）。子どもが 指で わくを 動かした のと 同じに PointerEvent で 動かす
     if (mode.indexOf('photo2') === 0 || mode.indexOf('photo3:') === 0) {
       fresh();
@@ -617,7 +670,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (mode.indexOf('photo3:') === 0 && parts[4]) { const tk = parts[4].split(',').map(Number); MQ.ui.photo.setOptions({ tol: tk[0], ink: tk[1], clean: tk.length > 2 ? tk[2] : null }); say('sliders: tol=' + tk[0] + ' ink=' + tk[1] + (tk.length > 2 ? ' clean=' + tk[2] : '')); }
       MQ.ui.photo.render();
       let url = null;
-      if (mode.indexOf('photo2') === 0) url = fakeDrawing();
+      if (mode.indexOf('photo2b') === 0) url = fakeDrawing2();   // v5.7：わくの 中を ぬった コウモリ
+      else if (mode.indexOf('photo2') === 0) url = fakeDrawing();
       else {
         const blob = await fetch(decodeURIComponent(parts[1])).then(function (r) { return r.blob(); });
         url = await new Promise(function (res) { const fr = new FileReader(); fr.onload = function () { res(String(fr.result)); }; fr.readAsDataURL(blob); });
@@ -658,6 +712,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (parts[5] === 'down') { const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__preview'); if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 90; }   // :down = できあがりまで スクロール
       // できあがり（PNG）と わくの 中の 写真（JPEG）を ログに 出す（外の 道具で ならべて 見る ため）
       say('png:' + ($('.photo__out').src || ''));
+      try { say('inner: ' + JSON.stringify(MQ.ui.photo.inner())); } catch (e) { say('inner: ' + e); }   // v5.7 はこの 中の 生きものの 見わけ
       try { const ft = MQ.monsterGen.features(); if (ft) say('feat: letters=' + JSON.stringify(ft.letters || null) + ' lscore=' + (ft.letterScore || 0).toFixed(2) + ' ldbg=' + (ft.letterDbg || '-') + ' rider=' + (ft.riderScore || 0).toFixed(2) + ' eyes=' + ft.eyes + ' skull=' + ft.skull + ' boxish=' + ft.boxish + ' wide=' + ft.wide + ' legs=' + ft.legs + ' parts=' + ft.parts + ' | ' + (ft.letterHue || '')); } catch (e) { say('feat: ' + e); }
       try { const pi = MQ.ui.photo.partsImg && MQ.ui.photo.partsImg(); if (pi) { say('partsbox: ' + JSON.stringify(pi.boxes)); say('parts:' + pi.png); } } catch (e) { say('partsimg: ' + e); }
       try { (MQ.ui.photo.picks() || []).forEach(function (p, i) { say('pick' + i + ':' + p.kind + ':' + p.png); }); } catch (e) {}
