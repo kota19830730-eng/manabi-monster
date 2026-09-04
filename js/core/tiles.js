@@ -107,6 +107,18 @@ MQ.tiles = (function () {
     [ROAD,   ['#cbc1a8', '#c1b79e']]
   ]), { margin: 1, wob: 3, taper: [8, 5, 3, 1] });
 
+  // 小5 ふゆの 大陸（v6.5）：雪の 草原・こい 緑の 森・氷の 海・青白い 砂
+  theme('g5', pal([
+    [GRASS,  ['#dfe9ee', '#d4e1e8']],
+    [FOREST, ['#2f6b4f', '#2a6147']],
+    [SEA,    ['#2b5f9e', '#265694']],
+    [SHAL,   ['#6fb4e4', '#66abdc']],
+    [RIVER,  ['#5aa6da', '#519dd2']],
+    [SAND,   ['#eef2f5', '#e4e9ee']],
+    [ROCK,   ['#aab7c9', '#9fabbd']],
+    [ROAD,   ['#c9c2b4', '#bfb8aa']]
+  ]), { margin: 1, wob: 2, taper: [8, 5, 3, 1] });
+
   function isLand(v) { return v >= SAND; }
   function isWater(v) { return v < SAND; }
 

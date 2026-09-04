@@ -172,6 +172,14 @@ MQ.content = (function () {
     };
   }
 
+  // 小5の 算数（sansu5.js の 生成器・v6.5）
+  function sansu5Stage(no, name) {
+    return {
+      id: 'sansu5-' + no, no: no, name: name, when: '', available: true,
+      make: function (n, opts) { return MQ.sansu5.make(no, n, opts); }
+    };
+  }
+
   // いま 出せる 問題の 数（学期の チェックを 通った もの）。少なすぎる ステージは 地図で ロック
   function listPool(getList, no, g) {
     return function (pl) {
@@ -506,12 +514,45 @@ MQ.content = (function () {
     ]
   };
 
+  /* =======================================================
+     小5ワールド（v6.5）。まず 算数 18ステージ。国語・理科・社会・英語・塔は これから。
+     単元の じゅんは 日本文教出版『小学算数』5年（目安。学校で 前後する ので 学期の しくみで 直す）。
+     ======================================================= */
+  const world5 = {
+    id: 'g5', grade: 5, name: '小5ワールド', locked: false,
+    areas: [
+      {
+        id: 'sansu', name: '算数の山', short: '算数', color: 'var(--c-sansu)', biome: 'mountain',
+        stages: [
+          sansu5Stage(1, '整数と 小数'),
+          sansu5Stage(2, '体積'),
+          sansu5Stage(3, '比例'),
+          sansu5Stage(4, '小数の かけ算'),
+          sansu5Stage(5, '小数の わり算'),
+          sansu5Stage(6, '合同な 図形'),
+          sansu5Stage(7, '図形の 角'),
+          sansu5Stage(8, '整数（倍数と 約数）'),
+          sansu5Stage(9, '分数'),
+          sansu5Stage(10, '分数の たし算と ひき算'),
+          sansu5Stage(11, '平均'),
+          sansu5Stage(12, '単位量あたりの 大きさ'),
+          sansu5Stage(13, '速さ'),
+          sansu5Stage(14, '四角形と 三角形の 面積'),
+          sansu5Stage(15, '割合'),
+          sansu5Stage(16, '帯グラフと 円グラフ'),
+          sansu5Stage(17, '正多角形と 円周'),
+          sansu5Stage(18, '角柱と 円柱')
+        ]
+      }
+    ]
+  };
+
   const worlds = [
     world1,
     world2,
     world3,
     world4,
-    { id: 'g5', grade: 5, name: '小5ワールド', locked: true, areas: [] },
+    world5,
     { id: 'g6', grade: 6, name: '小6ワールド', locked: true, areas: [] }
   ];
 
@@ -673,7 +714,7 @@ MQ.content = (function () {
   }
 
   return {
-    worlds: worlds, world: world, world3: world3, world1: world1, world2: world2, world4: world4, worldForGrade: worldForGrade,
+    worlds: worlds, world: world, world3: world3, world1: world1, world2: world2, world4: world4, world5: world5, worldForGrade: worldForGrade,
     activeWorld: activeWorld, setActive: setActive, hasTower: hasTower,
     areaOf: areaOf, subjectAreas: subjectAreas, findStage: findStage, isUnlocked: isUnlocked,
     isAvailable: isAvailable, lockedReason: lockedReason, MIN_POOL: MIN_POOL,

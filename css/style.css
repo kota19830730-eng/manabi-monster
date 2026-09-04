@@ -727,6 +727,21 @@ body {
 .map--g4 .deco--flower i:nth-child(1) { background: #ffcf6b; box-shadow: 0 0 7px rgba(255,207,107,.85); }
 .map--g4 .deco--rock i:nth-child(1) { background: #b7ae9f; }
 .map--g4 .deco--rock i:nth-child(2) { background: #9d9483; box-shadow: inset -6px 0 0 #857c6c; }
+/* 小5 ふゆの 大陸（v6.5）：雪を かぶった 木・氷の 花・青みの 岩 */
+.map--g5 .deco--tree i:nth-child(1) { background: #e8f1f7; }
+.map--g5 .deco--tree i:nth-child(2) { background: #2f6b4f; box-shadow: inset 0 -3px 0 #24523c; }
+.map--g5 .deco--tree i:nth-child(3) { background: #27563f; box-shadow: inset 0 -3px 0 #1c4030; }
+.map--g5 .deco--tree i:nth-child(3)::after { background: #5a3f2a; }
+.map--g5 .deco--flower i:nth-child(1) { background: #9fe3ff; box-shadow: 0 0 7px rgba(159,227,255,.9); }
+.map--g5 .deco--rock i:nth-child(1) { background: #aab7c9; }
+.map--g5 .deco--rock i:nth-child(2) { background: #8d9bb0; box-shadow: inset -6px 0 0 #74829a; }
+/* 分数の 見た目（v6.5・小5）。問題文の 中で 分子を 上、分母を 下に */
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; line-height: 1.05; margin: 0 3px; font-family: var(--f-head); }
+.frac__n { border-bottom: 2px solid currentColor; padding: 0 4px; }
+.frac__d { padding: 0 4px; }
+.mixed { display: inline-flex; align-items: center; gap: 2px; vertical-align: middle; }
+.mixed__w { font-family: var(--f-head); }
+.mixed .frac { font-size: .78em; }
 
 /* 枯れ木（塔の 小島） */
 .deco--dead { transform: translate(-50%, -100%); filter: drop-shadow(0 3px 2px rgba(20,10,40,.5)); }

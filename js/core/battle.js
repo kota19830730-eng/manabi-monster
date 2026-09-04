@@ -307,6 +307,8 @@ MQ.battle = (function () {
     if (q.type === 'number') return Number(value) === Number(q.answer);
     if (q.type === 'choice') return Number(value) === Number(q.answer);
     if (q.type === 'divrem') return value && Number(value.q) === q.answer.q && Number(value.r) === q.answer.r;
+    // 分数（v6.5）：分子 n・分母 d。画面は divrem と 同じ 2つの わく（q＝分子・r＝分母）で 送って くる
+    if (q.type === 'frac') return value && Number(value.q) === q.answer.n && Number(value.r) === q.answer.d;
     if (q.type === 'roma') {
       const t = String(value).toLowerCase().replace(/[^a-z'-]/g, '');
       const ok = q.accept || [q.answer];
@@ -321,6 +323,7 @@ MQ.battle = (function () {
     if (q.type === 'number') return String(q.answer);
     if (q.type === 'choice') return q.choices[q.answer];
     if (q.type === 'divrem') return q.answer.q + ' あまり ' + q.answer.r;
+    if (q.type === 'frac') return q.answer.d + '分の' + q.answer.n;
     if (q.type === 'roma' || q.type === 'write') return q.answer;
     return '';
   }
@@ -784,6 +787,7 @@ MQ.battle = (function () {
 
   return {
     start: start, current: current, answer: answer, timeUp: timeUp, next: next, summary: summary,
+    isCorrect: isCorrect, answerText: answerText,   // テスト用（v6.5・分数の 判定を smoke が 見る）
     useItem: useItem, canUse: canUse, items: items, buffs: buffs,
     recharge: recharge, canRecharge: canRecharge, rechargeCost: RECHARGE_COST, coinsLeft: coinsLeft,
     phase: function () { return s.phase; },

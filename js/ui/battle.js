@@ -792,13 +792,14 @@ MQ.ui.battle = (function () {
   function renderDisplays() {
     const q = MQ.battle.current();
     d.displays.innerHTML = '';
-    if (q.type === 'divrem') {
+    if (q.type === 'divrem' || q.type === 'frac') {
+      const isFrac = q.type === 'frac';   // 分数（v6.5）：q＝分子・r＝分母
       ['q', 'r'].forEach(function (f) {
         d.displays.appendChild(h('button', {
           class: 'display display--half' + (div.active === f ? ' is-on' : ''), type: 'button',
           onclick: function () { if (locked) return; MQ.sfx.tap(); div.active = f; renderDisplays(); }
         }, [
-          h('span', { class: 'display__label', text: f === 'q' ? 'こたえ' : 'あまり' }),
+          h('span', { class: 'display__label', text: isFrac ? (f === 'q' ? '分子（上）' : '分母（下）') : (f === 'q' ? 'こたえ' : 'あまり') }),
           h('span', { class: 'display__value', text: div[f] === '' ? '?' : div[f] })
         ]));
       });
@@ -936,12 +937,13 @@ MQ.ui.battle = (function () {
       return;
     }
 
-    if (q.type === 'divrem') {
+    if (q.type === 'divrem' || q.type === 'frac') {
+      const second = q.type === 'frac' ? '分母' : 'あまり', first = q.type === 'frac' ? '分子' : 'こたえ';
       if (label === 'けす') {
         div[div.active] = div[div.active].slice(0, -1);
       } else if (label === 'こたえる') {
-        if (div.active === 'q' && div.q !== '' && div.r === '') { div.active = 'r'; renderDisplays(); MQ.ui.toast('つぎは あまり を 入れてね'); return; }
-        if (div.q === '' || div.r === '') { MQ.ui.toast('こたえ と あまり を 入れてね'); return; }
+        if (div.active === 'q' && div.q !== '' && div.r === '') { div.active = 'r'; renderDisplays(); MQ.ui.toast('つぎは ' + second + ' を 入れてね'); return; }
+        if (div.q === '' || div.r === '') { MQ.ui.toast(first + ' と ' + second + ' を 入れてね'); return; }
         submit({ q: parseInt(div.q, 10), r: parseInt(div.r, 10) });
         return;
       } else if (div[div.active].length < 3) {

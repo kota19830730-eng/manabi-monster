@@ -56,7 +56,7 @@ const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function 
  'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
 
 const MQ = global.MQ;
-const TYPES = ['number', 'choice', 'divrem', 'roma', 'write'];
+const TYPES = ['number', 'choice', 'divrem', 'roma', 'write', 'frac'];
 
 /* =======================================================
    問題の 形が 正しいか
@@ -77,6 +77,12 @@ function validate(q, where) {
   }
   if (q.type === 'divrem') {
     check(q.answer.q * q.b + q.answer.r === q.a && q.answer.r < q.b && q.answer.r >= 1, where + ': divrem math ' + q.a + '/' + q.b);
+  }
+  if (q.type === 'frac') {   // 分数（v6.5）：分子・分母は 正の 整数、約分ずみ
+    const n = q.answer && q.answer.n, d = q.answer && q.answer.d;
+    check(Number.isInteger(n) && Number.isInteger(d) && n >= 1 && d >= 2, where + ': frac answer ' + JSON.stringify(q.answer));
+    let a = n, b = d; while (b) { const t = a % b; a = b; b = t; }
+    check(a === 1, where + ': frac は 約分ずみ ' + n + '/' + d);
   }
   if (q.type === 'roma') {
     check(typeof q.answer === 'string' && /^[a-z'-]+$/.test(q.answer), where + ': roma answer ' + q.answer);
@@ -260,6 +266,56 @@ for (let s = 1; s <= 15; s++) {
   check(ids4.size >= 30, 'sansu4-' + s + ' は 30しゅるい いじょう: ' + ids4.size);
 }
 console.log('sansu4 generated ok: ' + sansu4Count);
+
+/* ---- 小5 算数（v6.5）：18ステージ ----
+   ことばは 小4までの かん字 ＋ 5年の 単元の かん字（G5_EXTRA）。6年・中学の 字（割・偶・奇・捨）は
+   問題文では ふりがな、ヒント・note では そのまま（HTML が 使えない）ので 白リストに 入れて ある */
+const G5_EXTRA = '比率均応仮容増減厚個割偶奇捨条展';
+function badG5Kanji(s) {
+  const bad = [];
+  (String(s).match(/[一-龠]/g) || []).forEach(function (k) {
+    if (!MQ.kakusu.upTo(k, 4) && G5_EXTRA.indexOf(k) < 0 && bad.indexOf(k) < 0) bad.push(k);
+  });
+  return bad;
+}
+let sansu5Count = 0;
+for (let s = 1; s <= 18; s++) {
+  const st = MQ.sansu5.stages[s];
+  check(!!st, 'sansu5 stage ' + s + ' が ある');
+  if (!st) continue;
+  ['easy', 'normal', 'hard', 'boss'].forEach(function (t) { check(Array.isArray(st[t]) && st[t].length >= 3, 'sansu5-' + s + ' の ' + t + ' が 3しゅるい いじょう: ' + (st[t] ? st[t].length : 0)); });
+  MQ.sansu5.make(s, 60).forEach(function (q, i) {
+    validate(q, 'sansu5-' + s + '#' + i);
+    check(typeof q.hint === 'string' && q.hint.length > 0, 'sansu5-' + s + '#' + i + ' hint');
+    check(q.note != null && String(q.note).length > 0, 'sansu5-' + s + '#' + i + ' note');
+    const bad = badG5Kanji(MQ.util.stripTags(q.prompt) + (q.hint || '') + (q.note || '') + (q.unit || '') + (q.choices || []).join(''));
+    check(bad.length === 0, 'sansu5-' + s + '#' + i + ' に むずかしい かん字 ' + bad.join('') + ': ' + MQ.util.stripTags(q.prompt));
+    if (q.type === 'choice') check(q.choices.every(function (c) { return c.indexOf('<') < 0; }), 'sansu5-' + s + '#' + i + ' の choices に HTML: ' + q.choices.join('|'));
+    sansu5Count++;
+  });
+  MQ.sansu5.make(s, 5, { boss: true }).forEach(function (q, i) { validate(q, 'sansu5boss' + s + '#' + i); check(q.lv === 3, 'sansu5boss' + s + '#' + i + ' は lv3'); });
+  const twelve5 = MQ.sansu5.make(s, 12);
+  const lvs5 = twelve5.map(function (q) { return q.lv; });
+  check(levelsNonDecreasing(twelve5), 'sansu5-' + s + ' の むずかしさが じゅんばん: ' + lvs5.join(''));
+  check(lvs5.filter(function (l) { return l === 1; }).length === 4 && lvs5.filter(function (l) { return l === 3; }).length === 4, 'sansu5-' + s + ' は 4/4/4: ' + lvs5.join(''));
+  check(new Set(twelve5.map(function (q) { return q.id; })).size === 12, 'sansu5-' + s + ' の 12問は かぶらない');
+  check(MQ.sansu5.make(s, 1, { lv: 2 })[0].lv === 2, 'sansu5-' + s + ' lv2 だけ');
+  const ids5 = new Set();
+  for (let k = 0; k < 40; k++) MQ.sansu5.make(s, 12).forEach(function (q) { ids5.add(q.id); });
+  check(ids5.size >= 45, 'sansu5-' + s + ' は 45しゅるい いじょう: ' + ids5.size);
+}
+console.log('sansu5 generated ok: ' + sansu5Count);
+check(MQ.sansu5.make(9, 30).some(function (q) { return q.type === 'frac'; }) && MQ.sansu5.make(10, 30).every(function (q) { return q.type === 'frac'; }), '小5の 分数は 分子・分母の 入力（frac）');
+check(MQ.sansu5.make(4, 30).some(function (q) { return q.layout === 'vertical' && q.decimal; }), '小5の 小数の かけ算に 筆算');
+check(MQ.sansu5.make(14, 12).filter(function (q) { return q.prompt.indexOf('<svg') !== -1; }).length >= 4, '小5の 面積は 図つき');
+check(MQ.sansu5.make(16, 12).filter(function (q) { return q.prompt.indexOf('<svg') !== -1; }).length >= 8, '小5の 帯グラフ・円グラフは 図つき');
+check(MQ.sansu5.make(18, 12).filter(function (q) { return q.prompt.indexOf('<svg') !== -1; }).length >= 6, '小5の 角柱は 図つき');
+// 分数の 答えの 検査（core）
+(function () {
+  const fq = { type: 'frac', answer: { n: 3, d: 4 } };
+  check(MQ.battle.isCorrect(fq, { q: 3, r: 4 }) === true && MQ.battle.isCorrect(fq, { q: 6, r: 8 }) === false && MQ.battle.isCorrect(fq, null) === false, 'frac の 正解 判定');
+  check(MQ.battle.answerText(fq) === '4分の3', 'frac の 答えの 文: ' + MQ.battle.answerText(fq));
+})();
 (function () {
   // 小4は いま 算数だけ。できない ミッション（かん字を 書く）を 出さない
   const p4 = { grade: 4, bag: [], escaped: {}, coins: 0, xp: 0 };
@@ -283,7 +339,7 @@ check(MQ.sansu4.make(2, 12).filter(function (q) { return q.prompt.indexOf('class
    （実機の 写真で「問題が 見えない」と 分かった）。ぜんぶの 学年を しらべる。 */
 (function () {
   const FIG = /figbox|class="graph"|class="figwide"|class="tbl"|class="clock"|<svg/;
-  [['sansu1', 12], ['sansu2', 14], ['sansu3', 18], ['sansu4', 15]].forEach(function (pair) {
+  [['sansu1', 12], ['sansu2', 14], ['sansu3', 18], ['sansu4', 15], ['sansu5', 18]].forEach(function (pair) {
     const mod = MQ[pair[0]];
     for (let s = 1; s <= pair[1]; s++) {
       [mod.make(s, 40), mod.make(s, 6, { boss: true })].forEach(function (list) {
@@ -709,8 +765,8 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 101, 'たからもの 101個（小3 32＋小1 18＋小2 19＋小4 32）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32, 'listFor: 小3 32・小1 18・小2 19・小4 32');
+check(MQ.treasure.total() === 119, 'たからもの 119個（小3 32＋小1 18＋小2 19＋小4 32＋小5 18）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 18, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 18');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -1287,8 +1343,8 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
   const want = {
-    burst: 12, shield: 9, freeze: 5, guide: 8, golden: 7, chest: 7, power: 9, charge: 8,
-    bond: 6, rush: 9, find: 8, swift: 7, elixir: 6      // v5.4 で ふえた 5つ
+    burst: 15, shield: 10, freeze: 6, guide: 9, golden: 8, chest: 8, power: 11, charge: 9,
+    bond: 8, rush: 10, find: 9, swift: 9, elixir: 7      // v5.4 で ふえた 5つ（v6.5 小5の たからもの 18 で 数が ふえた）
   };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
@@ -1618,11 +1674,12 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
 
 /* ---- がくねん（v2.1 えらぶ画面／v2.2 小1が あそべる） ---- */
 check(MQ.content.worlds.length === 6, 'ワールドは 6つ: ' + MQ.content.worlds.length);
-check(MQ.content.worlds.filter(function (w) { return !w.locked; }).length === 4, 'あそべる ワールドは 小1・小2・小3・小4');
+check(MQ.content.worlds.filter(function (w) { return !w.locked; }).length === 5, 'あそべる ワールドは 小1〜小5（v6.5）');
 check(MQ.content.worldForGrade(3).id === 'g3' && MQ.content.worldForGrade(1).id === 'g1' && !MQ.content.worldForGrade(1).locked, 'worldForGrade');
 check(MQ.content.worldForGrade(2).id === 'g2' && !MQ.content.worldForGrade(2).locked, '小2は あそべる');
 check(!MQ.content.worldForGrade(4).locked, '小4は あそべる');
-check(MQ.content.worldForGrade(5).locked === true && MQ.content.worldForGrade(6).locked === true, '小5・小6 は じゅんびちゅう');
+check(!MQ.content.worldForGrade(5).locked && MQ.content.worldForGrade(5).areas[0].stages.length === 18, '小5は あそべる（算数 18ステージ・v6.5）');
+check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅう');
 (function () {
   MQ.save.createPlayer('小1テスト', null, 1);
   check(MQ.content.activeWorld().id === 'g1', 'がくねん 1 の プレイヤーは 小1ワールド: ' + MQ.content.activeWorld().id);
@@ -1636,7 +1693,9 @@ check(MQ.content.worldForGrade(5).locked === true && MQ.content.worldForGrade(6)
   check(MQ.content.activeWorld().id === 'g4' && MQ.content.subjectAreas().length === 5 && MQ.content.hasTower(), 'がくねん 4 の プレイヤーは 小4ワールド（5エリア＋さいごの塔）');
   check(MQ.content.areaOf('rika').name === '理科の 湖' && MQ.content.areaOf('shakai').name === '社会の 町', '小4は 理科と 社会が べつの エリア');
   MQ.save.createPlayer('小5テスト', null, 5);
-  check(MQ.content.activeWorld().id === 'g3', 'まだ 開いていない がくねんは 小3 に たおす');
+  check(MQ.content.activeWorld().id === 'g5', 'がくねん 5 の プレイヤーは 小5ワールド（v6.5）: ' + MQ.content.activeWorld().id);
+  MQ.save.createPlayer('小6テスト', null, 6);
+  check(MQ.content.activeWorld().id === 'g3', 'まだ 開いていない がくねん（小6）は 小3 に たおす');
   MQ.content.setActive(MQ.content.world1);
   check(MQ.content.subjectAreas().length === 2, 'setActive で 決めうち');
   MQ.content.setActive(null);
@@ -1648,7 +1707,7 @@ check(MQ.content.worldForGrade(5).locked === true && MQ.content.worldForGrade(6)
   check(MQ.save.setPlayGrade(2) === true, '小2に 変えられる');
   check(MQ.content.activeWorld().id === 'g2', '小2ワールドに 変わる: ' + MQ.content.activeWorld().id);
   check(MQ.save.current().grade === 3, '学校の 学年は 変わらない');
-  check(MQ.save.setPlayGrade(5) === false && MQ.content.activeWorld().id === 'g2', 'じゅんびちゅうの 学年には 変えられない');
+  check(MQ.save.setPlayGrade(6) === false && MQ.content.activeWorld().id === 'g2', 'じゅんびちゅうの 学年（小6）には 変えられない');
   check(MQ.save.setPlayGrade(4) === true && MQ.content.activeWorld().id === 'g4', '小4（よしゅう）にも 変えられる');
   // ふくしゅう・よしゅう中は 学期で しぼらない
   MQ.save.update(function (pl) { pl.term = 1; pl.playGrade = 2; });

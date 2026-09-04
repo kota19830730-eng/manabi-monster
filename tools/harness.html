@@ -90,6 +90,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/sansu2.js"></script>
 <script src="../js/content/kokugo2.js"></script>
 <script src="../js/content/sansu4.js"></script>
+<script src="../js/content/sansu5.js"></script>
 <script src="../js/content/kokugo4.js"></script>
 <script src="../js/content/rika4.js"></script>
 <script src="../js/content/shakai4.js"></script>
@@ -245,6 +246,13 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       String(good ? q.answer.q : q.answer.q + 1).split('').forEach(press);
       press('こたえる');
       String(q.answer.r).split('').forEach(press);
+      press('こたえる');
+      return true;
+    }
+    if (q.type === 'frac') {   // 分数（v6.5）：分子 → こたえる → 分母 → こたえる
+      String(good ? q.answer.n : q.answer.n + 1).split('').forEach(press);
+      press('こたえる');
+      String(q.answer.d).split('').forEach(press);
       press('こたえる');
       return true;
     }
@@ -574,6 +582,33 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       document.getElementById('stage').appendChild(box);
       const fs4 = parseInt(mode.slice(6), 10);   // #figs4:-1 で いちばん 下
       if (!isNaN(fs4)) { await wait(60); box.scrollTop = fs4 < 0 ? 99999 : fs4; }
+      return;
+    }
+    // 小5ワールド（v6.5）：#map5(:-1) マップ／#battle5:N 算数N（1〜18）／#figs5 図／#treasure5／#parent5
+    if (mode === 'map5' || mode.indexOf('map5:') === 0 || mode.indexOf('battle5') === 0 || mode === 'treasure5' || mode === 'parent5' || mode === 'figs5') {
+      fresh({ stars: { 'sansu5-1': 3, 'sansu5-2': 2, 'sansu5-3': 3 }, treasure: { 'tr5-shosu': 2, 'tr5-taiseki': 1 }, frags: {} });
+      MQ.save.update(function (pl) { pl.grade = 5; pl.playGrade = 5; pl.best = {}; });
+      if (mode.indexOf('battle5') === 0) { const bn = parseInt(mode.slice(8), 10); MQ.ui.battle.start('sansu5-' + (isNaN(bn) ? 1 : bn)); await wait(600); const q = MQ.battle.current(); say('battle5: ' + q.id + ' type=' + q.type + ' answer=' + JSON.stringify(q.answer)); return; }
+      if (mode === 'treasure5') { MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
+      if (mode === 'parent5') { MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
+      if (mode === 'figs5') {
+        const F = MQ.sansu5.figs5;
+        const box = document.createElement('div');
+        box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;z-index:99;align-content:start;overflow:auto;';
+        [F.paraSvg(6, 4, ['6cm', '4cm']), F.triASvg(8, 5, ['8cm', '5cm']), F.triASvg(6, 4, ['6cm', '4cm'], true), F.trapSvg(3, 7, 4, ['3cm', '7cm', '4cm']), F.rhombusSvg(8, 6, ['8cm', '6cm']),
+         F.triAngSvg(['50°', '60°', '？']), F.triAngSvg(['？', '70°', '70°'], 'iso'), F.quadAngSvg(['80°', '95°', '100°', '？']), F.polySvg(6, { center: true }), F.polySvg(5, { side: '4cm' }),
+         F.pieSvg([{ name: 'カレー', pct: 40 }, { name: 'あげパン', pct: 30 }, { name: 'うどん', pct: 20 }, { name: 'その他', pct: 10 }], 2), F.prismSvg('tri'), F.prismSvg('pent', ['8cm']), F.prismSvg('cyl', ['6cm', '半径 2cm']), F.cylNetSvg(['？', '5cm'])
+        ].forEach(function (svg) { const d = document.createElement('div'); d.innerHTML = svg; box.appendChild(d); });
+        [F.congSvg(1), F.corrSvg(), F.bandSvg([{ name: '田', pct: 45 }, { name: '畑', pct: 25 }, { name: '住たく', pct: 20 }, { name: 'その他', pct: 10 }], 1),
+         '<div style="font-size:26px;font-family:var(--f-head)">' + F.fr(3, 4) + ' + ' + F.mixed(2, 1, 3) + ' = ？</div>'].forEach(function (svg) { const d = document.createElement('div'); d.style.gridColumn = '1 / -1'; d.innerHTML = svg; box.appendChild(d); });
+        document.getElementById('stage').appendChild(box);
+        return;
+      }
+      MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
+      const n5 = parseInt(mode.slice(5), 10);
+      const sc5 = $('#screen-map .map__scroll');
+      if (sc5 && n5 === -1) sc5.scrollTop = 99999;
+      say('map5: nodes ' + $$('#screen-map .node').length + ' theme=' + ($('#screen-map .map') ? $('#screen-map .map').className : ''));
       return;
     }
     // 小4ワールド（v4.4）：#map4(:-1) マップ／#battle4:N 算数N／#treasure4／#parent4 おうちの人ページ
@@ -1269,7 +1304,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode === 'fit' || mode === 'fit:all') {
       const STAGES = mode === 'fit:all'
         ? [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'sansu3-11'], [3, 'sansu3-12'], [3, 'sansu3-16'], [3, 'sansu3-18'], [3, 'kokugo3-2'], [3, 'kokugo3-3'], [3, 'rikashakai3-1'], [3, 'eigo3-1'],
-           [1, 'sansu1-8'], [2, 'sansu2-2'], [2, 'sansu2-9'], [4, 'sansu4-2'], [4, 'sansu4-7'], [4, 'sansu4-11'], [4, 'sansu4-15']]
+           [1, 'sansu1-8'], [2, 'sansu2-2'], [2, 'sansu2-9'], [4, 'sansu4-2'], [4, 'sansu4-7'], [4, 'sansu4-11'], [4, 'sansu4-15'],
+           [5, 'sansu5-2'], [5, 'sansu5-6'], [5, 'sansu5-10'], [5, 'sansu5-14'], [5, 'sansu5-16'], [5, 'sansu5-18']]
         : [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'kokugo3-2'], [3, 'eigo3-1']];
       let worst = 0, worstQ = "", checked = 0, bad = 0, badCard = 0, badBody = 0;
       // カードから 問題文が はみ出して いないか ＋ キーや ヒントが 下で 切れて いないか
