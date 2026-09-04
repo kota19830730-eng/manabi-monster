@@ -152,8 +152,9 @@ MQ.handwrite = (function () {
     const ps = pathStats(paths);
     const expected = (MQ.kakusu && MQ.kakusu.ofWord(kanji)) || 0;
     const out = { strokes: ps.strokes, expected: expected, sharpMax: ps.sharpMax, sharpTotal: ps.sharpTotal };
-    // 1本の 線で 4回いじょう ぐねぐね／ぜんぶで 画数＋4 いじょう → なぐりがき
-    if (ps.sharpMax >= 4 || (expected && ps.sharpTotal > expected + 4)) { out.verdict = 'ng'; out.reason = 'scribble'; out.score = 0; return out; }
+    /* 1本の 線で 5回いじょう ぐねぐね／ぜんぶで 画数＋5 いじょう → なぐりがき
+       （v5.5 で 4 → 5 に ゆるめた。「口」「日」を ひと筆で 書く 子が ×に なって いた） */
+    if (ps.sharpMax >= 5 || (expected && ps.sharpTotal > expected + 5)) { out.verdict = 'ng'; out.reason = 'scribble'; out.score = 0; return out; }
     // 画数が 半分 より 少ない（線を つなげて 書く 子も いるので ゆるめ）／多すぎる（ちょんちょん）
     if (expected >= 3 && ps.strokes < Math.ceil(expected * 0.5)) { out.verdict = 'ng'; out.reason = 'strokes'; out.score = 0; return out; }
     if (expected && ps.strokes > expected * 2 + 4) { out.verdict = 'ng'; out.reason = 'strokes'; out.score = 0; return out; }
@@ -239,9 +240,6 @@ MQ.handwrite = (function () {
     const t = templateOf(kanji);
     if (!t) return { verdict: 'maybe', reason: 'notemplate', score: 0.7 };
     const out = { fill: nrm.fill, w: nrm.w, h: nrm.h, strokes: opts.strokes, expected: (MQ.kakusu && MQ.kakusu.ofWord(kanji)) || 0 };
-    // ゆびの 線が わかる とき：画数・なぐりがき
-    const rule = pathRules(opts.paths, kanji);
-    if (rule) return Object.assign(out, rule);
     // ぬりつぶした かたまり
     if (nrm.fill > 0.62) { out.verdict = 'ng'; out.reason = 'blob'; out.score = 0; return out; }
     // たてよこ（一 は よこ長・川 は たて長）。ぜんぜん ちがえば ×
@@ -253,6 +251,18 @@ MQ.handwrite = (function () {
     if (asp > 0.7) score -= (asp - 0.7) * 0.5;
     score = Math.max(0, Math.min(1, score));
     out.dir = cmp.dir; out.den = cmp.den; out.score = score;
+    /* ゆびの 線が わかる とき：画数・なぐりがきの ルール（v2.9）。
+       **v5.5：形が おてほんに よく にて いれば ×に せず「見くらべて じぶんで ○×」に する。**
+       実機では 線が とちゅうで 切れて 画数が 合わなく なる ことが あった（v5.5 で 直したが、
+       つなげて 書く 子・ひと筆で 書く 子も いる）。なぐりがきは 形の 点数が 高く ならない ので
+       これで 通って しまう ことは ない。 */
+    const rule = pathRules(opts.paths, kanji);
+    if (rule) {
+      Object.assign(out, rule);
+      out.score = score;
+      if (score >= TH.ok) { out.verdict = 'maybe'; out.reason = rule.reason + '-but-shape'; }
+      return out;
+    }
     if (asp > 1.2) { out.verdict = 'ng'; out.reason = 'shape'; return out; }
     out.reason = 'score';
     out.verdict = score >= TH.ok ? 'ok' : score < TH.ng ? 'ng' : 'maybe';

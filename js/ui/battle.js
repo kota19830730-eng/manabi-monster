@@ -1794,20 +1794,34 @@ MQ.ui.battle = (function () {
      ======================================================= */
   function makeMemo(canvas, clearBtn) {
     /* v2.7.1 で 作り直し（息子さん「ひっさんの ところで 字が 書けない」）
-         ・iPad などは touch-action だけでは 画面が スクロールしようとして 線が 切れる（pointercancel）
-           → touchstart / touchmove を passive:false で preventDefault
          ・キャンバスの 大きさが 画面と ずれていたら、書く 前に 合わせる（線が 指から ずれない）
          ・ResizeObserver で、画面が 出た とき・ひろげた とき・向きを 変えた ときも 合わせる
-         ・書いている 指だけを 見る（手のひらや 2本目の 指は むし）
-         ・線の 太さは 画面の 拡大に 合わせる（大きい タブレットでも 細く ならない）
-         ・getCoalescedEvents で 速く 動かしても なめらかに */
+         ・線の 太さを 画面の 拡大に 合わせる／getCoalescedEvents で なめらかに
+
+       v5.5 で **入力を 作り直した**（「ペンや 指で うまく 書けない・反映されない」）。
+       前の やり方の わるかった ところ：
+         ① **指を はなしたのを 見のがすと、そのあと ずっと 書けなく なった。**
+            pointerup / pointercancel が 来ない ことが 実機では ある（画面の 上に
+            何かが 出た・システムが ジェスチャーを 取った）。すると `drawing` が
+            true の まま のこり、つぎの 指は「2本目の 指」と 見なされて むしされる。
+            → いまは **前の 指が 古ければ 引きつぐ**（`stale()`）。
+         ② **iPad などは 書いて いる とちゅうで pointercancel が 来て 線が 切れる。**
+            → **タッチの ある 端末では touch イベントで 描く**（touchmove は
+            pointercancel の あとも 来つづける ので 線が つながる）。
+            pointer は マウス・ペン用に のこす（同じ 指を 二重に 描かない）。
+         ③ 指が canvas の 外で はなれた ときの おわりを 受けとって いなかった
+            → window でも 見る。画面を はなれた ときも 線を おわらせる。 */
     const c = canvas.getContext('2d');
     let drawing = false;
-    let activeId = null;
+    let activeId = null;       // いま 書いて いる 指／ペンの id
+    let activeKind = '';       // 'touch' か 'pointer'
+    let lastAt = 0;            // さいごに 点を もらった 時こく
+    let hasTouch = false;      // touch イベントが 来る 端末か（1回でも 来たら true）
     let last = null;
-    let strokes = 0;   // ペンを おろした 回数（かん字の はんてい用・v2.9）
-    let paths = [];    // 線の ならび（1画ずつ・CSS px）。画数・なぐりがきの はんてい用
+    let strokes = 0;           // ペンを おろした 回数（かん字の はんてい用・v2.9）
+    let paths = [];            // 線の ならび（1画ずつ・CSS px）。画数・なぐりがきの はんてい用
     let curPath = null;
+    const STALE = 1200;        // これ いじょう 音さたが なければ 前の 指は おわったと みなす
 
     function lineWidth() {
       const st = (MQ.stage && MQ.stage.size) ? MQ.stage.size().scale : 1;
@@ -1852,14 +1866,15 @@ MQ.ui.battle = (function () {
     }
     function clear() {
       strokes = 0; paths = []; curPath = null;
+      endStroke();
       c.save();
       c.setTransform(1, 0, 0, 1, 0, 0);
       c.clearRect(0, 0, canvas.width, canvas.height);
       c.restore();
     }
-    function point(e) {
+    function pointOf(cx, cy) {
       const rect = canvas.getBoundingClientRect();
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      return { x: cx - rect.left, y: cy - rect.top };
     }
     function segment(p) {
       c.beginPath();
@@ -1870,55 +1885,103 @@ MQ.ui.battle = (function () {
       if (curPath) curPath.push(p);
     }
 
-    canvas.addEventListener('pointerdown', function (e) {
-      if (drawing && activeId !== null && e.pointerId !== activeId) return;   // 2本目の 指は むし
-      e.preventDefault();
-      if (!fits()) resizeKeep();   // 大きさが ずれていたら 先に 直す
-      drawing = true;
+    /* ---- 1本の 線（begin → move → end） ---- */
+    // 前の 指が 古い（はなしたのを 見のがした）？
+    function stale() {
+      if (!drawing) return true;
+      if (Date.now() - lastAt > STALE) return true;
+      if (activeKind === 'pointer' && activeId !== null && canvas.hasPointerCapture) {
+        try { if (!canvas.hasPointerCapture(activeId)) return true; } catch (e) {}
+      }
+      return false;
+    }
+    function endStroke() {
+      drawing = false; activeId = null; activeKind = ''; curPath = null;
+    }
+    function beginAt(kind, id, cx, cy) {
+      // iPad などは pointerdown の すぐ あとに touchstart が 来る（同じ 指）。
+      // あたらしい 線に せず、この 線を これから touch で 描く ように 切りかえる
+      if (drawing && activeKind === 'pointer' && kind === 'touch' && Date.now() - lastAt < 400) {
+        activeKind = 'touch'; activeId = id; lastAt = Date.now();
+        return true;
+      }
+      if (drawing && !(activeKind === kind && activeId === id)) {
+        if (!stale()) return false;      // ほんとうに 2本目の 指 → むし
+        endStroke();                     // 前の 指は もう いない → 引きつぐ
+      }
+      if (!fits()) resizeKeep();         // 大きさが ずれていたら 先に 直す
+      drawing = true; activeKind = kind; activeId = id; lastAt = Date.now();
       strokes++;
-      activeId = e.pointerId;
-      last = point(e);
+      last = pointOf(cx, cy);
       curPath = [last]; paths.push(curPath);
-      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
       c.beginPath();
       c.moveTo(last.x, last.y);
       c.lineTo(last.x + 0.1, last.y + 0.1);
       c.stroke();
+      return true;
+    }
+    function moveAt(kind, id, cx, cy) {
+      if (!drawing || activeKind !== kind || activeId !== id) return;
+      lastAt = Date.now();
+      segment(pointOf(cx, cy));
+    }
+    function endAt(kind, id) {
+      if (!drawing) return;
+      if (id != null && !(activeKind === kind && activeId === id)) return;   // ほかの 指の おわりは 気にしない
+      endStroke();
+    }
+
+    /* ---- 指（touch）。iPad・Android は こちらが 本すじ ---- */
+    function findTouch(e) {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === activeId) return e.changedTouches[i];
+      }
+      return null;
+    }
+    canvas.addEventListener('touchstart', function (e) {
+      hasTouch = true;
+      if (e.cancelable) e.preventDefault();      // 画面が スクロールしようとするのを 止める
+      const t = e.changedTouches[0];
+      if (t) beginAt('touch', t.identifier, t.clientX, t.clientY);
+    }, { passive: false });
+    canvas.addEventListener('touchmove', function (e) {
+      if (e.cancelable) e.preventDefault();
+      const t = findTouch(e);
+      if (t) moveAt('touch', t.identifier, t.clientX, t.clientY);
+    }, { passive: false });
+    function touchEnd(e) {
+      if (e.cancelable) e.preventDefault();
+      const t = findTouch(e);
+      if (t) endAt('touch', t.identifier);
+    }
+    canvas.addEventListener('touchend', touchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', touchEnd, { passive: false });
+
+    /* ---- マウス・ペン（pointer）。指は touch に まかせる ---- */
+    canvas.addEventListener('pointerdown', function (e) {
+      if (hasTouch && e.pointerType === 'touch') return;   // 二重に 描かない
+      e.preventDefault();
+      if (beginAt('pointer', e.pointerId, e.clientX, e.clientY)) {
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      }
     });
     canvas.addEventListener('pointermove', function (e) {
-      if (!drawing || e.pointerId !== activeId) return;
+      if (!drawing || activeKind !== 'pointer' || e.pointerId !== activeId) return;
       e.preventDefault();
       let evs = null;
       try { evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null; } catch (err) { evs = null; }
       if (!evs || !evs.length) evs = [e];
-      for (let i = 0; i < evs.length; i++) segment(point(evs[i]));
+      for (let i = 0; i < evs.length; i++) moveAt('pointer', e.pointerId, evs[i].clientX, evs[i].clientY);
     });
-    function stop(e) {
-      if (e && activeId !== null && e.pointerId !== undefined && e.pointerId !== activeId) return;
-      drawing = false;
-      activeId = null;
-    }
-    canvas.addEventListener('pointerup', stop);
-    canvas.addEventListener('pointercancel', stop);
-    canvas.addEventListener('lostpointercapture', stop);
-    // iPad などで 画面が スクロールしようとして 線が 切れるのを ふせぐ
-    ['touchstart', 'touchmove', 'touchend'].forEach(function (t) {
-      canvas.addEventListener(t, function (e) { if (e.cancelable) e.preventDefault(); }, { passive: false });
-    });
-    // PointerEvent が ない 古い 端末は touch で 書く（保険）
-    if (!window.PointerEvent) {
-      canvas.addEventListener('touchstart', function (e) {
-        const t = e.touches[0]; if (!t) return;
-        if (!fits()) resizeKeep();
-        drawing = true; strokes++; last = point(t); curPath = [last]; paths.push(curPath);
-        c.beginPath(); c.moveTo(last.x, last.y); c.lineTo(last.x + 0.1, last.y + 0.1); c.stroke();
-      }, { passive: false });
-      canvas.addEventListener('touchmove', function (e) {
-        const t = e.touches[0]; if (!drawing || !t) return;
-        segment(point(t));
-      }, { passive: false });
-      canvas.addEventListener('touchend', function () { drawing = false; }, { passive: false });
-    }
+    function pointerEnd(e) { endAt('pointer', e.pointerId); }
+    canvas.addEventListener('pointerup', pointerEnd);
+    canvas.addEventListener('pointercancel', pointerEnd);
+    canvas.addEventListener('lostpointercapture', pointerEnd);
+    // 指・ペンが canvas の 外で はなれた ときの ほけん
+    window.addEventListener('pointerup', pointerEnd);
+    window.addEventListener('pointercancel', pointerEnd);
+    document.addEventListener('visibilitychange', function () { if (document.hidden) endStroke(); });
+
     // 大きさが 変わったら（画面が 出た・ひろげた・向きを 変えた）合わせる
     if (window.ResizeObserver) {
       try { new ResizeObserver(function () { resizeKeep(); }).observe(canvas); } catch (e) {}
@@ -1927,7 +1990,12 @@ MQ.ui.battle = (function () {
 
     clearBtn.addEventListener('click', function () { MQ.sfx.tap(); clear(); });
 
-    return { reset: function () { resize(); clear(); }, clear: clear, resizeKeep: resizeKeep, strokes: function () { return strokes; }, paths: function () { return paths; } };
+    return {
+      reset: function () { resize(); clear(); }, clear: clear, resizeKeep: resizeKeep,
+      strokes: function () { return strokes; }, paths: function () { return paths; },
+      // テスト用（tools/harness.html）
+      test: function () { return { drawing: drawing, kind: activeKind, id: activeId, hasTouch: hasTouch }; }
+    };
   }
 
   /* 見た目を たしかめる ための 入口（tools/harness.html から よぶ）。
@@ -1950,5 +2018,12 @@ MQ.ui.battle = (function () {
     return it;
   }
 
-  return { start: start, startTokkun: startTokkun, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, lastJudge: function () { return lastJudge; } };
+  return {
+    start: start, startTokkun: startTokkun, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag,
+    lastJudge: function () { return lastJudge; },
+    // メモ欄の 中を のぞく（tools/harness.html 用・v5.5）
+    memoStrokes: function () { return memo && memo.strokes ? memo.strokes() : 0; },
+    memoPaths: function () { return memo && memo.paths ? memo.paths() : []; },
+    memoTest: function () { return memo && memo.test ? memo.test() : null; }
+  };
 })();

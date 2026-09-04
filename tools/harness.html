@@ -1008,6 +1008,111 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       dump();
       return;
     }
+    /* ゆびで 書く（v5.5 で 入力を 作り直した）。実機に 近い かたちで しらべる：
+         #touchmemo  … ほんものの touch イベントで ひっさんの メモに 書く
+         #touchwrite … かん字を 書く 問題を touch で 書いて「かけた！」まで
+         #stuck      … pointerup が 来なかった あと、つぎの 指で 書けるか（前は ここで 死んだ）
+         #cancel     … 書いて いる とちゅうで pointercancel が 来ても 線が つづくか  */
+    if (mode === 'touchmemo' || mode === 'touchwrite' || mode === 'stuck' || mode === 'cancel') {
+      if (mode === 'touchwrite') {
+        fresh();
+        MQ.ui.battle.start('kokugo3-2');
+        let ok = false;
+        for (let i = 0; i < 30 && !ok; i++) {
+          await wait(200);
+          const q = MQ.battle.current();
+          if (q && q.type === 'write') { ok = true; break; }
+          answerViaUI(true); await wait(3400);
+        }
+        if (!ok) { say('touchwrite: write question MISSING'); dump(); return; }
+      } else {
+        fresh({ stars: { 'sansu2-1': 3 }, treasure: {}, frags: {} });
+        MQ.save.update(function (pl) { pl.grade = 2; pl.playGrade = 2; pl.best = {}; });
+        MQ.ui.battle.start('sansu2-2'); await wait(400);
+      }
+      const cv = $('.memo__canvas'); const r = cv.getBoundingClientRect();
+      const cx2 = cv.getContext('2d');
+      function inkAt(fx, fy) {
+        const d2 = cx2.getImageData(Math.round(r.width * fx * cv.width / r.width), Math.round(r.height * fy * cv.height / r.height), 1, 1).data;
+        return d2[3] > 0;
+      }
+      // ほんものの TouchEvent（iPad・Android と 同じ 形）
+      function tev(type, id, fx, fy) {
+        const t = new Touch({ identifier: id, target: cv, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy });
+        cv.dispatchEvent(new TouchEvent(type, {
+          touches: type === 'touchend' || type === 'touchcancel' ? [] : [t],
+          targetTouches: type === 'touchend' || type === 'touchcancel' ? [] : [t],
+          changedTouches: [t], bubbles: true, cancelable: true
+        }));
+      }
+      function pev(type, id, fx, fy) {
+        cv.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', isPrimary: true, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, bubbles: true, cancelable: true }));
+      }
+      function strokeTouch(id, pts) {
+        tev('touchstart', id, pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) {
+          const a = pts[i - 1], b = pts[i];
+          for (let t = 0.2; t <= 1.001; t += 0.2) tev('touchmove', id, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t);
+        }
+        tev('touchend', id, pts[pts.length - 1][0], pts[pts.length - 1][1]);
+      }
+
+      if (mode === 'touchmemo' || mode === 'touchwrite') {
+        // iPad と 同じ じゅんばん：pointerdown → touchstart（同じ 指）
+        pev('pointerdown', 1, 0.25, 0.2);
+        strokeTouch(11, [[0.25, 0.2], [0.7, 0.2]]);          // よこ
+        strokeTouch(12, [[0.45, 0.15], [0.45, 0.8]]);        // たて
+        strokeTouch(13, [[0.25, 0.75], [0.7, 0.75]]);        // よこ
+        const pts = [[0.3, 0.2], [0.6, 0.2], [0.45, 0.4], [0.45, 0.7], [0.3, 0.75], [0.6, 0.75]];
+        let inked = 0; pts.forEach(function (p) { if (inkAt(p[0], p[1])) inked++; });
+        const st = MQ.ui.battle.memoTest ? MQ.ui.battle.memoTest() : null;
+        say(mode + ': inked ' + inked + '/' + pts.length + ' strokes=' + MQ.ui.battle.memoStrokes() + ' ' + JSON.stringify(st));
+        $('.arena__msg').textContent = mode + ' ' + inked + '/' + pts.length;
+        if (mode === 'touchwrite') {
+          const q = MQ.battle.current();
+          const jr = MQ.handwrite.judge(cv, q.answer, { strokes: MQ.ui.battle.memoStrokes(), paths: MQ.ui.battle.memoPaths() });
+          say('touchwrite: 「' + q.answer + '」 → ' + jr.verdict + ' (' + jr.reason + ' score=' + (jr.score || 0).toFixed(2) + ' 画数 ' + jr.strokes + '/' + jr.expected + ')');
+        }
+        dump();
+        return;
+      }
+
+      if (mode === 'stuck') {
+        // ① 1画め：pointerup が 来ないまま おわる（実機で 起きる）
+        pev('pointerdown', 1, 0.2, 0.3);
+        pev('pointermove', 1, 0.6, 0.3);
+        const a1 = inkAt(0.4, 0.3);
+        // ② すぐ つぎの 指（べつの id）→ 2本目の 指 あつかいで むしされる（これは 正しい）
+        pev('pointerdown', 2, 0.2, 0.6);
+        pev('pointermove', 2, 0.6, 0.6);
+        const a2 = inkAt(0.4, 0.6);
+        // ③ しばらく たってから もう一度（前の 指は もう いない → 引きつぐ）
+        await wait(1500);
+        pev('pointerdown', 3, 0.2, 0.8);
+        pev('pointermove', 3, 0.6, 0.8);
+        const a3 = inkAt(0.4, 0.8);
+        say('stuck: 1画め=' + a1 + ' すぐの2本目=' + a2 + ' 時間が たってから=' + a3 + ' （1画めと 3つめが true なら OK）');
+        $('.arena__msg').textContent = 'stuck ' + a1 + '/' + a2 + '/' + a3;
+        dump();
+        return;
+      }
+
+      if (mode === 'cancel') {
+        // iPad で 書いて いる とちゅうに pointercancel が 来ても touch で 線が つづく
+        pev('pointerdown', 1, 0.2, 0.4);
+        tev('touchstart', 21, 0.2, 0.4);
+        tev('touchmove', 21, 0.35, 0.4);
+        pev('pointercancel', 1, 0.35, 0.4);           // ここで 前は 線が 切れて いた
+        tev('touchmove', 21, 0.5, 0.4);
+        tev('touchmove', 21, 0.7, 0.4);
+        tev('touchend', 21, 0.7, 0.4);
+        const before = inkAt(0.3, 0.4), after = inkAt(0.6, 0.4);
+        say('cancel: cancel の 前=' + before + ' あと=' + after + ' （両方 true なら 線が つながって いる）');
+        $('.arena__msg').textContent = 'cancel ' + before + '/' + after;
+        dump();
+        return;
+      }
+    }
     // メモを ひろげる（v2.4.1）：#wide 小2 ひっさん／#wide3 小3 わりざん
     if (mode === 'wide' || mode === 'wide3') {
       if (mode === 'wide') {
