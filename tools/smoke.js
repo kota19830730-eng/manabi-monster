@@ -360,7 +360,7 @@ check(MQ.sansu4.make(5, 30).some(function (q) { return q.decimal; }), '小4の �
 check(MQ.sansu4.make(3, 30).some(function (q) { return q.type === 'divrem'; }), '小4の わり算に あまりの 問題が ある');
 check(MQ.sansu4.make(14, 12).some(function (q) { return q.prompt.indexOf('class="tbl"') !== -1; }), '小4の かわり方に 表が 出る');
 
-[['kokugo', MQ.kokugo3.questions], ['rikashakai', MQ.rikashakai3.questions], ['eigo', MQ.eigo3.questions], ['kokugo1', MQ.kokugo1.questions], ['kokugo2', MQ.kokugo2.questions], ['rika4', MQ.rika4.questions], ['shakai4', MQ.shakai4.questions], ['eigo4', MQ.eigo4.questions]].forEach(function (pair) {
+[['kokugo', MQ.kokugo3.questions], ['rikashakai', MQ.rikashakai3.questions], ['eigo', MQ.eigo3.questions], ['kokugo1', MQ.kokugo1.questions], ['kokugo2', MQ.kokugo2.questions], ['rika4', MQ.rika4.questions], ['shakai4', MQ.shakai4.questions], ['eigo4', MQ.eigo4.questions], ['rika5', MQ.rika5.questions], ['shakai5', MQ.shakai5.questions]].forEach(function (pair) {
   const name = pair[0], list = pair[1];
   const perStage = {}, perLevel = {}, bossPer = {}, texts = {};
   list.forEach(function (q, i) {
@@ -520,6 +520,45 @@ check(MQ.kokugo1.kotoba.length >= 140 && MQ.kokugo2.kotoba.length >= 100, 'こ�
   });
   const writes5 = MQ.content.findStage('kokugo5-2').stage.make(12);
   check(writes5.some(function (q) { return q.type === 'write'; }), 'kokugo5-2 に ゆびで 書く 問題が ある');
+  MQ.content.setActive(null);
+  MQ.terms.forcePlayer(null);
+})();
+
+/* ---- 小5 理科・社会（v6.7）：各4ステージ。かん字は 小5まで ＋ 地名などの 白リスト ---- */
+(function () {
+  const OK5 = '緯与那択捉尖閣笠原丹舞驒曽濃狩琵琶霞浦瀬嬬恋銚釧俣排済域乳衛条尾津畿浜';   // 地名・教科書の ことば（ふりがな つきで 出る 字）
+  function badKanji5(s) { const bad = []; (String(s).match(/[一-龠]/g) || []).forEach(function (k) { if (!MQ.kakusu.upTo(k, 5) && OK5.indexOf(k) < 0 && bad.indexOf(k) < 0) bad.push(k); }); return bad; }
+  [['rika5', MQ.rika5.questions], ['shakai5', MQ.shakai5.questions]].forEach(function (pair) {
+    const name = pair[0], list = pair[1];
+    const seen = new Set();
+    list.forEach(function (q, i) {
+      const t = q.text + q.choices.join('') + (q.note || '') + (q.hint || '') + (q.unit || '');
+      const bad = badKanji5(t);
+      check(bad.length === 0, name + '#' + i + ' に 6年いじょうの かん字 ' + bad.join('') + ': ' + q.text);
+      check(q.unit.indexOf('／') > 0, name + '#' + i + ' の unit');
+      check(q.choices.length === 4 && new Set(q.choices).size === 4, name + '#' + i + ' の choices');
+      check(!seen.has(q.text), name + '#' + i + ' 同じ 問題文: ' + q.text); seen.add(q.text);
+    });
+  });
+  const w5 = MQ.content.world('g5');
+  const rika5Area = w5.areas.filter(function (a) { return a.id === 'rika'; })[0];
+  const shakai5Area = w5.areas.filter(function (a) { return a.id === 'shakai'; })[0];
+  check(!!rika5Area && rika5Area.stages.length === 4, '小5の 理科の 湖は 4ステージ');
+  check(!!shakai5Area && shakai5Area.stages.length === 4, '小5の 社会の 町は 4ステージ');
+  MQ.terms.forcePlayer({ grade: 5, term: 0, units: {} });
+  MQ.content.setActive(w5);
+  [rika5Area, shakai5Area].forEach(function (area) {
+    area.stages.forEach(function (st) {
+      for (let r = 0; r < 3; r++) {
+        const twelve = st.make(12);
+        check(twelve.length === 12 && new Set(twelve.map(function (q) { return q.id; })).size === 12, st.id + ' 12問 かぶりなし');
+        twelve.forEach(function (q, i) { validate(q, st.id + '#' + i); });
+        check(levelsNonDecreasing(twelve), st.id + ' の むずかしさが じゅんばん');
+      }
+      st.make(5, { boss: true }).forEach(function (q, i) { check(q.lv === 3, st.id + 'boss#' + i + ' は lv3'); });
+      check(st.pool({ grade: 5, term: 0, units: {} }) >= 30, st.id + ' の 出せる 問題: ' + st.pool({ grade: 5, term: 0, units: {} }));
+    });
+  });
   MQ.content.setActive(null);
   MQ.terms.forcePlayer(null);
 })();
@@ -815,8 +854,8 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 123, 'たからもの 123個（小3 32＋小1 18＋小2 19＋小4 32＋小5 22）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 22, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 22');
+check(MQ.treasure.total() === 131, 'たからもの 131個（小3 32＋小1 18＋小2 19＋小4 32＋小5 30）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 30, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 30');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -1393,8 +1432,8 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
   const want = {
-    burst: 16, shield: 10, freeze: 6, guide: 10, golden: 8, chest: 8, power: 11, charge: 10,
-    bond: 8, rush: 11, find: 9, swift: 9, elixir: 7      // v5.4 で ふえた 5つ（v6.5 小5の たからもの 18 で 数が ふえた）
+    burst: 16, shield: 10, freeze: 6, guide: 11, golden: 9, chest: 8, power: 12, charge: 11,
+    bond: 9, rush: 11, find: 10, swift: 10, elixir: 8      // v5.4 で ふえた 5つ（v6.5 小5の たからもの 18 で 数が ふえた）
   };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {

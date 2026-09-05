@@ -92,6 +92,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/sansu4.js"></script>
 <script src="../js/content/sansu5.js"></script>
 <script src="../js/content/kokugo5.js"></script>
+<script src="../js/content/rika5.js"></script>
+<script src="../js/content/shakai5.js"></script>
 <script src="../js/content/kokugo4.js"></script>
 <script src="../js/content/rika4.js"></script>
 <script src="../js/content/shakai4.js"></script>
@@ -586,11 +588,13 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     // 小5ワールド（v6.5）：#map5(:-1) マップ／#battle5:N 算数N（1〜18）／#figs5 図／#treasure5／#parent5
-    if (mode === 'map5' || mode.indexOf('map5:') === 0 || mode.indexOf('battle5') === 0 || mode === 'treasure5' || mode === 'parent5' || mode === 'figs5' || mode === 'kokugo5' || mode.indexOf('koku5') === 0) {
+    if (mode === 'map5' || mode.indexOf('map5:') === 0 || mode.indexOf('battle5') === 0 || mode === 'treasure5' || mode === 'parent5' || mode === 'figs5' || mode === 'kokugo5' || mode.indexOf('koku5') === 0 || mode.indexOf('rika5') === 0 || mode.indexOf('shakai5') === 0) {
       fresh({ stars: { 'sansu5-1': 3, 'sansu5-2': 2, 'sansu5-3': 3 }, treasure: { 'tr5-shosu': 2, 'tr5-taiseki': 1 }, frags: {} });
       MQ.save.update(function (pl) { pl.grade = 5; pl.playGrade = 5; pl.best = {}; });
       if (mode.indexOf('battle5') === 0) { const bn = parseInt(mode.slice(8), 10); MQ.ui.battle.start('sansu5-' + (isNaN(bn) ? 1 : bn)); await wait(600); const q = MQ.battle.current(); say('battle5: ' + q.id + ' type=' + q.type + ' answer=' + JSON.stringify(q.answer)); return; }
       if (mode === 'kokugo5') { MQ.ui.battle.start('kokugo5-2'); await wait(600); return; }
+      if (mode.indexOf('rika5') === 0) { const rn = parseInt(mode.slice(6), 10); MQ.ui.battle.start('rika5-' + (isNaN(rn) ? 1 : rn)); await wait(600); return; }
+      if (mode.indexOf('shakai5') === 0) { const sn = parseInt(mode.slice(8), 10); MQ.ui.battle.start('shakai5-' + (isNaN(sn) ? 1 : sn)); await wait(600); return; }
       if (mode.indexOf('koku5') === 0) { const kn = parseInt(mode.slice(6), 10); MQ.ui.battle.start('kokugo5-' + (isNaN(kn) ? 1 : kn)); await wait(600); return; }
       if (mode === 'treasure5') { MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
       if (mode === 'parent5') { MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }

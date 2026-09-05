@@ -515,10 +515,12 @@ MQ.content = (function () {
   };
 
   /* =======================================================
-     小5ワールド（v6.5 算数 18・v6.6 国語 4）。理科・社会・英語・塔は これから。
+     小5ワールド（v6.5 算数 18・v6.6 国語 4・v6.7 理科 4・社会 4）。英語・塔は これから。
      単元の じゅんは 日本文教出版『小学算数』5年（目安。学校で 前後する ので 学期の しくみで 直す）。
      ======================================================= */
   const kokugo5 = function () { return MQ.kokugo5.questions; };
+  const rika5 = function () { return MQ.rika5.questions; };
+  const shakai5 = function () { return MQ.shakai5.questions; };
 
   const world5 = {
     id: 'g5', grade: 5, name: '小5ワールド', locked: false,
@@ -555,6 +557,25 @@ MQ.content = (function () {
             make: writeMixStage(kokugo5, 'kokugo', 2, 5) },
           stage('kokugo', 3, 'ことばの きまり', kokugo5, 5),
           stage('kokugo', 4, 'ことばの 意味', kokugo5, 5)
+        ]
+      },
+      /* 小5 理科・社会（v6.7） */
+      {
+        id: 'rika', name: '理科の 湖', short: '理科', color: 'var(--c-rika)', biome: 'lake',
+        stages: [
+          stage('rika', 1, '天気と 発芽', rika5, 5),
+          stage('rika', 2, 'メダカ・花・台風', rika5, 5),
+          stage('rika', 3, '流れる 水・とけ方', rika5, 5),
+          stage('rika', 4, 'ふりこ・電じしゃく・たんじょう', rika5, 5)
+        ]
+      },
+      {
+        id: 'shakai', name: '社会の 町', short: '社会', color: 'var(--c-shakai)', biome: 'town',
+        stages: [
+          stage('shakai', 1, '国土と 気候', shakai5, 5),
+          stage('shakai', 2, '食料生産', shakai5, 5),
+          stage('shakai', 3, '工業と 貿易', shakai5, 5),
+          stage('shakai', 4, '情報と かん境', shakai5, 5)
         ]
       }
     ]

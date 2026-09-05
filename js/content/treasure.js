@@ -177,6 +177,15 @@ MQ.treasure = (function () {
     { stage: 'kokugo5-2', id: 'tr5-kaki',    name: '書きの まきもの',        shape: 'scroll',    colors: c('#D8B889', '#8A5A2B') },
     { stage: 'kokugo5-3', id: 'tr5-keigo',   name: '敬語の すず',            shape: 'bell',      colors: c('#C0A060', '#7A5326') },
     { stage: 'kokugo5-4', id: 'tr5-kotoba',  name: 'ことばの むらさきいし',  shape: 'gem',       colors: c('#A96BE0', '#5A2D8A') },
+    /* ---- 小5 理科・社会（v6.7・8） ---- */
+    { stage: 'rika5-1',   id: 'tr5-tenki',   name: '天気の はね',            shape: 'feather',   colors: c('#8FD3FF', '#3E7FB0') },
+    { stage: 'rika5-2',   id: 'tr5-medaka',  name: 'メダカの しずく',        shape: 'potion',    colors: c('#6FD3FF', '#2E7FB0') },
+    { stage: 'rika5-3',   id: 'tr5-mizu',    name: '流れる 水の たま',       shape: 'orb',       colors: c('#4F8CFF', '#1F4FB0') },
+    { stage: 'rika5-4',   id: 'tr5-furiko',  name: 'ふりこの すず',          shape: 'bell',      colors: c('#C0A060', '#7A5326') },
+    { stage: 'shakai5-1', id: 'tr5-kokudo',  name: '国土の らしんばん',      shape: 'compass',   colors: c('#E0846B', '#8A3A24') },
+    { stage: 'shakai5-2', id: 'tr5-kome',    name: '米づくりの ほし',        shape: 'star',      colors: c('#FFD166') },
+    { stage: 'shakai5-3', id: 'tr5-kogyo',   name: '工業の 歯車',            shape: 'ring',      colors: c('#B8A060', '#6E5A2A') },
+    { stage: 'shakai5-4', id: 'tr5-joho',    name: '情報の 書',              shape: 'book',      colors: c('#3E9A6B', '#1E5A3C') },
 
     /* ---- 小4 さいごの塔（v4.8） ---- */
     { stage: 'tower4',    id: 'tr4-dark',    name: 'やみの かんむり',        shape: 'crown',     colors: c('#7A4BC2', '#2A1240') },
