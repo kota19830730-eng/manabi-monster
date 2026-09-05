@@ -1027,7 +1027,7 @@ MQ.ui.battle = (function () {
     try { url = MQ.handwrite.cropUrl(d.canvas, 96); } catch (e) { url = ''; }
     d.prompt.innerHTML = q.prompt +
       '<span class="wcmp__say">おなじ 形に かけたら ◯、ちがったら ✕</span>' +
-      '<span class="wcmp">' +
+      '<span class="wcmp wcmp--n' + n + '">' +
         '<span class="wcmp__box"><img class="wcmp__img" alt="きみの 字" src="' + url + '"><span class="wcmp__cap">きみの 字</span></span>' +
         '<span class="wcmp__box"><span class="wcmp__k">' + MQ.util.esc(q.answer) + '</span><span class="wcmp__cap">おてほん</span></span>' +
       '</span>';
@@ -1082,6 +1082,9 @@ MQ.ui.battle = (function () {
       } else if (label === 'こたえる') {
         if (div.active === 'q' && div.q !== '' && div.r === '') { div.active = 'r'; renderDisplays(); MQ.ui.toast('つぎは ' + second + ' を 入れてね'); return; }
         if (div.q === '' || div.r === '') { MQ.ui.toast(first + ' と ' + second + ' を 入れてね'); return; }
+    /* v7.6：「寒い」「大きい」の ような 2〜3文字の ことばは 62px だと 84px の わくに 入らず
+       上に はみ出して 言うことに かぶって いた（800×1280 の スクショで 発見）→ 文字数で わくを 横長に・字を 小さく */
+    const n = Math.min(3, Math.max(1, String(q.answer || '').length));
         submit({ q: parseInt(div.q, 10), r: parseInt(div.r, 10) });
         return;
       } else if (div[div.active].length < 3) {

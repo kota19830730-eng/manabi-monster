@@ -673,6 +673,43 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     // エラーの 保険（v7.6）：#guard … わざと エラーを 出して バーが 出るか・きろくが のこるか
+    // 実機チェックの 代わり（v7.6）：#cont … セーブが ある 状態で「ぼうけんの つづき」→ 地図 → 学年チップ 1/2/4/5 → 小3 に もどす
+    //                              → 先生用 レポートの HTML と きろくの ほぞん／もどす の 往復
+    if (mode === 'cont') {
+      fresh();
+      MQ.ui.start.render(); MQ.ui.show('screen-start');
+      await wait(200);
+      const contBtn = $$('#screen-start button').filter(function (b) { return b.textContent.indexOf('ぼうけんの つづき') >= 0; })[0];
+      say('つづき ボタン: ' + (contBtn ? 'ok' : 'MISSING'));
+      if (contBtn) contBtn.click();
+      await wait(500);
+      say('つづき → 地図: ' + ($('#screen-map.is-active .map') ? 'ok ' + $('#screen-map .map').className : 'MISSING') + ' / HUD 名前 ' + ($('#screen-map .hud') ? $('#screen-map .hud').textContent.replace(/\s+/g, ' ').slice(0, 40) : 'MISSING'));
+      for (const g of [1, 2, 4, 5, 6, 3]) {
+        const chip = $$('#screen-map .chip--g').filter(function (c) { return c.textContent.indexOf('小' + g) >= 0; })[0];
+        if (!chip) { say('小' + g + ' チップ: MISSING'); continue; }
+        chip.click();
+        await wait(400);
+        const map = $('#screen-map .map');
+        const wg = MQ.content.activeWorld().grade;
+        if (g === 6) { say('小6 チップ: じゅんびちゅう → いまの 地図 小' + wg + (wg === 5 ? ' ok' : ' MISSING')); continue; }
+        say('小' + g + ' チップ → 地図 ' + (map && map.className.indexOf('map--g' + g) >= 0 && wg === g ? 'ok' : 'MISSING ' + (map && map.className)) + ' / ノード ' + $$('#screen-map .node').length + ' / ゾーン ' + $$('#screen-map .zone').length);
+      }
+      // 先生用 レポートの HTML（印刷は 実機でしか 見られない ので 中身だけ）
+      const p = MQ.save.current();
+      let html = '';
+      try { html = MQ.ui.parent.reportHtml(p, 3); } catch (e) { say('ERROR reportHtml ' + e); }
+      say('先生用 レポート HTML: ' + (html && html.indexOf(p.name) >= 0 && html.indexOf('<title') >= 0 ? 'ok ' + html.length + '字' : 'MISSING'));
+      // きろくの ほぞん → もどす の 往復
+      const before = MQ.save.exportText();
+      const xp0 = MQ.save.current().xp;
+      MQ.save.update(function (pl) { pl.xp += 1; pl.name = 'かきかえ'; });
+      MQ.save.importText(before);
+      const after = MQ.save.current();
+      const b0 = JSON.parse(before).players[0];
+      const diff = Object.keys(b0).filter(function (k) { return JSON.stringify(b0[k]) !== JSON.stringify(after[k]); });
+      say('きろく ほぞん→もどす: ' + (after.xp === xp0 && after.name === b0.name ? 'ok' : 'MISSING') + ' / ちがう キー: ' + (diff.length ? diff.join(',') : 'なし'));
+      return;
+    }
     //                       #kanso … おうちの人ページの「こまったとき・感想を送る」（にせの エラー 2件つき）
     //                       #guardset … 図かんの せっていの「こまった ときは」
     if (mode === 'guard' || mode === 'kanso' || mode === 'guardset') {

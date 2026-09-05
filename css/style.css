@@ -2947,3 +2947,9 @@ body {
 .pp-err__when { font-size: 11px; color: var(--pp-mut); }
 .pp-err__msg { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color: var(--pp-ink); word-break: break-all; }
 .pp-ta--fb { height: 190px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.45; }
+
+/* かん字の 見くらべ（v7.6）：2〜3文字の ことばは わくを 横長に して 字を 小さく（はみ出し 防止） */
+.wcmp--n2 .wcmp__img, .wcmp--n2 .wcmp__k { width: calc(147px * var(--figk, 1)); }
+.wcmp--n2 .wcmp__k { font-size: calc(50px * var(--figk, 1)); white-space: nowrap; }
+.wcmp--n3 .wcmp__img, .wcmp--n3 .wcmp__k { width: calc(168px * var(--figk, 1)); }
+.wcmp--n3 .wcmp__k { font-size: calc(38px * var(--figk, 1)); white-space: nowrap; }
