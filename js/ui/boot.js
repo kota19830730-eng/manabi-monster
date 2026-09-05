@@ -27,7 +27,7 @@
 
   // フォントが 読めたら 描きなおす
   if (document.fonts && document.fonts.load) {
-    Promise.all([document.fonts.load('16px "DotGothic16"'), document.fonts.load('16px "Mochiy Pop One"')]).then(function () {
+    Promise.all([document.fonts.load('500 16px "Zen Maru Gothic"'), document.fonts.load('700 16px "Zen Maru Gothic"'), document.fonts.load('16px "Mochiy Pop One"')]).then(function () {
       if (document.getElementById('screen-start').classList.contains('is-active')) MQ.ui.start.render();
     }).catch(function () {});
   }

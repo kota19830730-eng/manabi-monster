@@ -6,7 +6,19 @@
    ※ファイルを 増やしたら FILES にも 足してください。
    --------------------------------------------------------- */
 
-const CACHE_NAME = 'manabi-monster-v93';
+const CACHE_NAME = 'manabi-monster-v94';
+
+/* フォントの キャッシュ（v7.9）
+   書体は Google（fonts.googleapis.com / fonts.gstatic.com）から 読んで いる。
+   ここに 入れて おかないと **オフラインだと 端末の 書体に 落ちて、ロゴまで
+   ふつうの 字に なる**（実測ずみ）。書体は 版を 上げても 変わらないので、
+   アプリ本体とは べつの 箱に 入れて、下の activate で 消さない。 */
+const FONT_CACHE = 'manabi-monster-fonts-v1';
+const FONT_HOSTS = ['https://fonts.googleapis.com/', 'https://fonts.gstatic.com/'];
+function isFontUrl(url) {
+  for (let i = 0; i < FONT_HOSTS.length; i++) if (url.indexOf(FONT_HOSTS[i]) === 0) return true;
+  return false;
+}
 
 const FILES = [
   './',
@@ -87,7 +99,7 @@ self.addEventListener('activate', function (event) {
   event.waitUntil(
     caches.keys().then(function (names) {
       return Promise.all(
-        names.filter(function (name) { return name !== CACHE_NAME; })
+        names.filter(function (name) { return name !== CACHE_NAME && name !== FONT_CACHE; })
              .map(function (name) { return caches.delete(name); })
       );
     })
@@ -104,6 +116,28 @@ self.addEventListener('message', function (event) {
 
 self.addEventListener('fetch', function (event) {
   if (event.request.method !== 'GET') return;
+
+  /* 書体（v7.9）：1回 読めたら ためて おき、つぎからは そこから 出す。
+     オフラインでも いつもの 字で 出る（ためる 前に オフラインに なった ときは
+     ふつうに 失敗する ＝ 端末の 書体に 落ちるだけで、アプリは 動く） */
+  if (isFontUrl(event.request.url)) {
+    event.respondWith(
+      caches.open(FONT_CACHE).then(function (cache) {
+        return cache.match(event.request).then(function (hit) {
+          if (hit) return hit;
+          return fetch(event.request).then(function (res) {
+            // opaque（中身の 見えない こたえ）は cache.put が 失敗するので 入れない
+            if (res && res.status === 200 && res.type !== 'opaque') {
+              cache.put(event.request, res.clone()).catch(function () {});
+            }
+            return res;
+          });
+        });
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then(function (cached) {
       return cached || fetch(event.request);

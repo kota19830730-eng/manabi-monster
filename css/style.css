@@ -93,7 +93,9 @@
   --navy-tx: #dfe7ff;
 
   --f-head: 'Mochiy Pop One', 'Yu Gothic UI', sans-serif;
-  --f-body: 'DotGothic16', 'BIZ UDPGothic', 'Yu Gothic UI', monospace;
+  /* 本文（v7.9）：ドット文字（DotGothic16）は 1本の 線が 1px で 小3には 細すぎた
+     → まるゴシック（Zen Maru Gothic・500/700 の 太さが ある）。ドット感は 絵で 出す */
+  --f-body: 'Zen Maru Gothic', 'BIZ UDPGothic', 'Hiragino Maru Gothic ProN', 'Yu Gothic UI', sans-serif;
 
   --stage-h: 720px;
 }
@@ -105,6 +107,7 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
 
 body {
   font-family: var(--f-body);
+  font-weight: 500;          /* v7.9：本文は 中太。700 に すると 見出しの Mochiy が にせ太字に なる */
   font-size: 16px;
   line-height: 1.5;
   color: var(--tx);
@@ -434,10 +437,43 @@ body {
   clip-path: polygon(50% 0, 100% 38%, 50% 100%, 0 38%);
   filter: drop-shadow(0 0 6px rgba(90,240,155,.7));
 }
+/* ひとこと（v7.9）：ただの 丸い 帯 → **リボンの 旗**に した（ユーザー「カッコ良くして」）。
+   ロゴ（木の かんばん＋金の 字）の 下に つく 副題なので、
+   ・色は ロゴと 同じ 金（--gold）と こげ茶。あたらしい 色は 作らない
+   ・ふちは 金の 2px、内がわに 明るい 帯（このアプリの 立体感の 出し方）
+   ・左右に **折れた しっぽ**（::before / ::after を 旗の 外に おく。かさならない ので z-index は いらない）
+   ・字は 見出し書体（Mochiy Pop One）。ロゴより 小さく して、金では なく クリーム色
+     （金の 字を 2つ ならべると ロゴと けんかする）
+   ・光が ゆっくり 1回 走る（ボタンの shine と 同じ 語彙。動きは これ 1つだけ） */
 .title__tag {
-  display: inline-block; margin: 0; padding: 7px 18px; border-radius: 999px;
-  background: rgba(20,28,60,.9); border: 2px solid rgba(255,255,255,.16);
-  color: #ffe9c4; font-size: 15px; white-space: nowrap; box-shadow: 0 5px 14px rgba(0,0,0,.35);
+  position: relative;
+  display: inline-block; margin: 0; padding: 8px 20px;
+  border-radius: 5px;
+  border: 2px solid var(--gold);
+  background:
+    linear-gradient(115deg, rgba(255,255,255,0) 38%, rgba(255,240,190,.22) 47%, rgba(255,255,255,0) 56%),
+    linear-gradient(#26325a, #141c3c);
+  background-size: 260% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow: 0 5px 14px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.2), 0 0 16px rgba(255,212,71,.3);
+  font-family: var(--f-head);
+  font-size: 16px; line-height: 1.2; letter-spacing: .02em;
+  color: #ffeccb; text-shadow: 0 2px 0 rgba(0,0,0,.55);
+  white-space: nowrap;
+  animation: tagShine 4.6s ease-in-out infinite;
+}
+/* 折れた しっぽ。旗の すぐ 外に おく（内がわが へこんだ 五角形） */
+.title__tag::before, .title__tag::after {
+  content: ''; position: absolute; top: 50%; margin-top: -12px;
+  width: 15px; height: 24px;
+  background: linear-gradient(#e0a92a, #a8741a 60%, #7d4a0c);
+  box-shadow: 0 3px 6px rgba(0,0,0,.4);
+}
+.title__tag::before { left: -15px; clip-path: polygon(0 0, 100% 16%, 100% 84%, 0 100%, 42% 50%); }
+.title__tag::after  { right: -15px; clip-path: polygon(100% 0, 0 16%, 0 84%, 100% 100%, 58% 50%); }
+@keyframes tagShine {
+  0%, 62%  { background-position: 150% 0, 0 0; }
+  92%, 100% { background-position: -50% 0, 0 0; }
 }
 
 /* ---- 空の あき（画面が 高い ぶんは ここが のびる） ---- */
@@ -2992,3 +3028,27 @@ body {
 .wcmp--n3 .wcmp__k { font-size: calc(38px * var(--figk, 1)); white-space: nowrap; }
 /* ラスボスは 名前が 頭の 上（v6.4）なので、ための 玉は HPの 下に おく（かさならない ように・claude-db の 指摘） */
 .enemy--last .foecharge { position: static; transform: none; margin-top: 3px; }
+
+/* =========================================================
+   文字の 太さ（v7.9・2026-09-06）
+
+   ユーザー「メニューの はじめから とかの 細い字が 気に なる／こういう 細字の
+   ところ 全部 直して」→ 本文の 書体を ドット文字（DotGothic16）から
+   まるゴシック（Zen Maru Gothic）に かえた（--f-body）。ここでは その 上で
+   **押す ところ・名前・ラベル**を 太字（700）に して、読む ところ（説明文・
+   ヒント・注記）は 中太（500・body の きほん）の まま のこす。
+
+   ※ 見出しの Mochiy Pop One は **400 しか ない**ので、`--f-head` を つかう
+     ところに font-weight を つけない（700 に すると ブラウザが にせの 太字を
+     作って にじむ）。下の ならびは ぜんぶ `--f-body` の ところだけ。
+   ========================================================= */
+.btn--cream, .btn--stone,
+.sw, .tab, .chip, .unit, .cell, .gradecell, .invslot,
+.look__tab, .look__chip, .lookcell, .look__sechead,
+.memo__btn, .display, .choice,
+.mission, .charge, .revenge, .mixbtn,
+.node__name, .hud__name, .player,
+.card__unit, .card__model, .wcmp__cap { font-weight: 700; }
+
+/* 動きを へらす せっていの 端末では ひとことの 光を 止める（v7.9） */
+@media (prefers-reduced-motion: reduce) { .title__tag { animation: none; } }
