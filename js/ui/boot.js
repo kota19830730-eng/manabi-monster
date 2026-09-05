@@ -2,6 +2,19 @@
    さいしょに 動く ところ
    --------------------------------------------------------- */
 (function () {
+  /* エラーの 保険（v7.6）：ここまでの 読みこみで 落ちた ファイルが あれば
+     guard.js が もう きろく＋バーを 出して いる。この 先で 落ちても
+     タイトルだけは 出す（つづきを 押せなく なる のが いちばん こまる） */
+  try {
+    boot();
+  } catch (e) {
+    if (MQ.guard) { MQ.guard.record({ msg: e && e.message ? e.message : String(e), src: (e && e.stack) || '', phase: 'boot' }); MQ.guard.bar(); }
+    try { MQ.ui.show('screen-start'); } catch (x) {}
+    throw e;   // コンソールにも 出す（ハーネスの ERROR 数に 入る）
+  }
+  if (MQ.guard) MQ.guard.markBooted();
+
+  function boot() {
   MQ.stage.fit();
   MQ.save.load();
   MQ.sfx.setEnabled(MQ.save.getSetting('sfx', true));
@@ -59,4 +72,5 @@
       .then(function () { MQ.ui.toast('しらべました。あたらしいのが あれば お知らせが 出ます'); })
       .catch(function () { MQ.ui.toast('いまは しらべられません。ネットを たしかめてね'); });
   };
+  }
 })();

@@ -107,6 +107,14 @@ MQ.sfx = (function () {
     palHit:  function () { tone(880, 0.06, 'triangle', 0.12, 0, 1320); tone(1320, 0.09, 'square', 0.12, 0.06); noise(0.1, 0.22, 0.1, 3000); },
     miss:    function () { tone(300, 0.28, 'sawtooth', 0.13, 0, 110); },
     guard:   function () { noise(0.12, 0.3, 0, 3500, 'highpass'); tone(190, 0.16, 'square', 0.2, 0, 140); },
+    // とどめの 一撃（v7.5）：ためて ドン！と 当たり、きらっと のこる
+    finish:  function () {
+      tone(80, 0.10, 'sawtooth', 0.16, 0, 200);
+      noise(0.26, 0.45, 0.06);
+      tone(120, 0.22, 'square', 0.22, 0.08, 50);
+      tone(1568, 0.10, 'square', 0.13, 0.10);
+      tone(2093, 0.24, 'square', 0.11, 0.19);
+    },
     alarm:   function () { for (let i = 0; i < 3; i++) { tone(660, 0.16, 'sawtooth', 0.12, i * 0.36); tone(494, 0.16, 'sawtooth', 0.12, i * 0.36 + 0.18); } },
     enrage:  function () { tone(110, 0.5, 'sawtooth', 0.2, 0, 220); noise(0.4, 0.25, 0.05); },
     bossdown: function () {
@@ -146,6 +154,22 @@ MQ.sfx = (function () {
        2 = いなずま おとし／3 = ひかりの メテオ／4 = ぎんがの ビッグバン */
     special: function (level, id) {
       const lv = level || 1;
+      // オーロラ フィナーレ（20コンボ〜・v7.5）：
+      // きらきら 上がる → 大きな わおん → 虹の アルペジオ → ながい 余いん
+      if (lv >= 5) {
+        sweep(0.55, 0.3, 0, 600, 4200, 'bandpass');
+        [523, 659, 784, 988, 1175, 1319].forEach(function (f, i) {
+          tone(f, 0.12, 'triangle', 0.13, i * 0.05);
+        });
+        noise(0.5, 0.35, 0.34);
+        [261, 329, 392, 523].forEach(function (f) { tone(f, 1.1, 'square', 0.12, 0.36); });
+        [1568, 1976, 2349, 2637, 3136].forEach(function (f, i) {
+          tone(f, 0.14, 'square', 0.12, 0.5 + i * 0.07);
+        });
+        [784, 988, 1319, 1568].forEach(function (f, i) { tone(f, 0.9, 'triangle', 0.09, 1.0 + i * 0.05); });
+        tone(98, 0.9, 'sawtooth', 0.16, 0.36, 60);
+        return;
+      }
       if (lv >= 4) {
         // ビッグバン：すいこむ（下がる ヒュー）→ 一しゅん しずか → 大ばくはつ＋わおん → 虹の アルペジオ → エコー
         sweep(0.5, 0.35, 0, 3000, 120, 'bandpass');

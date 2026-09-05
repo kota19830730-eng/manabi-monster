@@ -60,6 +60,7 @@ window.onerror = function (m, s, l) { window.__log.push('ERROR ' + m + ' @' + St
 window.addEventListener('unhandledrejection', function (e) { window.__log.push('REJECT ' + e.reason); });
 </script>
 
+<script src="../js/core/guard.js"></script>
 <script src="../js/core/util.js"></script>
 <script src="../js/core/stage.js"></script>
 <script src="../js/core/pixel.js"></script>
@@ -669,6 +670,40 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
       const n2 = parseInt(mode.slice(5), 10);
       if (!isNaN(n2)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n2 < 0 ? 99999 : n2; }
+      return;
+    }
+    // エラーの 保険（v7.6）：#guard … わざと エラーを 出して バーが 出るか・きろくが のこるか
+    //                       #kanso … おうちの人ページの「こまったとき・感想を送る」（にせの エラー 2件つき）
+    //                       #guardset … 図かんの せっていの「こまった ときは」
+    if (mode === 'guard' || mode === 'kanso' || mode === 'guardset') {
+      fresh();
+      MQ.guard.clear();
+      if (mode === 'guard') {
+        MQ.ui.start.render(); MQ.ui.show('screen-start');
+        setTimeout(function () { throw new Error('テストの エラー（わざと）'); }, 0);
+        await wait(300);
+        const g = $('#guard');
+        const rec = MQ.guard.all()[0];
+        say('guard bar: ' + (g ? 'ok' : 'MISSING') + ' / きろく ' + MQ.guard.count() + '件 ' + (rec ? JSON.stringify(rec) : 'MISSING'));
+        say('guard: msg ' + (rec && rec.msg.indexOf('テストの エラー') >= 0 ? 'ok' : 'MISSING') + ' / screen ' + (rec && rec.screen === 'start' ? 'ok' : 'MISSING ' + (rec && rec.screen)) + ' / src ' + (rec && /harness\.html:\d+/.test(rec.src) ? 'ok' : 'MISSING ' + (rec && rec.src)));
+        // 2つめの エラーでは バーを 2つ 出さない
+        setTimeout(function () { throw new Error('2つめ'); }, 0);
+        await wait(200);
+        say('guard: バーは 1つ ' + ($$('#guard').length === 1 ? 'ok' : 'MISSING ' + $$('#guard').length) + ' / きろく ' + MQ.guard.count() + '件');
+        say('guard text:\n' + MQ.guard.text());
+        return;
+      }
+      MQ.guard.record({ msg: "TypeError: Cannot read properties of undefined (reading 'questions')", src: 'https://kota19830730-eng.github.io/manabi-monster/js/content/world3.js', line: 123, col: 40, screen: 'map', phase: 'load' });
+      MQ.guard.record({ msg: 'Promise: NotAllowedError: play() failed', src: '', screen: 'battle' });
+      if (mode === 'guardset') { MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); return; }
+      MQ.ui.parent.open('settings');
+      await wait(200);
+      const sec = $('#pp-trouble');
+      const ta = sec && sec.querySelector('textarea');
+      say('kanso: section ' + (sec ? 'ok' : 'MISSING') + ' / errs ' + $$('#pp-trouble .pp-err').length + ' / text ' + (ta && ta.value.indexOf('さいきんの エラー: 2件') >= 0 && ta.value.indexOf('端末:') >= 0 && ta.value.indexOf('バージョン') >= 0 ? 'ok' : 'MISSING'));
+      say('kanso text:\n' + (ta ? ta.value : ''));
+      const body = $('#screen-parent .pp__body');
+      if (body && sec) body.scrollTop = sec.offsetTop - 8;
       return;
     }
     // 小1ワールド（v2.2）：#map1 マップ／#battle1 さんすう1／#kokugo1 かん字を かく／#treasure1 ずかんの たからもの
@@ -1838,6 +1873,116 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (b2) b2.click();
       await wait(250);
       dump();
+      freeze();
+      return;
+    }
+
+    /* こうげきの 演出（v7.5）
+       #atk[:<何問め>][:<止める ミリ秒>]
+         正解を n 回 くりかえして、さいごの 一撃の とちゅうで 止めて 撮る。
+         コンボが 上がるほど 弧が 大きく なり、4〜 2連斬りに なる。
+       #atk1 … 1問め（コンボ1・ふつう）
+       #atk4 … 4問め（コンボ4・2連斬り）
+       #atkfin … さいごの ザコ（とどめ） */
+    if (mode.indexOf('atk') === 0) {
+      const parts = mode.split(':');
+      const kind = parts[0];
+      let n = kind === 'atk4' ? 4 : kind === 'atk1' ? 1 : (parseInt(parts[1], 10) || 2);
+      const holdAt = parseInt(parts[2], 10) || 260;   // 当たった あと（smash も 入る ように）
+      const fin = (kind === 'atkfin');
+      fresh();
+      // かぶとは ひっさつを 早く 出す ので、ふつうの こうげきを 見る ときは 外す
+      MQ.save.update(function (pl) { pl.equipped.helm = null; });
+      MQ.ui.battle.start('sansu3-2');
+      await wait(400);
+      say('atk: ひっさつ ブースト=' + (MQ.battle.specialBoost ? MQ.battle.specialBoost() : 0));
+      // たからばこ・2体同時が まざっても ずれない ように、
+      // 「コンボが n-1 に なるまで」「さいごの ザコに なるまで」答える
+      let guard = 0;
+      if (fin) {
+        // さいごの ザコの 手前まで 進む。ひっさつと かさならない ように、
+        // 1回 わざと まちがえて コンボを 0に もどしてから とどめを さす
+        while (MQ.battle.mobIndex() < MQ.battle.mobTotal() - 2 && guard++ < 30) {
+          answerViaUI(true); await wait(1700);
+        }
+        answerViaUI(false); await wait(1700);   // コンボを 切る（1回目の まちがい）
+        answerViaUI(true);  await wait(1700);   // 2回目で 正解 → つぎが さいごの ザコ
+      } else {
+        while (MQ.battle.combo() < n - 1 && guard++ < 30) {
+          answerViaUI(true); await wait(1700);
+        }
+      }
+      // たからばこの ときは こうげきが 出ない ので、ザコに なるまで 送る
+      guard = 0;
+      while (MQ.battle.current() && MQ.battle.current().chest && guard++ < 5) {
+        answerViaUI(true); await wait(1700);
+      }
+      // さいごの 1発。当たる ころで アニメを 止める
+      answerViaUI(true);
+      await wait(holdAt);
+      const st = document.createElement('style');
+      // 写しは アニメが 0% から 始まる（0% は とうめい）ので、見える ところまで 進めて 止める
+      st.textContent = '.hero, .hero *, .arena, .enemy__img, .stamp, .combo { animation-play-state: paused !important; }'
+        + '.slash { animation-delay: -.16s !important; animation-play-state: paused !important; }'
+        + '.sparks__p { animation-delay: -.14s !important; animation-play-state: paused !important; }';
+      document.head.appendChild(st);
+      const arcs = document.querySelectorAll('.slash');
+      // 弧・つぶは 予約ずみの タイマーで 消え、つぎの 問題で 敵ごと 作り直される。
+      // → 敵の かたまりを まるごと 写して .arena に のこす（写しには タイマーが つかない）
+      const foes = document.querySelector('.foes');
+      const arena = document.querySelector('.arena');
+      if (foes && arena) {
+        const c = foes.cloneNode(true);
+        c.setAttribute('data-copy', '1');
+        c.style.zIndex = '9';
+        arena.appendChild(c);
+      }
+      say('atk: モーション=' + (document.querySelector('.hero').className.match(/atk--\w+/) || ['なし'])[0] +
+          ' とどめ=' + (document.querySelector('.hero').classList.contains('is-finish') ? 'yes' : 'no') +
+          ' 弧=' + arcs.length + '本' +
+          ' つぶ=' + document.querySelectorAll('.sparks__p').length +
+          ' まっ白=' + (document.querySelector('.enemy__img.is-white') ? 'yes' : 'no') +
+          ' 画面の 寄り=' + (document.querySelector('.arena.is-punch, .arena.is-punch-big') ? 'yes' : 'no') +
+          ' コンボ=' + MQ.battle.combo());
+      dump();
+      freeze();
+      return;
+    }
+
+    /* ⑧ 合体こうげき（v7.5）：ひっさつわざと 相棒の 追い打ちが かさなった とき。
+       なかまゲージは 3問ごと、ひっさつは 6コンボ（かぶと 外す）なので 6問めで かさなる。
+       #palfx[:<秒>] */
+    if (mode.indexOf('palfx') === 0) {
+      const at = parseFloat(mode.split(':')[1] || '0.35');
+      fresh();
+      MQ.save.update(function (pl) {
+        pl.equipped.helm = null;                       // ひっさつを 早く 出す そうびを 外す
+        MQ.pals.add(pl, 'drago-1');
+        MQ.pals.setActive(pl, 'drago-1');
+      });
+      MQ.ui.battle.start('sansu3-2');
+      await wait(400);
+      // なかまゲージが 3の ばいすう かつ ひっさつが 出る ところまで 正解を つづける
+      let guard = 0, hit = false;
+      while (guard++ < 24) {
+        answerViaUI(true);
+        await wait(200);
+        if (document.querySelector('.cutin--pal')) { hit = true; break; }
+        await wait(1500);
+      }
+      // カットインは 0.62秒で 消える タイマーが ある → 写しを のこして 撮る
+      const cut = document.querySelector('.cutin');
+      // 写しは .fxscreen の 外へ（.fxscreen は わざの おわりに 空に される）
+      if (cut) { const c = cut.cloneNode(true); c.setAttribute('data-copy','1'); c.style.animation='none'; c.style.zIndex='99'; document.getElementById('screen-battle').appendChild(c); }
+      say('palfx: 合体=' + (hit ? 'ok' : 'MISSING') +
+          ' カットイン=' + (cut ? 'ある' : 'ない') +
+          ' 文=' + (cut && cut.querySelector('.cutin__tx') ? cut.querySelector('.cutin__tx').textContent : '-') +
+          ' 相棒の 絵=' + (cut && cut.querySelector('.cutin__pal') ? 'ある' : 'ない') +
+          ' コンボ=' + MQ.battle.combo());
+      dump();
+      // 見える ところで 止めて 撮る
+      void document.body.offsetWidth;
+      document.getAnimations().forEach(function (a) { a.pause(); try { a.currentTime = at * 1000; } catch (e) {} });
       freeze();
       return;
     }

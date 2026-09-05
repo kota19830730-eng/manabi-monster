@@ -50,7 +50,7 @@ MQ.ui.battle = (function () {
     if (d) return;
     d = {};
     d.root = h('div', { class: 'battle' }, [
-      h('section', { class: 'arena' }, [
+      d.arena = h('section', { class: 'arena' }, [
         // 背景は CSS の しきつめ（空・遠くの山・草・地面）。画像ファイルは 使わない
         d.bg = h('div', { class: 'arena__bg' }, [
           h('div', { class: 'arena__sky' }),
@@ -81,6 +81,7 @@ MQ.ui.battle = (function () {
         ]),
         d.fx = h('div', { class: 'fx' }),
         d.combo = h('div', { class: 'combo', hidden: true }),
+        d.charge = h('div', { class: 'charge', hidden: true }),   // ⑦ ためゲージ（v7.5）
         // アイテム（v2.0）：右下の 金の 3Dボタン（光沢＋のこり数）。モーダルは 下の d.bag
         d.bagBtn = h('button', { class: 'bagbtn', type: 'button', hidden: true, onclick: openBag }, [
           h('i', { class: 'ic ic--bag' }),
@@ -401,18 +402,57 @@ MQ.ui.battle = (function () {
     d.progFill.style.width = Math.max(0, Math.min(1, r)) * 100 + '%';
   }
 
+  /* ⑦ つぎの ひっさつまで あと 何問か（v7.5）。
+     いまの コンボ（＋かぶとの ぶん）から、つぎの わざの さかいめを さがす */
+  function nextSpecialAt(combo) {
+    const c = combo + specialBoost();
+    const mins = SPECIALS.map(function (x) { return x.min; }).concat([TIER1_MIN]);
+    let best = null;
+    mins.forEach(function (m) { if (m > c && (best === null || m < best)) best = m; });
+    return best;   // null＝もう いちばん 上
+  }
+
   function comboShow(n) {
     syncPalGauge();                    // なかまゲージ（v5.2）
     // コンボで 曲が もりあがる（3〜 ドラム／5〜 もう1本の メロディ＋テンポ）
     MQ.bgm.setIntensity(n >= 5 ? 2 : (n >= 3 ? 1 : 0));
     d.combo.hidden = n < 2;
-    if (n < 2) return;
+    if (n < 2) { if (d.charge) d.charge.hidden = true; return; }
     const sp = specialOf(n);
     d.combo.textContent = n + ' コンボ！' + (sp ? '　ひっさつ！' : '');
     d.combo.className = 'combo' + (n >= 3 ? ' combo--crit' : '') + (sp ? ' combo--' + sp.id : '');
+    chargeShow(n, sp);
     d.combo.classList.remove('is-pop');
     void d.combo.offsetWidth;
     d.combo.classList.add('is-pop');
+  }
+
+  /* ⑦ ためゲージ：コンボの 下に「あと N で ひっさつ」と 玉 */
+  function chargeShow(n, sp) {
+    if (!d.charge) return;
+    const next = nextSpecialAt(n);
+    if (sp || next === null) {                       // いま わざが 出た／もう 最上位
+      d.charge.hidden = true;
+      return;
+    }
+    const c = n + specialBoost();
+    const prevMins = SPECIALS.map(function (x) { return x.min; }).concat([TIER1_MIN])
+      .filter(function (m) { return m <= c; });
+    const from = prevMins.length ? Math.max.apply(null, prevMins) : 0;
+    const need = next - from;                        // この だんかいの 玉の 数
+    const got = c - from;
+    d.charge.hidden = false;
+    d.charge.textContent = '';
+    const dots = h('span', { class: 'charge__dots' });
+    const show = Math.min(need, 8);                  // 玉が 多すぎる ときは 8つまで
+    for (let i = 0; i < show; i++) {
+      dots.appendChild(h('i', { class: 'charge__dot' + (i < got ? ' is-on' : '') }));
+    }
+    d.charge.appendChild(dots);
+    d.charge.appendChild(h('span', { class: 'charge__tx', text: 'あと ' + (next - c) + ' で ひっさつ' }));
+    d.charge.classList.remove('is-pop');
+    void d.charge.offsetWidth;
+    d.charge.classList.add('is-pop');
   }
 
   function startCountdown() {
@@ -475,6 +515,7 @@ MQ.ui.battle = (function () {
     d.fx.className = 'fx';
     d.hint.hidden = true;
     d.hint.innerHTML = '';
+    if (d.charge && MQ.battle.combo() < 2) d.charge.hidden = true;
     d.panel.classList.remove('has-hint');
     d.unit.textContent = q.unit || '';
     renderCount();
@@ -1097,7 +1138,7 @@ MQ.ui.battle = (function () {
     if (res.outcome === 'correct') {
       markChoices(q, value);
       const spc = specialOf(res.combo);
-      attack(res.crit, false, spc);
+      attack(res.crit, false, spc, { combo: res.combo || 0, finish: isFinisher(res), withPal: !!(spc && res.palHit) });
       if (res.burst) burstHit();
       popDamage('+' + res.xp, res.crit || res.rare || !!res.multi || !!res.burst);
       comboShow(res.combo);
@@ -1158,7 +1199,7 @@ MQ.ui.battle = (function () {
     /* ---- ボスに ダメージ ---- */
     if (res.outcome === 'bosshit') {
       markChoices(q, value);
-      attack(res.crit, true, specialOf(res.combo));
+      attack(res.crit, true, specialOf(res.combo), { combo: res.combo || 0, finish: !!res.defeated, withPal: !!(specialOf(res.combo) && res.palHit) });
       if (res.palHit) palAttack();
       if (res.burst) burstHit();
       popDamage((res.burst ? res.dmg + 'ダメージ ' : '') + '+' + res.xp, res.crit || !!res.burst);
@@ -1385,6 +1426,7 @@ MQ.ui.battle = (function () {
      ======================================================= */
   const TIER1_MIN = 5;
   const SPECIALS = [
+    { min: 20, tier: 5, id: 'aurora', name: 'オーロラ フィナーレ！', ms: 2100 },   // v7.5
     { min: 16, tier: 4, id: 'nova', name: 'ぎんがの ビッグバン！', ms: 1900 },
     { min: 12, tier: 3, id: 'star', name: 'ひかりの メテオ！',     ms: 1350 },
     { min: 8,  tier: 2, id: 'bolt', name: 'いなずま おとし！',     ms: 1100 }
@@ -1397,7 +1439,7 @@ MQ.ui.battle = (function () {
     wind: { min: 5, tier: 1, id: 'wind', name: 'かぜの たつまき！', ms: 1000 }
   };
   // 主人公の オーラと コンボの 色
-  const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff' };
+  const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff', aurora: '#b8ffe6' };
   const NOVA_COLORS = ['#ff5e7a', '#ffd447', '#7cf9c4', '#4fd3ff', '#c48bff', '#ffffff'];
 
   function elementOf(areaId) {
@@ -1456,6 +1498,35 @@ MQ.ui.battle = (function () {
 
   function buildFx(sp) {
     const out = [];
+
+    /* ---- オーロラ フィナーレ（20コンボ〜・v7.5）：
+       空に 虹の カーテンが ゆれ、光の 柱が 立ち、雪のような 光が ふる ---- */
+    if (sp.id === 'aurora') {
+      out.push(h('span', { class: 'fx__sky fx__sky--aurora' }));
+      const cur = h('span', { class: 'fx__curtain' });
+      ['#7cf9c4', '#4fd3ff', '#c48bff', '#ffd447', '#ff8ec4', '#7cf9c4'].forEach(function (c, i) {
+        cur.appendChild(h('i', { style: {
+          background: 'linear-gradient(180deg, ' + c + ', rgba(255,255,255,0))',
+          left: (10 + i * 66) + 'px', animationDelay: (i * 0.07) + 's'
+        } }));
+      });
+      out.push(cur);
+      const pil = h('span', { class: 'fx__pillars' });
+      for (let i = 0; i < 5; i++) {
+        pil.appendChild(h('i', { style: { left: (i * 22 - 44) + 'px', animationDelay: (0.45 + i * 0.05) + 's' } }));
+      }
+      out.push(pil);
+      out.push(h('span', { class: 'fx__ring fx__ring--aurora' }));
+      out.push(sparks(30, 'fx__sparks--aurora', 110, { delay: 0.5 }));
+      const fall = h('span', { class: 'fx__fall' });
+      for (let i = 0; i < 16; i++) {
+        fall.appendChild(h('i', { style: {
+          left: (i * 25) + 'px', animationDelay: (0.5 + (i % 6) * 0.09) + 's',
+          width: (3 + (i % 3) * 2) + 'px', height: (3 + (i % 3) * 2) + 'px'
+        } }));
+      }
+      out.push(fall);
+    }
 
     /* ---- ほのお ギリ：3本の 斬撃＋大きな 炎＋火の わ ---- */
     if (sp.id === 'fire') {
@@ -1605,10 +1676,10 @@ MQ.ui.battle = (function () {
   }
 
   /* 画面ぜんたいの 演出：色の 光（tint）＋集中線（8コンボ〜）＋しょうげきの わ（12コンボ〜）＋ゆれ */
-  function playScreenFx(sp) {
+  function playScreenFx(sp, withPal) {
     if (!d.fxs) return;
     d.fxs.textContent = '';
-    d.fxs.className = 'fxscreen fxscreen--' + sp.id + ' fxscreen--t' + sp.tier;
+    d.fxs.className = 'fxscreen fxscreen--' + sp.id + ' fxscreen--t' + sp.tier + (withPal ? ' fxscreen--pal' : '');
     if (sp.tier >= 4) d.fxs.appendChild(h('span', { class: 'fxscreen__dark' }));   // すいこむ あいだは まっくら
     d.fxs.appendChild(h('span', { class: 'fxscreen__tint' }));
     if (sp.tier >= 2) {
@@ -1651,12 +1722,36 @@ MQ.ui.battle = (function () {
     d.cur.classList.add(sp.tier >= 4 ? 'is-blast-max' : sp.tier >= 3 ? 'is-blast-big' : 'is-blast');
   }
 
-  function playSpecial(sp) {
+  /* ⑥ カットイン（v7.5）：わざが 出る 前に 主人公が よこから 大きく 入る。
+     ⑧ 相棒の ゲージも たまって いれば「がったい こうげき」に なる */
+  function cutIn(sp, withPal) {
+    if (!d.fxs) return;
+    const box = h('div', { class: 'cutin' + (withPal ? ' cutin--pal' : '') });
+    box.style.setProperty('--el', FX_COLOR[sp.id] || '#ffd447');
+    box.appendChild(h('span', { class: 'cutin__band' }));
+    const face = h('span', { class: 'cutin__face' });
+    const img = h('img', { class: 'cutin__hero', alt: '' });
+    img.src = MQ.hero.sprite(ctx.player);
+    face.appendChild(img);
+    if (withPal && palNow) {
+      const pal = h('span', { class: 'cutin__pal' });
+      pal.appendChild(MQ.enemies.node(palNow.id, { size: 44 }));
+      face.appendChild(pal);
+    }
+    box.appendChild(face);
+    box.appendChild(h('span', { class: 'cutin__tx',
+      text: withPal && palNow ? palNow.name + 'と いっしょに！' : 'いくぞ！' }));
+    d.fxs.appendChild(box);
+    setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 620);
+  }
+
+  function playSpecial(sp, withPal) {
     if (!d.fx) return;
     d.fx.textContent = '';
     d.fx.className = 'fx fx--' + sp.id + ' fx--t' + sp.tier;
     buildFx(sp).forEach(function (el) { d.fx.appendChild(el); });
-    playScreenFx(sp);
+    playScreenFx(sp, withPal);
+    cutIn(sp, withPal);
     MQ.sfx.special(sp.tier, sp.id);
     flash(true);
     if (d.msg) d.msg.classList.add('is-quiet');   // 技名と ぶつからないように
@@ -1717,20 +1812,107 @@ MQ.ui.battle = (function () {
     setTimeout(function () { s.remove(); d.pal.classList.remove('is-hit'); }, 700);
   }
 
-  function attack(crit, boss, sp) {
-    d.hero.classList.remove('is-attack', 'is-special');
+  /* ---------------------------------------------------------
+     こうげきの 演出（v7.5）
+
+     ① 斬撃の 弧 … 教科の 色で 光る 三日月が 敵の ところに 走る
+     ② 着弾 … 白い 光の つぶが はじけ、敵が 一瞬 まっ白に、画面が ぐっと 寄る
+     ③ モーション 3種 … 斬る／突く／たたく を じゅんばんに
+     ④ コンボで 育つ … 2〜 弧が 大きく、4〜 2連斬り
+     ⑤ とどめ … さいごの ザコ・ボスを たおす 一発は ゆっくり 大きく
+     --------------------------------------------------------- */
+  const MOTIONS = ['slash', 'thrust', 'smash'];   // ③ じゅんばんに 出す
+  let motionNo = 0;
+
+  /* ① 斬撃の 弧。敵に かさねる（教科の 色・コンボで 大きく）*/
+  function slashArc(el, opts) {
+    if (!d.cur) return;
+    const o = opts || {};
+    const arc = h('span', { class: 'slash slash--' + (o.motion || 'slash') });
+    arc.style.setProperty('--el', FX_COLOR[el] || '#ffd447');
+    if (o.big) arc.classList.add('slash--big');
+    if (o.delay) arc.style.animationDelay = o.delay + 'ms';
+    d.cur.appendChild(arc);
+    setTimeout(function () { if (arc.parentNode) arc.parentNode.removeChild(arc); }, 560 + (o.delay || 0));
+  }
+
+  /* ② 着弾の つぶ（白い 四角が 外に はじける）。
+     **名前は hitSparks**。sparks は ひっさつわざが すでに 使って いる
+     （同じ IIFE の 中で 同じ 名前の function を 作ると 上書きして しまう）*/
+  function hitSparks(n) {
+    if (!d.cur) return;
+    const box = h('span', { class: 'sparks' });
+    const count = n || 5;
+    for (let i = 0; i < count; i++) {
+      const p = h('i', { class: 'sparks__p' });
+      const a = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      const r = 18 + Math.random() * 14;
+      p.style.setProperty('--dx', Math.round(Math.cos(a) * r) + 'px');
+      p.style.setProperty('--dy', Math.round(Math.sin(a) * r) + 'px');
+      p.style.animationDelay = Math.round(Math.random() * 60) + 'ms';
+      box.appendChild(p);
+    }
+    d.cur.appendChild(box);
+    setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 560);
+  }
+
+  /* ② 敵が 一瞬 まっ白に */
+  function whiteOut() {
+    if (!d.cur) return;
+    const img = d.cur.querySelector('.enemy__img');
+    if (!img) return;
+    img.classList.remove('is-white');
+    void img.offsetWidth;
+    img.classList.add('is-white');
+    setTimeout(function () { img.classList.remove('is-white'); }, 120);
+  }
+
+  /* ② 画面が ほんの 少し 寄る（当たった 手ごたえ）*/
+  function punch(strong) {
+    if (!d.arena) return;
+    d.arena.classList.remove('is-punch', 'is-punch-big');
+    void d.arena.offsetWidth;
+    d.arena.classList.add(strong ? 'is-punch-big' : 'is-punch');
+    setTimeout(function () { d.arena.classList.remove('is-punch', 'is-punch-big'); }, strong ? 200 : 140);
+  }
+
+  function attack(crit, boss, sp, opts) {
+    const o = opts || {};
+    const combo = o.combo || 0;
+    const el = currentElement();
+    const motion = MOTIONS[motionNo++ % MOTIONS.length];        // ③
+    const fin = !!o.finish;                                     // ⑤ とどめ
+
+    d.hero.classList.remove('is-attack', 'is-special', 'is-finish',
+      'atk--slash', 'atk--thrust', 'atk--smash');
     void d.hero.offsetWidth;
-    d.hero.classList.add('is-attack');
+    d.hero.classList.add('is-attack', 'atk--' + motion);
+    if (fin) d.hero.classList.add('is-finish');
+    d.hero.style.setProperty('--el', FX_COLOR[sp ? sp.id : el] || '#ffd447');
+
     if (sp) {
       d.hero.classList.add('is-special');
-      d.hero.style.setProperty('--el', FX_COLOR[sp.id] || '#ffd447');   // うしろの オーラの 色
-      playSpecial(sp);
+      playSpecial(sp, !!o.withPal);          // ⑧ 相棒と いっしょ
       setTimeout(function () { d.hero.classList.remove('is-special'); }, 900);
     } else if (crit) { MQ.sfx.crit(); flash(false); } else { MQ.sfx.hit(); }
     if (!d.cur) return;
     d.cur.classList.remove('is-appear', 'is-enrage');
     d.cur.classList.add('is-hit');
     if (sp) blast(sp);
+
+    // ①④ 斬撃の 弧（ひっさつの ときは 大きな 演出が あるので 出さない）
+    if (!sp) {
+      const big = fin || combo >= 2;
+      slashArc(el, { motion: motion, big: big });
+      if (combo >= 4 || fin) slashArc(el, { motion: motion, big: big, delay: 120 });
+      const at = motion === 'smash' ? 210 : 150;
+      setTimeout(function () {
+        whiteOut();
+        hitSparks(fin ? 8 : (combo >= 4 ? 7 : 5));
+        punch(fin || crit);
+      }, at);
+      if (fin) MQ.sfx.finish();
+    }
     stamp(true);
     shake(crit || boss || !!sp);
     setTimeout(function () {
@@ -1741,6 +1923,14 @@ MQ.ui.battle = (function () {
         MQ.sfx.defeat();
       }
     }, sp ? (sp.tier >= 4 ? 750 : sp.tier === 3 ? 600 : 420) : 420);   // 大きな わざは 当たるのが おそい
+  }
+
+  /* ⑤ とどめ か（さいごの ザコ／ボスを たおした 一発）*/
+  function isFinisher(res) {
+    if (!res) return false;
+    if (res.defeated) return true;                       // ボスを たおした
+    if (MQ.battle.phase() === 'boss') return false;
+    return MQ.battle.mobIndex() >= MQ.battle.mobTotal() - 1;   // ザコの さいご
   }
 
   function dodge() {

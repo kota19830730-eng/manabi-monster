@@ -960,6 +960,77 @@ body {
 @keyframes downfx { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(26px) rotate(28deg); opacity: 0; } }
 @keyframes fleefx { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(60px); opacity: 0; } }
 @keyframes attackfx { 0% { transform: translateX(0); } 45% { transform: translateX(26px); } 100% { transform: translateX(0); } }
+
+/* =========================================================
+   こうげきの 演出（v7.5）
+   ① 斬撃の 弧　② 光の つぶ・まっ白・画面の 寄り　③ モーション 3種
+   ④ コンボで 大きく　⑤ とどめ
+   ========================================================= */
+
+/* ③ モーション 3種。どれも 主人公が 敵の ほうへ 出て もどる */
+.hero.atk--slash  { animation: atkSlash .34s ease-out; }
+.hero.atk--thrust { animation: atkThrust .30s cubic-bezier(.2,.9,.3,1); }
+.hero.atk--smash  { animation: atkSmash .40s ease-out; }
+@keyframes atkSlash  { 0% { transform: translate(0,0) rotate(0); } 40% { transform: translate(28px,-4px) rotate(-12deg); } 100% { transform: translate(0,0) rotate(0); } }
+@keyframes atkThrust { 0% { transform: translateX(0) scaleX(1); } 35% { transform: translateX(38px) scaleX(1.12); } 100% { transform: translateX(0) scaleX(1); } }
+@keyframes atkSmash  { 0% { transform: translate(0,0); } 30% { transform: translate(14px,-16px); } 55% { transform: translate(26px,4px); } 100% { transform: translate(0,0); } }
+/* ⑤ とどめは ゆっくり 大きく */
+.hero.is-finish { animation-duration: .58s !important; }
+.hero.is-finish.atk--slash  { animation-name: atkSlashBig; }
+.hero.is-finish.atk--thrust { animation-name: atkThrustBig; }
+.hero.is-finish.atk--smash  { animation-name: atkSmashBig; }
+@keyframes atkSlashBig  { 0% { transform: translate(0,0) rotate(0) scale(1); } 18% { transform: translate(-8px,0) scale(1.06); } 52% { transform: translate(34px,-6px) rotate(-16deg) scale(1.16); } 100% { transform: translate(0,0) rotate(0) scale(1); } }
+@keyframes atkThrustBig { 0% { transform: translateX(0) scale(1); } 20% { transform: translateX(-10px) scale(1.06); } 50% { transform: translateX(46px) scale(1.18); } 100% { transform: translateX(0) scale(1); } }
+@keyframes atkSmashBig  { 0% { transform: translate(0,0) scale(1); } 22% { transform: translate(8px,-26px) scale(1.12); } 52% { transform: translate(30px,6px) scale(1.18); } 100% { transform: translate(0,0) scale(1); } }
+
+/* ① 斬撃の 閃光。敵の 上を ななめに 走る 光の すじ（教科の 色）。
+   まん中が 白く、はしに 行くほど 教科の 色 → すきとおる */
+.slash {
+  position: absolute; left: 50%; top: 50%; width: 62px; height: 9px;
+  margin: -4px 0 0 -31px; pointer-events: none; z-index: 5;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0) 0%, var(--el, #ffd447) 22%, #ffffff 50%, var(--el, #ffd447) 74%, rgba(255,255,255,0) 100%);
+  filter: drop-shadow(0 0 6px var(--el, #ffd447));
+  transform: rotate(var(--r, -34deg));
+  animation: slashFx .32s ease-out forwards;
+}
+/* ④ コンボが 乗ると 太く 長く */
+.slash--big { width: 84px; height: 13px; margin: -6px 0 0 -42px; }
+/* ③ モーションで 向きが 変わる（斬る＝ななめ／突く＝よこ／たたく＝たて）*/
+.slash--slash  { --r: -34deg; }
+.slash--thrust { --r: 0deg; }
+.slash--smash  { --r: -78deg; }
+@keyframes slashFx {
+  0%   { opacity: 0; transform: rotate(var(--r, -34deg)) scaleX(.15) scaleY(.6); }
+  22%  { opacity: 1; }
+  60%  { opacity: 1; transform: rotate(var(--r, -34deg)) scaleX(1) scaleY(1); }
+  100% { opacity: 0; transform: rotate(var(--r, -34deg)) scaleX(1.3) scaleY(.5); }
+}
+
+/* ② 光の つぶ（白い 四角が 外に はじける）*/
+.sparks { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 5; }
+.sparks__p {
+  position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; background: #fffbe8;
+  box-shadow: 0 0 6px 2px rgba(255,240,180,.9);
+  animation: sparkFx .34s ease-out forwards;
+}
+@keyframes sparkFx {
+  0%   { opacity: 1; transform: translate(0,0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx,0), var(--dy,0)) scale(.3); }
+}
+
+/* ② 敵が 一瞬 まっ白に */
+.enemy__img.is-white { filter: brightness(4) saturate(0) drop-shadow(0 4px 4px rgba(10,10,40,.45)); }
+
+/* ② 画面が ぐっと 寄る（当たった 手ごたえ）*/
+.arena.is-punch     { animation: punchFx .14s ease-out; }
+.arena.is-punch-big { animation: punchBigFx .2s ease-out; }
+@keyframes punchFx    { 0%,100% { transform: scale(1); } 45% { transform: scale(1.018); } }
+@keyframes punchBigFx { 0%,100% { transform: scale(1); } 40% { transform: scale(1.035); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .slash, .sparks__p, .arena.is-punch, .arena.is-punch-big { animation-duration: .01s; }
+}
 @keyframes dodgefx { 0% { transform: translateX(0); } 45% { transform: translateX(-16px); } 100% { transform: translateX(0); } }
 @keyframes hurtfx { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
 @keyframes specialfx { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
@@ -1265,7 +1336,7 @@ body {
   transform: skewX(-12deg);
   animation: fxbandfx .9s ease-out forwards;
 }
-.fxscreen--t3 .fxband, .fxscreen--t4 .fxband { top: 26px; height: 58px; }
+.fxscreen--t3 .fxband, .fxscreen--t4 .fxband, .fxscreen--t5 .fxband { top: 26px; height: 58px; }
 @keyframes fxbandfx {
   0%   { transform: skewX(-12deg) scaleX(0); opacity: 0; }
   18%  { transform: skewX(-12deg) scaleX(1); opacity: 1; }
@@ -1618,7 +1689,7 @@ body {
 }
 .fxscreen--t2 .fxscreen__tint { animation-duration: .8s; }
 .fxscreen--t3 .fxscreen__tint { animation-duration: 1.1s; animation-delay: .4s; }
-.fxscreen--t4 .fxscreen__tint { animation: fstintmaxfx 1.4s ease-out .5s forwards; }
+.fxscreen--t4 .fxscreen__tint, .fxscreen--t5 .fxscreen__tint { animation: fstintmaxfx 1.4s ease-out .5s forwards; }
 /* ビッグバンの すいこむ あいだ（0〜0.5秒）は まっくら */
 .fxscreen__dark { position: absolute; inset: 0; opacity: 0; background: radial-gradient(circle at 87% 100px, rgba(80,30,140,.25), rgba(12,5,35,.9) 40%, rgba(3,1,12,.97) 75%); animation: fsdarkfx .62s ease-in forwards; }
 @keyframes fsdarkfx { 0% { opacity: 0; } 25% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
@@ -1640,7 +1711,7 @@ body {
   animation: fslinefx .55s ease-out forwards; opacity: 0;
 }
 .fxscreen--t3 .fxscreen__lines i { animation-duration: .7s; }
-.fxscreen--t4 .fxscreen__lines i { animation-duration: 1.1s; width: 10px; left: -5px; }
+.fxscreen--t4 .fxscreen__lines i, .fxscreen--t5 .fxscreen__lines i { animation-duration: 1.1s; width: 10px; left: -5px; }
 .fxscreen--bolt { --fs-line: rgba(200,235,255,.75); }
 .fxscreen--star { --fs-line: rgba(255,230,140,.8); }
 .fxscreen--nova { --fs-line: rgba(255,255,255,.9); }
@@ -2775,3 +2846,104 @@ body {
 .pp-legacy .pfever__row.is-fever { box-shadow: inset 0 0 0 2px var(--pp-gold); color: var(--pp-ink); }
 .pp-legacy .pfever__name { color: var(--pp-ink); }
 .pp-legacy .pfever__lv { color: var(--pp-gold-tx); }
+
+
+/* =========================================================
+   ⑦ ためゲージ／⑥ カットイン／⑨ オーロラ フィナーレ（v7.5）
+   ========================================================= */
+
+/* ⑦ ためゲージ：コンボの すぐ 下。あと 何問で ひっさつか 見える */
+.charge {
+  position: absolute; left: 12px; bottom: 38px; z-index: 4;   /* コンボ（bottom:8）の すぐ 上 */
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 10px; background: rgba(10,14,34,.72);
+  font-family: var(--f-body); font-size: 10px; color: #ffe9a8;
+}
+.charge[hidden] { display: none; }
+.charge__dots { display: flex; gap: 3px; }
+.charge__dot { width: 7px; height: 7px; background: rgba(255,255,255,.22); border: 1px solid rgba(255,233,168,.5); }
+.charge__dot.is-on { background: #ffe07a; border-color: #fff3c4; box-shadow: 0 0 5px 1px rgba(255,214,90,.9); }
+.charge.is-pop { animation: chargePop .22s ease-out; }
+@keyframes chargePop { 0% { transform: scale(.86); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+
+/* ⑥ カットイン：わざの 前に 主人公が よこから 大きく 入る */
+.cutin {
+  position: absolute; left: 0; right: 0; top: 84px; height: 96px; z-index: 30;
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+  animation: cutinBox .62s ease-out forwards;
+}
+.cutin__band {
+  position: absolute; left: -10%; right: -10%; top: 8px; bottom: 8px;
+  background: linear-gradient(90deg, rgba(10,14,34,0), rgba(10,14,34,.92) 18%, rgba(10,14,34,.92) 82%, rgba(10,14,34,0));
+  border-top: 2px solid var(--el, #ffd447); border-bottom: 2px solid var(--el, #ffd447);
+  transform: skewY(-3deg);
+}
+.cutin__face { position: relative; display: flex; align-items: flex-end; gap: 4px; animation: cutinFace .62s cubic-bezier(.15,.9,.25,1) forwards; }
+.cutin__hero { width: 78px; height: 78px; image-rendering: pixelated; filter: drop-shadow(0 0 10px var(--el, #ffd447)); }
+.cutin__pal { display: flex; align-items: flex-end; filter: drop-shadow(0 0 8px #ffd447); }
+.cutin__tx {
+  position: relative; margin-left: 8px; font-family: var(--f-head); font-size: 15px; color: #fff;
+  text-shadow: 0 2px 0 rgba(0,0,0,.6), 0 0 10px var(--el, #ffd447);
+  animation: cutinTx .62s ease-out forwards;
+}
+@keyframes cutinBox { 0% { opacity: 0; } 12% { opacity: 1; } 74% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes cutinFace { 0% { transform: translateX(-190px) scale(.8); } 42% { transform: translateX(0) scale(1); } 78% { transform: translateX(0) scale(1); } 100% { transform: translateX(40px) scale(1); } }
+@keyframes cutinTx { 0% { opacity: 0; transform: translateX(90px); } 46% { opacity: 1; transform: translateX(0); } 80% { opacity: 1; } 100% { opacity: 0; } }
+/* ⑧ 相棒と いっしょの ときは 金の わく */
+.cutin--pal .cutin__band { border-color: #ffd447; box-shadow: inset 0 0 24px rgba(255,212,71,.35); }
+
+/* ⑨ オーロラ フィナーレ（20コンボ〜）*/
+.fx__sky--aurora { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(12,6,38,.92), rgba(24,10,60,.7) 60%, rgba(10,30,50,.5)); animation: fxfade 1.9s ease-out forwards; }
+/* 虹の カーテンが 空に ゆれる */
+.fx__curtain { position: absolute; inset: 0; overflow: hidden; }
+.fx__curtain i {
+  position: absolute; top: -10px; width: 40px; height: 150px; opacity: 0;
+  filter: blur(1px); animation: auroraCurtain 1.5s ease-out forwards;
+}
+@keyframes auroraCurtain {
+  0%   { opacity: 0; transform: scaleY(.2) skewX(0deg); }
+  28%  { opacity: .95; transform: scaleY(1) skewX(8deg); }
+  60%  { opacity: .8; transform: scaleY(1.05) skewX(-8deg); }
+  100% { opacity: 0; transform: scaleY(1.1) skewX(4deg); }
+}
+/* 光の 柱が 敵の ところに 立つ */
+.fx__pillars { position: absolute; right: 54px; bottom: 40px; }
+.fx__pillars i {
+  position: absolute; bottom: 0; width: 12px; height: 0; background: linear-gradient(180deg, #fff, #7cf9c4);
+  box-shadow: 0 0 16px 5px rgba(124,249,196,.8); animation: auroraPillar .7s ease-out forwards;
+}
+@keyframes auroraPillar { 0% { height: 0; opacity: 0; } 30% { height: 150px; opacity: 1; } 100% { height: 170px; opacity: 0; } }
+.fx__ring--aurora { border-color: #b8ffe6; box-shadow: 0 0 26px #7cf9c4; animation-delay: .5s; }
+/* 光が ふる */
+.fx__fall { position: absolute; inset: 0; overflow: hidden; }
+.fx__fall i { position: absolute; top: -8px; background: #eafff6; box-shadow: 0 0 8px 2px rgba(180,255,230,.9); animation: auroraFall 1.1s linear forwards; }
+@keyframes auroraFall { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(220px); opacity: 0; } }
+.fxscreen--aurora { --fs-line: rgba(200,255,240,.9); --fs-ring: #b8ffe6; }
+.fxscreen--aurora .fxscreen__tint { background: radial-gradient(circle at 87% 100px, rgba(255,255,255,1), rgba(124,249,196,.7) 26%, rgba(79,211,255,.45) 50%, rgba(10,20,44,.85) 82%); }
+.fxscreen--aurora .fxname { color: #fff; text-shadow: -3px 0 0 #12405a, 3px 0 0 #12405a, 0 -3px 0 #12405a, 0 3px 0 #12405a, 0 6px 0 #06202e, 0 0 18px #7cf9c4, 0 0 34px #4fd3ff, 0 0 52px #c48bff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cutin, .cutin__face, .cutin__tx, .fx__curtain i, .fx__pillars i, .fx__fall i { animation-duration: .01s; }
+}
+
+/* =========================================================
+   エラーの 保険（v7.6・js/core/guard.js）
+   画面の 下の バー「こまった ことが おきたみたい」。こうしんの バー（.upd）と
+   同じ 場所・同じ 作りで、ふちは 赤オレンジ。トースト（90）より 上。
+   ========================================================= */
+.guard { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 95;
+         display: flex; flex-direction: column; gap: 8px; width: 356px; max-width: calc(100% - 24px);
+         padding: 10px 12px; border-radius: 14px;
+         background: rgba(16,24,48,.96); border: 2px solid #FF7A59; box-shadow: 0 8px 20px rgba(0,0,0,.45);
+         color: #fff; font-size: 13px; line-height: 1.4; }
+.guard__t { display: flex; flex-direction: column; gap: 2px; }
+.guard__t b { font-family: var(--f-head); font-size: 15px; color: #FFD166; }
+.guard__t span { color: #dfe6f5; }
+.guard__row { display: flex; gap: 8px; justify-content: flex-end; }
+.guard .btn { margin: 0; }
+/* おうちの人ページ「こまったとき・感想を送る」 */
+.pp-errlist { display: flex; flex-direction: column; gap: 6px; }
+.pp-err { display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 8px; background: #fbf1ee; border: 1px solid #efd4cf; }
+.pp-err__when { font-size: 11px; color: var(--pp-mut); }
+.pp-err__msg { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color: var(--pp-ink); word-break: break-all; }
+.pp-ta--fb { height: 190px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.45; }

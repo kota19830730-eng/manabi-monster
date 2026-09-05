@@ -485,9 +485,91 @@ MQ.ui.parent = (function () {
         ])
       ])
     ]));
+    main.push(troubleSection(p));
     main.push(h('p', { class: 'pp-muted pp-small pp-center', text: 'バージョン ' + (MQ.version || '－') }));
     kids.push(h('div', { class: 'pp-main' }, main));
     return kids;
+  }
+
+  /* =======================================================
+     こまったとき・感想を送る（v7.6）
+     エラーの きろく（js/core/guard.js）と 端末の 情報を 文字に して
+     コピー → LINE などで 作った 人に 送って もらう。外には 何も 送らない。
+     ======================================================= */
+  function feedbackText(p) {
+    const d = new Date();
+    const G = MQ.guard;
+    const lines = [];
+    lines.push('まなびモンスター かんそう・ふぐあい ' + d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate());
+    const lv = MQ.hero && MQ.hero.levelFor ? MQ.hero.levelFor(p).level : '?';
+    const playG = MQ.save.playGrade ? MQ.save.playGrade(p) : (p.playGrade || p.grade);
+    lines.push('バージョン ' + (MQ.version || '不明') + '／小' + (p.grade || 3) + ' ' + p.name + '（いま 小' + playG + 'の地図・Lv' + lv + '）');
+    if (G) lines.push('端末: ' + G.device().text);
+    try {
+      const wk = MQ.stats.period(p, 'week');
+      const al = MQ.stats.period(p, 'all');
+      lines.push('あそんだ: たたかい ' + (p.battles || 0) + '回／問題 ' + al.n + '問・正答率 ' + (al.pct == null ? '－' : al.pct + '%') +
+        '／今週 ' + wk.n + '問' + (wk.pct == null ? '' : '・' + wk.pct + '%'));
+    } catch (e) {}
+    try {
+      const st = MQ.save.getSetting ? { sfx: MQ.save.getSetting('sfx', true), bgm: MQ.save.getSetting('bgm', true), speech: MQ.save.getSetting('speech', true) } : {};
+      lines.push('せってい: おと ' + (st.sfx ? 'オン' : 'オフ') + '・きょく ' + (st.bgm ? 'オン' : 'オフ') + '・よみあげ ' + (st.speech ? 'オン' : 'オフ') +
+        '・学期 ' + (p.term ? p.term + '学期まで' : 'ぜんぶ') + '・AIのかぎ ' + (MQ.ai && MQ.ai.ready && MQ.ai.ready() ? 'あり' : 'なし'));
+    } catch (e) {}
+    lines.push(G ? G.text() : 'さいきんの エラー: （きろく なし）');
+    lines.push('---');
+    lines.push('【ここに 書いてください】');
+    lines.push('・どの画面で（地図／バトル／図かん／おうちの人ページ）');
+    lines.push('・何をしたとき');
+    lines.push('・どうなった（止まった／字が切れた／音が出ない など）');
+    lines.push('・子どもの感想');
+    return lines.join('\n');
+  }
+
+  function troubleSection(p) {
+    const G = MQ.guard;
+    const errs = G ? G.all() : [];
+    const ta = h('textarea', { class: 'pp-ta pp-ta--fb', readonly: 'readonly', 'aria-label': '感想・不具合の文' });
+    ta.value = feedbackText(p);
+    const errList = h('div', { class: 'pp-errlist' }, errs.length ? errs.slice(0, 4).map(function (e) {
+      const d = new Date(e.at);
+      const when = isNaN(d.getTime()) ? '' : (d.getMonth() + 1) + '/' + d.getDate();
+      return h('div', { class: 'pp-err' }, [
+        h('span', { class: 'pp-err__when', text: when + (e.screen ? '・' + e.screen : '') + ((e.n || 1) > 1 ? '・×' + e.n : '') }),
+        h('span', { class: 'pp-err__msg', text: e.msg + (e.src ? ' @' + e.src : '') })
+      ]);
+    }) : [h('span', { class: 'pp-muted pp-small', text: '最近のエラーはありません' })]);
+    return h('section', { class: 'pp-section', id: 'pp-trouble' }, [
+      sec('こまったとき・感想を送る'),
+      h('div', { class: 'pp-card pp-list' }, [
+        h('div', { class: 'pp-line pp-line--col' }, [
+          h('span', { text: '画面が動かない・おかしいとき' }),
+          h('span', { class: 'pp-muted pp-small', text: 'いちど開き直すと直ることが多いです。地図が出ないときは「小3の地図で開き直す」を試してください（記録は消えません）。' }),
+          h('div', { class: 'pp-line__in' }, [
+            btn('アプリを開き直す', 'pp-btn--s pp-btn--sm', function () { location.reload(); }),
+            btn('小3の地図で開き直す', 'pp-btn--s pp-btn--sm', function () {
+              MQ.save.update(function (pl) { pl.playGrade = 3; });
+              location.reload();
+            })
+          ])
+        ]),
+        h('div', { class: 'pp-line pp-line--col' }, [
+          h('span', { text: '最近のエラー（この端末の中だけに記録・外には送りません）' }),
+          errList,
+          errs.length ? h('div', { class: 'pp-line__in' }, [
+            btn('エラーの記録を消す', 'pp-btn--s pp-btn--sm', function () { if (G) G.clear(); render(); })
+          ]) : null
+        ]),
+        h('div', { class: 'pp-line pp-line--col' }, [
+          h('span', { text: '感想・不具合を作った人に送る' }),
+          h('span', { class: 'pp-muted pp-small', text: '下の文をコピーして、LINEなどに貼り付けて送ってください。端末・バージョン・エラーの記録が入ります（名前と成績の数字以外の個人情報は入りません）。' }),
+          ta,
+          h('div', { class: 'pp-line__in' }, [
+            btn('文字でコピー', 'pp-btn--p pp-btn--sm', function () { copyText(ta.value); }, 'copy')
+          ])
+        ])
+      ])
+    ]);
   }
 
   /* =======================================================

@@ -6,13 +6,14 @@
    ※ファイルを 増やしたら FILES にも 足してください。
    --------------------------------------------------------- */
 
-const CACHE_NAME = 'manabi-monster-v88';
+const CACHE_NAME = 'manabi-monster-v90';
 
 const FILES = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/style.css',
+  './js/core/guard.js',
   './js/core/util.js',
   './js/core/stage.js',
   './js/core/pixel.js',

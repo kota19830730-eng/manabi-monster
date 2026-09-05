@@ -840,6 +840,11 @@ MQ.ui.dex = (function () {
       h('p', { class: 'note', text: 'あたらしい バージョンが 入ると、画面の 下に「こうしん」の お知らせが 出ます。' }),
       h('button', { class: 'btn btn--small btn--stone', type: 'button', text: 'あたらしい バージョンを しらべる', onclick: function () { MQ.sfx.tap(); if (MQ.ui.checkUpdate) MQ.ui.checkUpdate(); } }),
 
+      /* こまった ときは（v7.6）：ひらき直し。くわしい ことは おうちの人ページの「こまったとき・感想を送る」 */
+      h('h2', { class: 'label', text: 'こまった ときは' }),
+      h('p', { class: 'note', text: '画面が 動かない・おかしい ときは、いちど ひらき直して みてね。なおらない ときは おうちの人に 見せてね。' }),
+      h('button', { class: 'btn btn--small btn--stone', type: 'button', text: 'アプリを ひらき直す', onclick: function () { MQ.sfx.tap(); location.reload(); } }),
+
       h('h2', { class: 'label', text: 'プレイヤー' }),
       h('button', {
         class: 'btn btn--small btn--danger', type: 'button', text: 'この プレイヤーを 消す',

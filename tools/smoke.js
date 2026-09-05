@@ -51,7 +51,7 @@ function load(rel) {
      本物の アプリでは 小4の 理科・社会が 読みこみ時に 落ちて いた） */
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
-['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
+['js/core/guard.js', 'js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
  'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
 
@@ -2808,6 +2808,38 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   });
   console.log('読みこみ じゅんばん: index/harness/smoke そろい・教科 ' + CONTENT_ORDER.length + ' ファイル');
 })();
+/* ===== エラーの 保険（v7.6）===== */
+(function () {
+  const G = MQ.guard;
+  check(!!G, 'MQ.guard が 読めて いる');
+  if (!G) return;
+  G.clear();
+  check(G.count() === 0, 'guard: clear で 0件');
+  G.record({ msg: 'TypeError: x is undefined', src: 'https://example.com/manabi/js/content/world3.js', line: 12, col: 5, screen: 'map' });
+  check(G.count() === 1 && G.all()[0].src === 'world3.js:12:5', 'guard: src は ファイル名:行:列 ' + JSON.stringify(G.all()[0]));
+  G.record({ msg: 'TypeError: x is undefined', src: 'https://example.com/manabi/js/content/world3.js', line: 12, col: 5, screen: 'map' });
+  check(G.count() === 1 && G.all()[0].n === 2, 'guard: 同じ エラーは 回数だけ ふえる');
+  for (let i = 0; i < 12; i++) G.record({ msg: 'err ' + i, src: 'a.js', line: i });
+  check(G.count() === G.MAX, 'guard: ' + G.MAX + '件まで（' + G.count() + '）');
+  check(G.text().indexOf('err 11') >= 0 && G.text().indexOf('a.js:11') >= 0, 'guard: text に さいきんの エラー');
+  // 読みこみ順：index・harness・sw の ぜんぶに あり、index では いちばん 先
+  const scripts = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.(core|content|ui).[a-z0-9]+[.]js$/.test(s); });
+  check(scripts[0] === 'js/core/guard.js', 'index.html は guard.js を いちばん 先に 読む（' + scripts[0] + '）');
+  const harness = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  check(harness.indexOf('../js/core/guard.js') >= 0 && harness.indexOf('../js/core/guard.js') < harness.indexOf('../js/core/util.js'), 'harness.html も guard.js を util.js より 先に 読む');
+  const sw = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  check(sw.indexOf("'./js/core/guard.js'") >= 0, 'sw.js の FILES に guard.js');
+  const dev = G.device();
+  check(typeof dev.text === 'string' && dev.text.indexOf('ホーム画面から') >= 0, 'guard: device の 文');
+  G.clear();
+  // 保存された ものを 読み直せる
+  global.localStorage.setItem(G.KEY, JSON.stringify([{ at: '2026-09-05T01:02:03.000Z', v: 'v90', msg: 'saved', src: 'b.js:3', screen: 'battle', phase: '', n: 3 }]));
+  const raw = JSON.parse(global.localStorage.getItem(G.KEY));
+  check(raw.length === 1 && raw[0].msg === 'saved', 'guard: localStorage に のこる');
+  G.clear();
+  console.log('エラーの 保険: record/text/device/読みこみ順 OK');
+})();
+
 // 非同期の 検査（AI の generate など）が おわってから まとめる
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
