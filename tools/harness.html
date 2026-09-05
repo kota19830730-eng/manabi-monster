@@ -678,6 +678,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode === 'guard' || mode === 'kanso' || mode === 'guardset') {
       fresh();
       MQ.guard.clear();
+      MQ.guard.markBooted();   // 本物では boot.js が 呼ぶ（読みこみ中の エラーと 区別する ため）
       if (mode === 'guard') {
         MQ.ui.start.render(); MQ.ui.show('screen-start');
         setTimeout(function () { throw new Error('テストの エラー（わざと）'); }, 0);

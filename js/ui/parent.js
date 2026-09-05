@@ -501,7 +501,7 @@ MQ.ui.parent = (function () {
     const G = MQ.guard;
     const lines = [];
     lines.push('まなびモンスター かんそう・ふぐあい ' + d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate());
-    const lv = MQ.hero && MQ.hero.levelFor ? MQ.hero.levelFor(p).level : '?';
+    const lv = MQ.hero && MQ.hero.levelFor ? MQ.hero.levelFor(p) : '?';   // levelFor は 数（level）
     const playG = MQ.save.playGrade ? MQ.save.playGrade(p) : (p.playGrade || p.grade);
     lines.push('バージョン ' + (MQ.version || '不明') + '／小' + (p.grade || 3) + ' ' + p.name + '（いま 小' + playG + 'の地図・Lv' + lv + '）');
     if (G) lines.push('端末: ' + G.device().text);
