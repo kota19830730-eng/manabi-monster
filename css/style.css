@@ -778,8 +778,8 @@ body {
 .missions__all { margin-top: 4px; font-size: 11px; color: var(--tx-sub); text-align: right; }
 .missions.is-all .missions__all { color: var(--gold); }
 .missions.is-all .missions__head { color: var(--gold); }
-.maptop__row { display: flex; gap: 8px; padding: 8px 12px 0; background: var(--bg-2); }
-.maptop__row .btn { flex: 1; min-height: 46px; padding: 0 6px; font-size: 13px; white-space: nowrap; }
+.maptop__row { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px 0; background: var(--bg-2); }
+.maptop__row .btn { flex: 1 1 40%; min-height: 46px; padding: 0 6px; font-size: 13px; white-space: nowrap; }
 /* がくねん えらび（v4.5）。予習・復習で いつでも 変えられる。★＝その子の 学年 */
 .grrow { display: flex; gap: 5px; padding: 8px 12px; background: var(--bg-2); border-bottom: 3px solid var(--hd-edge); }
 .chip--g { flex: 1; min-height: 34px; padding: 0; justify-content: center; position: relative;
@@ -1867,6 +1867,59 @@ body {
 .plog__row { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.08); font-size: 13px; }
 .plog__at { flex: none; color: var(--tx-sub); font-size: 12px; }
 .parent { font-size: 14px; }
+
+/* ---- とくい・にがて（v7.1・おうちの人ページ） ---- */
+.pstat { margin-top: 4px; }
+.pstat__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0 6px; }
+.pstat__head .label { margin: 0; }
+.pstat__copy { min-height: 36px; padding: 0 12px; font-size: 13px; }
+.pstat__legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0 0 8px; font-size: 12px; color: var(--tx-sub); }
+.pstat__dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--lock-1); }
+.pstat__dot--good { background: var(--grn-1); }
+.pstat__dot--mid { background: var(--gold); }
+.pstat__dot--weak { background: var(--dgr-1); }
+.pstat__dot--few { background: #7f8fb8; }
+.pstat__grades { margin: 4px 0 10px; }
+.pstat__weak { padding: 10px 10px 4px; margin: 0 0 12px; border: 3px solid var(--gold); border-radius: 14px; background: rgba(245,197,66,.10); }
+.pstat__weak h3 { margin: 0 0 8px; font-family: var(--f-head); font-size: 16px; color: var(--gold); }
+.pstat__area { margin-top: 10px; }
+.pstat__areahd { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 6px; font-family: var(--f-head); font-size: 15px; color: #fff; }
+.pstat__areahd small { font-family: var(--f-body); font-size: 12px; color: var(--tx-sub); }
+.pstat__row { width: 100%; display: grid; grid-template-columns: 14px 1fr 76px; grid-template-rows: auto auto auto; column-gap: 8px; align-items: center;
+  margin: 0 0 6px; padding: 8px 10px; border: 0; border-radius: 12px; background: rgba(255,255,255,.06); color: var(--tx); text-align: left; font-family: var(--f-body); cursor: pointer; }
+.pstat__row.is-open { background: rgba(255,255,255,.12); }
+.pstat__row--w { grid-template-columns: 26px 1fr 76px; background: rgba(0,0,0,.22); }
+.pstat__rdot { grid-row: 1 / 3; width: 14px; height: 14px; border-radius: 4px; background: var(--lock-1); }
+.pstat__rank { grid-row: 1 / 3; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-family: var(--f-head); font-size: 15px; color: var(--gold-ink); background: linear-gradient(var(--gold-lt), var(--gold-2)); box-shadow: 0 2px 0 var(--gold-sh); }
+.pstat__rname { grid-column: 2; font-size: 15px; line-height: 1.25; color: #fff; }
+.pstat__rpct { grid-column: 3; grid-row: 1 / 3; text-align: right; font-family: var(--f-head); font-size: 21px; white-space: nowrap; color: var(--tx-sub); }
+.pstat__rbar { grid-column: 2; display: block; height: 8px; margin-top: 5px; border-radius: 999px; background: var(--groove); overflow: hidden; }
+.pstat__rbar i { display: block; height: 100%; border-radius: 999px; background: var(--lock-1); }
+.pstat__rsub { grid-column: 2 / 4; margin-top: 4px; font-size: 12px; color: var(--tx-sub); }
+.pstat__row.is-good .pstat__rdot, .pstat__row.is-good .pstat__rbar i { background: var(--grn-1); }
+.pstat__row.is-mid  .pstat__rdot, .pstat__row.is-mid  .pstat__rbar i { background: var(--gold); }
+.pstat__row.is-weak .pstat__rdot, .pstat__row.is-weak .pstat__rbar i { background: var(--dgr-1); }
+.pstat__row.is-few  .pstat__rdot, .pstat__row.is-few  .pstat__rbar i { background: #7f8fb8; }
+.pstat__row.is-good .pstat__rpct { color: var(--grn-1); }
+.pstat__row.is-mid  .pstat__rpct { color: var(--gold); }
+.pstat__row.is-weak .pstat__rpct { color: var(--dgr-1); }
+.pstat__row.is-none .pstat__rname { color: var(--lock-tx); }
+.pstat__detail { margin: -2px 0 10px; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,.28); font-size: 13px; }
+.pstat__h { margin: 6px 0 4px; font-size: 12px; color: var(--gold); }
+.pstat__unit { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+.pstat__unit b { font-weight: normal; color: #fff; }
+.pstat__wq { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+.pstat__wq .q { color: #fff; line-height: 1.35; }
+.pstat__wq .a { margin-top: 2px; font-size: 12px; color: var(--tx-sub); }
+.pstat__wq .a b { font-weight: normal; color: var(--dgr-1); }
+.pstat__wq .a em { font-style: normal; color: var(--grn-1); }
+.pstat__wq .a .d { color: var(--tx-dim); }
+.pstat__wq .c { margin-top: 2px; font-size: 12px; color: var(--gold); }
+.pstat__drill { width: 100%; margin-top: 10px; }
+.pstat__sep { margin-top: 22px; padding-top: 14px; border-top: 2px dashed rgba(255,255,255,.14); }
+.pstat__tabox { margin: 0 0 10px; padding: 10px; border-radius: 12px; background: rgba(0,0,0,.28); }
+.pstat__ta { width: 100%; height: 140px; padding: 8px; border: 2px solid var(--gold); border-radius: 10px; background: var(--paper-1); color: var(--paper-ink); font-family: var(--f-body); font-size: 13px; resize: none; }
+.pstat__tabox .btn { margin-top: 8px; }
 /* 学校で ならった ところ（v2.6・おうちの人ページ） */
 .terms { margin-bottom: 18px; }
 .termrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }

@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/pals.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/pals.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
 
 const MQ = global.MQ;
@@ -1873,6 +1873,68 @@ check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅ�
   MQ.save.load();
   check(MQ.save.current().name === 'あいうえおかきくけこ', '読み直しても のこる');
   MQ.save.deletePlayer(rp.id);
+})();
+/* ---- とくい・にがて（v7.1） ---- */
+(function () {
+  const sp = MQ.save.createPlayer('とくいテスト', null, 3);
+  const st2 = MQ.content.findStage('sansu3-2').stage;
+  // core：1問ごとの 結果
+  MQ.battle.start({ stage: st2, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 9), bossId: 'boss-dragon', mobs: 9 });
+  let q = MQ.battle.current();
+  MQ.battle.answer(correctValue(q)); MQ.battle.next();
+  q = MQ.battle.current();
+  const wv = wrongValue(q);
+  MQ.battle.answer(wv); MQ.battle.answer(correctValue(q)); MQ.battle.next();   // 2回目で 正解
+  q = MQ.battle.current();
+  MQ.battle.answer(wrongValue(q)); MQ.battle.answer(wrongValue(q)); MQ.battle.next();   // にげられた
+  const rs = MQ.battle.summary().results;
+  check(rs.length === 3, '3問の 結果: ' + rs.length);
+  check(rs[0].ok === true && rs[0].given === null && rs[0].stageId === 'sansu3-2' && typeof rs[0].unit === 'string', '1回目で 正解 → ok');
+  check(rs[1].ok === false && rs[1].given === MQ.battle.givenText(rs[1], wv) && rs[1].given.length > 0, '2回目で 正解 → ×・1回目の 答えを おぼえる: ' + rs[1].given);
+  check(rs[2].ok === false && rs[2].answer.length > 0, 'にげられた → ×・正しい 答え: ' + rs[2].answer);
+  check(MQ.battle.givenText({ type: 'choice', choices: ['あ', 'い'] }, 1) === 'い' && MQ.battle.givenText({ type: 'number' }, null) === 'じかんぎれ', 'givenText');
+  // とっくん（れんしゅう）：リベンジ あつかいに しない・stageId を もつ
+  const qs = st2.make(6, { boss: false });
+  MQ.battle.start({ stage: st2, mode: 'tokkun', escaped: qs.map(function (x) { return { key: x.id, q: x, enemyId: 'slime-green', areaId: 'sansu', stageId: 'sansu3-2', revenge: false }; }) });
+  check(MQ.battle.mobTotal() === 6 && MQ.battle.current().revenge === false && MQ.battle.current().stageId === 'sansu3-2', 'れんしゅうの とっくん: 6問・リベンジなし');
+  // stats：ためる・はかる
+  const mk = function (stageId, unit, pat) { return pat.split('').map(function (c, i) { return { stageId: stageId, unit: unit, type: 'number', ok: c === '1', given: c === '1' ? null : 'x', answer: 'y', prompt: '<span class="num">1</span><br><svg><text>9</text></svg> ' + unit + ' 問題' + i }; }); };
+  MQ.save.update(function (p) {
+    MQ.stats.record(p, { results: mk('sansu3-2', '秒', '0100').concat(mk('sansu3-2', '時間をもとめる', '100010')) });
+    MQ.stats.record(p, { results: mk('sansu3-1', 'かけ算のきまり', '1111111111111111111111011') });   // 25問
+    MQ.stats.record(p, { results: mk('kokugo3-1', 'かん字の読み', '111') });
+  });
+  const p2 = MQ.save.current();
+  const m2 = MQ.stats.measure(p2.stats.rows['sansu3-2']);
+  check(m2.n === 10 && m2.ok === 3 && m2.pct === 30 && m2.level === 'weak', 'sansu3-2 は 3/10 にがて: ' + JSON.stringify(m2));
+  const m1 = MQ.stats.measure(p2.stats.rows['sansu3-1']);
+  check(m1.n === 25 && m1.recentN === 20 && m1.recentOk === 19 && m1.pct === 95 && m1.level === 'good', 'さいきんは 20問まで: ' + JSON.stringify(m1));
+  check(MQ.stats.measure(p2.stats.rows['kokugo3-1']).level === 'few', '5問みまんは まだ すこし');
+  check(MQ.stats.measure(p2.stats.rows['sansu3-2|秒']).n === 4, 'こまかい 単元も ためる');
+  check(p2.stats.wrong['sansu3-2'].length === 7 && p2.stats.wrong['sansu3-2'].every(function (w) { return w.miss === 1 && w.ok === 0; }), '落とした 問題 7つ（1回ずつ）: ' + p2.stats.wrong['sansu3-2'].length);
+  check(p2.stats.wrong['sansu3-2'][0].p.indexOf('<') === -1 && p2.stats.wrong['sansu3-2'][0].p.indexOf('9') === -1 && p2.stats.wrong['sansu3-2'][0].p.indexOf('1 ') === 0, '問題文は 文字だけ（図は 落とす）: ' + p2.stats.wrong['sansu3-2'][0].p);
+  MQ.save.update(function (p) { MQ.stats.record(p, { results: mk('sansu3-2', '秒', '000000000000') }); });   // 秒の 問題0〜11 を 落とす（0・2・3 は 2回目）
+  const w2 = MQ.save.current().stats.wrong['sansu3-2'];
+  check(w2.length === 16 && w2[0].miss === 2 && w2.filter(function (w) { return w.miss === 2; }).length === 3 && w2[0].u === '秒', '同じ 問題文は まとめて 回数（多い 順）: ' + w2.length + ' ' + JSON.stringify(w2[0]));
+  MQ.save.update(function (p) { MQ.stats.record(p, { results: mk('sansu3-2', '秒', '1000000000000000000000000000000') }); });   // 問題0 に 正解・問題1〜30 を 落とす
+  const w3 = MQ.save.current().stats.wrong['sansu3-2'];
+  const w30 = w3.filter(function (w) { return w.p === '1 秒 問題0'; })[0];
+  check(w3.length === MQ.stats.WRONG_MAX && w3[0].miss === 3 && w30 && w30.ok === 1 && w30.miss === 2, '落とした 問題は ' + MQ.stats.WRONG_MAX + '問まで・正解した 回数も 数える: ' + w3.length + ' ' + JSON.stringify(w3[0]) + ' ' + JSON.stringify(w30));
+  check(MQ.stats.countText(w30) === 'まちがい 2回・正解 1回', 'countText: ' + MQ.stats.countText(w30));
+  const ov = MQ.stats.overview(MQ.save.current(), 3);
+  const sansu = ov.areas.filter(function (a) { return a.id === 'sansu'; })[0];
+  check(!!sansu && sansu.stages.length === 18 && ov.areas.filter(function (a) { return a.id === 'tower'; }).length === 0, '小3の 一覧：算数 18・塔なし');
+  const s2 = sansu.stages.filter(function (s) { return s.id === 'sansu3-2'; })[0];
+  check(s2.units.length === 2 && s2.units[0].unit === '秒' && s2.wrong.length === MQ.stats.WRONG_MAX, '行に こまかい 単元（にがて 順）と 落とした 問題');
+  check(sansu.stages.filter(function (s) { return s.id === 'sansu3-5'; })[0].level === 'none', 'やって いない ステージは まだ');
+  const wk = MQ.stats.weakest(MQ.save.current(), 3, 3);
+  check(wk.length === 1 && wk[0].id === 'sansu3-2', 'にがて トップ：sansu3-2 だけ（5問みまん・70%いじょうは 入らない）: ' + wk.map(function (s) { return s.id; }).join(','));
+  check(MQ.stats.gradesWithData(MQ.save.current()).join(',') === '3', 'データの ある 学年: ' + MQ.stats.gradesWithData(MQ.save.current()).join(','));
+  const txt = MQ.stats.summaryText(MQ.save.current(), 3);
+  check(txt.indexOf('とくいテスト') > 0 && txt.indexOf('【算数') > 0 && txt.indexOf('△') > 0 && txt.indexOf('◎') > 0, '文字の まとめ');
+  check(MQ.stats.overview({ }, 3).played === 0 && MQ.stats.summaryText({ name: 'x' }, 3).indexOf('まだ') > 0, '記ろくなし');
+  check(MQ.stats.levelOf(85, 5) === 'good' && MQ.stats.levelOf(84, 5) === 'mid' && MQ.stats.levelOf(59, 5) === 'weak' && MQ.stats.levelOf(100, 4) === 'few', 'しきい値');
+  MQ.save.deletePlayer(sp.id);
 })();
 (function () {
   const gp = MQ.save.createPlayer('がくねんテスト', null, 3);

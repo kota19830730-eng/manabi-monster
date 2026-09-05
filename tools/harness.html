@@ -65,6 +65,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/sfx.js"></script>
 <script src="../js/core/bgm.js"></script>
 <script src="../js/core/save.js"></script>
+<script src="../js/core/stats.js"></script>
 <script src="../js/core/ai.js"></script>
 <script src="../js/core/handwrite.js"></script>
 <script src="../js/core/missions.js"></script>
@@ -715,6 +716,69 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'parent') { fresh(); MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
+    /* とくい・にがて（v7.1）
+       #stats       … にせの 記ろくを 入れて おうちの人ページ（にがて 1位を ひらいた ところ）
+       #stats:-1    … 同じ・いちばん 下（教科の マップ）
+       #stats2      … 記ろくなし
+       #statsdrill  … 「この 単元を れんしゅう」→ 6問の たたかい → おわったら 記ろくが ふえる */
+    if (mode.indexOf('stats') === 0) {
+      fresh();
+      if (mode !== 'stats2') {
+        const seed = function (stageId, unit, pat, wrongs) {
+          const res = [];
+          pat.split('').forEach(function (c, i) {
+            const w = wrongs && wrongs[i % wrongs.length];
+            res.push({ stageId: stageId, unit: unit, type: 'number', ok: c === '1', given: c === '1' ? null : (w ? w[1] : '0'), answer: w ? w[2] : '1', prompt: w ? w[0] : (unit + ' の 問題 ' + i) });
+          });
+          return res;
+        };
+        MQ.save.update(function (pl) {
+          MQ.stats.record(pl, { results: [].concat(
+            seed('sansu3-1', 'かけ算のきまり', '11111111110111111111'),
+            seed('sansu3-2', '秒', '0100', [['1分は 何秒？', '100', '60'], ['2分30秒は 何秒？', '230', '150']]),
+            seed('sansu3-2', '時間をもとめる', '100010', [['7時50分から 8時20分までは 何分？', '70分', '30分'], ['午前9時から 午後1時までは 何時間？', '8時間', '4時間']]),
+            seed('sansu3-3', 'あまりを考える問題', '1101101011'),
+            seed('sansu3-4', '暗算', '111'),
+            seed('kokugo3-1', 'かん字の読み', '111111111111'),
+            seed('kokugo3-3', '主語と述語', '1011010101', [['「ぼくは 本を 読む」の 主語は？', '本を', 'ぼくは']]),
+            seed('rikashakai3-1', '理科／こん虫', '010101101', [['こん虫の あしは 何本？', '8本', '6本'], ['チョウの 育ち方は？', 'たまご→よう虫→せい虫', 'たまご→よう虫→さなぎ→せい虫']]),
+            seed('eigo3-1', 'あいさつ', '101'),
+            seed('sansu2-3', 'ながさ', '1111011111')
+          ) });
+        });
+      }
+      MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex');
+      await wait(200);
+      const pl = MQ.save.current();
+      const ov = MQ.stats.overview(pl, 3);
+      say('stats: やった=' + ov.played + ' 学年=' + MQ.stats.gradesWithData(pl).join(',') +
+          ' にがて=' + MQ.stats.weakest(pl, 3, 3).map(function (s) { return s.name + ' ' + s.pct + '%'; }).join(' / '));
+      say('stats: 行=' + document.querySelectorAll('.pstat__row').length + ' 学年チップ=' + document.querySelectorAll('.pstat__grades .chip').length +
+          ' コピー=' + ($('.pstat__copy') ? 'ある' : 'ない') + ' 見出しの前=' + ($('.pstat') && $('.pstat').parentNode.firstChild === $('.pstat') ? 'いちばん上' : 'ちがう'));
+      if (mode === 'stats2') { say('stats2: ' + ($('.pstat .note') ? $('.pstat .note').textContent.slice(0, 20) : 'MISSING')); dump(); return; }
+      const first = $('.pstat__weak .pstat__row');
+      if (first) { first.click(); await wait(250); }
+      say('stats: ひらいた=' + ($('.pstat__detail') ? 'ok' : 'MISSING') + ' 単元=' + document.querySelectorAll('.pstat__unit').length + ' 落とした=' + document.querySelectorAll('.pstat__wq').length +
+          ' れんしゅう=' + ($('.pstat__drill') ? 'ある' : 'ない'));
+      say('text:\n' + MQ.stats.summaryText(pl, 3));
+      if (mode === 'statsdrill') {
+        const before = pl.stats.rows['sansu3-2'].n;
+        $('.pstat__drill').click();
+        await wait(500);
+        say('drill: 画面=' + (document.getElementById('screen-battle').classList.contains('is-active') ? 'battle' : 'ちがう') +
+            ' 敵=' + MQ.battle.mobTotal() + ' リベンジ=' + (MQ.battle.current().revenge ? 'yes(NG)' : 'no') + ' リボン=' + ($('.enemy__ribbon') ? 'ある(NG)' : 'ない') +
+            ' stageId=' + MQ.battle.current().stageId);
+        await playBattle('drill');
+        await wait(900);
+        const after = MQ.save.current().stats.rows['sansu3-2'].n;
+        say('drill: おわり 記ろく ' + before + ' → ' + after + ' ' + (after === before + 6 ? 'OK' : 'NG') + ' けっか=' + ($('.rs') ? 'ok' : 'MISSING'));
+        dump(); return;
+      }
+      const n = parseInt(mode.split(':')[1], 10);
+      if (!isNaN(n)) { const sc = $('#screen-dex .wrap'); if (sc) sc.scrollTop = n < 0 ? 99999 : n; }
+      dump();
+      return;
+    }
     if (mode === 'set') { fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); return; }
     // #set2 … よみあげの スイッチが 出る せってい画面（にせの 声・v5.3）
     if (mode === 'set2') { fakeVoices(); fresh(); MQ.ui.dex.render('set'); MQ.ui.show('screen-dex'); await wait(200); say('set2: スイッチ=' + Array.prototype.map.call(document.querySelectorAll('.sw'), function (b) { return b.textContent; }).join('/')); dump(); return; }

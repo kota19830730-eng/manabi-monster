@@ -154,9 +154,10 @@ MQ.battle = (function () {
       mobs = (opts.escaped || []).map(function (entry) {
         const q = prepare(entry.q);
         q.id = entry.key;
-        q.revenge = true;
+        q.revenge = entry.revenge !== false;      // 単元の れんしゅう（v7.1）は リベンジでは ない
         q.enemyId = entry.enemyId;
         q.areaId = entry.areaId || null;
+        q.stageId = entry.stageId || null;        // とくい・にがて（v7.1）は もとの ステージに ためる
         return q;
       });
     } else if (mode === 'normal') {
@@ -176,6 +177,7 @@ MQ.battle = (function () {
         q.id = entry.key;
         q.revenge = true;
         q.enemyId = entry.enemyId;
+        q.stageId = entry.stageId || null;        // とくい・にがて（v7.1）は もとの ステージに ためる
         mobs.splice(MQ.util.randInt(0, mobs.length), 0, q);
       });
 
@@ -277,6 +279,8 @@ MQ.battle = (function () {
       coins: 0,
       defeated: [],
       escapedNow: [],
+      results: [],                 // 1問ごとの 結果（とくい・にがて 用・v7.1）
+      retryGiven: null,            // 1回目に まちがえた ときの 答え（文字）
       revengeBeaten: [],
       typeOk: {},                  // 種類ごとの 正解数（ミッション「かん字を 3もん」用）
       multiKO: [],
@@ -326,6 +330,26 @@ MQ.battle = (function () {
     if (q.type === 'frac') return q.answer.d + '分の' + q.answer.n;
     if (q.type === 'roma' || q.type === 'write') return q.answer;
     return '';
+  }
+
+  // 子どもの 答えを 文字に（とくい・にがて の「落とした 問題」用・v7.1）
+  function givenText(q, value) {
+    if (value === null || value === undefined) return 'じかんぎれ';
+    if (q.type === 'choice') return q.choices[Number(value)] != null ? String(q.choices[Number(value)]) : String(value);
+    if (q.type === 'divrem') return value.q + ' あまり ' + value.r;
+    if (q.type === 'frac') return value.r + '分の' + value.q;
+    if (q.type === 'write') return value === true ? '○' : '×（じぶんで）';
+    return String(value);
+  }
+
+  /* 1問の 結果を ためる（v7.1）。ok は 1回目で 合った ときだけ。
+     given は まちがえた ときの 子どもの 答え（1回目の もの） */
+  function pushResult(q, ok, given) {
+    s.results.push({
+      stageId: q.stageId || s.stage.id, areaId: q.areaId || null, unit: q.unit || '', type: q.type,
+      ok: !!ok, given: ok ? null : given, answer: answerText(q), prompt: q.prompt, boss: s.phase === 'boss'
+    });
+    s.retryGiven = null;
   }
 
   // opts.max … えらぶ問題で 消す まちがいの 数（みちしるべは 1つだけ）
@@ -384,6 +408,7 @@ MQ.battle = (function () {
       s.retry = false;
       s.answered++;
       s.correct++;
+      pushResult(q, !wasRetry, s.retryGiven);   // 2回目で 合った ときは ×（とくい・にがて 用）
       let crit = false;
       if (!wasRetry) {
         s.combo += 1 + (s.buff.comboPlus || 0);   // コンボの まきもの（v5.4）
@@ -474,6 +499,7 @@ MQ.battle = (function () {
     /* ---- まちがい ---- */
     if (!wasRetry && !s.timeAttack) {
       s.retry = true;
+      s.retryGiven = givenText(q, value);
       // 時とめ：この 問題では コンボが 切れない
       let frozen = false;
       if (s.buff.freeze > 0) { s.buff.freeze--; s.frozenQ = q.id; frozen = true; }
@@ -494,6 +520,7 @@ MQ.battle = (function () {
     s.retry = false;
     if (s.frozenQ !== q.id) s.combo = 0;
     s.answered++;
+    pushResult(q, false, s.retryGiven != null ? s.retryGiven : givenText(q, value));
     if (q.groupId) s.groupClean = false;
 
     if (q.chest) {
@@ -778,6 +805,7 @@ MQ.battle = (function () {
       }),
       revengeBeaten: s.revengeBeaten,
       revengeBonus: s.revengeBeaten.length * XP.revenge,
+      results: s.results.slice(),      // とくい・にがて（v7.1）
       typeOk: Object.assign({}, s.typeOk),
       itemsUsed: s.itemsUsed.slice(),
       palHits: s.palHits,
@@ -788,6 +816,7 @@ MQ.battle = (function () {
   return {
     start: start, current: current, answer: answer, timeUp: timeUp, next: next, summary: summary,
     isCorrect: isCorrect, answerText: answerText,   // テスト用（v6.5・分数の 判定を smoke が 見る）
+    givenText: givenText,                           // テスト用（v7.1）
     useItem: useItem, canUse: canUse, items: items, buffs: buffs,
     recharge: recharge, canRecharge: canRecharge, rechargeCost: RECHARGE_COST, coinsLeft: coinsLeft,
     phase: function () { return s.phase; },

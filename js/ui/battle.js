@@ -251,6 +251,42 @@ MQ.ui.battle = (function () {
     renderQuestion();
   }
 
+  /* 単元の れんしゅう（v7.1・おうちの人ページ「この 単元を れんしゅう」）。
+     その ステージの 問題を 6問、にげた敵と 同じ しくみ（とっくん）で。
+     ★・さいこう記ろく・コインは つかず、リベンジ あつかいにも しない */
+  const DRILL_N = 6;
+  function startDrill(stageId) {
+    const player = MQ.save.current();
+    const found = MQ.content.findStage(stageId);
+    if (!player || !found || found.stage.tower) return false;
+    const qs = found.stage.make(DRILL_N, { boss: false });
+    if (!qs || !qs.length) { MQ.ui.toast('この 単元の 問題は まだ ないよ'); return false; }
+    build();
+    MQ.ui.syncCustom();
+    clearTimeout(timer);
+    clearInterval(tickTimer);
+    bossOnScreen = false;
+    ctx = { player: player, world: found.world, area: found.area, stage: found.stage, tokkun: true, drill: true, timeAttack: 0 };
+    const ids = MQ.enemies.pickIds(found.area.id, qs.length, 0.5);
+    MQ.battle.start({
+      stage: found.stage, mode: 'tokkun',
+      escaped: qs.map(function (q, i) {
+        return { key: q.id, q: q, enemyId: ids[i % ids.length], areaId: found.area.id, stageId: found.stage.id, revenge: false };
+      }),
+      items: bagOf(player),
+      coins: player.coins || 0,
+      pal: palOf(player),
+      gear: MQ.hero.gearPower(player)
+    });
+    d.heroImg.src = MQ.hero.sprite(player);
+    syncPal(player);
+    paintScene(found.area.biome || 'mountain');
+    MQ.bgm.play('battle');
+    MQ.ui.show('screen-battle');
+    renderQuestion();
+    return true;
+  }
+
   function paintScene(biome) {
     if (d.bg) d.bg.className = 'arena__bg arena__bg--' + (biome || 'mountain');
   }
@@ -1718,6 +1754,8 @@ MQ.ui.battle = (function () {
       if (sum.fastBonus) p.fastCount = (p.fastCount || 0) + 1;
       if ((sum.maxCombo || 0) > (p.bestCombo || 0)) p.bestCombo = sum.maxCombo;
       p.revengeWins = (p.revengeWins || 0) + (sum.revengeBeaten || []).length;
+      // とくい・にがて（v7.1）：1問ごとの 結果を 単元ごとに ためる（おうちの人ページ用）
+      if (MQ.stats) MQ.stats.record(p, sum);
       // きょうの ミッション（v3.1）：進めて、クリアぶんの コイン・けいけんちは その場で
       if (MQ.missions) out.missions = MQ.missions.progress(p, sum, { areaId: ctx.tokkun ? null : ctx.area.id, stageId: ctx.stage.id });
       // 図かんを 先に ふやす（v5.2）。なかまの「3回 たおしたら かならず」が
@@ -2065,7 +2103,7 @@ MQ.ui.battle = (function () {
   }
 
   return {
-    start: start, startTokkun: startTokkun, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag,
+    start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag,
     lastJudge: function () { return lastJudge; },
     // メモ欄の 中を のぞく（tools/harness.html 用・v5.5）
     memoStrokes: function () { return memo && memo.strokes ? memo.strokes() : 0; },
