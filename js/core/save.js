@@ -111,6 +111,9 @@ MQ.save = (function () {
     if (!p.areaPlays || typeof p.areaPlays !== 'object' || Array.isArray(p.areaPlays)) p.areaPlays = {};
     if (!p.fever || typeof p.fever !== 'object') p.fever = null;
     if (typeof p.feverPick !== 'string') p.feverPick = null;
+    // てきの ため → カウンター（v7.7）：おうちの人ページの 切りかえ（はじめは つける）と 決めた 数
+    if (typeof p.attacks !== 'boolean') p.attacks = true;
+    if (typeof p.counters !== 'number') p.counters = 0;
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {

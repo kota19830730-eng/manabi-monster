@@ -115,6 +115,13 @@ MQ.sfx = (function () {
       tone(1568, 0.10, 'square', 0.13, 0.10);
       tone(2093, 0.24, 'square', 0.11, 0.19);
     },
+    /* ---- てきの ため → カウンター（v7.7） ---- */
+    // 敵が こうげきに 出る（低く うなる → ぐっと 上がる）
+    charge:  function () { tone(90, 0.36, 'sawtooth', 0.14, 0, 260); noise(0.3, 0.12, 0.05, 900, 'lowpass'); tone(660, 0.08, 'square', 0.1, 0.34); },
+    // カウンター（キン！と はね返して ドン）
+    counter: function () { tone(2093, 0.06, 'square', 0.14); tone(2794, 0.12, 'square', 0.12, 0.05); noise(0.08, 0.3, 0.02, 5000, 'highpass'); noise(0.22, 0.4, 0.14); tone(110, 0.2, 'square', 0.2, 0.14, 45); },
+    // くらった（どすっ）
+    enemyHit: function () { noise(0.14, 0.3, 0, 700, 'lowpass'); tone(140, 0.18, 'square', 0.18, 0, 70); },
     alarm:   function () { for (let i = 0; i < 3; i++) { tone(660, 0.16, 'sawtooth', 0.12, i * 0.36); tone(494, 0.16, 'sawtooth', 0.12, i * 0.36 + 0.18); } },
     enrage:  function () { tone(110, 0.5, 'sawtooth', 0.2, 0, 220); noise(0.4, 0.25, 0.05); },
     bossdown: function () {

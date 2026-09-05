@@ -68,6 +68,18 @@ MQ.battle = (function () {
   };
   const SEC_PER_Q = 20;            // これより 早ければ はやとき ボーナス
 
+  /* ■ てきの ため → カウンター（v7.7）
+       敵がわも「ため」て、たまりきった 問題で こうげきして くる。
+         ザコ … 3問ごと（たからばこは 数えない）／ボス … 2問ごと
+       その 問題に 1回めで 正解 → **カウンター**（ザコは けいけんち 1.5ばい・ボスは 2ダメージ）
+       まちがえると「くらった」… 演出と コンボ 0 だけ（コンボ 0は いつもの まちがいと 同じ）。
+       **何も うしなわない**（ライフなし・負けなし の きまりは そのまま）。ユーザー決定 2026-09-06。
+       おうちの人ページで 切れる（opts.attacks: false）。とっくんでは 出ない。 */
+  const CHARGE_MOB = 3;
+  const CHARGE_BOSS = 2;
+  const COUNTER_MUL = 1.5;
+  const COUNTER_DMG = 2;
+
   let s = null;
 
   function now() { return Date.now(); }
@@ -146,7 +158,8 @@ MQ.battle = (function () {
        coins    … いま もっている きんのコイン（じゅうてん用の さいふ）
        fever    … きょうの フィーバー教科（v7.2）{ xpMul, coins, palPlus }。normal だけ
        support  … サポート（v7.2）{ easy, hint, keep, extra, level }。normal だけ
-       mix      … ごちゃまぜ バトル（v7.3）。おわりに コイン +1。bossArea＝ボスの 教科 id  */
+       mix      … ごちゃまぜ バトル（v7.3）。おわりに コイン +1。bossArea＝ボスの 教科 id
+       attacks  … てきの ため → カウンター（v7.7）。true で あり（画面が おうちの人の せっていを 見て わたす）。とっくんでは いつも なし  */
   function start(opts) {
     const mode = opts.mode || 'normal';
     const stage = opts.stage;
@@ -261,6 +274,10 @@ MQ.battle = (function () {
       feverXp: 0,                  // フィーバーで ふえた ぶんの けいけんち
       mix: !!opts.mix,             // ごちゃまぜ バトル（v7.3）
       bossArea: opts.bossArea || null,   // ごちゃまぜ の ボスの 教科
+      // てきの ため → カウンター（v7.7）。画面がわ（ui/battle.js）が おうちの人の せっていを 見て true を わたす。
+      // core の 初期値は「なし」（むかしからの テストと ほかの 呼び出しを 変えない ため）。とっくんでは いつも なし
+      attacks: opts.attacks === true && mode !== 'tokkun',
+      counters: 0,                 // カウンターを 決めた 数
       // どうぐ・そうびの 効果（のこり）
       buff: {
         dmg: 1,
@@ -325,6 +342,24 @@ MQ.battle = (function () {
   }
 
   function current() { return s.phase === 'boss' ? s.bossQ : s.mobs[s.index]; }
+
+  /* てきの ため（v7.7）：いまの 問題の ようす。ない ときは null
+       { level, need, attacking }  level＝たまった 数（attacking なら need と 同じ） */
+  function chargeInfo() {
+    if (!s || !s.attacks || s.phase === 'done') return null;
+    if (s.phase === 'boss') {
+      const k = s.bossAsked || 0;
+      const att = k > 0 && k % CHARGE_BOSS === 0;
+      return { level: att ? CHARGE_BOSS : k % CHARGE_BOSS, need: CHARGE_BOSS, attacking: att, boss: true };
+    }
+    const q = current();
+    if (!q || q.chest) return null;
+    let k = 0;
+    for (let i = 0; i <= s.index; i++) if (!s.mobs[i].chest) k++;
+    const att = k % CHARGE_MOB === 0;
+    return { level: att ? CHARGE_MOB : k % CHARGE_MOB, need: CHARGE_MOB, attacking: att, boss: false };
+  }
+  function attacking() { const c = chargeInfo(); return !!(c && c.attacking); }
 
   /* サポート（v7.2）：いまの 問題の ヒントを 先に 出す（みちしるべと 同じ 中身）。
      ザコだけ・たからばこ と ボスは なし・役に 立つ ヒントが ある ときだけ
@@ -470,6 +505,9 @@ MQ.battle = (function () {
         const palHit = palHitNow();
         let dmg = s.buff.dmg > 1 ? Math.min(s.buff.dmg, s.bossHp) : 1;
         if (palHit) dmg = Math.min(dmg + 1, s.bossHp);      // 相棒の 追い打ち
+        // カウンター（v7.7）：ボスの 大わざの 問題に 1回めで 正解 → 2ダメージ
+        const counter = !wasRetry && attacking();
+        if (counter) { dmg = Math.min(Math.max(dmg, COUNTER_DMG), s.bossHp); s.counters++; }
         s.buff.dmg = 1;
         let xp = (wasRetry ? (last ? XP.lastHitRetry : XP.bossHitRetry) : (last ? XP.lastHit : XP.bossHit)) * dmg;
         if (crit) xp += XP.critBonus;
@@ -490,7 +528,8 @@ MQ.battle = (function () {
         if (!defeated && s.bossAsked >= s.bossMax) { s.phase = 'done'; s.bossFled = true; s.endedAt = now(); }
         return {
           outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note, palHit: palHit,
-          dmg: dmg, burst: dmg > 1 ? dmg : 0, coins: defeated ? 1 : 0,
+          counter: counter,
+          dmg: dmg, burst: dmg > 1 && !counter ? dmg : 0, coins: defeated ? 1 : 0,
           hpLeft: s.bossHp, defeated: defeated, last: last,
           enrage: !defeated && s.bossHp <= s.enrageAt && s.enraged,
           fled: !defeated && s.phase === 'done'
@@ -517,6 +556,9 @@ MQ.battle = (function () {
       // ばくれつ こうげき：この 1体ぶんの けいけんちが ばいに
       let burst = 0;
       if (s.buff.dmg > 1) { burst = s.buff.dmg; xp *= burst; s.buff.dmg = 1; }
+      // カウンター（v7.7）：てきの こうげきの 問題に 1回めで 正解 → けいけんち 1.5ばい
+      const counter = !wasRetry && attacking();
+      if (counter) { xp = Math.round(xp * COUNTER_MUL); s.counters++; }
       xp += s.gear.xpAdd;                    // けん（そうび）の 効果
       xp = gain(xp);
       s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
@@ -527,11 +569,13 @@ MQ.battle = (function () {
       if (q.revenge) s.revengeBeaten.push(q.id);
       return {
         outcome: 'correct', xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit,
-        multi: multi, note: q.note, burst: burst, coins: coins, revenge: !!q.revenge
+        multi: multi, note: q.note, burst: burst, coins: coins, revenge: !!q.revenge, counter: counter
       };
     }
 
     /* ---- まちがい ---- */
+    // てきの こうげきの 問題で まちがえた → 「くらった」（演出だけ・v7.7）
+    const hit = !wasRetry && attacking();
     if (!wasRetry && !s.timeAttack) {
       s.retry = true;
       s.retryGiven = givenText(q, value);
@@ -540,7 +584,7 @@ MQ.battle = (function () {
       if (s.buff.freeze > 0) { s.buff.freeze--; s.frozenQ = q.id; frozen = true; }
       if (s.frozenQ !== q.id) s.combo = 0;
       if (q.groupId) s.groupClean = false;
-      return { outcome: 'retry', hint: makeHint(q), frozen: frozen, combo: s.combo };
+      return { outcome: 'retry', hint: makeHint(q), frozen: frozen, combo: s.combo, hit: hit };
     }
 
     // てっぺき まもり：2回目に まちがえても にげられない（答えは 見せずに もう1回）
@@ -548,7 +592,7 @@ MQ.battle = (function () {
       s.buff.shield--;
       if (s.frozenQ !== q.id) s.combo = 0;
       if (q.groupId) s.groupClean = false;
-      return { outcome: 'shielded', left: s.buff.shield, combo: s.combo, hint: makeHint(q) };
+      return { outcome: 'shielded', left: s.buff.shield, combo: s.combo, hint: makeHint(q), hit: hit };
     }
 
     // 2回目の まちがい（タイムアタックでは 1回で）
@@ -820,6 +864,7 @@ MQ.battle = (function () {
     return {
       mix: s.mix,
       mixCoins: mixCoins,
+      counters: s.counters,            // カウンターを 決めた 数（v7.7）
       fever: !!s.fever,
       feverBonus: s.feverXp,
       feverCoins: feverCoins,
@@ -868,6 +913,8 @@ MQ.battle = (function () {
     givenText: givenText,                           // テスト用（v7.1）
     useItem: useItem, canUse: canUse, items: items, buffs: buffs,
     preHint: preHint,                                // サポート（v7.2）
+    chargeInfo: chargeInfo, attacking: attacking,    // てきの ため → カウンター（v7.7）
+    CHARGE_MOB: CHARGE_MOB, CHARGE_BOSS: CHARGE_BOSS, COUNTER_MUL: COUNTER_MUL, COUNTER_DMG: COUNTER_DMG,
     fever: function () { return s ? s.fever : null; },
     support: function () { return s ? s.support : null; },
     recharge: recharge, canRecharge: canRecharge, rechargeCost: RECHARGE_COST, coinsLeft: coinsLeft,

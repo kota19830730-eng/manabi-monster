@@ -969,6 +969,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     best: { 'sansu3-1': { correct: 13, total: 13, time: 100 } },
     fastCount: 9, bestCombo: 18, itemUses: 12, custom: [{ id: 'c1' }],
     missionsDone: 12, revengeWins: 6,  // v3.1 の しょうごう
+    counters: 10,                      // v7.7 カウンターの たつじん
     gear: MQ.hero.gear.map(function (g) { return g.id; }),   // v5.4 の そうびの しょうごう
     // v5.2 の しょうごう：なかま 10体・そのうち 1体は Lv10
     pals: (function () {
@@ -2781,6 +2782,75 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   MQ.save.load();
   if (prevId) MQ.save.setCurrent(prevId);
   console.log('mix: 12問 ' + JSON.stringify(per));
+})();
+
+/* ===== てきの ため → カウンター（v7.7）===== */
+(function () {
+  const B = MQ.battle, C = MQ.content;
+  const prevId = MQ.save.get().currentId;
+  const p = MQ.save.createPlayer('カウンター', null, 3);
+  check(p.attacks === true && p.counters === 0, 'attack: 新しい プレイヤーは つける・0回');
+  const st = C.findStage('sansu3-1').stage;
+  function ans(q) { return q.type === 'choice' || q.type === 'number' || q.type === 'roma' ? q.answer : q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : { q: q.answer.q, r: q.answer.r }; }
+  // 12体＋たからばこ：たからばこを 数えずに 3体ごとに こうげき（3・6・9・12体め）
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: true, attacks: true });
+  const pat = [], xps = [];
+  let seenChest = false;
+  while (B.phase() === 'mob') {
+    const q = B.current();
+    const ci = B.chargeInfo();
+    if (q.chest) { seenChest = true; check(ci === null, 'attack: たからばこには ためが ない'); }
+    else pat.push(ci.attacking ? 'A' : String(ci.level));
+    if (!q.chest && ci && ci.attacking && pat.length === 3) {
+      // 3体め：わざと まちがえる → くらった（hit）→ 2回めで 正解しても カウンターは つかない
+      const r1 = B.answer(q.type === 'choice' ? (q.answer + 1) % q.choices.length : -1);
+      check(r1.outcome === 'retry' && r1.hit === true, 'attack: こうげきの 問題で まちがえると hit ' + JSON.stringify({ o: r1.outcome, h: r1.hit }));
+      const r2 = B.answer(ans(q));
+      check(r2.outcome === 'correct' && !r2.counter && r2.xp === B.XP.mobRetry, 'attack: 2回めの 正解は カウンターに ならない ' + r2.xp);
+    } else {
+      const r = B.answer(ans(q));
+      if (!q.chest) {
+        if (ci.attacking) xps.push(r.xp);
+        if (ci.attacking) check(r.counter === true, 'attack: こうげきの 問題に 正解 → counter');
+        else check(!r.counter && !r.hit, 'attack: ふつうの 問題は counter なし');
+      }
+    }
+    B.next();
+  }
+  check(seenChest && pat.join('') === '12A12A12A12A', 'attack: ための ならび ' + pat.join(''));
+  // カウンターの 問題の けいけんちは (10 + クリティカル 5)×1.5＝23 いじょう（2体同時の ボーナスが 足される ことも ある）
+  check(B.summary().counters === 3, 'attack: カウンター 3回（3体めは まちがえた）' + B.summary().counters);
+  check(xps.length === 3 && xps.every(function (x) { return x >= Math.round((B.XP.mob + B.XP.critBonus) * B.COUNTER_MUL); }), 'attack: カウンターの けいけんち 1.5ばい ' + xps.join(','));
+  // ボス：2問めが 大わざ → 正解で 2ダメージ
+  check(B.phase() === 'boss' && B.chargeInfo().boss === true && B.chargeInfo().level === 1 && !B.chargeInfo().attacking, 'attack: ボス 1問めは ため 1/2 ' + JSON.stringify(B.chargeInfo()));
+  B.answer(ans(B.current())); B.next();
+  check(B.chargeInfo().attacking === true, 'attack: ボス 2問めは 大わざ');
+  const hp0 = B.bossHp();
+  const rb = B.answer(ans(B.current()));
+  check(rb.outcome === 'bosshit' && rb.counter === true && rb.dmg === 2 && B.bossHp() === hp0 - 2 && rb.burst === 0, 'attack: ボスに カウンター 2ダメージ ' + JSON.stringify({ d: rb.dmg, hp: B.bossHp(), b: rb.burst }));
+  check(B.summary().counters === 4, 'attack: summary counters 4');
+  // なし（おうちの人ページ・core の 初期値も なし）・とっくん・時間切れ
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12 });
+  let none = true;
+  while (B.phase() === 'mob') { if (B.chargeInfo() !== null) none = false; B.answer(ans(B.current())); B.next(); }
+  check(none && B.chargeInfo() === null && B.summary().counters === 0, 'attack: attacks を わたさなければ ため なし');
+  const sq = { id: 'k1', type: 'number', prompt: '1+1', answer: 2, unit: 'x' };
+  B.start({ stage: st, mode: 'tokkun', attacks: true, escaped: [{ key: 'k1', q: sq, enemyId: 'slime-green' }, { key: 'k2', q: Object.assign({}, sq, { id: 'k2' }), enemyId: 'slime-green' }, { key: 'k3', q: Object.assign({}, sq, { id: 'k3' }), enemyId: 'slime-green' }] });
+  check(B.chargeInfo() === null, 'attack: とっくんでは なし');
+  // タイムアタックでも ため は ある（時間切れは hit を 返さない）
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, timeAttack: 20, attacks: true });
+  B.answer(ans(B.current())); B.next(); B.answer(ans(B.current())); B.next();
+  check(B.chargeInfo().attacking && B.timeUp().outcome === 'wrong', 'attack: タイムアタックの 時間切れは ふつうの まちがい');
+  // しょうごう
+  check(MQ.hero.titles.some(function (t) { return t.id === 't-counter10'; }), 'attack: しょうごう カウンターの たつじん');
+  p.counters = 10;
+  check(MQ.hero.checkTitles(p).some(function (t) { return t.id === 't-counter10'; }) || (p.titles || []).indexOf('t-counter10') !== -1, 'attack: 10回で もらえる');
+  // 古い セーブ
+  MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
+  check(MQ.save.current().attacks === true && MQ.save.current().counters === 0, 'attack: 古い セーブは つける');
+  MQ.save.load();
+  if (prevId) MQ.save.setCurrent(prevId);
+  console.log('attack: ならび ' + pat.join(''));
 })();
 
 /* ===== 読みこみの じゅんばん（v5.0.1）=====

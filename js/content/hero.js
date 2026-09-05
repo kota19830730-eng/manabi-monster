@@ -1031,7 +1031,9 @@ MQ.hero = (function () {
     { id: 't-gearset',   name: 'そろいの きし',          how: 'そうびを 1しゅるい そろえる', test: function (p) { return !!fullSetOf(p); } },
     { id: 't-hoshiset',  name: 'ほしの ゆうしゃ',        how: 'ほしの そうびを そろえる',    test: function (p) { return hasSet(p, 'hoshi'); } },
     { id: 't-yamiset',   name: 'やみを まとう者',        how: 'やみの そうびを そろえる',    test: function (p) { return hasSet(p, 'yami'); } },
-    { id: 't-gearall',   name: 'そうび マスター',        how: 'そうびを 30点 ぜんぶ あつめる', test: function (p) { return (p.gear || []).length >= gear.length; } }
+    { id: 't-gearall',   name: 'そうび マスター',        how: 'そうびを 30点 ぜんぶ あつめる', test: function (p) { return (p.gear || []).length >= gear.length; } },
+    // てきの こうげきを はね返す（v7.7）
+    { id: 't-counter10', name: 'カウンターの たつじん',  how: 'カウンターを 10回 きめる',    test: function (p) { return (p.counters || 0) >= 10; } }
   ];
   const titleById = {};
   titles.forEach(function (t) { titleById[t.id] = t; });

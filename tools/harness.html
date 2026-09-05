@@ -38,6 +38,7 @@
     #zu #chizu … 問題の 図（v4.9・地図記号・方位・じしゃく・回路・月）／地図と方位の バトル
     #fever #fever2 #fever3 #feverparent … きょうの フィーバー教科 と サポート（v7.2）
     #mix #mix2 #mix3 … ごちゃまぜ バトル（v7.3・地図の バー／1問め／けっか画面）
+    #counter #counter2 #counter3 #counterboss … てきの ため → カウンター（v7.7）
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -672,7 +673,6 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (!isNaN(n2)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n2 < 0 ? 99999 : n2; }
       return;
     }
-    // エラーの 保険（v7.6）：#guard … わざと エラーを 出して バーが 出るか・きろくが のこるか
     // 実機チェックの 代わり（v7.6）：#cont … セーブが ある 状態で「ぼうけんの つづき」→ 地図 → 学年チップ 1/2/4/5 → 小3 に もどす
     //                              → 先生用 レポートの HTML と きろくの ほぞん／もどす の 往復
     if (mode === 'cont') {
@@ -692,7 +692,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         const map = $('#screen-map .map');
         const wg = MQ.content.activeWorld().grade;
         if (g === 6) { say('小6 チップ: じゅんびちゅう → いまの 地図 小' + wg + (wg === 5 ? ' ok' : ' MISSING')); continue; }
-        say('小' + g + ' チップ → 地図 ' + (map && map.className.indexOf('map--g' + g) >= 0 && wg === g ? 'ok' : 'MISSING ' + (map && map.className)) + ' / ノード ' + $$('#screen-map .node').length + ' / ゾーン ' + $$('#screen-map .zone').length);
+        say('小' + g + ' チップ → 地図 ' + (map && map.className.indexOf('map--g' + g) >= 0 && wg === g ? 'ok' : 'MISSING ' + (map && map.className)) + ' / ノード ' + $$('#screen-map .node').length + ' / ゾーン見出し ' + $$('#screen-map .biome').length);
       }
       // 先生用 レポートの HTML（印刷は 実機でしか 見られない ので 中身だけ）
       const p = MQ.save.current();
@@ -708,8 +708,14 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const b0 = JSON.parse(before).players[0];
       const diff = Object.keys(b0).filter(function (k) { return JSON.stringify(b0[k]) !== JSON.stringify(after[k]); });
       say('きろく ほぞん→もどす: ' + (after.xp === xp0 && after.name === b0.name ? 'ok' : 'MISSING') + ' / ちがう キー: ' + (diff.length ? diff.join(',') : 'なし'));
+      /* 2回目：1回 通した あとは 何も 変わらない こと（1回目の frags の ちがいは
+         harness が 古い 形の キー（g3: なし）を 直に 入れて いる ため。migrate が 直す のが 正しい） */
+      const t2 = MQ.save.exportText();
+      MQ.save.importText(t2);
+      say('きろく 2回目: ' + (MQ.save.exportText() === t2 ? 'ok（何も 変わらない）' : 'MISSING ' + JSON.stringify(MQ.save.current().frags)));
       return;
     }
+    // エラーの 保険（v7.6）：#guard … わざと エラーを 出して バーが 出るか・きろくが のこるか
     //                       #kanso … おうちの人ページの「こまったとき・感想を送る」（にせの エラー 2件つき）
     //                       #guardset … 図かんの せっていの「こまった ときは」
     if (mode === 'guard' || mode === 'kanso' || mode === 'guardset') {
@@ -1635,6 +1641,43 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
           ' pal=' + ($('.fever__bubble') ? $('.fever__bubble').textContent : 'MISSING') + ' today=' + JSON.stringify(MQ.save.current().fever));
       dump(); return;
     }
+    /* てきの ため → カウンター（v7.7）
+       #counter      … 3体めの ザコが こうげきに 出た ところ（ため 3/3・「こうげき！」・ふきだし）
+       #counter2     … その 問題に 正解 → カウンターの 帯と ふみこみ（写しを 止めて 撮る）
+       #counter3     … その 問題で まちがえる → くらった（敵の つっこみ・主人公の よろけ）
+       #counterboss  … ボスの 2問め（大わざ）に 正解 → 2ダメージ */
+    if (mode.indexOf('counter') === 0) {
+      fresh();
+      MQ.save.update(function (pl) { pl.equipped.helm = null; });   // かぶとで ひっさつが 早く 出ない ように
+      MQ.ui.battle.start('sansu3-1'); await wait(150);
+      // こうげきの 問題まで 進める（たからばこは とばす）
+      let guard = 0;
+      while (guard++ < 20 && !(MQ.battle.chargeInfo() && MQ.battle.chargeInfo().attacking && MQ.battle.phase() === (mode === 'counterboss' ? 'boss' : 'mob'))) {
+        answerViaUI(true); await wait(60);
+        if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+        await wait(3300);
+      }
+      const ci = MQ.battle.chargeInfo();
+      say('counter: phase=' + MQ.battle.phase() + ' charge=' + JSON.stringify(ci) + ' dots=' + $$('.foecharge__dot.is-on').length + '/' + $$('.foecharge__dot').length +
+          ' label=' + ($('.foecharge__label') ? $('.foecharge__label').textContent : 'MISSING') + ' cls=' + ($('.enemy.is-attacking') ? 'is-attacking' : 'MISSING') + ' msg=' + $('.arena__msg').textContent);
+      if (mode === 'counter') { dump(); return; }
+      const hp0 = MQ.battle.bossHp();
+      answerViaUI(mode !== 'counter3');
+      await wait(120);
+      const b = $('.counterbanner');
+      if (b) { const c = b.cloneNode(true); c.style.animation = 'none'; c.style.opacity = '1'; $('.arena').appendChild(c); }
+      if (mode === 'counter3') {
+        say('counter3: lunge=' + ($('.enemy.is-lunge') ? 'ok' : 'MISSING') + ' retry=' + MQ.battle.isRetry() + ' combo=' + MQ.battle.combo());
+        await wait(260);
+        say('counter3: struck=' + ($('.hero.is-struck') ? 'ok' : 'MISSING') + ' msg=' + $('.arena__msg').textContent);
+        if ($('.hero.is-struck')) $('.hero').style.animationPlayState = 'paused';
+        dump(); return;
+      }
+      say(mode + ': banner=' + (b ? b.textContent : 'MISSING') + ' hero=' + ($('.hero.is-counter') ? 'is-counter' : 'MISSING') + ' dmg=' + ($('.dmg') ? $('.dmg').textContent : 'MISSING') + ' msg=' + $('.arena__msg').textContent +
+          (mode === 'counterboss' ? ' hp=' + hp0 + '→' + MQ.battle.bossHp() : '') + ' counters=' + MQ.battle.summary().counters);
+      if ($('.hero.is-counter')) $('.hero').style.animationPlayState = 'paused';
+      dump(); return;
+    }
     /* ごちゃまぜ バトル（v7.3）
        #mix   … 地図の 下の むらさきの バー
        #mix2  … ごちゃまぜ バトルの 1問め（帯・教科の モンスター・単元に 教科名）
@@ -2208,6 +2251,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await playBattle('mix');
     await wait(700);
     say('mix result: ' + ($('.rs__fever') ? $('.rs__fever').textContent : 'MISSING') + ' mixStar=' + (MQ.save.current().stars.mix3 || 0));
+    say('counters(v7.7): ' + (MQ.save.current().counters >= 1 ? 'ok ' + MQ.save.current().counters : 'MISSING'));
 
     say('--- 国語（かん字を 書く） ---');
     MQ.ui.battle.start('kokugo3-2');

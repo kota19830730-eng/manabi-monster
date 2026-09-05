@@ -618,7 +618,22 @@ MQ.ui.dex = (function () {
       h('p', { class: 'pfever__now', text: fv ? 'きょうは ' + fv.name : 'きょうは なし' + (areas.length < 2 ? '（教科が 1つだけ）' : '') }),
       chips,
       h('div', { class: 'pfever__list' }, rows),
-      h('p', { class: 'note', text: 'さいきんの 正解率が 70% みまん、または まだ 5問 みまんの 教科には「サポート」が つきます：やさしい 問題が 多め・ヒントが 先に 出る・2回まで まちがえても コンボが 切れない。答えを 見せる ことは ありません。' })
+      h('p', { class: 'note', text: 'さいきんの 正解率が 70% みまん、または まだ 5問 みまんの 教科には「サポート」が つきます：やさしい 問題が 多め・ヒントが 先に 出る・2回まで まちがえても コンボが 切れない。答えを 見せる ことは ありません。' }),
+      // てきの ため → カウンター（v7.7）：こわがる 子の ために 切れる
+      h('h3', { class: 'label', text: 'てきの こうげき（ため → カウンター）' }),
+      h('p', { class: 'note', text: 'ザコは 3問ごと・ボスは 2問ごとに「こうげき」して きます。その 問題に 1回めで 正解すると カウンター（けいけんち 1.5倍・ボスには 2ダメージ）。まちがえても 演出だけで、うしなう ものは ありません。こわがる 子には「なし」に できます。' }),
+      h('div', { class: 'termrow' }, [[true, 'つける'], [false, 'なし']].map(function (t) {
+        const on = (player.attacks !== false) === t[0];
+        return h('button', {
+          class: 'chip' + (on ? ' is-on' : ''), type: 'button', text: t[1],
+          onclick: function () {
+            MQ.sfx.tap();
+            MQ.save.update(function (pl) { pl.attacks = t[0]; });
+            MQ.ui.toast(t[0] ? 'てきが こうげきして きます（カウンターの チャンス）' : 'てきの こうげきは なしに しました');
+            render('parent');
+          }
+        });
+      }))
     ]);
   }
 
