@@ -474,6 +474,56 @@ check(MQ.kokugo1.kotoba.length >= 140 && MQ.kokugo2.kotoba.length >= 100, 'こ�
   MQ.terms.forcePlayer(null);
 })();
 
+/* ---- 小5 こくご（v6.6）：かん字 177字 ＋ ことば ---- */
+(function () {
+  const K5 = MQ.kokugo5.kanji;
+  const errs5 = MQ.kanjiQ.validate(K5);
+  check(errs5.length === 0, 'kokugo5 の かん字の 表: ' + errs5.join(' / '));
+  const nw = new Set();
+  K5.forEach(function (e) { (String(e.k).match(/[一-龠]/g) || []).forEach(function (c) { if (!MQ.kakusu.upTo(c, 4)) nw.add(c); }); });
+  check(nw.size === 177, '小5の かん字は 177字: ' + nw.size);
+  nw.forEach(function (c) { check(MQ.kakusu.gradeOf(c) === 5, '小5の かん字 ' + c + ' が kakusu の 表に ない（' + MQ.kakusu.gradeOf(c) + '）'); });
+  const nores = K5.filter(function (e) { return (String(e.k).match(/[一-龠]/g) || []).every(function (c) { return MQ.kakusu.upTo(c, 4); }); });
+  check(nores.length === 0, 'kokugo5 に 小4までの 字だけの 行: ' + nores.map(function (e) { return e.k; }).join(' '));
+  // ことばの 文体：小4までの 字 ＋ 5年の 表の 字 ＋ 単元の 名前で つかう 字
+  const okc = new Set(); K5.forEach(function (e) { (String(e.k).match(/[一-龠]/g) || []).forEach(function (c) { okc.add(c); }); });
+  '敬語漢語外来複合語慣句故事熟類義対方言共通述修飾象形指事会意声推敲漁夫矛盾臨機応変温故知新絶体絶命異口同音縮鼻血殖植贈勤権利否認拝善了純簡'.split('').forEach(function (c) { okc.add(c); });
+  MQ.kokugo5.kotoba.forEach(function (q, i) {
+    const t = q.text + q.choices.join('') + (q.note || '') + (q.hint || '');
+    const bad = [];
+    (t.match(/[一-龠]/g) || []).forEach(function (c) { if (!MQ.kakusu.upTo(c, 5) && !okc.has(c) && bad.indexOf(c) < 0) bad.push(c); });
+    check(bad.length === 0, 'kokugo5 ことば#' + i + ' に むずかしい かん字 ' + bad.join('') + ': ' + q.text);
+    check(q.choices.length === 4 && new Set(q.choices).size === 4, 'kokugo5 ことば#' + i + ' の choices');
+  });
+  check(stageCount(MQ.kokugo5.questions, 1) === K5.length && stageCount(MQ.kokugo5.questions, 2) === K5.length, '小5 かん字は よみ・かく 各 ' + K5.length + '問');
+  check(MQ.kokugo5.kotoba.length >= 90, '小5の ことばの 問題: ' + MQ.kokugo5.kotoba.length);
+  [1, 2, 3, 4].forEach(function (st) {
+    const list = MQ.kokugo5.questions.filter(function (q) { return q.stage === st; });
+    const lv = { 1: 0, 2: 0, 3: 0 }; let boss = 0;
+    list.forEach(function (q) { lv[q.lv || 2]++; if (q.boss || q.lv === 3) boss++; });
+    check(list.length >= 30, 'kokugo5-' + st + ' は 30問いじょう: ' + list.length);
+    check(lv[1] >= 4 && lv[2] >= 4 && lv[3] >= 4, 'kokugo5-' + st + ' の lv: ' + lv[1] + '/' + lv[2] + '/' + lv[3]);
+    check(boss >= 4, 'kokugo5-' + st + ' の ボス候補: ' + boss);
+  });
+  const w5k = MQ.content.world('g5').areas.filter(function (a) { return a.id === 'kokugo'; })[0];
+  check(!!w5k && w5k.stages.length === 4, '小5の 国語の森は 4ステージ');
+  MQ.terms.forcePlayer({ grade: 5, term: 0, units: {} });
+  MQ.content.setActive(MQ.content.world('g5'));
+  w5k.stages.forEach(function (st) {
+    for (let r = 0; r < 3; r++) {
+      const twelve = st.make(12);
+      check(twelve.length === 12 && new Set(twelve.map(function (q) { return q.id; })).size === 12, st.id + ' 12問 かぶりなし');
+      twelve.forEach(function (q, i) { validate(q, st.id + '#' + i); });
+      check(levelsNonDecreasing(twelve), st.id + ' の むずかしさが じゅんばん');
+    }
+    st.make(5, { boss: true }).forEach(function (q, i) { check(q.lv === 3, st.id + 'boss#' + i + ' は lv3'); });
+  });
+  const writes5 = MQ.content.findStage('kokugo5-2').stage.make(12);
+  check(writes5.some(function (q) { return q.type === 'write'; }), 'kokugo5-2 に ゆびで 書く 問題が ある');
+  MQ.content.setActive(null);
+  MQ.terms.forcePlayer(null);
+})();
+
 /* ---- 小4 理科・社会（v4.6）：べつべつの エリア 各4ステージ ----
    問題文の かん字は 小1〜小4 の 字だけ（kakusu.js の 表で 見る）。
    「災」「防」「震」「警」などは 5年いじょうなので ひらがなで 書く。 */
@@ -765,8 +815,8 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 119, 'たからもの 119個（小3 32＋小1 18＋小2 19＋小4 32＋小5 18）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 18, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 18');
+check(MQ.treasure.total() === 123, 'たからもの 123個（小3 32＋小1 18＋小2 19＋小4 32＋小5 22）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 22, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 22');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -1343,8 +1393,8 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
   const want = {
-    burst: 15, shield: 10, freeze: 6, guide: 9, golden: 8, chest: 8, power: 11, charge: 9,
-    bond: 8, rush: 10, find: 9, swift: 9, elixir: 7      // v5.4 で ふえた 5つ（v6.5 小5の たからもの 18 で 数が ふえた）
+    burst: 16, shield: 10, freeze: 6, guide: 10, golden: 8, chest: 8, power: 11, charge: 10,
+    bond: 8, rush: 11, find: 9, swift: 9, elixir: 7      // v5.4 で ふえた 5つ（v6.5 小5の たからもの 18 で 数が ふえた）
   };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
@@ -1832,7 +1882,7 @@ check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅ�
 // ---- 画数の 表（v2.9）と 線の ならびの ルール ----
 (function () {
   const K = MQ.kakusu, HW = MQ.handwrite;
-  check(Object.keys(K.table).filter(function (k) { return /[一-龠]/.test(k); }).length === 659, 'kakusu: かん字 659字 (' + K.count() + ' entries)');
+  check(Object.keys(K.table).filter(function (k) { return /[一-龠]/.test(k); }).length === 837, 'kakusu: かん字 837字（小5 178字 ふくむ） (' + K.count() + ' entries)');
   (function () {
     const per = { 1: 0, 2: 0, 3: 0, 4: 0 };
     Object.keys(K.grades).forEach(function (k) { per[K.grades[k]]++; });

@@ -172,6 +172,11 @@ MQ.treasure = (function () {
     { stage: 'sansu5-16', id: 'tr5-graph',   name: 'グラフの わ',            shape: 'ring',      colors: c('#8FD3FF', '#4FA3E0') },
     { stage: 'sansu5-17', id: 'tr5-enshu',   name: '円周の たま',            shape: 'orb',       colors: c('#F2F2F2', '#B9BCCF') },
     { stage: 'sansu5-18', id: 'tr5-kakuchu', name: '角柱の 水しょう',        shape: 'gem',       colors: c('#7FD8FF', '#2E7FB0') },
+    /* ---- 小5 国語（v6.6・4） ---- */
+    { stage: 'kokugo5-1', id: 'tr5-yomi',    name: '読みの 書',              shape: 'book',      colors: c('#3E7FD0', '#1F4FB0') },
+    { stage: 'kokugo5-2', id: 'tr5-kaki',    name: '書きの まきもの',        shape: 'scroll',    colors: c('#D8B889', '#8A5A2B') },
+    { stage: 'kokugo5-3', id: 'tr5-keigo',   name: '敬語の すず',            shape: 'bell',      colors: c('#C0A060', '#7A5326') },
+    { stage: 'kokugo5-4', id: 'tr5-kotoba',  name: 'ことばの むらさきいし',  shape: 'gem',       colors: c('#A96BE0', '#5A2D8A') },
 
     /* ---- 小4 さいごの塔（v4.8） ---- */
     { stage: 'tower4',    id: 'tr4-dark',    name: 'やみの かんむり',        shape: 'crown',     colors: c('#7A4BC2', '#2A1240') },

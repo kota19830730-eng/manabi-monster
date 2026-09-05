@@ -515,9 +515,11 @@ MQ.content = (function () {
   };
 
   /* =======================================================
-     小5ワールド（v6.5）。まず 算数 18ステージ。国語・理科・社会・英語・塔は これから。
+     小5ワールド（v6.5 算数 18・v6.6 国語 4）。理科・社会・英語・塔は これから。
      単元の じゅんは 日本文教出版『小学算数』5年（目安。学校で 前後する ので 学期の しくみで 直す）。
      ======================================================= */
+  const kokugo5 = function () { return MQ.kokugo5.questions; };
+
   const world5 = {
     id: 'g5', grade: 5, name: '小5ワールド', locked: false,
     areas: [
@@ -542,6 +544,17 @@ MQ.content = (function () {
           sansu5Stage(16, '帯グラフと 円グラフ'),
           sansu5Stage(17, '正多角形と 円周'),
           sansu5Stage(18, '角柱と 円柱')
+        ]
+      },
+      /* 小5 国語（v6.6）：かん字 177字＋ことば */
+      {
+        id: 'kokugo', name: '国語の森', short: '国語', color: 'var(--c-kokugo)', biome: 'forest',
+        stages: [
+          stage('kokugo', 1, 'かん字の 読み', kokugo5, 5),
+          { id: 'kokugo5-2', no: 2, name: 'かん字を 書く', available: true, pool: listPool(kokugo5, 2, 5),
+            make: writeMixStage(kokugo5, 'kokugo', 2, 5) },
+          stage('kokugo', 3, 'ことばの きまり', kokugo5, 5),
+          stage('kokugo', 4, 'ことばの 意味', kokugo5, 5)
         ]
       }
     ]
