@@ -319,10 +319,12 @@ MQ.sansu5 = (function () {
     });
   }
   function placeQ5() {
-    const v = rnd3();
+    // 2.000 の ような 整数に なると 小数の 位が 出ない ので 引き直す（まれに 出て 落ちて いた）
+    let v = rnd3();
+    while (v === Math.round(v)) v = rnd3();
     const p = pf([-1, -2, -3]);
     const s = fx(v);
-    const d = Number(s.split('.')[1].padEnd(3, '0').charAt(-p - 1));
+    const d = Number((s.split('.')[1] || '').padEnd(3, '0').charAt(-p - 1));
     return num('小数の 位', '<span class="num">' + s + '</span> の ' + PLACE5[p] + 'の 数字は？', d, {
       scratch: false, hint: '小数点の 右から 1つめが 小数第一位、2つめが 小数第二位、3つめが 小数第三位。', note: s + ' の ' + PLACE5[p] + 'は ' + d
     });

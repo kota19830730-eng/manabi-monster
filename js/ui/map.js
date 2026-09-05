@@ -427,9 +427,8 @@ MQ.ui.map = (function () {
       h('div', { class: 'maptop__row' }, [
         h('button', { class: 'btn btn--stone', type: 'button', text: '図かん', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
         h('button', { class: 'btn btn--stone', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
-        h('button', { class: 'btn btn--stone', type: 'button', text: 'プレイヤー', onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); } }),
-        // おうちの人ページへ まっすぐ（v7.1・とくい・にがて）
-        h('button', { class: 'btn btn--stone maptop__parent', type: 'button', text: 'おうちの人', onclick: function () { MQ.sfx.tap(); MQ.ui.parent.open('home'); } })
+        // 「おうちの人」は タイトル画面の 右上に ひっこした（v7.8）
+        h('button', { class: 'btn btn--stone', type: 'button', text: 'プレイヤー', onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); } })
       ]),
       gradeRow(player)
     ]);

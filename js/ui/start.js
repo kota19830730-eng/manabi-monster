@@ -154,6 +154,16 @@ MQ.ui.start = (function () {
       MQ.ui.goMap();
     }
 
+    /* おうちの人ページ（v7.8）。地図から ここに ひっこした。
+       どの子の レポートか 決まって いない ときは 1人めを えらぶ（中で 切りかえられる） */
+    function openParent() {
+      MQ.sfx.unlock(); MQ.sfx.tap();
+      if (!MQ.save.current() && players.length) MQ.save.setCurrent(players[0].id);
+      if (!MQ.save.current()) { MQ.ui.toast('まずは ぼうけんを はじめてね'); return; }
+      MQ.ui.syncCustom();
+      MQ.ui.parent.open('home', { from: 'title' });
+    }
+
     const actions = [];
 
     if (players.length === 1) {
@@ -196,6 +206,8 @@ MQ.ui.start = (function () {
 
     const wrap = h('div', { class: 'title' }, sky().concat([
       h('div', { class: 'title__sound' }, MQ.ui.soundButtons()),
+      // 右上：おうちの人ページ（大人むけ。子どもの ボタンとは 分けて 小さく おく）
+      h('button', { class: 'sw sw--parent', type: 'button', text: 'おうちの人', onclick: openParent }),
       // 上の あき（ロゴを 下げる ため。画面が 高い ほど 大きく なる）
       h('div', { class: 'title__top' }),
       h('div', { class: 'title__head' }, [

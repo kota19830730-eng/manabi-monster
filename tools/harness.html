@@ -800,6 +800,36 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'parent') { fresh(); MQ.ui.parent.open('settings'); return; }
+    /* #pptitle … タイトル 右上の「おうちの人」→ レポート →「タイトルへ」で もどる（v7.8）
+       #pptitle:2 … 子どもが 2人（お子さんの 切りかえチップが 出る） */
+    if (mode === 'pptitle' || mode.indexOf('pptitle:') === 0) {
+      fresh();
+      if (mode.indexOf(':2') > 0) {
+        const first = MQ.save.get().players[0].id;
+        MQ.save.createPlayer('はな', { hair: 'gold', skin: 'mid', style: 'short' }, 1);
+        MQ.save.setCurrent(first);
+      }
+      MQ.ui.start.render(); MQ.ui.show('screen-start');
+      await wait(200);
+      const pb = $('.sw--parent');
+      say('pptitle: タイトルの ボタン=' + (pb ? pb.textContent : 'MISSING'));
+      if (!pb) { dump(); return; }
+      pb.click();
+      await wait(300);
+      say('pptitle: 画面=' + (document.getElementById('screen-parent').classList.contains('is-active') ? 'parent' : 'ちがう') +
+          ' view=' + MQ.ui.parent.view() + ' もどる=' + ($('.pp-back') ? $('.pp-back').textContent : 'MISSING') +
+          ' 子どもチップ=' + $$('.pp-kids .pp-seg').map(function (e) { return e.textContent + (e.classList.contains('is-on') ? '(いま)' : ''); }).join('/'));
+      if (mode.indexOf(':stay') > 0) { dump(); return; }   // 画面を 撮る ため もどらない
+      $('.pp-back').click();
+      await wait(300);
+      say('pptitle: もどった 画面=' + (document.getElementById('screen-start').classList.contains('is-active') ? 'start' : 'ちがう'));
+      // 地図の ボタンは 3つ（「おうちの人」は タイトルへ ひっこした）
+      MQ.ui.goMap();
+      await wait(300);
+      say('pptitle: 地図の ボタン=' + $$('.maptop__row .btn').map(function (e) { return e.textContent; }).join('/'));
+      dump();
+      return;
+    }
     /* おうちの人ページ「学習レポート」（v7.3・js/ui/parent.js）
        #pp            … にせの 記ろく（60日ぶん）を 入れて ホーム
        #pp:-1 / #pp:N … 同じ・スクロール

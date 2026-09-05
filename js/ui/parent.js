@@ -19,6 +19,7 @@ MQ.ui.parent = (function () {
   let kind = 'week';        // 今週／今月／すべて
   let showAll = {};         // 教科ごとに「残りを見る」を ひらいたか
   let opened = false;
+  let from = 'title';       // どこから 来たか（v7.8・タイトル／地図）。もどる 先が 変わる
 
   const LEVEL_TEXT = { good: 'よくできる', mid: 'ふつう', weak: '苦手', few: 'まだ少ない', none: '未学習' };
 
@@ -27,6 +28,7 @@ MQ.ui.parent = (function () {
     opts = opts || {};
     view = v || 'home';
     if (opts.stageId) stageId = opts.stageId;
+    if (opts.from) from = opts.from;
     opened = true;
     render();
     MQ.ui.show('screen-parent');
@@ -35,8 +37,14 @@ MQ.ui.parent = (function () {
     const el = document.getElementById('screen-parent');
     return !!(el && el.classList.contains('is-active'));
   }
-  function refresh() { if (opened) render(); else open('settings'); }
-  function back() { opened = false; MQ.ui.goMap(); }
+  function refresh() { if (opened) render(); else open('settings', { from: 'map' }); }
+  /* もどる 先（v7.8）：タイトルから 来たら タイトル、子どもの 画面から 来たら 地図 */
+  function back() {
+    opened = false;
+    if (from === 'title') { MQ.ui.start.render(); MQ.ui.show('screen-start'); return; }
+    MQ.ui.goMap();
+  }
+  function backText() { return from === 'title' ? 'タイトルへ' : '子どもの画面へ'; }
 
   function gradeOf(p) { return p.grade || 3; }
 
@@ -101,6 +109,26 @@ MQ.ui.parent = (function () {
     return box;
   }
 
+  /* お子さんの 切りかえ（v7.8）。タイトルから 来た ときだけ 出す
+     （子どもの 画面から 来た ときに 切りかえると、もどった 先が 別の子の 地図に なって しまう） */
+  function kidPicker(now) {
+    if (from !== 'title') return null;
+    const players = MQ.save.get().players || [];
+    if (players.length < 2) return null;
+    return h('div', { class: 'pp-segrow pp-kids' }, players.map(function (p) {
+      return h('button', {
+        class: 'pp-seg' + (p.id === now.id ? ' is-on' : ''), type: 'button', text: p.name,
+        onclick: function () {
+          if (p.id === now.id) return;
+          MQ.sfx.tap();
+          MQ.save.setCurrent(p.id);
+          MQ.ui.syncCustom();
+          render();
+        }
+      });
+    }));
+  }
+
   /* =======================================================
      ホーム
      ======================================================= */
@@ -116,7 +144,7 @@ MQ.ui.parent = (function () {
     /* ヘッダー */
     kids.push(h('header', { class: 'pp-head' }, [
       h('div', { class: 'pp-head__row' }, [
-        backLink('子どもの画面へ', back),
+        backLink(backText(), back),
         btn('設定', 'pp-btn--s pp-btn--sm', function () { open('settings'); }, 'gear')
       ]),
       h('span', { class: 'pp-kicker', text: '学習レポート' }),
@@ -124,6 +152,7 @@ MQ.ui.parent = (function () {
         h('span', { class: 'pp-title', text: p.name + ' さん' }),
         h('span', { class: 'pp-muted', text: '小学' + g + '年' })
       ]),
+      kidPicker(p),
       h('div', { class: 'pp-head__period' }, [
         ['week', '今週'], ['month', '今月'], ['all', 'すべて']
       ].map(function (t) {

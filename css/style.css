@@ -531,6 +531,8 @@ body {
 .title__row .btn { flex: 1; height: 65px; }
 .title__row .btn--fix { flex: none; width: 90px; }
 .title__sound { position: absolute; top: 8px; left: 8px; display: flex; gap: 6px; z-index: 6; }
+/* おうちの人ページの 入口（v7.8）。左上の おと／きょく と 同じ 小さい チップで 右上に */
+.sw--parent { position: absolute; top: 8px; right: 8px; z-index: 6; }
 .sw {
   min-height: 34px; padding: 0 9px; border: 0; border-radius: 9px; cursor: pointer;
   background: rgba(14,22,44,.7); color: #a8b6d8;
@@ -819,8 +821,9 @@ body {
 .pfever__row.is-fever { box-shadow: inset 0 0 0 2px var(--org-1); color: #fff; }
 .pfever__name { font-family: var(--f-head); font-size: 13px; color: #fff; }
 .pfever__lv { text-align: right; color: #ffe9a8; }
-.maptop__row { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px 0; background: var(--bg-2); }
-.maptop__row .btn { flex: 1 1 40%; min-height: 46px; padding: 0 6px; font-size: 13px; white-space: nowrap; }
+/* 「おうちの人」は タイトル画面に ひっこした（v7.8）ので 3つ ならぶ */
+.maptop__row { display: flex; gap: 8px; padding: 8px 12px 0; background: var(--bg-2); }
+.maptop__row .btn { flex: 1; min-height: 46px; padding: 0 6px; font-size: 13px; white-space: nowrap; }
 /* がくねん えらび（v4.5）。予習・復習で いつでも 変えられる。★＝その子の 学年 */
 .grrow { display: flex; gap: 5px; padding: 8px 12px; background: var(--bg-2); border-bottom: 3px solid var(--hd-edge); }
 .chip--g { flex: 1; min-height: 34px; padding: 0; justify-content: center; position: relative;
@@ -2688,6 +2691,8 @@ body {
 .pp-segrow { display: flex; flex-wrap: wrap; gap: 4px; }
 .pp-segrow .pp-seg { background: #ece8df; }
 .pp-segrow .pp-seg.is-on { background: var(--pp-ink); color: var(--pp-card); }
+/* お子さんの 切りかえ（v7.8・タイトルから 来た ときだけ） */
+.pp-kids { margin-top: 8px; }
 .pp-back { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0; border: 0; background: none; color: var(--pp-mut); font-size: 13px; cursor: pointer; }
 .pp-main { display: flex; flex-direction: column; gap: 22px; padding: 18px 18px 32px; }
 .pp-card { background: var(--pp-card); border: 1px solid var(--pp-line); border-radius: 16px; }
