@@ -1518,6 +1518,16 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('tower: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
       return;
     }
+    // 小5の さいごの塔（v6.9）：#last5 バトル／#last5map 塔が 開いた 地図
+    if (mode === 'last5' || mode === 'last5map') {
+      fresh({ frags: {} });
+      MQ.save.update(function (pl) { pl.grade = 5; pl.playGrade = 5; ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); });
+      if (mode === 'last5map') { MQ.ui.goMap(); await wait(300); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
+      MQ.ui.battle.start('tower5');
+      await wait(3200);
+      say('tower5: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none') + ' boss=' + MQ.content.lastBoss().name);
+      return;
+    }
     // 小1・小2の さいごの とう（v6.4）：#last1 #last2 バトル／#last1map #last2map 塔が 開いた 地図
     if (/^last[12](map)?$/.test(mode)) {
       const g = parseInt(mode.charAt(4), 10);
@@ -1888,6 +1898,29 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await playBattle('tower4');
     await wait(900);
     say('tower4 result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
+
+    say('--- 小5ワールド（v6.5〜v6.9） ---');
+    MQ.save.setPlayGrade(5);
+    MQ.ui.goMap();
+    await wait(400);
+    say('小5の 地図: nodes ' + $$('#screen-map .node').length + ' / ' + ($('#screen-map .map--g5') ? 'ふゆの 大陸 ok' : 'MISSING'));
+    for (const sid of ['sansu5-9', 'sansu5-16', 'kokugo5-2', 'rika5-3', 'shakai5-2', 'eigo5-3']) {
+      MQ.ui.battle.start(sid);
+      await wait(600);
+      say(sid + ' の 1問め: ' + (MQ.battle.current() ? MQ.battle.current().type + ' ' + MQ.battle.current().unit : 'MISSING'));
+      await playBattle(sid);
+      await wait(900);
+      say(sid + ' result: ' + ($('#screen-result .rs__title') ? 'ok' : 'MISSING'));
+    }
+    MQ.save.update(function (pl) { ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); });
+    MQ.ui.goMap();
+    await wait(400);
+    say('小5 塔: ' + ($('#screen-map .tower') ? 'ok' : 'MISSING') + ' / 開いた: ' + (MQ.content.towerOpen(MQ.save.current()) ? 'ok' : 'MISSING') + ' / ラスボス: ' + MQ.content.lastBoss().name + (MQ.content.lastBoss().name === 'ブリザードキング' ? ' ok' : ' MISSING'));
+    MQ.ui.battle.start('tower5');
+    await wait(3200);
+    await playBattle('tower5');
+    await wait(900);
+    say('tower5 result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
 
     say('--- 小1・小2の さいごの とう（v6.4） ---');
     for (const g of [1, 2]) {

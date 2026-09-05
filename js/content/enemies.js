@@ -235,6 +235,10 @@ MQ.enemies = (function () {
     { id: 'boss-kaizoku', area: 'tower2', name: 'かいぞくキャプテン', shape: 'kaizoku', last: true,
       colors: { A: '#C42B2B', B: '#3A2418', s: '#F5C9A0', y: '#F2C14E', k: '#181828', w: '#F4F4F4', e: '#1A1A2A' },
       phase2: { A: '#FF3B30', B: '#2A1810', s: '#F5C9A0', y: '#FFE08A', k: '#181828', w: '#FFFFFF', e: '#FF3B30' } },
+    /* 小5の ラスボス（v6.9） */
+    { id: 'boss-blizzard', area: 'tower5', name: 'ブリザードキング', shape: 'blizzard', last: true,
+      colors: { A: '#BFE6FF', B: '#1F4FA8', C: '#7FC4F2', y: '#F2C14E', w: '#F4FBFF', e: '#38E0FF', k: '#122040' },
+      phase2: { A: '#D6C8FF', B: '#3A1F8A', C: '#A48CF2', y: '#FFE08A', w: '#FFFFFF', e: '#FF3B30', k: '#122040' } },
     /* ラスボス。HPを 2つ けずると 第2形態（色が かわる）に なる */
     { id: 'boss-maou', area: 'tower', name: 'まおう', shape: 'maou', last: true,
       colors: { A: '#7A2436', B: '#3A0E18', r: '#FF3B30', y: '#FFD447', w: '#F2F2F2' },

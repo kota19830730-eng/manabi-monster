@@ -191,6 +191,7 @@ MQ.treasure = (function () {
     { stage: 'eigo5-2',   id: 'tr5-can',     name: 'できることの たま',      shape: 'orb',       colors: c('#4CD164', '#1E7A3C') },
     { stage: 'eigo5-3',   id: 'tr5-map',     name: '道あんないの コンパス',  shape: 'compass',   colors: c('#4F8CFF', '#1F4FB0') },
     { stage: 'eigo5-4',   id: 'tr5-hero',    name: 'ヒーローの 王かん',      shape: 'crown',     colors: c('#F2C14E', '#B8860B') },
+    { stage: 'tower5',    id: 'tr5-blizzard', name: 'ふぶきの かんむり',     shape: 'crown',     colors: c('#BFE6FF', '#1F4FA8') },
 
     /* ---- 小4 さいごの塔（v4.8） ---- */
     { stage: 'tower4',    id: 'tr4-dark',    name: 'やみの かんむり',        shape: 'crown',     colors: c('#7A4BC2', '#2A1240') },

@@ -274,6 +274,7 @@ MQ.content = (function () {
   const towerStage4 = makeTowerStage(4, TOWER_ORDER4, 'boss-dark');
   const towerStage1 = makeTowerStage(1, TOWER_ORDER12, 'boss-obake');      // 小1：おばけキング（v6.4）
   const towerStage2 = makeTowerStage(2, TOWER_ORDER12, 'boss-kaizoku');    // 小2：かいぞくキャプテン（v6.4）
+  const towerStage5 = makeTowerStage(5, TOWER_ORDER4, 'boss-blizzard');    // 小5：ブリザードキング（v6.9・じゅんばんは 小4と 同じ 5教科）
 
   /* =======================================================
      小3ワールド
@@ -515,7 +516,7 @@ MQ.content = (function () {
   };
 
   /* =======================================================
-     小5ワールド（v6.5 算数 18・v6.6 国語 4・v6.7 理科 4・社会 4・v6.8 英語 4）。塔は これから。
+     小5ワールド（v6.5 算数 18・v6.6 国語 4・v6.7 理科 4・社会 4・v6.8 英語 4・v6.9 さいごの塔）。
      単元の じゅんは 日本文教出版『小学算数』5年（目安。学校で 前後する ので 学期の しくみで 直す）。
      ======================================================= */
   const kokugo5 = function () { return MQ.kokugo5.questions; };
@@ -588,6 +589,11 @@ MQ.content = (function () {
           stage('eigo', 3, '道あんない・レストラン', eigo5, 5),
           stage('eigo', 4, '日本の しょうかい・ヒーロー', eigo5, 5)
         ]
+      },
+      /* 小5の さいごの塔（v6.9）。5教科の かけらで 開く */
+      {
+        id: 'tower', name: 'さいごの 塔', short: '塔', color: 'var(--c-tower)', biome: 'tower',
+        stages: [towerStage5]
       }
     ]
   };
@@ -766,7 +772,7 @@ MQ.content = (function () {
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,
     fragCount: fragCount, towerOpen: towerOpen, fragKey: fragKey,
     lastBoss: lastBoss, towerStageId: towerStageId, towerName: towerName,
-    towerStage1: towerStage1, towerStage2: towerStage2,
+    towerStage1: towerStage1, towerStage2: towerStage2, towerStage5: towerStage5,
     towerStage: towerStage, towerStage4: towerStage4,
     TOWER_ORDER: TOWER_ORDER3, TOWER_ORDER3: TOWER_ORDER3, TOWER_ORDER4: TOWER_ORDER4
   };
