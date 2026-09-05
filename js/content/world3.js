@@ -515,12 +515,13 @@ MQ.content = (function () {
   };
 
   /* =======================================================
-     小5ワールド（v6.5 算数 18・v6.6 国語 4・v6.7 理科 4・社会 4）。英語・塔は これから。
+     小5ワールド（v6.5 算数 18・v6.6 国語 4・v6.7 理科 4・社会 4・v6.8 英語 4）。塔は これから。
      単元の じゅんは 日本文教出版『小学算数』5年（目安。学校で 前後する ので 学期の しくみで 直す）。
      ======================================================= */
   const kokugo5 = function () { return MQ.kokugo5.questions; };
   const rika5 = function () { return MQ.rika5.questions; };
   const shakai5 = function () { return MQ.shakai5.questions; };
+  const eigo5 = function () { return MQ.eigo5.questions; };
 
   const world5 = {
     id: 'g5', grade: 5, name: '小5ワールド', locked: false,
@@ -576,6 +577,16 @@ MQ.content = (function () {
           stage('shakai', 2, '食料生産', shakai5, 5),
           stage('shakai', 3, '工業と 貿易', shakai5, 5),
           stage('shakai', 4, '情報と かん境', shakai5, 5)
+        ]
+      },
+      /* 小5 英語（NEW HORIZON Elementary 5 を 目安に）v6.8。エリア id は 小3・小4と 同じ eigo */
+      {
+        id: 'eigo', name: '英語の空', short: '英語', color: 'var(--c-eigo)', biome: 'sky',
+        stages: [
+          stage('eigo', 1, 'じこしょうかい・たん生日', eigo5, 5),
+          stage('eigo', 2, '教科・できる こと', eigo5, 5),
+          stage('eigo', 3, '道あんない・レストラン', eigo5, 5),
+          stage('eigo', 4, '日本の しょうかい・ヒーロー', eigo5, 5)
         ]
       }
     ]

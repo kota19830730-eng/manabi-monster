@@ -360,7 +360,7 @@ check(MQ.sansu4.make(5, 30).some(function (q) { return q.decimal; }), '小4の �
 check(MQ.sansu4.make(3, 30).some(function (q) { return q.type === 'divrem'; }), '小4の わり算に あまりの 問題が ある');
 check(MQ.sansu4.make(14, 12).some(function (q) { return q.prompt.indexOf('class="tbl"') !== -1; }), '小4の かわり方に 表が 出る');
 
-[['kokugo', MQ.kokugo3.questions], ['rikashakai', MQ.rikashakai3.questions], ['eigo', MQ.eigo3.questions], ['kokugo1', MQ.kokugo1.questions], ['kokugo2', MQ.kokugo2.questions], ['rika4', MQ.rika4.questions], ['shakai4', MQ.shakai4.questions], ['eigo4', MQ.eigo4.questions], ['rika5', MQ.rika5.questions], ['shakai5', MQ.shakai5.questions]].forEach(function (pair) {
+[['kokugo', MQ.kokugo3.questions], ['rikashakai', MQ.rikashakai3.questions], ['eigo', MQ.eigo3.questions], ['kokugo1', MQ.kokugo1.questions], ['kokugo2', MQ.kokugo2.questions], ['rika4', MQ.rika4.questions], ['shakai4', MQ.shakai4.questions], ['eigo4', MQ.eigo4.questions], ['rika5', MQ.rika5.questions], ['shakai5', MQ.shakai5.questions], ['eigo5', MQ.eigo5.questions]].forEach(function (pair) {
   const name = pair[0], list = pair[1];
   const perStage = {}, perLevel = {}, bossPer = {}, texts = {};
   list.forEach(function (q, i) {
@@ -540,14 +540,23 @@ check(MQ.kokugo1.kotoba.length >= 140 && MQ.kokugo2.kotoba.length >= 100, 'こ�
       check(!seen.has(q.text), name + '#' + i + ' 同じ 問題文: ' + q.text); seen.add(q.text);
     });
   });
+  // 英語（v6.8）は 英文が 入る ので かん字だけ 見る
+  MQ.eigo5.questions.forEach(function (q, i) {
+    const bad = badKanji5(q.text + q.choices.join('') + (q.note || '') + (q.unit || ''));
+    check(bad.length === 0, 'eigo5#' + i + ' に 6年いじょうの かん字 ' + bad.join('') + ': ' + q.text);
+    check(q.choices.length === 4 && new Set(q.choices).size === 4, 'eigo5#' + i + ' の choices');
+  });
+  check(MQ.eigo5.questions.filter(function (q) { return /"[^"]+"/.test(q.text); }).length >= 100, '小5 英語の 問題文に 英文（きく ボタン用）: ' + MQ.eigo5.questions.filter(function (q) { return /"[^"]+"/.test(q.text); }).length);
   const w5 = MQ.content.world('g5');
+  const eigo5Area = w5.areas.filter(function (a) { return a.id === 'eigo'; })[0];
+  check(!!eigo5Area && eigo5Area.stages.length === 4, '小5の 英語の空は 4ステージ');
   const rika5Area = w5.areas.filter(function (a) { return a.id === 'rika'; })[0];
   const shakai5Area = w5.areas.filter(function (a) { return a.id === 'shakai'; })[0];
   check(!!rika5Area && rika5Area.stages.length === 4, '小5の 理科の 湖は 4ステージ');
   check(!!shakai5Area && shakai5Area.stages.length === 4, '小5の 社会の 町は 4ステージ');
   MQ.terms.forcePlayer({ grade: 5, term: 0, units: {} });
   MQ.content.setActive(w5);
-  [rika5Area, shakai5Area].forEach(function (area) {
+  [rika5Area, shakai5Area, eigo5Area].forEach(function (area) {
     area.stages.forEach(function (st) {
       for (let r = 0; r < 3; r++) {
         const twelve = st.make(12);
@@ -854,8 +863,8 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 131, 'たからもの 131個（小3 32＋小1 18＋小2 19＋小4 32＋小5 30）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 30, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 30');
+check(MQ.treasure.total() === 135, 'たからもの 135個（小3 32＋小1 18＋小2 19＋小4 32＋小5 34）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 34, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 34');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -1432,8 +1441,8 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
   const want = {
-    burst: 16, shield: 10, freeze: 6, guide: 11, golden: 9, chest: 8, power: 12, charge: 11,
-    bond: 9, rush: 11, find: 10, swift: 10, elixir: 8      // v5.4 で ふえた 5つ（v6.5 小5の たからもの 18 で 数が ふえた）
+    burst: 16, shield: 11, freeze: 6, guide: 11, golden: 10, chest: 8, power: 13, charge: 11,
+    bond: 9, rush: 11, find: 11, swift: 10, elixir: 8      // v5.4 で ふえた 5つ（小5の たからもの 34 で 数が ふえた）
   };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
