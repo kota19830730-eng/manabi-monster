@@ -314,6 +314,15 @@ body {
 .hud__body .xpbar { margin-top: 6px; }
 .hud__right { text-align: center; flex: none; }
 .hud__lv { display: block; font-family: var(--f-head); font-size: 24px; color: var(--gold); text-shadow: 0 3px 0 #8a5a12; line-height: 1.1; }
+/* 地図の 上の 1行（v8.0）：80px → 60px。図かんの HUD は そのまま */
+.hud--slim { padding: 8px 12px; gap: 10px; }
+.hud--slim .hud__img { width: 40px; height: 40px; border-radius: 10px; }
+.hud--slim .hud__name { font-size: 17px; }
+.hud--slim .hud__title { font-size: 11px; }
+.hud--slim .hud__body .xpbar { height: 8px; margin-top: 4px; }
+.hud--slim .hud__lv { font-size: 20px; }
+.hud--slim .hud__xp { font-size: 11px; }
+.hud--slim .hud__pal { width: 26px; height: 26px; }
 .hud__xp { display: block; font-size: 12px; color: var(--tx-sub); }
 .frags { display: flex; gap: 3px; justify-content: center; margin-top: 2px; }
 .frag { width: 12px; height: 12px; }
@@ -598,7 +607,7 @@ body {
    その上に のせる もの（ノード・見出し・かざり・橋・塔）だけが ここ。
    ========================================================= */
 .map { display: flex; flex-direction: column; height: 100%; background: var(--bg-3); }
-.map__scroll { position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; background: #2a76c4; }
+.map__scroll { position: relative; z-index: 1; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; background: #2a76c4; }
 .map__sheet { position: relative; }
 .map__bg { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 .map__layer { position: absolute; inset: 0; }
@@ -622,17 +631,17 @@ body {
 .biome__name  { font-family: var(--f-head); font-size: 15px; color: #fff; }
 .biome__stars { font-family: var(--f-head); font-size: 13px; color: var(--gold); }
 
-/* ---- ステージノード ---- */
+/* ---- ステージノード（v8.0 で 1列 3つに して 大きく した）---- */
 .node {
-  position: absolute; transform: translate(-50%, -22px);
+  position: absolute; transform: translate(-50%, -26px);
   display: flex; flex-direction: column; align-items: center;
   border: 0; background: none; padding: 0; cursor: pointer; z-index: 4;
 }
 .node__dot {
   position: relative;
-  width: 44px; height: 44px; border-radius: 12px;
+  width: 52px; height: 52px; border-radius: 14px;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--f-head); font-size: 21px;
+  font-family: var(--f-head); font-size: 24px;
   background: linear-gradient(var(--gold-lt), var(--gold-2));
   color: var(--gold-ink);
   box-shadow: 0 5px 0 var(--gold-sh), 0 9px 9px rgba(8,16,44,.4),
@@ -644,14 +653,15 @@ body {
 }
 /* ★は ノードの 下の へりに かさねる */
 .node .stars {
-  position: relative; z-index: 1; margin-top: -8px;
-  padding: 0 5px; border-radius: 999px; background: rgba(14,22,44,.82);
-  font-size: 11px; line-height: 15px; letter-spacing: -.5px;
+  position: relative; z-index: 1; margin-top: -9px;
+  padding: 0 6px; border-radius: 999px; background: rgba(14,22,44,.82);
+  font-size: 12px; line-height: 16px; letter-spacing: -.5px;
 }
+/* 1列 3つ に なった ので 名前も 大きく（v8.0）。となりと ぶつからない はば は 126px */
 .node__name {
-  margin-top: 4px; max-width: 86px; padding: 2px 6px; border-radius: 6px;
+  margin-top: 5px; max-width: 126px; padding: 3px 8px; border-radius: 7px;
   background: rgba(14,22,44,.88); box-shadow: 0 2px 0 rgba(6,10,26,.45);
-  font-size: 11px; line-height: 1.25; color: #fff; text-align: center;
+  font-size: 13px; line-height: 1.25; color: #fff; text-align: center;
 }
 .node__soon {
   margin-top: 6px; padding: 2px 8px; border-radius: 6px; white-space: nowrap;
@@ -660,22 +670,22 @@ body {
   font-size: 11px; color: #fff;
 }
 
-.node--lock .node__dot { background: linear-gradient(var(--lock-1), var(--lock-2)); color: var(--lock-tx); font-family: var(--f-body); font-size: 19px; box-shadow: 0 5px 0 var(--lock-sh), 0 9px 9px rgba(8,16,44,.4), inset 0 3px 0 rgba(255,255,255,.2); }
+.node--lock .node__dot { background: linear-gradient(var(--lock-1), var(--lock-2)); color: var(--lock-tx); font-family: var(--f-body); font-size: 22px; box-shadow: 0 5px 0 var(--lock-sh), 0 9px 9px rgba(8,16,44,.4), inset 0 3px 0 rgba(255,255,255,.2); }
 .node--lock .node__name { color: #c6d2ee; }
 .node--fog { cursor: default; }
-.node--fog .node__dot { background: linear-gradient(#3c4a78, #26304f); color: #93a2c8; font-family: var(--f-body); font-size: 19px; box-shadow: 0 5px 0 #171d34, 0 9px 9px rgba(8,16,44,.4), inset 0 3px 0 rgba(255,255,255,.14); }
+.node--fog .node__dot { background: linear-gradient(#3c4a78, #26304f); color: #93a2c8; font-family: var(--f-body); font-size: 22px; box-shadow: 0 5px 0 #171d34, 0 9px 9px rgba(8,16,44,.4), inset 0 3px 0 rgba(255,255,255,.14); }
 .node--lock .stars, .node--fog .stars { display: none; }
 
-.node--now { z-index: 7; transform: translate(-50%, -25px); }
+.node--now { z-index: 7; transform: translate(-50%, -30px); }
 .node--now .node__dot {
-  width: 50px; height: 50px; border-radius: 14px; font-size: 24px; color: #fff;
+  width: 60px; height: 60px; border-radius: 16px; font-size: 28px; color: #fff;
   background: linear-gradient(var(--org-1), var(--org-2));
   box-shadow: 0 5px 0 var(--org-sh), 0 9px 10px rgba(8,16,44,.45),
               inset 0 3px 0 rgba(255,255,255,.5), 0 0 22px rgba(255,143,94,.9);
   animation: pulse 1.6s ease-in-out infinite;
 }
 .node__here {
-  position: absolute; top: -21px; left: 50%; transform: translateX(-50%);
+  position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
   padding: 2px 8px; border-radius: 999px; background: #fff; color: var(--org-2);
   font-family: var(--f-head); font-size: 11px; white-space: nowrap;
   box-shadow: 0 2px 0 rgba(6,10,26,.35);
@@ -857,9 +867,69 @@ body {
 .pfever__row.is-fever { box-shadow: inset 0 0 0 2px var(--org-1); color: #fff; }
 .pfever__name { font-family: var(--f-head); font-size: 13px; color: #fff; }
 .pfever__lv { text-align: right; color: #ffe9a8; }
-/* 「おうちの人」は タイトル画面に ひっこした（v7.8）ので 3つ ならぶ */
-.maptop__row { display: flex; gap: 8px; padding: 8px 12px 0; background: var(--bg-2); }
-.maptop__row .btn { flex: 1; min-height: 46px; padding: 0 6px; font-size: 13px; white-space: nowrap; }
+/* =========================================================
+   地図の 上と 下（v8.0）：上を たたんで 地図を 広く する
+
+   前は 顔・フィーバー・ミッション・ボタン3つ・学年チップ で **355px**（たて700 の
+   タブレットでは 画面の 半分）。いまは 顔 60px ＋ 帯 40px の 100px だけ。
+     .mapobi    … フィーバーと ミッションを まとめた 1本の 帯（押すと ひらく）
+     .mappanel  … その 中身。地図の 上に かぶさる（地図を せまく しない）
+     .mapdim    … かぶさって いる あいだの 黒み。さわると とじる
+     .maptabs   … 画面の 下の ボタンの 段（図かん・タイムアタック・プレイヤー・学年）
+     .gradesheet… 学年えらび。「小3 ▾」で 出る
+   ========================================================= */
+.maptop { position: relative; z-index: 6; }
+.mapobi {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  min-height: 40px; padding: 0 8px; border: 0; cursor: pointer;
+  background: var(--bg-2); border-bottom: 3px solid var(--hd-edge);
+  font-family: var(--f-body); text-align: left;
+}
+.mapobi__fever {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  min-height: 28px; padding: 0 9px; border-radius: 999px; color: #fff;
+  background: linear-gradient(var(--org-1), var(--org-2));
+  box-shadow: 0 3px 0 var(--org-sh), inset 0 2px 0 rgba(255,255,255,.4);
+}
+.mapobi__star { flex: none; width: 13px; height: 13px; background: var(--gold);
+                clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+                filter: drop-shadow(0 0 4px rgba(255,232,154,.95)); animation: pulse 1.4s ease-in-out infinite; }
+.mapobi__lbl { flex: none; font-family: var(--f-head); font-size: 10px; color: #ffe89a; letter-spacing: .04em; }
+.mapobi__name { flex: 1; min-width: 0; font-family: var(--f-head); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 0 rgba(0,0,0,.28); }
+.mapobi__x2 { flex: none; padding: 1px 6px; border-radius: 6px; background: rgba(0,0,0,.28); font-family: var(--f-head); font-size: 11px; font-style: normal; }
+.mapobi__mis { flex: none; display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border-radius: 999px;
+               background: linear-gradient(var(--navy-1), var(--navy-2)); box-shadow: 0 3px 0 var(--navy-sh); color: var(--gold); font-size: 12px; }
+.mapobi__mis b { color: #fff; font-family: var(--f-head); }
+.mapobi__mis.is-all { color: var(--gold-lt); box-shadow: 0 3px 0 var(--navy-sh), inset 0 0 0 2px var(--gold); }
+.mapobi__arrow { flex: none; width: 0; height: 0; margin: 0 4px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid var(--gold); transition: transform .2s; }
+.mapobi.is-open .mapobi__arrow { transform: rotate(180deg); }
+
+.mappanel {
+  position: absolute; left: 0; right: 0; top: 100%; z-index: 7;
+  max-height: calc(var(--stage-h) - 190px); overflow-y: auto;
+  padding: 8px 0 10px; background: rgba(16,26,51,.97);
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 10px 20px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
+}
+.mappanel .missions { margin-bottom: 0; }
+.mapdim { position: absolute; inset: 0; z-index: 5; background: rgba(8,12,30,.45); }
+
+.mapbottom { position: relative; z-index: 6; }
+.maptabs { display: flex; gap: 6px; padding: 7px 10px; background: var(--bg-2); border-top: 3px solid var(--hd-edge); }
+.maptab {
+  flex: 1; min-height: 42px; padding: 0 4px; border: 0; border-radius: 12px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;
+  background: linear-gradient(var(--navy-1), var(--navy-2)); color: var(--navy-tx);
+  font-family: var(--f-body); font-size: 13px;
+  box-shadow: 0 4px 0 var(--navy-sh), inset 0 2px 0 rgba(255,255,255,.18);
+}
+.maptab:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--navy-sh), inset 0 2px 0 rgba(255,255,255,.18); }
+.maptab--grade { flex: 0 0 78px; color: var(--gold-ink); background: linear-gradient(var(--gold-lt), var(--gold-2)); box-shadow: 0 4px 0 var(--gold-sh), inset 0 2px 0 #fff; }
+.maptab--grade b { font-family: var(--f-head); font-size: 15px; }
+.maptab__arrow { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--gold-ink); }
+.gradesheet { padding: 8px 0 2px; background: var(--bg-2); box-shadow: 0 -6px 14px rgba(0,0,0,.4); }
+.gradesheet__note { margin: 0 12px 6px; font-size: 12px; color: var(--tx-sub); }
+.gradesheet .grrow { border-bottom: 0; padding-top: 0; }
 /* がくねん えらび（v4.5）。予習・復習で いつでも 変えられる。★＝その子の 学年 */
 .grrow { display: flex; gap: 5px; padding: 8px 12px; background: var(--bg-2); border-bottom: 3px solid var(--hd-edge); }
 .chip--g { flex: 1; min-height: 34px; padding: 0; justify-content: center; position: relative;

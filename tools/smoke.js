@@ -870,10 +870,10 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
   }
   const ws = ['g1', 'g2', 'g3', 'g4'].map(widthOf);
   check(ws[0] < ws[2] && ws[2] < ws[1], '島の 大きさ 小1 < 小3 < 小2: ' + ws.join(' '));
-  // どの 学年でも ノードの よこの いち（16%・82%）は 陸の 上に ある（道が 切れない）
+  // どの 学年でも ノードの よこの いち（v8.0：18%・50%・82% の 3列）は 陸の 上に ある（道が 切れない）
   ['g1', 'g2', 'g3', 'g4'].forEach(function (k) {
     const g = T.build({ height: 900, island: { top: 40, bottom: 860 }, bands: [], path: [], theme: k });
-    [16, 38, 60, 82].forEach(function (pct) {
+    [18, 50, 82].forEach(function (pct) {
       const x = Math.round(g.cols * pct / 100);
       let ok = true;
       for (let y = 8; y < g.rows - 8; y++) if (!T.isLand(g.cells[y][x]) || !T.isLand(g.cells[y][x + 1])) ok = false;

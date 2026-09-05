@@ -23,7 +23,12 @@ MQ.ui = MQ.ui || {};
 MQ.ui.map = (function () {
   const h = MQ.util.h;
 
-  const COL_X = [16, 38, 60, 82];   // ノードの よこの いち（％）
+  /* ノードの よこの いち（％）。**1列 3つ**（v8.0）。
+     前は 4つ（16/38/60/82）だったが、1つ 100px しか なく 名前が 3行に なって
+     となりと ぶつかって いた。3つに して ブロックも 名前も 大きくした。
+     18% と 82% は マスに すると 6・26 で、4列の ころ（16%・82%）と 同じ 場所。
+     ここを 動かす ときは tiles.js の「margin + wob は 4 いか」を 見る */
+  const COL_X = [18, 50, 82];
   const ROW_H = 132;                // 行と 行の あいだ（95px 以上）
   const PILL_H = 46;                // ゾーン見出しの ぶん
   const BAND_PAD = 20;
@@ -35,6 +40,61 @@ MQ.ui.map = (function () {
 
   let canvas = null, layer = null, sheet = null;
   let bands = [], grid = null, plan = null;
+  // 上の 帯で ひらく パネル と 下の 学年えらび（v8.0）
+  let panelEl = null, dimEl = null, obiEl = null, gradeEl = null;
+
+  /* =======================================================
+     上の 帯（v8.0）：フィーバー教科と ミッションを 1本に まとめる。
+       押すと くわしい 中身（いままでの オレンジの 帯と ミッション 3つ）が
+       地図の 上に かぶさって 出る。地図を さわると とじる。
+     ======================================================= */
+  function closeAll() {
+    if (panelEl) panelEl.hidden = true;
+    if (gradeEl) gradeEl.hidden = true;
+    if (obiEl) obiEl.classList.remove('is-open');
+    if (dimEl) dimEl.hidden = true;
+  }
+  function togglePanel() {
+    if (!panelEl) return;
+    const open = panelEl.hidden;
+    closeAll();
+    panelEl.hidden = !open;
+    if (obiEl) obiEl.classList.toggle('is-open', open);
+    if (dimEl) dimEl.hidden = !open;
+  }
+  function toggleGrade() {
+    if (!gradeEl) return;
+    const open = gradeEl.hidden;
+    closeAll();
+    gradeEl.hidden = !open;
+    if (dimEl) dimEl.hidden = !open;
+  }
+
+  function obiBar(player, fv) {
+    let ms = null;
+    if (MQ.missions) MQ.save.update(function (p) { ms = MQ.missions.ensure(p); });
+    if (!fv && !ms) return null;                       // どちらも ない ときは 帯を 出さない
+    const doneN = ms ? ms.list.filter(function (m) { return m.done; }).length : 0;
+
+    obiEl = h('button', {
+      class: 'mapobi', type: 'button',
+      'aria-label': 'きょうの フィーバー教科と ミッション',
+      onclick: function () { MQ.sfx.tap(); togglePanel(); }
+    }, [
+      fv ? h('span', { class: 'mapobi__fever' }, [
+        h('i', { class: 'mapobi__star' }),
+        h('span', { class: 'mapobi__lbl', text: 'フィーバー' }),
+        h('span', { class: 'mapobi__name', text: fv.name }),
+        h('i', { class: 'mapobi__x2', text: '×2' })
+      ]) : null,
+      ms ? h('span', { class: 'mapobi__mis' + (doneN === ms.list.length ? ' is-all' : '') }, [
+        h('span', { text: 'ミッション' }),
+        h('b', { text: doneN + '/' + ms.list.length })
+      ]) : null,
+      h('i', { class: 'mapobi__arrow' })
+    ]);
+    return obiEl;
+  }
 
   /* =======================================================
      どこに 何を おくか
@@ -131,12 +191,12 @@ MQ.ui.map = (function () {
   function freeAt(b, xPct, yPx, kind) {
     const x = xPct * 4;                       // ％ → px（画面 400px）
     const hh = DECO_H[kind];
-    const wBlock = DECO_W[kind] / 2 + 26;     // 金ブロックは よこ 44〜50px
-    const wLabel = DECO_W[kind] / 2 + 45;     // 文字チップは よこ 86px まで
+    const wBlock = DECO_W[kind] / 2 + 30;     // 金ブロックは よこ 52〜60px（v8.0）
+    const wLabel = DECO_W[kind] / 2 + 66;     // 文字チップは よこ 126px まで（v8.0）
     for (let i = 0; i < b.nodes.length; i++) {
       const n = b.nodes[i], nx = n.xPct * 4;
-      if (Math.abs(nx - x) < wBlock && yPx > n.y - 32 - hh && yPx < n.y + 34) return false;
-      if (BIG[kind] && Math.abs(nx - x) < wLabel && yPx > n.y + 14 - hh && yPx < n.y + 90) return false;
+      if (Math.abs(nx - x) < wBlock && yPx > n.y - 36 - hh && yPx < n.y + 38) return false;
+      if (BIG[kind] && Math.abs(nx - x) < wLabel && yPx > n.y + 18 - hh && yPx < n.y + 96) return false;
     }
     return true;
   }
@@ -416,21 +476,24 @@ MQ.ui.map = (function () {
     }));
   }
 
-  /* ---- きょうの ミッション（v3.1）：HUD の 下。3つ ぜんぶ おわったら たたむ ---- */
-    const missionPanel = missionsPanel(player);
-
-    /* ---- 上の ヘッダー ---- */
-    const top = h('div', { class: 'maptop' }, [
-      MQ.ui.hud(player),
+    /* ---- 上の ヘッダー（v8.0）------------------------------------------
+       前は 顔・フィーバー・ミッション・ボタン3つ・学年チップ で 355px あり、
+       たて700 の タブレットでは **画面の 半分**を 上が 使って いた。
+       いまは 顔の 段（60px）＋ 1本の 帯（40px）だけ。
+       フィーバーと ミッションの くわしい 中身は 帯を 押すと
+       地図の 上に かぶさって 出る（mappanel）。
+       図かん・タイムアタック・プレイヤー・学年は 画面の 下の 段へ。
+       -------------------------------------------------------------------- */
+    panelEl = h('div', { class: 'mappanel', hidden: true }, [
       feverPanel(player, feverNow),
-      missionPanel,
-      h('div', { class: 'maptop__row' }, [
-        h('button', { class: 'btn btn--stone', type: 'button', text: '図かん', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
-        h('button', { class: 'btn btn--stone', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
-        // 「おうちの人」は タイトル画面の 右上に ひっこした（v7.8）
-        h('button', { class: 'btn btn--stone', type: 'button', text: 'プレイヤー', onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); } })
-      ]),
-      gradeRow(player)
+      missionsPanel(player)
+    ]);
+    dimEl = h('div', { class: 'mapdim', hidden: true, onclick: function () { closeAll(); } });
+
+    const top = h('div', { class: 'maptop' }, [
+      MQ.ui.hud(player, { slim: true }),
+      obiBar(player, feverNow),
+      panelEl
     ]);
 
     /* ---- 下の バー：ごちゃまぜ バトル（v7.3・むらさき）と にげた敵（ピンク） ---- */
@@ -455,12 +518,35 @@ MQ.ui.map = (function () {
         h('span', { class: 'revenge__new', text: 'NEW' }),
         h('span', { class: 'revenge__text', html: 'にげた敵が <b>' + escapedCount + '</b>ひき！' }),
         h('span', { class: 'revenge__go', text: 'とっくん ▶' })
-      ]) : null
+      ]) : null,
+
+      /* 学年えらび（v8.0）：ふだんは かくして おき、下の「小3 ▾」で 出す */
+      gradeEl = h('div', { class: 'gradesheet', hidden: true }, [
+        h('p', { class: 'gradesheet__note', text: 'べつの 学年で あそぶ（よしゅう・ふくしゅう）' }),
+        gradeRow(player)
+      ]),
+
+      /* ボタンの 段（v8.0）：上に あった 3つと 学年を ここへ */
+      h('div', { class: 'maptabs' }, [
+        h('button', { class: 'maptab', type: 'button', text: '図かん', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
+        h('button', { class: 'maptab', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
+        // 「おうちの人」は タイトル画面の 右上に ひっこした（v7.8）
+        h('button', { class: 'maptab', type: 'button', text: 'プレイヤー', onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); } }),
+        h('button', {
+          class: 'maptab maptab--grade', type: 'button',
+          'aria-label': '学年を えらぶ',
+          onclick: function () { MQ.sfx.tap(); toggleGrade(); }
+        }, [
+          h('b', { text: '小' + (MQ.content.activeWorld().grade || 3) }),
+          h('i', { class: 'maptab__arrow' })
+        ])
+      ])
     ]);
 
     MQ.ui.mount('screen-map', h('div', { class: 'map map--' + plan.theme }, [
       top,
       h('div', { class: 'map__scroll' }, [sheet, h('div', { class: 'map__vig' })]),
+      dimEl,
       bottom
     ]));
 
@@ -495,6 +581,7 @@ MQ.ui.map = (function () {
           class: 'btn btn--small fever__go', type: 'button', text: 'いく ▶',
           onclick: function () {
             MQ.sfx.tap();
+            closeAll();                                   // パネルを とじてから 動かす（v8.0）
             const sc = document.querySelector('#screen-map .map__scroll');
             if (sc && band) sc.scrollTo({ top: Math.max(0, band.top - 16), behavior: 'smooth' });
           }
@@ -520,12 +607,9 @@ MQ.ui.map = (function () {
     if (!ms) return null;
     const doneN = ms.list.filter(function (m) { return m.done; }).length;
     const all = doneN === ms.list.length;
-    /* はじめは ひらいて おく。ただし ステージが 短い 端末（タブレットは 700）では
-       フィーバーの 帯と 合わせると 地図が 見えなく なる ので、たたんで おく（v7.3） */
-    if (missionsOpen === null) {
-      const short = MQ.stage && MQ.stage.size ? (MQ.stage.size().h || 900) < 760 : false;
-      missionsOpen = !all && !short;
-    }
+    /* v8.0：ここは 地図の 上に かぶさる パネルの 中なので、いつも ひらいて おく
+       （地図を せまく しない。たたむ／ひらくは 上の 帯が やる） */
+    if (missionsOpen === null) missionsOpen = true;
     const panel = h('div', { class: 'missions' + (missionsOpen ? ' is-open' : '') + (all ? ' is-all' : '') });
     panel.appendChild(h('button', {
       class: 'missions__head', type: 'button',

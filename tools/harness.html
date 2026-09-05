@@ -800,6 +800,62 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'parent') { fresh(); MQ.ui.parent.open('settings'); return; }
+    /* 地図の 上下（v8.0・A＋B）
+       #mapui        … 帯を 押して パネルが 出る／地図を さわると とじる／学年えらび／下の 段
+       #mapui:open   … パネルを ひらいた ところ（撮る 用）
+       #mapui:grade  … 学年えらびを 出した ところ（撮る 用） */
+    if (mode === 'mapui' || mode.indexOf('mapui:') === 0) {
+      fresh();
+      MQ.ui.goMap();
+      await wait(300);
+      const sub = mode.split(':')[1] || '';
+      const obi = $('#screen-map .mapobi');
+      const panel = $('#screen-map .mappanel');
+      const dim = $('#screen-map .mapdim');
+      const gs = $('#screen-map .gradesheet');
+      const st = MQ.stage.size();
+      const topH = $('#screen-map .maptop').getBoundingClientRect().height / st.scale;
+      const scH = $('#screen-map .map__scroll').getBoundingClientRect().height / st.scale;
+      say('mapui: 上の 高さ ' + Math.round(topH) + 'px（顔＋帯）/ 地図 ' + Math.round(scH) + 'px / ステージ ' + st.h);
+      say('mapui: 帯=' + (obi ? obi.textContent.replace(/\s+/g, ' ') : 'MISSING') +
+          ' 下の 段=' + $$('#screen-map .maptabs .maptab').map(function (e) { return e.textContent; }).join('/'));
+      if (!obi) { dump(); return; }
+      if (sub === 'grade') {
+        $('#screen-map .maptab--grade').click();
+        await wait(150);
+        say('mapui: 学年えらび=' + (gs.hidden ? 'とじたまま(NG)' : 'ひらいた') + ' チップ ' + $$('#screen-map .gradesheet .chip--g').length);
+        dump(); return;
+      }
+      obi.click();
+      await wait(150);
+      const pH = panel.getBoundingClientRect().height / st.scale;
+      say('mapui: ひらく → パネル=' + (panel.hidden ? 'MISSING' : 'ある') + ' 高さ ' + Math.round(pH) + 'px' +
+          ' フィーバー=' + ($('#screen-map .mappanel .fever') ? 'ある' : 'ない') +
+          ' ミッション=' + $$('#screen-map .mappanel .mission').length +
+          ' 黒み=' + (dim.hidden ? 'ない(NG)' : 'ある'));
+      if (sub === 'open') { dump(); return; }
+      dim.click();
+      await wait(150);
+      say('mapui: 地図を さわる → パネル=' + (panel.hidden ? 'とじた' : 'ひらいたまま(NG)') + ' 黒み=' + (dim.hidden ? 'ない' : 'ある(NG)'));
+      // ノードの 大きさ と ならび（1列 3つ）
+      const nodes = $$('#screen-map .node');
+      const xs = {};
+      nodes.forEach(function (n) { xs[n.style.left] = (xs[n.style.left] || 0) + 1; });
+      const dot = $('#screen-map .node .node__dot').getBoundingClientRect();
+      say('mapui: ノード ' + nodes.length + 'こ／よこの いち ' + Object.keys(xs).join(' ') +
+          '／ブロック ' + Math.round(dot.width / st.scale) + 'px／名前 ' +
+          getComputedStyle($('#screen-map .node__name')).fontSize);
+      // 名前の チップが となりと かさならないか（1行ずつ 見る）
+      let over = 0;
+      const rects = $$('#screen-map .node__name').map(function (e) { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; });
+      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i], b2 = rects[j];
+        if (a.l < b2.r && b2.l < a.r && a.t < b2.b && b2.t < a.b) over++;
+      }
+      say('mapui: 名前の かさなり ' + over + (over ? ' ← NG' : ' ok'));
+      dump();
+      return;
+    }
     /* #pptitle … タイトル 右上の「おうちの人」→ レポート →「タイトルへ」で もどる（v7.8）
        #pptitle:2 … 子どもが 2人（お子さんの 切りかえチップが 出る） */
     if (mode === 'pptitle' || mode.indexOf('pptitle:') === 0) {
@@ -826,7 +882,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       // 地図の ボタンは 3つ（「おうちの人」は タイトルへ ひっこした）
       MQ.ui.goMap();
       await wait(300);
-      say('pptitle: 地図の ボタン=' + $$('.maptop__row .btn').map(function (e) { return e.textContent; }).join('/'));
+      say('pptitle: 地図の ボタン=' + $$('.maptabs .maptab').map(function (e) { return e.textContent; }).join('/'));
       dump();
       return;
     }

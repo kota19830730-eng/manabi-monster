@@ -43,7 +43,7 @@ MQ.tiles = (function () {
   COLOR[GRASS]  = ['#58ad4d', '#52a548'];
   COLOR[FOREST] = ['#368a30', '#31822c'];
   COLOR[ROCK]   = ['#8892a8', '#7e88a0'];
-  COLOR[ROAD]   = ['#cdc6b6', '#c2bba9'];
+  COLOR[ROAD]   = ['#d9b878', '#cfae6c'];   // v8.0：うすい 灰色 → 砂色（道が 追える）
   COLOR[BRIDGE] = ['#b58a58', '#a67c4d'];
   COLOR[DGRASS] = ['#3e7a58', '#397151'];
   COLOR[DSAND]  = ['#8f86a8', '#857c9e'];
@@ -82,7 +82,7 @@ MQ.tiles = (function () {
     [SHAL,   ['#8ed0f2', '#85c8ec']],
     [SAND,   ['#f7e6b6', '#f1dfac']],
     [ROCK,   ['#a8b2c4', '#9da7ba']],
-    [ROAD,   ['#e2dbca', '#d7d0be']]
+    [ROAD,   ['#e6c78d', '#dcbd82']]
   ]), { margin: 3, wob: 1, taper: [9, 6, 3, 1] });
 
   theme('g2', pal([
@@ -91,7 +91,7 @@ MQ.tiles = (function () {
     [SEA,    ['#1f6fc6', '#1b66ba']],
     [SHAL,   ['#4fb6ea', '#48ade2']],
     [SAND,   ['#f4eecd', '#ede6c3']],
-    [ROAD,   ['#d9d3c1', '#cec8b5']]
+    [ROAD,   ['#dbb87a', '#d1ae70']]
   ]), { margin: 1, wob: 2, taper: [5, 3, 1, 0] });
 
   theme('g3', pal([]), { margin: 2, wob: 2, taper: [7, 4, 2, 1] });
@@ -104,7 +104,7 @@ MQ.tiles = (function () {
     [RIVER,  ['#4a9ad2', '#4291ca']],
     [SAND,   ['#e2bb7c', '#dab372']],
     [ROCK,   ['#95908a', '#8a8580']],
-    [ROAD,   ['#cbc1a8', '#c1b79e']]
+    [ROAD,   ['#d2ad6d', '#c8a363']]
   ]), { margin: 1, wob: 3, taper: [8, 5, 3, 1] });
 
   // 小5 ふゆの 大陸（v6.5）：雪の 草原・こい 緑の 森・氷の 海・青白い 砂
@@ -116,7 +116,7 @@ MQ.tiles = (function () {
     [RIVER,  ['#5aa6da', '#519dd2']],
     [SAND,   ['#eef2f5', '#e4e9ee']],
     [ROCK,   ['#aab7c9', '#9fabbd']],
-    [ROAD,   ['#c9c2b4', '#bfb8aa']]
+    [ROAD,   ['#cfc0a2', '#c5b698']]
   ]), { margin: 1, wob: 2, taper: [8, 5, 3, 1] });
 
   function isLand(v) { return v >= SAND; }
