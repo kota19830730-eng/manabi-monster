@@ -959,10 +959,10 @@ body {
 
 /* なまえを つける（図かんの なかまタブ） */
 .palnow__rename { align-self: center; margin-top: 8px; padding: 0 18px; font-size: 13px; }
-.palname { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px 10px; border: 3px solid var(--gold); border-radius: 14px; background: rgba(245,197,66,.10); }
-.palname__input { width: 100%; text-align: center; }
-.palname__btns { display: flex; gap: 8px; }
-.palname__btns .btn { flex: 1; }
+.palname, .rename { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px 10px; border: 3px solid var(--gold); border-radius: 14px; background: rgba(245,197,66,.10); }
+.palname__input, .rename__input { width: 100%; text-align: center; }
+.palname__btns, .rename__btns { display: flex; gap: 8px; }
+.palname__btns .btn, .rename__btns .btn { flex: 1; }
 
 @media (prefers-reduced-motion: reduce) { .pal.is-hit, .pal__slash, .palbanner { animation-duration: .01s; } }
 .combo { position: absolute; bottom: 8px; left: 12px; font-family: var(--f-head); font-size: 26px; color: #fff; text-shadow: 0 3px 0 #d6491f, 0 0 14px rgba(255,150,80,.8); z-index: 3; }
@@ -1814,6 +1814,8 @@ body {
 .dexcard__title { margin: 2px 0 6px; font-size: 13px; color: var(--gold); }
 .dexcard__lv { margin: 0 0 6px; font-size: 13px; color: var(--tx-sub); }
 .dexcard__stats { margin: 6px 0 0; font-size: 12px; color: var(--tx-sub); }
+.dexcard__btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dexcard__btns .btn { flex: 1 1 auto; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; }
 .cell {

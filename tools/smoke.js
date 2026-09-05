@@ -1862,6 +1862,18 @@ check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅ�
   check(!!mig.escaped['g3:eigo'], '古い セーブの にげた敵も 小3の ぶんに: ' + Object.keys(mig.escaped).join(','));
   MQ.save.deletePlayer(gp.id);
 })();
+/* ---- 主人公の なまえを かえる（v7.0） ---- */
+(function () {
+  const rp = MQ.save.createPlayer('なまえテスト', null, 3);
+  check(MQ.save.setName('') === false && MQ.save.current().name === 'なまえテスト', 'からっぽでは 変わらない');
+  check(MQ.save.setName('   ') === false && MQ.save.current().name === 'なまえテスト', '空白だけでも 変わらない');
+  check(MQ.save.setName(' ゆうしゃ ') === true && MQ.save.current().name === 'ゆうしゃ', '前後の 空白は とる: ' + MQ.save.current().name);
+  check(MQ.save.current().log[0].text.indexOf('なまえテスト は なまえを ゆうしゃ に') === 0, 'きろくに のこる: ' + MQ.save.current().log[0].text);
+  check(MQ.save.setName('あいうえおかきくけこさしす') === true && MQ.save.current().name === 'あいうえおかきくけこ', '10文字まで: ' + MQ.save.current().name);
+  MQ.save.load();
+  check(MQ.save.current().name === 'あいうえおかきくけこ', '読み直しても のこる');
+  MQ.save.deletePlayer(rp.id);
+})();
 (function () {
   const gp = MQ.save.createPlayer('がくねんテスト', null, 3);
   check(gp.grade === 3, 'つくった プレイヤーに がくねんが 入る');

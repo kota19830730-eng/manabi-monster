@@ -1616,6 +1616,44 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
 
+    /* #rename … 主人公の なまえを かえる（図かんの 主人公タブ・v7.0） */
+    if (mode === 'rename') {
+      fresh();
+      MQ.ui.dex.render('hero');
+      MQ.ui.show('screen-dex');
+      await wait(200);
+      const before = MQ.save.current().name;
+      const btn = $('.dexcard__rename');
+      if (!btn) { say('rename: なまえボタン MISSING'); return; }
+      btn.click();
+      await wait(250);
+      // からっぽでは 変わらない
+      const in0 = $('.rename__input');
+      if (in0) in0.value = '   ';
+      const ok0 = $('.rename .btn--gold');
+      if (ok0) ok0.click();
+      await wait(200);
+      say('rename: からっぽ → なまえ=' + MQ.save.current().name + ' パネル=' + ($('.rename') ? 'のこる OK' : 'きえた NG'));
+      const input = $('.rename__input');
+      if (input) input.value = 'ゆうしゃコタロウ';
+      const ok = $('.rename .btn--gold');
+      if (ok) ok.click();
+      await wait(300);
+      const p = MQ.save.current();
+      say('rename: ' + before + ' → ' + p.name +
+          ' カード=' + ($('.dexcard__name') ? $('.dexcard__name').textContent : 'MISSING') +
+          ' HUD=' + ($('.hud__name') ? $('.hud__name').textContent : 'MISSING') +
+          ' きろく=' + ((p.log && p.log[0]) ? p.log[0].text : 'なし') +
+          ' → ' + (p.name === 'ゆうしゃコタロウ' && $('.hud__name') && $('.hud__name').textContent === p.name ? 'OK' : 'NG'));
+      // もう一度 ひらいた ところを 撮る
+      const b2 = $('.dexcard__rename');
+      if (b2) b2.click();
+      await wait(250);
+      dump();
+      freeze();
+      return;
+    }
+
     /* なかま（相棒・v4.3）
        #pals        … 図かんの「なかま」タブ（相棒 3体＋コイン 20）
        #palbattle   … 相棒を 連れて バトル（3問 れんぞく 正解で 追い打ち）

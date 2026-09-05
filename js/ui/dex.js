@@ -12,6 +12,7 @@ MQ.ui.dex = (function () {
   let tab = 'hero';
   let picked = null;   // たからばこの たなで えらんだ たからもの（せつめいを 出す）
   let naming = false;  // なかまの なまえを 直している さいちゅう（v5.2）
+  let renaming = false; // 主人公の なまえを 直している さいちゅう（v7.0）
 
   function render(which) {
     if (which && which !== tab) picked = null;
@@ -69,13 +70,51 @@ MQ.ui.dex = (function () {
         h('p', { class: 'dexcard__lv', text: 'Lv.' + pr.level + '　つぎまで ' + (pr.need - pr.into) }),
         h('div', { class: 'xpbar' }, [h('div', { class: 'xpbar__fill', style: { width: Math.round(pr.ratio * 100) + '%' } })]),
         h('p', { class: 'dexcard__stats', text: 'たたかい ' + (player.battles || 0) + '回　たおした モンスター ' + (player.defeated || 0) + '体　コイン ' + (player.coins || 0) }),
-        h('button', {
-          class: 'btn btn--small', type: 'button', text: 'すがたを かえる',
-          style: { marginTop: '8px' },
-          onclick: function () { MQ.sfx.tap(); MQ.ui.look.edit(); }
-        })
+        h('div', { class: 'dexcard__btns' }, [
+          h('button', {
+            class: 'btn btn--small', type: 'button', text: 'すがたを かえる',
+            onclick: function () { MQ.sfx.tap(); MQ.ui.look.edit(); }
+          }),
+          h('button', {
+            class: 'btn btn--small btn--cream dexcard__rename', type: 'button', text: 'なまえを かえる',
+            onclick: function () { MQ.sfx.tap(); renaming = !renaming; render('hero'); }
+          })
+        ])
       ])
     ]);
+
+    // なまえを かえる（v7.0）。10文字まで。からっぽでは 変えられない
+    let renameBox = null;
+    if (renaming) {
+      const input = h('input', {
+        class: 'input rename__input', type: 'text', maxlength: String(MQ.save.NAME_MAX),
+        placeholder: player.name, autocomplete: 'off', 'aria-label': 'あたらしい なまえ'
+      });
+      input.value = player.name;
+      const save = function () {
+        const v = input.value.trim();
+        if (!v) { MQ.ui.toast('なまえを 入れてね'); return; }
+        if (v === player.name) { renaming = false; render('hero'); return; }
+        if (!MQ.save.setName(v)) { MQ.ui.toast('なまえを 入れてね'); return; }
+        MQ.sfx.rare();
+        renaming = false;
+        MQ.ui.toast('これからは ' + v + ' だね！');
+        render('hero');
+      };
+      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') save(); });
+      renameBox = h('div', { class: 'rename' }, [
+        h('p', { class: 'note', text: 'あたらしい なまえを 入れてね（10文字まで）。' }),
+        input,
+        h('div', { class: 'rename__btns' }, [
+          h('button', {
+            class: 'btn btn--small btn--stone', type: 'button', text: 'やめる',
+            onclick: function () { MQ.sfx.tap(); renaming = false; render('hero'); }
+          }),
+          h('button', { class: 'btn btn--small btn--gold', type: 'button', text: 'けってい', onclick: save })
+        ])
+      ]);
+      setTimeout(function () { try { input.focus(); input.select(); } catch (e) {} }, 60);
+    }
 
     // しょうごう
     const titleGrid = h('div', { class: 'grid' }, MQ.hero.titles.map(function (t) {
@@ -140,6 +179,7 @@ MQ.ui.dex = (function () {
 
     return h('div', {}, [
       card,
+      renameBox,
       h('h2', { class: 'label', text: 'しょうごう（すきなものを えらべる）' }),
       titleGrid,
       h('h2', { class: 'label', text: 'そうび（けん・たて・かぶと・よろい・マント × 6しゅるい）' }),

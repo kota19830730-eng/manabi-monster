@@ -185,6 +185,22 @@ MQ.save = (function () {
     persist();
   }
 
+  /* 主人公の なまえを かえる（v7.0）。前後の 空白を とって 10文字まで。
+     からっぽは 変えない（false）。かわった ときは きろくにも のこす */
+  const NAME_MAX = 10;
+  function setName(name) {
+    name = String(name || '').trim().slice(0, NAME_MAX);
+    if (!name) return false;
+    const p = current();
+    if (!p) return false;
+    if (p.name !== name) {
+      addLog(p, p.name + ' は なまえを ' + name + ' に かえた');
+      p.name = name;
+    }
+    persist();
+    return true;
+  }
+
   // いまのプレイヤーを 書きかえて 保存する： update(function (p) { p.xp += 10; })
   function update(fn) {
     const p = current();
@@ -321,6 +337,7 @@ MQ.save = (function () {
   return {
     load: load, get: get, persist: persist,
     createPlayer: createPlayer, current: current, setCurrent: setCurrent, update: update, deletePlayer: deletePlayer,
+    setName: setName, NAME_MAX: NAME_MAX,
     getSetting: getSetting, setSetting: setSetting,
     escapedIn: escapedIn, revengeReady: revengeReady, revengeAfterMs: revengeAfterMs, addEscaped: addEscaped, removeEscaped: removeEscaped, countEscaped: countEscaped,
     playGrade: playGrade, areaKey: areaKey, setPlayGrade: setPlayGrade,
