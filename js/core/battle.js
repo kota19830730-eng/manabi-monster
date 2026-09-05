@@ -143,7 +143,9 @@ MQ.battle = (function () {
        timeAttack … 1問ごとの 制限びょう（ふつうは 0＝制限なし）
        items    … もちもの（MQ.treasure.bagItems(player) の ならび）。
                   タイムアタックの ときは 無視される
-       coins    … いま もっている きんのコイン（じゅうてん用の さいふ）  */
+       coins    … いま もっている きんのコイン（じゅうてん用の さいふ）
+       fever    … きょうの フィーバー教科（v7.2）{ xpMul, coins, palPlus }。normal だけ
+       support  … サポート（v7.2）{ easy, hint, keep, extra, level }。normal だけ  */
   function start(opts) {
     const mode = opts.mode || 'normal';
     const stage = opts.stage;
@@ -165,8 +167,12 @@ MQ.battle = (function () {
       const revenge = (opts.escaped || []).slice(0, 2);
       const freshCount = Math.max(1, mobCount - revenge.length);
 
-      mobs = stage.make(freshCount, { boss: false }).map(prepare);
-      mobs = sortByLevel(mobs);
+      /* サポート（v7.2・にがて・はじめての 教科）：少し 多めに 作って、
+         むずかしい ぶんを 落とす（12体なら 4/4/4 → 5/5/2）。ボスは そのまま */
+      const support = (opts.support && !opts.timeAttack) ? opts.support : null;
+      const extra = support && support.easy ? (support.extra || 3) : 0;
+      mobs = stage.make(freshCount + extra, { boss: false }).map(prepare);
+      mobs = sortByLevel(mobs).slice(0, freshCount);
       const enemyIds = (opts.enemies || []).slice();
       mobs.forEach(function (q, i) {
         q.enemyId = enemyIds.length ? enemyIds[i % enemyIds.length] : 'slime-green';
@@ -239,15 +245,24 @@ MQ.battle = (function () {
       opts.gear || null
     );
 
+    /* きょうの フィーバー教科（v7.2）：ふつうの たたかいだけ（とっくん・塔・タイムアタックは なし）。
+       けいけんち ばい・おわりに コイン・なかまゲージが 早く たまる。
+       サポート（v7.2）：にがて・はじめての 教科。やさしい 問題 多め（上）・ヒントを 先に・コンボを まもる */
+    const fever = (opts.fever && mode === 'normal' && !opts.timeAttack) ? opts.fever : null;
+    const support = (opts.support && mode === 'normal' && !opts.timeAttack) ? opts.support : null;
+
     s = {
       items: bag,
       gear: gear,
+      fever: fever,
+      support: support,
+      feverXp: 0,                  // フィーバーで ふえた ぶんの けいけんち
       // どうぐ・そうびの 効果（のこり）
       buff: {
         dmg: 1,
         shield: opts.timeAttack ? 0 : gear.safe,   // たて：はじめから セーフ
-        freeze: opts.timeAttack ? 0 : gear.keep,   // よろい：はじめから コンボを まもる
-        xpMul: 1, palPlus: 0, comboPlus: 0, fastSure: 0, palXp: 1
+        freeze: (opts.timeAttack ? 0 : gear.keep) + (support ? (support.keep || 0) : 0),   // よろい・サポート：はじめから コンボを まもる
+        xpMul: 1, palPlus: fever ? (fever.palPlus || 0) : 0, comboPlus: 0, fastSure: 0, palXp: 1
       },
       itemsUsed: [],
       frozenQ: null,     // 時とめが 効いている 問題の id
@@ -305,6 +320,20 @@ MQ.battle = (function () {
   }
 
   function current() { return s.phase === 'boss' ? s.bossQ : s.mobs[s.index]; }
+
+  /* サポート（v7.2）：いまの 問題の ヒントを 先に 出す（みちしるべと 同じ 中身）。
+     ザコだけ・たからばこ と ボスは なし・役に 立つ ヒントが ある ときだけ
+     （ヒントの 文が ある／えらぶ問題は まちがいを 1つ 消す／ローマ字は さいしょの 2字）。
+     1問に 1回。出した 問題は みちしるべの「もう 見た」と 同じ あつかい */
+  function preHint() {
+    if (!s || !s.support || !s.support.hint) return null;
+    const q = current();
+    if (!q || s.phase !== 'mob' || q.chest || s.retry) return null;
+    if (s.guidedQ === q.id) return null;
+    if (!q.hint && q.type !== 'choice' && q.type !== 'roma') return null;
+    s.guidedQ = q.id;
+    return makeHint(q, { max: 1 });
+  }
 
   function isCorrect(q, value) {
     if (value === null || value === undefined) return false;
@@ -563,7 +592,10 @@ MQ.battle = (function () {
 
   // けいけんちを 足す（パワーアップと そうびセットの ばいりつ こみ・四捨五入）
   function gain(xp) {
-    const v = Math.round(xp * (s.buff.xpMul || 1) * (s.gear.setMul || 1));
+    const base = Math.round(xp * (s.buff.xpMul || 1) * (s.gear.setMul || 1));
+    // フィーバー教科（v7.2）：1回ごとに ばいに なる（画面の「+20」も ばいで 出る）
+    const v = s.fever ? base * (s.fever.xpMul || 1) : base;
+    s.feverXp += v - base;
     s.xp += v;
     return v;
   }
@@ -774,7 +806,13 @@ MQ.battle = (function () {
     const starCoins = s.mode !== 'tokkun' && s.answered > 0 && stars === 3 ? 1 : 0;
     // マント（そうび）の コイン（とっくんは のぞく）
     const gearCoins = s.mode !== 'tokkun' && s.answered > 0 ? (s.gear.coins || 0) : 0;
+    // フィーバー教科（v7.2）の コイン
+    const feverCoins = s.fever && s.answered > 0 ? (s.fever.coins || 0) : 0;
     return {
+      fever: !!s.fever,
+      feverBonus: s.feverXp,
+      feverCoins: feverCoins,
+      support: s.support ? (s.support.level || 'weak') : null,
       stageId: s.stage.id,
       mode: s.mode,
       correct: s.correct,
@@ -783,7 +821,7 @@ MQ.battle = (function () {
       baseXp: s.xp,
       fastBonus: fastBonus,
       time: time,
-      coins: s.coins + starCoins + gearCoins,
+      coins: s.coins + starCoins + gearCoins + feverCoins,
       starCoins: starCoins,
       gearCoins: gearCoins,
       gearSet: s.gear.setName || '',
@@ -818,6 +856,9 @@ MQ.battle = (function () {
     isCorrect: isCorrect, answerText: answerText,   // テスト用（v6.5・分数の 判定を smoke が 見る）
     givenText: givenText,                           // テスト用（v7.1）
     useItem: useItem, canUse: canUse, items: items, buffs: buffs,
+    preHint: preHint,                                // サポート（v7.2）
+    fever: function () { return s ? s.fever : null; },
+    support: function () { return s ? s.support : null; },
     recharge: recharge, canRecharge: canRecharge, rechargeCost: RECHARGE_COST, coinsLeft: coinsLeft,
     phase: function () { return s.phase; },
     mode: function () { return s.mode; },

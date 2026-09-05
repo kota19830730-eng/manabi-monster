@@ -36,6 +36,7 @@
     #last4 #last4map … 小4の さいごの塔（v4.8・ダークロード）
     #last1 #last1map #last2 #last2map … 小1・小2の さいごの とう（v6.4・おばけキング／かいぞくキャプテン）
     #zu #chizu … 問題の 図（v4.9・地図記号・方位・じしゃく・回路・月）／地図と方位の バトル
+    #fever #fever2 #fever3 #feverparent … きょうの フィーバー教科 と サポート（v7.2）
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -69,6 +70,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/ai.js"></script>
 <script src="../js/core/handwrite.js"></script>
 <script src="../js/core/missions.js"></script>
+<script src="../js/core/fever.js"></script>
 <script src="../js/core/pals.js"></script>
 <script src="../js/core/speech.js"></script>
 <script src="../js/core/battle.js"></script>
@@ -1470,6 +1472,59 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       dump();
       return;
     }
+    /* きょうの フィーバー教科 と サポート（v7.2）
+       #fever       … 地図（HUD の 下の オレンジの 帯・相棒の おねがい・ゾーンと ステージが 光る）
+       #fever2      … フィーバー教科（国語・にがて）の バトルの 1問め（帯・ピル・先出しの ヒント・コンボ ガード）
+       #fever3      … 同じ バトルを 通して けっか画面（フィーバーの 1行・コイン・たたかった 回数）
+       #feverparent … おうちの人ページの「きょうの フィーバー教科」 */
+    if (mode.indexOf('fever') === 0) {
+      fresh();
+      MQ.fever.setNow(new Date(2026, 8, 5));
+      MQ.save.update(function (pl) {
+        pl.areaPlays = { 'g3:sansu': 9, 'g3:rikashakai': 2, 'g3:eigo': 2 };     // 国語だけ やって いない
+        pl.stats = { rows: { 'kokugo3-1': { ok: 3, n: 6, r: '101001' }, 'sansu3-1': { ok: 20, n: 20, r: '11111111111111111111' } }, wrong: {} };
+        MQ.pals.add(pl, 'slime-green');
+        pl.fever = null;
+      });
+      if (mode === 'feverparent') {
+        MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex');
+        await wait(200);
+        const sec = $('.pfever');
+        const wrap = $('#screen-dex .wrap');
+        if (sec && wrap) wrap.scrollTop = sec.offsetTop - 30;
+        say('feverparent: now=' + ($('.pfever__now') ? $('.pfever__now').textContent : 'MISSING') + ' chips=' + $$('.pfever .chip').length + ' rows=' + $$('.pfever__row').length + ' on=' + ($('.pfever .chip.is-on') ? $('.pfever .chip.is-on').textContent : 'MISSING'));
+        $$('.pfever .chip').filter(function (c) { return c.textContent === '英語'; })[0].click();
+        await wait(100);
+        say('feverparent: えらぶ → ' + ($('.pfever__now') ? $('.pfever__now').textContent : 'MISSING') + ' pick=' + MQ.save.current().feverPick);
+        $$('.pfever .chip').filter(function (c) { return c.textContent === 'おまかせ'; })[0].click();
+        await wait(100);
+        say('feverparent: おまかせ → ' + ($('.pfever__now') ? $('.pfever__now').textContent : 'MISSING'));
+        dump(); return;
+      }
+      if (mode === 'fever2' || mode === 'fever3') {
+        MQ.ui.battle.start('kokugo3-1'); await wait(150);
+        const fv = MQ.battle.fever(), sp = MQ.battle.support();
+        say('fever2: fever=' + JSON.stringify(fv) + ' support=' + JSON.stringify(sp) + ' pill=' + ($('.pillstat__fever') ? $('.pillstat__fever').textContent : 'MISSING') +
+            ' banner=' + ($('.modebanner') ? $('.modebanner').textContent : 'MISSING') + ' hint=' + (!$('.hintbox').hidden ? $('.hintbox').textContent.slice(0, 30) : 'MISSING') +
+            ' out=' + $$('.choice.is-out').length + ' freeze=' + MQ.battle.buffs().freeze + ' hero=' + $('.hero').className + ' lv=' + MQ.battle.current().lv);
+        if (mode === 'fever2') {
+          // 帯は 2.6秒で 消える → 写しを .arena に おいて 止めて 撮る
+          const b = $('.modebanner');
+          if (b) { const c = b.cloneNode(true); c.style.animation = 'none'; c.style.opacity = '1'; $('.arena').appendChild(c); }
+          $('.arena__msg').style.display = 'none';
+          dump(); return;
+        }
+        await playBattle('fever3');
+        await wait(900);
+        const p = MQ.save.current();
+        say('fever3: line=' + ($('.rs__fever') ? $('.rs__fever').textContent : 'MISSING') + ' exp=' + ($('.rs__exp') ? $('.rs__exp').textContent : 'MISSING') + ' plays=' + JSON.stringify(p.areaPlays) + ' coins=' + p.coins);
+        dump(); return;
+      }
+      MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
+      say('fever: panel=' + ($('.fever') ? $('.fever').textContent.replace(/\s+/g, ' ') : 'MISSING') + ' biome=' + $$('.biome--fever').length + ' nodes=' + $$('.node--fever').length +
+          ' pal=' + ($('.fever__bubble') ? $('.fever__bubble').textContent : 'MISSING') + ' today=' + JSON.stringify(MQ.save.current().fever));
+      dump(); return;
+    }
     // リベンジ（v3.1）：#revenge = 2日前に にげた敵が 1体目に もどってくる／#revenge:fresh = きょう にげた敵は もどらない
     if (mode.indexOf('revenge') === 0) {
       fresh();
@@ -1883,6 +1938,16 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await playBattle('sansu', { missFirst: true });
     await wait(700);
     say('result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
+
+    say('--- フィーバー教科（国語・サポートつき）（v7.2） ---');
+    MQ.save.update(function (pl) { pl.feverPick = 'kokugo'; pl.fever = null; pl.stats = { rows: { 'kokugo3-1': { ok: 3, n: 6, r: '101001' } }, wrong: {} }; });
+    MQ.ui.battle.start('kokugo3-1');
+    await wait(400);
+    say('fever: ' + (MQ.battle.fever() ? 'ok' : 'MISSING') + ' support=' + (MQ.battle.support() ? MQ.battle.support().level : 'MISSING') + ' pill=' + ($('.pillstat__fever') ? 'ok' : 'MISSING') + ' banner=' + ($('.modebanner') ? 'ok' : 'MISSING') + ' hint=' + (!$('.hintbox').hidden ? 'ok' : 'MISSING'));
+    await playBattle('fever');
+    await wait(700);
+    say('fever result: ' + ($('.rs__fever') ? $('.rs__fever').textContent : 'MISSING') + ' plays=' + JSON.stringify(MQ.save.current().areaPlays));
+    MQ.save.update(function (pl) { pl.feverPick = null; pl.fever = null; });
 
     say('--- 国語（かん字を 書く） ---');
     MQ.ui.battle.start('kokugo3-2');

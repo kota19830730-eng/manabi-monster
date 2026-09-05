@@ -25,6 +25,8 @@
      pals      なかま（相棒）{ id: { exp, got } }／pal  いまの 相棒の id
      bag       [ たからもの id ]   … もちもの（たたかいに もっていく アイテム・3つまで）
      itemUses / fastCount / bestCombo … しょうごう用の カウンター
+     areaPlays { 'g3:kokugo': n }  … 教科ごとの たたかった 回数（フィーバー教科・v7.2）
+     fever / feverPick             … きょうの フィーバー教科／おうちの人の えらび（v7.2）
      dex       { 敵id: たおした回数 }      … 図鑑
      escaped   { エリアid: [にげた敵の一覧] }  … まちがえた問題
      custom    [ { id, name, area, png } ]  … 写真から 作った モンスター
@@ -105,6 +107,10 @@ MQ.save = (function () {
     if (!p.missions || typeof p.missions !== 'object') p.missions = null;
     if (typeof p.missionsDone !== 'number') p.missionsDone = 0;   // クリアした ミッションの 数
     if (typeof p.missionDays !== 'number') p.missionDays = 0;     // 3つ ぜんぶ クリアした 日の 数
+    // きょうの フィーバー教科（v7.2）：教科ごとの たたかった 回数／きょうの ぶん／おうちの人の えらび
+    if (!p.areaPlays || typeof p.areaPlays !== 'object' || Array.isArray(p.areaPlays)) p.areaPlays = {};
+    if (!p.fever || typeof p.fever !== 'object') p.fever = null;
+    if (typeof p.feverPick !== 'string') p.feverPick = null;
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {

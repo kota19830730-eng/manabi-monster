@@ -524,6 +524,7 @@ MQ.ui.dex = (function () {
     return h('div', {}, [
       statsSection(player),
       h('h2', { class: 'label pstat__sep', text: 'せってい' }),
+      feverSection(player),
       termsSection(player),
       judgeSection(),
       aiSection(),
@@ -761,6 +762,50 @@ MQ.ui.dex = (function () {
       ]),
       sugRow
     ].concat(lists));
+  }
+
+  /* =======================================================
+     きょうの フィーバー教科（v7.2・おうちの人ページ）
+       おまかせ（いちばん やって いない 教科）／教科を えらぶ／なし。
+       教科ごとの「たたかった 回数・さいきんの 正解率・サポート」も 出す。
+       ルールは js/core/fever.js
+     ======================================================= */
+  function feverSection(player) {
+    if (!MQ.fever) return null;
+    let fv = null;
+    MQ.save.update(function (pl) { fv = MQ.fever.today(pl); });
+    const pick = player.feverPick || null;
+    const areas = MQ.fever.candidates();
+    function setPick(v) {
+      MQ.sfx.tap();
+      MQ.save.update(function (pl) { pl.feverPick = v; pl.fever = null; });
+      MQ.ui.toast(v === 'off' ? 'フィーバー教科は なしに しました' : v ? MQ.content.areaOf(v).name + ' を フィーバーに しました' : 'いちばん やって いない 教科を 自動で えらびます');
+      render('parent');
+    }
+    const chips = h('div', { class: 'termrow' }, [
+      h('button', { class: 'chip' + (!pick ? ' is-on' : ''), type: 'button', text: 'おまかせ', onclick: function () { setPick(null); } })
+    ].concat(areas.map(function (a) {
+      return h('button', { class: 'chip' + (pick === a.id ? ' is-on' : ''), type: 'button', text: a.short || a.name, onclick: function () { setPick(a.id); } });
+    }), [
+      h('button', { class: 'chip' + (pick === 'off' ? ' is-on' : ''), type: 'button', text: 'なし', onclick: function () { setPick('off'); } })
+    ]));
+    const rows = MQ.fever.overview(player).map(function (o) {
+      const lv = o.level === 'weak' ? 'にがて（サポート中）' : o.level === 'new' ? 'まだ すこし（サポート中）' : 'とくい・ふつう';
+      return h('div', { class: 'pfever__row' + (fv && fv.areaId === o.id ? ' is-fever' : '') }, [
+        h('span', { class: 'pfever__name', text: o.name }),
+        h('span', { class: 'pfever__n', text: 'たたかい ' + o.plays + '回' }),
+        h('span', { class: 'pfever__pct', text: o.pct == null ? '正解率 －' : '正解率 ' + o.pct + '%' }),
+        h('span', { class: 'pfever__lv', text: lv })
+      ]);
+    });
+    return h('div', { class: 'pfever' }, [
+      h('h2', { class: 'label', text: 'きょうの フィーバー教科' }),
+      h('p', { class: 'note', text: '得意な 教科ばかりに ならない ように、毎日 1つの 教科が「フィーバー」に なります（けいけんち 2ばい・コイン +1・レアが 出やすい・なかまゲージ 2ばい）。おまかせ だと いちばん やって いない 教科が 自動で えらばれます。' }),
+      h('p', { class: 'pfever__now', text: fv ? 'きょうは ' + fv.name : 'きょうは なし' + (areas.length < 2 ? '（教科が 1つだけ）' : '') }),
+      chips,
+      h('div', { class: 'pfever__list' }, rows),
+      h('p', { class: 'note', text: 'さいきんの 正解率が 70% みまん、または まだ 5問 みまんの 教科には「サポート」が つきます：やさしい 問題が 多め・ヒントが 先に 出る・2回まで まちがえても コンボが 切れない。答えを 見せる ことは ありません。' })
+    ]);
   }
 
   /* =======================================================

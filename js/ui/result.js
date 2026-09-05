@@ -138,6 +138,12 @@ MQ.ui.result = (function () {
         : 'ミッション クリア！ ' + m.completed.map(function (x) { return x.text; }).join('・') + '　コイン +' + m.coins });
     }
 
+    /* ---- フィーバー教科（v7.2・ふえた ぶんが ある ときだけ 1行） ---- */
+    let fever = null;
+    if (sum.feverBonus || sum.feverCoins) {
+      fever = h('p', { class: 'rs__fever', text: 'フィーバー教科！　けいけんち +' + (sum.feverBonus || 0) + (sum.feverCoins ? '・コイン +' + sum.feverCoins : '') });
+    }
+
     /* ---- 3b. なかま（v4.3）：そだった ぶんと、なかまに なりたい 子 ---- */
     let palRow = null;
     if (rw.pal) {
@@ -248,7 +254,7 @@ MQ.ui.result = (function () {
 
     const panel = h('div', { class: 'rs ' + mood }, [
       h('div', { class: 'rs__fx' }),
-      banner, bossCard, lvBand, palRow, palOffer, best, mission, chips, items, ttl, btns
+      banner, bossCard, lvBand, fever, palRow, palOffer, best, mission, chips, items, ttl, btns
     ]);
     MQ.ui.mount('screen-result', panel);
     requestAnimationFrame(function () { fit(panel); });

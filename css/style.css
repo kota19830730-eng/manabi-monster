@@ -778,6 +778,48 @@ body {
 .missions__all { margin-top: 4px; font-size: 11px; color: var(--tx-sub); text-align: right; }
 .missions.is-all .missions__all { color: var(--gold); }
 .missions.is-all .missions__head { color: var(--gold); }
+/* ---- きょうの フィーバー教科（v7.2）：HUD の すぐ 下の オレンジの 帯 ---- */
+.fever { position: relative; margin: 8px 12px 6px; padding: 8px 12px 9px; border-radius: 12px; overflow: hidden;
+         background: linear-gradient(var(--org-1), var(--org-2)); box-shadow: 0 4px 0 var(--org-sh), inset 0 2px 0 rgba(255,255,255,.4);
+         color: #fff; display: flex; flex-direction: column; gap: 4px; }
+.fever::before { content: ''; position: absolute; top: -40%; left: -30%; width: 40%; height: 180%; background: rgba(255,255,255,.18); transform: rotate(18deg); animation: feverShine 3.2s ease-in-out infinite; pointer-events: none; }
+@keyframes feverShine { 0% { left: -40%; } 60% { left: 120%; } 100% { left: 120%; } }
+.fever__row { display: flex; align-items: center; gap: 10px; }
+.fever__star { flex: none; width: 22px; height: 22px; background: var(--gold); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); filter: drop-shadow(0 0 6px rgba(255,232,154,.95)); animation: pulse 1.4s ease-in-out infinite; }
+.fever__mid { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
+.fever__label { font-family: var(--f-head); font-size: 11px; color: #ffe89a; letter-spacing: .04em; }
+.fever__name { font-family: var(--f-head); font-size: 19px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.28); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fever__go { flex: none; min-height: 36px; padding: 0 12px; font-size: 14px; }
+.fever__sub { font-size: 12px; color: #fff3d6; }
+.fever__pal { display: flex; align-items: center; gap: 8px; margin-top: 1px; }
+.fever__palimg { flex: none; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+.fever__bubble { position: relative; padding: 4px 9px; border-radius: 10px; background: #fff; color: #1c2647; font-size: 12px; line-height: 1.3; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+.fever__bubble::before { content: ''; position: absolute; left: -6px; top: 10px; border: 5px solid transparent; border-right-color: #fff; border-left: 0; }
+/* 地図の ゾーン見出し と ステージも 光る */
+.biome--fever { box-shadow: 0 0 0 2px var(--gold), 0 3px 0 rgba(6,10,26,.5), 0 0 16px rgba(255,212,71,.7), inset 0 1px 0 rgba(255,255,255,.14); }
+.biome__fever { padding: 1px 8px; border-radius: 999px; background: linear-gradient(var(--org-1), var(--org-2)); font-family: var(--f-head); font-size: 11px; color: #fff; box-shadow: 0 2px 0 var(--org-sh); animation: pulse 1.4s ease-in-out infinite; }
+.node--fever .node__dot { box-shadow: 0 5px 0 var(--gold-sh), 0 9px 10px rgba(8,16,44,.45), inset 0 3px 0 rgba(255,255,255,.5), 0 0 0 3px var(--org-1), 0 0 18px rgba(255,160,60,.95); }
+.node--fever.node--now .node__dot { box-shadow: 0 5px 0 var(--org-sh), 0 9px 10px rgba(8,16,44,.45), inset 0 3px 0 rgba(255,255,255,.5), 0 0 0 3px var(--gold), 0 0 24px rgba(255,212,71,1); }
+/* バトル：上の バーの ピル と、さいしょの 1問めの 帯 */
+.pillstat__fever { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: linear-gradient(var(--org-1), var(--org-2)); font-family: var(--f-head); font-size: 11px; color: #fff; font-style: normal; box-shadow: 0 2px 0 var(--org-sh); vertical-align: 1px; }
+.modebanner { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); z-index: 7; max-width: 340px; padding: 6px 14px 7px;
+              background: rgba(10,14,34,.9); border: 2px solid var(--gold); border-radius: 10px; text-align: center; line-height: 1.3;
+              animation: modeBanner 2.6s ease-out forwards; }
+.modebanner--fever { border-color: var(--org-1); box-shadow: 0 0 18px rgba(255,160,60,.7); }
+.modebanner b { display: block; font-family: var(--f-head); font-size: 15px; color: var(--gold); text-shadow: 0 1px 0 rgba(0,0,0,.7); }
+.modebanner span { display: block; font-size: 11px; color: #ffe9a8; }
+@keyframes modeBanner { 0% { opacity: 0; transform: translate(-50%, -8px) scale(.92); } 12% { opacity: 1; transform: translate(-50%, 0) scale(1); } 85% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .modebanner, .fever::before { animation-duration: .01s; } }
+/* けっか画面の 1行 */
+.rs__fever { margin: -2px 0 0; padding: 4px 10px; border-radius: 10px; text-align: center; font-size: 12px; line-height: 1.35; color: #ffe0b8; background: rgba(255,143,94,.16); box-shadow: inset 0 0 0 2px var(--org-1); }
+/* おうちの人ページ */
+.pfever { margin-bottom: 18px; }
+.pfever__now { margin: 0 0 4px; font-family: var(--f-head); font-size: 15px; color: var(--gold-lt); }
+.pfever__list { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 8px; }
+.pfever__row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.4fr; gap: 4px; align-items: center; padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,.06); font-size: 12px; color: #c6d2ee; }
+.pfever__row.is-fever { box-shadow: inset 0 0 0 2px var(--org-1); color: #fff; }
+.pfever__name { font-family: var(--f-head); font-size: 13px; color: #fff; }
+.pfever__lv { text-align: right; color: #ffe9a8; }
 .maptop__row { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px 0; background: var(--bg-2); }
 .maptop__row .btn { flex: 1 1 40%; min-height: 46px; padding: 0 6px; font-size: 13px; white-space: nowrap; }
 /* がくねん えらび（v4.5）。予習・復習で いつでも 変えられる。★＝その子の 学年 */

@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/pals.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
 
 const MQ = global.MQ;
@@ -2562,6 +2562,110 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     const rg2 = G.riderGuess(blobArt(32, 32, 20, 14, [200, 150, 90], []), N);
     check(!rg2 || rg2.score < 0.62, 'ただの まるは 乗って いない（' + (rg2 ? rg2.score.toFixed(2) : 'なし') + '）');
   })();
+})();
+
+/* ===== きょうの フィーバー教科 と サポート（v7.2）===== */
+(function () {
+  const F = MQ.fever;
+  check(!!F, 'fever: MQ.fever が ある');
+  if (!F) return;
+  const prevId = MQ.save.get().currentId;
+  const p = MQ.save.createPlayer('フィーバー', null, 3);
+  F.setNow(new Date(2026, 8, 5));
+  check(Array.isArray(Object.keys(p.areaPlays)) && p.fever === null && p.feverPick === null, 'fever: 新しい プレイヤーの 入れもの');
+  const cands = F.candidates().map(function (a) { return a.id; });
+  check(cands.join(',') === 'sansu,kokugo,rikashakai,eigo', 'fever: 小3の 候補は 4教科 ' + cands.join(','));
+
+  // いちばん やって いない 教科 → 同じ 回数なら 正解率の 低い ほう
+  p.areaPlays = { 'g3:sansu': 10, 'g3:kokugo': 2, 'g3:rikashakai': 2, 'g3:eigo': 2 };
+  p.stats = { rows: { 'kokugo3-1': { ok: 10, n: 10, r: '1111111111' }, 'rikashakai3-1': { ok: 5, n: 10, r: '1010101010' } }, wrong: {} };
+  check(F.choose(p) === 'eigo', 'fever: 回数が 同じなら 記ろくの ない 教科（英語）' + F.choose(p));
+  p.stats.rows['eigo3-1'] = { ok: 5, n: 5, r: '11111' };
+  check(F.choose(p) === 'rikashakai', 'fever: つぎは 正解率の 低い 理社 ' + F.choose(p));
+  p.areaPlays['g3:kokugo'] = 0;
+  check(F.choose(p) === 'kokugo', 'fever: 回数が いちばん 少ない 国語 ' + F.choose(p));
+  const t1 = F.today(p);
+  check(t1 && t1.areaId === 'kokugo' && t1.name === '国語の森' && t1.xpMul === 2 && t1.coins === 1 && t1.support === false && t1.level === 'ok', 'fever: today ' + JSON.stringify(t1 && { a: t1.areaId, s: t1.support, l: t1.level }));
+  check(F.today(p) === t1 || F.today(p).areaId === 'kokugo', 'fever: 同じ日は 変わらない');
+  check(F.isFever(p, 'kokugo') && !F.isFever(p, 'sansu'), 'fever: isFever');
+  // おうちの人の えらび
+  p.feverPick = 'sansu';
+  check(F.today(p).areaId === 'sansu', 'fever: 教科を えらぶ');
+  p.feverPick = 'off';
+  check(F.today(p) === null, 'fever: なし');
+  p.feverPick = 'xxx';
+  check(F.today(p).areaId === 'kokugo', 'fever: 知らない えらびは おまかせ');
+  p.feverPick = null;
+  check(F.today(p).areaId === 'kokugo', 'fever: おまかせに もどす');
+  // 日が 変わると 決め直す（国語を 3回 やったら 別の 教科へ）
+  p.areaPlays['g3:kokugo'] = 3;
+  check(F.today(p).areaId === 'kokugo', 'fever: その日の うちは 同じ');
+  F.setNow(new Date(2026, 8, 6));
+  check(F.today(p).areaId === 'rikashakai', 'fever: つぎの日は 正解率の 低い 理社 ' + F.today(p).areaId);
+  // サポートの 見きわめ
+  check(F.level(p, 'kokugo') === 'ok' && F.level(p, 'rikashakai') === 'weak' && F.level(p, 'sansu') === 'new', 'fever: level ' + [F.level(p, 'kokugo'), F.level(p, 'rikashakai'), F.level(p, 'sansu')].join(','));
+  check(F.needsSupport(p, 'rikashakai') && F.needsSupport(p, 'sansu') && !F.needsSupport(p, 'kokugo'), 'fever: needsSupport');
+  const bo = F.battleOpts(p, 'rikashakai');
+  check(bo.fever && bo.fever.xpMul === 2 && bo.support && bo.support.level === 'weak' && bo.support.keep === 2, 'fever: battleOpts ' + JSON.stringify(bo));
+  check(F.battleOpts(p, 'kokugo').fever === null && F.battleOpts(p, 'kokugo').support === null, 'fever: 国語は なし');
+  // 相棒の おねがい
+  check(F.palLine(p) === null, 'fever: 相棒が いなければ おねがい なし');
+  MQ.pals.add(p, 'slime-green');
+  const pl = F.palLine(p);
+  check(pl && pl.pal.id === 'slime-green' && pl.text.indexOf('理科社会の海') !== -1, 'fever: 相棒の おねがい ' + (pl && pl.text));
+  // たたかった 回数
+  check(F.addPlay(p, 'eigo') === 3 && F.plays(p, 'eigo') === 3, 'fever: addPlay');
+  check(F.overview(p).length === 4 && F.overview(p)[3].plays === 3, 'fever: overview');
+
+  // ---- たたかいの 中 ----
+  const st = MQ.content.findStage('kokugo3-1').stage;
+  MQ.battle.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12,
+    pal: { id: 'slime-green', name: 'スライム' },
+    fever: { xpMul: 2, coins: 1, palPlus: 1 }, support: { easy: true, hint: true, keep: 2, extra: 3, level: 'weak' } });
+  check(MQ.battle.mobTotal() === 12, 'fever: ザコは 12体の まま ' + MQ.battle.mobTotal());
+  check(MQ.battle.buffs().freeze === 2 && MQ.battle.buffs().palPlus === 1, 'fever: コンボ ガード 2・なかまゲージ +1 ' + JSON.stringify(MQ.battle.buffs()));
+  const q1 = MQ.battle.current();
+  const h1 = MQ.battle.preHint();
+  check(h1 && h1.kind === 'eliminate' && h1.remove.length === 1, 'support: えらぶ問題は ヒントで 1つ 消す ' + JSON.stringify(h1));
+  check(MQ.battle.preHint() === null, 'support: 同じ 問題に 2回は 出さない');
+  check(MQ.battle.canUse('x').ok === false, 'support: canUse は こわれない');
+  // むずかしさの ならび（5/5/2）と けいけんち 2ばい
+  const lvs = [];
+  let xp1 = null;
+  while (MQ.battle.phase() === 'mob') {
+    const q = MQ.battle.current();
+    lvs.push(q.lv);
+    const r = MQ.battle.answer(q.answer);
+    if (xp1 === null) xp1 = r.xp;
+    MQ.battle.next();
+  }
+  const cnt = { 1: 0, 2: 0, 3: 0 };
+  lvs.forEach(function (l) { cnt[l]++; });
+  check(cnt[1] === 5 && cnt[2] === 5 && cnt[3] === 2, 'support: やさしい 5・ふつう 5・むずかしい 2 ' + JSON.stringify(cnt));
+  check(xp1 === MQ.battle.XP.mob * 2, 'fever: 1体めの けいけんちが 2ばい ' + xp1);
+  check(MQ.battle.preHint() === null, 'support: ボスには ヒントを 先に 出さない');
+  const sm = MQ.battle.summary();
+  check(sm.fever === true && sm.feverBonus > 0 && sm.feverBonus === sm.baseXp / 2 && sm.feverCoins === 1 && sm.coins >= 1 && sm.support === 'weak', 'fever: summary ' + JSON.stringify({ b: sm.feverBonus, base: sm.baseXp, c: sm.feverCoins, coins: sm.coins, s: sm.support }));
+  // タイムアタック・とっくんでは きかない
+  MQ.battle.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, timeAttack: 20,
+    fever: { xpMul: 2, coins: 1, palPlus: 1 }, support: { easy: true, hint: true, keep: 2, extra: 3, level: 'weak' } });
+  check(MQ.battle.fever() === null && MQ.battle.support() === null && MQ.battle.buffs().freeze === 0 && MQ.battle.preHint() === null, 'fever: タイムアタックでは なし');
+  const sq = { id: 'k1', type: 'number', prompt: '1+1', answer: 2, unit: 'x' };
+  MQ.battle.start({ stage: st, mode: 'tokkun', escaped: [{ key: 'k1', q: sq, enemyId: 'slime-green' }], fever: { xpMul: 2, coins: 1, palPlus: 1 }, support: { easy: true, hint: true, keep: 2, level: 'weak' } });
+  check(MQ.battle.fever() === null && MQ.battle.support() === null && MQ.battle.summary().feverBonus === 0, 'fever: とっくんでは なし');
+  // サポートだけ（フィーバー なし）でも けいけんちは ふつう
+  MQ.battle.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, support: { easy: true, hint: true, keep: 2, extra: 3, level: 'new' } });
+  const r0 = MQ.battle.answer(MQ.battle.current().answer);
+  check(r0.xp === MQ.battle.XP.mob && MQ.battle.summary().feverBonus === 0 && MQ.battle.summary().support === 'new', 'support だけ: けいけんち ふつう ' + r0.xp);
+  // 古い セーブにも 入れものが つく
+  const old = { id: 'o', name: 'o', grade: 3, xp: 0 };
+  MQ.save.importText(JSON.stringify({ version: 2, players: [old], currentId: 'o', settings: {} }));
+  const mig = MQ.save.current();
+  check(mig && typeof mig.areaPlays === 'object' && mig.fever === null && mig.feverPick === null, 'fever: 古い セーブの 入れもの');
+  F.setNow(null);
+  MQ.save.load();
+  if (prevId) MQ.save.setCurrent(prevId);
+  console.log('fever: 候補 ' + cands.length + '・ならび ' + lvs.join(''));
 })();
 
 /* ===== 読みこみの じゅんばん（v5.0.1）=====

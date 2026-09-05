@@ -14,6 +14,7 @@ MQ.ui.battle = (function () {
   const MOBS = 12;              // ザコの数（やさしい4 → ふつう4 → むずかしい4）
   const REVENGE_MAX = 2;
   const RARE_CHANCE = 0.4;
+  const RARE_CHANCE_FEVER = 0.8;   // フィーバー教科（v7.2）では レア（じぶんの モンスターも）が 出やすい
   const TRIO_CHANCE = 0.35;
 
   let d = null;
@@ -189,8 +190,11 @@ MQ.ui.battle = (function () {
       const opened = ctx.area.stages.filter(function (st) { return MQ.content.isAvailable(st); });
       const hard = opened.length > 1 ? Math.max(0, opened.indexOf(found.stage)) / (opened.length - 1) : 0.5;
       const enemies = MQ.enemies.pickIds(ctx.area.id, MOBS, hard);
+      // きょうの フィーバー教科 と サポート（v7.2）。タイムアタックでは なし
+      const fs = (MQ.fever && !ctx.timeAttack) ? MQ.fever.battleOpts(player, ctx.area.id) : { fever: null, support: null };
+      ctx.fever = fs.fever; ctx.support = fs.support;
       let rareId = null;
-      if (Math.random() < RARE_CHANCE) {
+      if (Math.random() < (fs.fever ? RARE_CHANCE_FEVER : RARE_CHANCE)) {
         rareId = Math.random() < 0.5 ? MQ.enemies.goldenId() : MQ.enemies.rareIdFor(ctx.area.id);
       }
       let trioIds = null;
@@ -202,7 +206,8 @@ MQ.ui.battle = (function () {
         escaped: escaped, enemies: enemies, bossId: boss.id,
         rareId: rareId, trioIds: trioIds, chest: true, mobs: MOBS,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
-        gear: MQ.hero.gearPower(player)
+        gear: MQ.hero.gearPower(player),
+        fever: fs.fever, support: fs.support
       });
     }
 
@@ -211,7 +216,29 @@ MQ.ui.battle = (function () {
     paintScene(isTower ? 'tower' : (ctx.area.biome || 'mountain'));
     MQ.bgm.play(isTower ? 'maou' : 'battle');
     MQ.ui.show('screen-battle');
-    if (isTower) towerIntro(); else renderQuestion();
+    if (isTower) towerIntro(); else { renderQuestion(); modeBanner(); }
+  }
+
+  /* きょうの フィーバー教科 と サポート（v7.2）：
+       上の バーの「てき 1 / 12」の ピルに「×2」の しるし（renderCount・たたかいの あいだ ずっと）と、
+       さいしょの 1問めに 出る 帯（けいけんち 2ばい／やさしく スタート）。
+       帯が 出ている あいだは ふきだしを 消す（かさならない ように）。
+       ※ べつの ピルに すると 3段目に 落ちて HPバーと ふきだしが かさなる ので ピルの 中に 入れる */
+  function modeBanner() {
+    const fv = MQ.battle.fever ? MQ.battle.fever() : null;
+    const sp = MQ.battle.support ? MQ.battle.support() : null;
+    if (!fv && !sp) return;
+    const lines = [];
+    if (fv) lines.push(h('b', { text: 'フィーバー教科！ けいけんち ' + (fv.xpMul || 2) + 'ばい' }));
+    if (fv && palNow) lines.push(h('span', { text: palNow.name + 'も はりきって いる！ なかまゲージ 2ばい' }));
+    if (sp) lines.push(h('span', { text: MQ.fever ? MQ.fever.supportText(sp.level) : 'やさしく スタート！' }));
+    const b = h('div', { class: 'modebanner' + (fv ? ' modebanner--fever' : '') }, lines);
+    d.fx.appendChild(b);
+    if (d.msg) d.msg.classList.add('is-quiet');
+    setTimeout(function () {
+      b.remove();
+      if (d.msg) d.msg.classList.remove('is-quiet');
+    }, 2600);
   }
 
   // にげた敵だけと たたかう（とっくん）
@@ -458,6 +485,9 @@ MQ.ui.battle = (function () {
 
     renderAnswerArea(q);
     fitPrompt();      // メモ欄・キーが そろった あとで もう一度（v5.6）
+    // サポート（v7.2）：にがて・はじめての 教科では ヒントが 先に 出る（ザコだけ）
+    const ph = MQ.battle.preHint ? MQ.battle.preHint() : null;
+    if (ph) showHint(ph, q, -1);
   }
 
   // 上の バー（ザコの ときは のこりの数、ボスの ときは 出題数と HP）
@@ -469,6 +499,11 @@ MQ.ui.battle = (function () {
       : (ctx.tokkun ? '<span>とっくん</span>' : '<span>てき</span>');
     if (!bossPhase) {
       d.count.appendChild(h('b', { text: (MQ.battle.mobIndex() + 1) + ' / ' + MQ.battle.mobTotal() }));
+    }
+    // フィーバー教科（v7.2）：けいけんち 2ばいの しるし
+    const fv = MQ.battle.fever ? MQ.battle.fever() : null;
+    if (fv) d.count.appendChild(h('i', { class: 'pillstat__fever', text: '×' + (fv.xpMul || 2) }));
+    if (!bossPhase) {
       setProgress(1 - MQ.battle.mobIndex() / Math.max(1, MQ.battle.mobTotal()));
     } else {
       d.count.appendChild(h('b', { text: MQ.battle.bossAsked() + ' / ' + MQ.battle.bossMax() }));
@@ -1754,6 +1789,8 @@ MQ.ui.battle = (function () {
       if (sum.fastBonus) p.fastCount = (p.fastCount || 0) + 1;
       if ((sum.maxCombo || 0) > (p.bestCombo || 0)) p.bestCombo = sum.maxCombo;
       p.revengeWins = (p.revengeWins || 0) + (sum.revengeBeaten || []).length;
+      // フィーバー教科（v7.2）：教科ごとの たたかった 回数（いちばん やって いない 教科を さがす ため）
+      if (MQ.fever && !ctx.tokkun && !ctx.stage.tower) MQ.fever.addPlay(p, ctx.area.id);
       // とくい・にがて（v7.1）：1問ごとの 結果を 単元ごとに ためる（おうちの人ページ用）
       if (MQ.stats) MQ.stats.record(p, sum);
       // きょうの ミッション（v3.1）：進めて、クリアぶんの コイン・けいけんちは その場で

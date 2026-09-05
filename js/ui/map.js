@@ -313,6 +313,10 @@ MQ.ui.map = (function () {
     const budget = { house: 3, mt: 5 };
     const placed = [];
 
+    // きょうの フィーバー教科（v7.2）。日づけが 変わって いれば ここで 決め直す
+    let feverNow = null;
+    if (MQ.fever) MQ.save.update(function (p) { feverNow = MQ.fever.today(p); });
+
     bands.forEach(function (b) {
       /* ---- かざり（ノードより 下の そう） ---- */
       scatter(b, budget, placed).forEach(function (d) { layer.appendChild(d); });
@@ -321,9 +325,11 @@ MQ.ui.map = (function () {
       const stars = MQ.content.starsIn(player, b.area);
       const need = MQ.content.fragNeed(b.area);
       const got = MQ.content.hasFrag(player, b.area.id);
+      const isFever = !!(feverNow && feverNow.areaId === b.area.id);   // きょうの フィーバー教科（v7.2）
       layer.appendChild(h('div', {
-        class: 'biome', style: { top: b.pillY + 'px' }
+        class: 'biome' + (isFever ? ' biome--fever' : ''), style: { top: b.pillY + 'px' }
       }, [
+        isFever ? h('span', { class: 'biome__fever', text: 'フィーバー' }) : null,
         h('span', { class: 'biome__name', text: b.area.name }),
         h('span', { class: 'biome__stars', text: got ? '★' + stars + ' ✓' : '★' + stars + ' / ' + need })
       ]));
@@ -350,6 +356,7 @@ MQ.ui.map = (function () {
         if (!unlocked) cls += ' node--lock';
         else if (isNow) cls += ' node--now';
         else if (sc) cls += ' node--clear';
+        if (isFever && unlocked) cls += ' node--fever';   // フィーバー教科の ステージは 光る（v7.2）
 
         const dot = h('span', { class: 'node__dot', text: unlocked ? String(n.idx || st.no) : '?' });
         if (isNow) dot.appendChild(h('span', { class: 'node__here', text: 'いま ここ' }));
@@ -415,6 +422,7 @@ MQ.ui.map = (function () {
     /* ---- 上の ヘッダー ---- */
     const top = h('div', { class: 'maptop' }, [
       MQ.ui.hud(player),
+      feverPanel(player, feverNow),
       missionPanel,
       h('div', { class: 'maptop__row' }, [
         h('button', { class: 'btn btn--stone', type: 'button', text: '図かん', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
@@ -451,6 +459,41 @@ MQ.ui.map = (function () {
       const sc = document.querySelector('#screen-map .map__scroll');
       if (el && sc) sc.scrollTop = Math.max(0, el.offsetTop - sc.clientHeight * 0.45);
     }, 0);
+  }
+
+  /* =======================================================
+     きょうの フィーバー教科（v7.2）：HUD の すぐ 下の オレンジの 帯。
+       いちばん やって いない 教科が「きょうは おトク」に なる
+       （けいけんち 2ばい・コイン +1・レアが 出やすい・なかまゲージ 2ばい）。
+       相棒が いれば ふきだしで「行きたいな！」と おねがい する。
+       「いく ▶」で その ゾーンまで スクロール。ルールは js/core/fever.js
+     ======================================================= */
+  function feverPanel(player, fv) {
+    if (!fv) return null;
+    const line = MQ.fever.palLine(player);
+    const band = bands.filter(function (b) { return b.area.id === fv.areaId; })[0];
+    return h('div', { class: 'fever' }, [
+      h('div', { class: 'fever__row' }, [
+        h('span', { class: 'fever__star' }),
+        h('div', { class: 'fever__mid' }, [
+          h('span', { class: 'fever__label', text: 'きょうの フィーバー教科' }),
+          h('span', { class: 'fever__name', text: fv.name })
+        ]),
+        h('button', {
+          class: 'btn btn--small fever__go', type: 'button', text: 'いく ▶',
+          onclick: function () {
+            MQ.sfx.tap();
+            const sc = document.querySelector('#screen-map .map__scroll');
+            if (sc && band) sc.scrollTo({ top: Math.max(0, band.top - 16), behavior: 'smooth' });
+          }
+        })
+      ]),
+      h('span', { class: 'fever__sub', text: 'けいけんち 2ばい・コイン +1・レアが 出やすい' + (line ? '・なかまゲージ 2ばい' : '') }),
+      line ? h('div', { class: 'fever__pal' }, [
+        h('span', { class: 'fever__palimg' }, [MQ.enemies.node(line.pal.id, { size: 30 })]),
+        h('span', { class: 'fever__bubble', text: line.pal.name + '「' + line.text + '」' })
+      ]) : null
+    ]);
   }
 
   /* =======================================================
