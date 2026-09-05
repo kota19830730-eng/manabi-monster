@@ -1936,6 +1936,37 @@ check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅ�
   check(MQ.stats.levelOf(85, 5) === 'good' && MQ.stats.levelOf(84, 5) === 'mid' && MQ.stats.levelOf(59, 5) === 'weak' && MQ.stats.levelOf(100, 4) === 'few', 'しきい値');
   MQ.save.deletePlayer(sp.id);
 })();
+/* ---- 期間・日ごと・成長（v7.3・おうちの人ページ） ---- */
+(function () {
+  const sp = MQ.save.createPlayer('期間テスト', null, 3);
+  const S = MQ.stats;
+  const mk = function (stageId, unit, pat, sec) { return pat.split('').map(function (c, i) { return { stageId: stageId, unit: unit, type: 'number', ok: c === '1', given: c === '1' ? null : 'x', answer: 'y', prompt: unit + ' 問題' + i, sec: sec || 10 }; }); };
+  // 2026-09-05 は 土曜。今週＝8/30（日）〜9/5、先週＝8/23〜8/29
+  S.setNow(new Date(2026, 7, 25)); MQ.save.update(function (p) { S.record(p, { results: mk('sansu3-1', 'a', '1111100000', 20) }); });
+  S.setNow(new Date(2026, 8, 1));  MQ.save.update(function (p) { S.record(p, { results: mk('sansu3-1', 'a', '11111111', 10) }); });
+  S.setNow(new Date(2026, 8, 5));  MQ.save.update(function (p) { S.record(p, { results: mk('sansu3-2', 'b', '1100', 10) }); });
+  const p = MQ.save.current();
+  check(Object.keys(p.stats.days).length === 3 && p.stats.days['2026-09-05'].u['sansu3-2'][1] === 4, '日ごとの 記録 3日: ' + Object.keys(p.stats.days).join(','));
+  const w = S.period(p, 'week');
+  check(w.n === 12 && w.ok === 10 && w.pct === 83 && w.days === 2 && w.daysTotal === 7 && w.label === '8/30 – 9/5', '今週: ' + JSON.stringify([w.n, w.ok, w.pct, w.days, w.label]));
+  check(w.prev.n === 10 && w.prev.pct === 50 && w.deltaN === 2 && w.deltaPct === 33, '先週と くらべる: ' + JSON.stringify(w.prev));
+  check(w.dots.length === 7 && w.dots.filter(function (d) { return d.on; }).length === 2 && w.dots[6].on === true && w.dots[6].future === false, '曜日の 点');
+  check(w.avgSec === 10 && w.prev.avgSec === 20, '1問の 時間 ' + w.avgSec + '/' + w.prev.avgSec);
+  const m = S.period(p, 'month'); check(m.n === 12 && m.prev.n === 10 && m.label === '9月', '今月: ' + JSON.stringify([m.n, m.prev.n, m.label]));
+  const a = S.period(p, 'all'); check(a.n === 22 && a.days === 3 && a.prev === null, 'すべて');
+  const d = S.daily(p, 14); check(d.length === 14 && d[13].today && d[13].n === 4 && d[9].n === 8 && d[0].n === 0, '14日: ' + d.map(function (x) { return x.n; }).join(','));
+  const wk = S.weekly(p, 8); check(wk.length === 8 && wk[7].current && wk[7].pct === 83 && wk[6].pct === 50 && wk[0].pct === null, '8週: ' + wk.map(function (x) { return x.pct; }).join(','));
+  const g = S.growth(p, 3);
+  check(g.weeksWithData === 2 && g.first.pct === 50 && g.last.pct === 83 && g.delta === 33 && g.secNow === 10 && g.secPrev === 20, '成長: ' + JSON.stringify([g.first.pct, g.last.pct, g.delta, g.secNow, g.secPrev]));
+  check(g.masteredNow === 0 && g.masteredPrev === 0, '身についた 単元（まだ 0）');
+  const imp = S.improved(p, 3, 2); check(imp.length === 1 && imp[0].id === 'sansu3-1' && imp[0].pctNow === 100 && imp[0].pctPrev === 50, 'のびた: ' + JSON.stringify(imp));
+  const rp = S.report(p, 3); check(rp.rows.length === 2 && rp.wrong.length >= 1 && rp.notes.length >= 1 && rp.period.n === 12, 'レポート: ' + rp.notes.join('/'));
+  S.setNow(new Date(2026, 6, 20)); MQ.save.update(function (p2) { S.record(p2, { results: mk('kokugo3-1', 'c', '11111', 10) }); });
+  check(S.masteredCount(MQ.save.current(), 3, new Date(2026, 7, 6)) === 1, '30日前に 身について いた 単元（kokugo3-1）');
+  S.setNow(null);
+  check(MQ.save.setGrade(6) === false && MQ.save.setGrade(2) === true && MQ.save.current().grade === 2 && MQ.save.current().playGrade === 2 && MQ.save.current().term === 0, 'setGrade');
+  MQ.save.deletePlayer(sp.id);
+})();
 (function () {
   const gp = MQ.save.createPlayer('がくねんテスト', null, 3);
   check(gp.grade === 3, 'つくった プレイヤーに がくねんが 入る');
@@ -2626,7 +2657,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(MQ.battle.buffs().freeze === 2 && MQ.battle.buffs().palPlus === 1, 'fever: コンボ ガード 2・なかまゲージ +1 ' + JSON.stringify(MQ.battle.buffs()));
   const q1 = MQ.battle.current();
   const h1 = MQ.battle.preHint();
-  check(h1 && h1.kind === 'eliminate' && h1.remove.length === 1, 'support: えらぶ問題は ヒントで 1つ 消す ' + JSON.stringify(h1));
+  check(h1 && (h1.kind === 'text' ? !!h1.text : (h1.kind === 'eliminate' && h1.remove.length === 1)), 'support: ヒントが 先に 出る（文が あれば 文・なければ 1つ 消す） ' + JSON.stringify(h1));
   check(MQ.battle.preHint() === null, 'support: 同じ 問題に 2回は 出さない');
   check(MQ.battle.canUse('x').ok === false, 'support: canUse は こわれない');
   // むずかしさの ならび（5/5/2）と けいけんち 2ばい
@@ -2666,6 +2697,90 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   MQ.save.load();
   if (prevId) MQ.save.setCurrent(prevId);
   console.log('fever: 候補 ' + cands.length + '・ならび ' + lvs.join(''));
+})();
+
+/* ===== ごちゃまぜ バトル ＋ ミッションの 寄せ（v7.3）===== */
+(function () {
+  const F = MQ.fever, M = MQ.missions, C = MQ.content;
+  const prevId = MQ.save.get().currentId;
+  const p = MQ.save.createPlayer('ミックス', null, 3);
+  F.setNow(new Date(2026, 8, 5));
+  p.feverPick = 'kokugo';
+  // 入口
+  const f = C.findStage('mix3');
+  check(f && f.stage.mix && f.area.id === 'mix' && f.world.grade === 3 && f.stage.id === C.mixStage().id, 'mix: findStage / mixStage');
+  check(C.findStage('mix6') === null, 'mix: 開いて いない 学年は ない');
+  check(C.mixOpen(p) === true && C.mixGroups(p).length === 4, 'mix: 小3は 4教科 ' + C.mixGroups(p).length);
+  // 12問 → 教科ごとに 3問ずつ・id は mix3: で はじまる・教科の モンスター・単元に 教科名
+  const qs = f.stage.make(12, {});
+  const per = {};
+  qs.forEach(function (q) { per[q.areaId] = (per[q.areaId] || 0) + 1; });
+  check(qs.length === 12 && per.sansu === 3 && per.kokugo === 3 && per.rikashakai === 3 && per.eigo === 3, 'mix: 教科ごとに 3問 ' + JSON.stringify(per));
+  check(qs.every(function (q) { return q.id.indexOf('mix3:') === 0 && q.stageId && q.enemyId && q.unit.indexOf(' ・ ') > 0 || q.unit.length > 0; }), 'mix: id・stageId・enemyId・単元');
+  check(qs.every(function (q) { const e = MQ.enemies.get(q.enemyId); return e && (MQ.enemies.poolArea(e.area) === MQ.enemies.poolArea(q.areaId) || e.any); }), 'mix: モンスターは その 教科の もの');
+  qs.forEach(function (q, i) { validate(q, 'mix ' + i); });
+  const lv = { 1: 0, 2: 0, 3: 0 };
+  qs.forEach(function (q) { lv[q.lv === 1 || q.lv === 3 ? q.lv : 2]++; });
+  check(lv[1] === 4 && lv[2] === 4 && lv[3] === 4, 'mix: むずかしさ 4/4/4 ' + JSON.stringify(lv));
+  // 13問（5教科）・2問（少ない とき）も こわれない
+  check(f.stage.make(2, {}).length === 2 && f.stage.make(13, {}).length === 13, 'mix: 2問・13問');
+  // ボスは えらんだ 教科から
+  const bq = f.stage.make(1, { boss: true, index: 0, bossArea: 'eigo' })[0];
+  check(bq && bq.areaId === 'eigo' && bq.lv === 3 && bq.id.indexOf('mix3:') === 0, 'mix: ボスは 英語 ' + (bq && bq.areaId));
+  check(f.stage.make(1, { boss: true, index: 0, bossArea: 'zzz' })[0].areaId, 'mix: 知らない 教科なら くじ');
+  // たからばこ（lv 2）
+  const cq = f.stage.make(1, { boss: false, lv: 2 })[0];
+  check(cq && cq.lv === 2, 'mix: たからばこの 問題 lv2');
+  // core：問題の モンスターが そのまま・ボスは bossArea・コイン +1・★は 画面がわで つけない
+  MQ.battle.start({ stage: f.stage, mode: 'normal', mix: true, bossArea: 'kokugo', enemies: [], bossId: 'boss-oni', mobs: 12, chest: true });
+  check(MQ.battle.mobTotal() === 13, 'mix: 12体＋たからばこ ' + MQ.battle.mobTotal());
+  let areas = {}, lvs = [];
+  while (MQ.battle.phase() === 'mob') {
+    const q = MQ.battle.current();
+    if (!q.chest) { areas[q.areaId] = 1; lvs.push(q.lv); check(q.enemyId !== 'slime-green' || MQ.enemies.get(q.enemyId), 'mix core: enemyId'); }
+    MQ.battle.answer(q.type === 'choice' ? q.answer : q.type === 'number' ? q.answer : q.type === 'roma' ? q.answer : q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : { q: q.answer.q, r: q.answer.r });
+    MQ.battle.next();
+  }
+  check(Object.keys(areas).length === 4 && lvs.join('') === '111122223333', 'mix core: 4教科・やさしい → むずかしい ' + lvs.join(''));
+  check(MQ.battle.phase() === 'boss' && MQ.battle.current().areaId === 'kokugo' && MQ.battle.current().boss, 'mix core: ボスは 国語 ' + MQ.battle.current().areaId);
+  const sm = MQ.battle.summary();
+  check(sm.mix === true && sm.mixCoins === 1 && sm.coins >= 2 && sm.results.every(function (r) { return r.stageId && r.stageId.indexOf('mix') !== 0; }), 'mix core: summary ' + JSON.stringify({ mix: sm.mix, c: sm.mixCoins, coins: sm.coins }));
+  // ふつうの たたかいでは mixCoins 0
+  MQ.battle.start({ stage: C.findStage('sansu3-1').stage, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12 });
+  MQ.battle.answer(MQ.battle.current().answer);
+  check(MQ.battle.summary().mixCoins === 0 && !MQ.battle.summary().mix, 'mix core: ふつうは なし');
+  // 小1（2教科）でも 開く
+  MQ.save.update(function (pl) { pl.playGrade = 1; });
+  const f1 = C.findStage('mix1');
+  check(f1 && C.mixOpen(MQ.save.current()) && f1.stage.make(12, {}).length === 12, 'mix: 小1でも 12問');
+  MQ.save.update(function (pl) { pl.playGrade = 3; });
+
+  // ---- ミッションの 寄せ（v7.3）：「○○で たたかう」は 7割 フィーバー教科・コイン 2 ----
+  M.setNow(new Date(2026, 8, 5));
+  let fevN = 0, N = 60, rewardOk = true, textOk = true;
+  for (let i = 0; i < N; i++) {
+    const list = M.generate(MQ.save.current());
+    list.forEach(function (m) {
+      if (m.id !== 'area') return;
+      if (m.fever) { fevN++; if (m.reward !== M.REWARD_FEVER || m.param !== 'kokugo' || m.text.indexOf('（フィーバー）') === -1) rewardOk = false; }
+      else if (m.reward !== M.REWARD_EACH || m.text.indexOf('フィーバー') !== -1) textOk = false;
+    });
+  }
+  check(fevN > 0 && rewardOk && textOk, 'missions: フィーバーの「たたかう」は 国語・コイン 2・文に（フィーバー）' + fevN + '/' + N);
+  // クリアで 2まい 入る
+  const pm = MQ.save.current();
+  pm.missions = { day: M.dayKey(), claimedAll: false, list: [
+    { id: 'area', target: 1, count: 0, done: false, text: 'a', param: 'kokugo', fever: true, reward: 2 },
+    { id: 'battle', target: 9, count: 0, done: false, text: 'b', reward: 1 },
+    { id: 'correct', target: 99, count: 0, done: false, text: 'c' }
+  ] };
+  const c0 = pm.coins;
+  const r = M.progress(pm, { mode: 'normal', correct: 5, total: 12 }, { areaId: 'kokugo' });
+  check(r.completed.length === 1 && r.coins === 2 && pm.coins === c0 + 2, 'missions: フィーバーの ミッションは コイン 2 ' + r.coins);
+  M.setNow(null); F.setNow(null);
+  MQ.save.load();
+  if (prevId) MQ.save.setCurrent(prevId);
+  console.log('mix: 12問 ' + JSON.stringify(per));
 })();
 
 /* ===== 読みこみの じゅんばん（v5.0.1）=====

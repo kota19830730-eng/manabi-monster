@@ -60,9 +60,10 @@ MQ.ui.result = (function () {
     const tower = !!ctx.stage.tower;
     const perfect = sum.total > 0 && sum.correct === sum.total;
 
+    const mix = !!ctx.mix;
     const label = tower && sum.bossBeaten ? MQ.content.lastBoss().name + 'を たおした！'
       : sum.stars === 3 ? 'パーフェクト！'
-      : sum.stars >= 1 ? 'ステージ クリア！'
+      : sum.stars >= 1 ? (mix ? 'ごちゃまぜ クリア！' : 'ステージ クリア！')
       : tokkun ? 'とっくん おわり' : 'ざんねん…';
     const mood = tower && sum.bossBeaten ? 'rs--maou' : sum.stars >= 1 ? '' : 'rs--sad';
 
@@ -142,6 +143,9 @@ MQ.ui.result = (function () {
     let fever = null;
     if (sum.feverBonus || sum.feverCoins) {
       fever = h('p', { class: 'rs__fever', text: 'フィーバー教科！　けいけんち +' + (sum.feverBonus || 0) + (sum.feverCoins ? '・コイン +' + sum.feverCoins : '') });
+    } else if (mix && sum.mixCoins) {
+      // ごちゃまぜ バトル（v7.3）：★の かわりに コイン
+      fever = h('p', { class: 'rs__fever', text: 'ごちゃまぜ バトル！　ぜんぶの 教科で たたかった　コイン +' + sum.mixCoins });
     }
 
     /* ---- 3b. なかま（v4.3）：そだった ぶんと、なかまに なりたい 子 ---- */

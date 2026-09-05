@@ -270,6 +270,79 @@ MQ.content = (function () {
     };
   }
 
+  /* =======================================================
+     ごちゃまぜ バトル（v7.3）：ぜんぶの 教科が まざる 1回の たたかい。
+       「国語を やるか どうか」を さいしょに 決めさせない ための 入口
+       （得意な 教科ばかりに ならない ように・v7.2 の つづき）。
+       ・ザコは 開いている（あそべる）教科から 同じ 数ずつ（12体・4教科 → 3体ずつ）。
+         どの 教科も やさしい → ふつう → むずかしい が まざり、core が ならべ直す
+       ・ボスは 1教科（画面が フィーバー教科を えらぶ。opts.bossArea）
+       ・★・さいこう記ろく・たからものは つかない。おわりに コイン +1（core の summary）
+       ・まちがえた 敵は その 問題の 教科の「にげた敵」に 入る（q.areaId）
+       ・とくい・にがて は もとの ステージに ためる（q.stageId）
+       ・フィーバー教科の「たたかった 回数」には 数えない（ui/battle.js）
+     ======================================================= */
+  const MIX = {};   // 学年 → { stage, area }
+
+  // 教科ごとの あそべる ステージ（開いている ＋ 前の ステージで ★を とった）
+  function mixGroups(player) {
+    const out = [];
+    subjectAreas().forEach(function (a) {
+      const open = a.stages.filter(function (st) { return isAvailable(st) && isUnlocked(player, a, st); });
+      if (open.length) out.push({ area: a, stages: open });
+    });
+    return out;
+  }
+  function mixOpen(player) { return mixGroups(player).length >= 2; }
+
+  function makeMixStage(grade) {
+    const stage = {
+      id: 'mix' + grade, no: 1, name: 'ごちゃまぜ バトル', available: true, mix: true,
+      make: function (n, opts) {
+        opts = opts || {};
+        const player = (MQ.save && MQ.save.current) ? MQ.save.current() : null;
+        const groups = mixGroups(player);
+        if (!groups.length) return [];
+        function tag(q, g, st) {
+          const c = Object.assign({}, q);
+          c.areaId = g.area.id;
+          c.stageId = st.id;
+          c.id = 'mix' + grade + ':' + q.id;
+          c.unit = (g.area.short || g.area.name) + (q.unit ? ' ・ ' + q.unit : '');
+          return c;
+        }
+        if (opts.boss) {
+          const g = groups.filter(function (x) { return x.area.id === opts.bossArea; })[0] || MQ.util.pick(groups);
+          const st = MQ.util.pick(g.stages);
+          const q = st.make(1, { boss: true, index: opts.index || 0 })[0];
+          return q ? [tag(q, g, st)] : [];
+        }
+        // ザコ：教科ごとに 同じ 数ずつ。むずかしさの じゅんは core（sortByLevel）が ならべる
+        const out = [];
+        groups.forEach(function (g, i) {
+          const k = Math.floor(n / groups.length) + (i < n % groups.length ? 1 : 0);
+          if (!k) return;
+          const st = MQ.util.pick(g.stages);
+          st.make(k, opts.lv ? { lv: opts.lv } : {}).forEach(function (q) {
+            const c = tag(q, g, st);
+            c.enemyId = MQ.enemies.pickIds(g.area.id, 1, 0.5)[0];   // その 教科の モンスターが 出る
+            out.push(c);
+          });
+        });
+        return out;
+      }
+    };
+    return stage;
+  }
+  function mixFor(grade) {
+    if (!MIX[grade]) {
+      const st = makeMixStage(grade);
+      MIX[grade] = { stage: st, area: { id: 'mix', name: 'ごちゃまぜ バトル', short: 'ミックス', biome: 'mountain', mix: true, stages: [st] } };
+    }
+    return MIX[grade];
+  }
+  function mixStage() { return mixFor(activeWorld().grade || 3).stage; }
+
   const towerStage = makeTowerStage(3, TOWER_ORDER3, 'boss-maou');
   const towerStage4 = makeTowerStage(4, TOWER_ORDER4, 'boss-dark');
   const towerStage1 = makeTowerStage(1, TOWER_ORDER12, 'boss-obake');      // 小1：おばけキング（v6.4）
@@ -665,6 +738,11 @@ MQ.content = (function () {
           if (stages[s].id === stageId) return { world: worlds[w], area: areas[a], stage: stages[s] };
         }
       }
+      // ごちゃまぜ バトル（v7.3）：'mix3' の ように 学年ごと
+      if (stageId === 'mix' + worlds[w].grade && !worlds[w].locked) {
+        const m = mixFor(worlds[w].grade);
+        return { world: worlds[w], area: m.area, stage: m.stage };
+      }
     }
     return null;
   }
@@ -772,6 +850,7 @@ MQ.content = (function () {
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,
     fragCount: fragCount, towerOpen: towerOpen, fragKey: fragKey,
     lastBoss: lastBoss, towerStageId: towerStageId, towerName: towerName,
+    mixStage: mixStage, mixOpen: mixOpen, mixGroups: mixGroups,   // ごちゃまぜ バトル（v7.3）
     towerStage1: towerStage1, towerStage2: towerStage2, towerStage5: towerStage5,
     towerStage: towerStage, towerStage4: towerStage4,
     TOWER_ORDER: TOWER_ORDER3, TOWER_ORDER3: TOWER_ORDER3, TOWER_ORDER4: TOWER_ORDER4

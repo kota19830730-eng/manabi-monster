@@ -37,6 +37,7 @@
     #last1 #last1map #last2 #last2map … 小1・小2の さいごの とう（v6.4・おばけキング／かいぞくキャプテン）
     #zu #chizu … 問題の 図（v4.9・地図記号・方位・じしゃく・回路・月）／地図と方位の バトル
     #fever #fever2 #fever3 #feverparent … きょうの フィーバー教科 と サポート（v7.2）
+    #mix #mix2 #mix3 … ごちゃまぜ バトル（v7.3・地図の バー／1問め／けっか画面）
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -49,6 +50,7 @@
 <main id="screen-battle" class="screen"></main>
 <main id="screen-result" class="screen"></main>
 <main id="screen-dex"    class="screen"></main>
+  <main id="screen-parent" class="screen"></main>
 <div id="toast" class="toast" role="status"></div>
 </div>
 <pre id="log" style="position:fixed;left:0;bottom:0;max-height:0;overflow:hidden;opacity:0;margin:0"></pre>
@@ -114,6 +116,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/battle.js"></script>
 <script src="../js/ui/result.js"></script>
 <script src="../js/ui/dex.js"></script>
+<script src="../js/ui/parent.js"></script>
 <script src="../js/ui/photo.js"></script>
 <script src="../js/ui/pixedit.js"></script>
 
@@ -602,7 +605,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (mode.indexOf('eigo5') === 0) { const en = parseInt(mode.slice(6), 10); MQ.ui.battle.start('eigo5-' + (isNaN(en) ? 1 : en)); await wait(600); return; }
       if (mode.indexOf('koku5') === 0) { const kn = parseInt(mode.slice(6), 10); MQ.ui.battle.start('kokugo5-' + (isNaN(kn) ? 1 : kn)); await wait(600); return; }
       if (mode === 'treasure5') { MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
-      if (mode === 'parent5') { MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
+      if (mode === 'parent5') { MQ.ui.parent.open('settings'); return; }
       if (mode === 'figs5') {
         const F = MQ.sansu5.figs5;
         const box = document.createElement('div');
@@ -642,7 +645,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (mode.indexOf('shakai4') === 0) { const sn = parseInt(mode.slice(8), 10); MQ.ui.battle.start('shakai4-' + (isNaN(sn) ? 1 : sn)); await wait(600); return; }
       if (mode.indexOf('eigo4') === 0) { const en = parseInt(mode.slice(6), 10); MQ.ui.battle.start('eigo4-' + (isNaN(en) ? 1 : en)); await wait(600); return; }
       if (mode === 'treasure4') { MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
-      if (mode === 'parent4') { MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
+      if (mode === 'parent4') { MQ.ui.parent.open('settings'); return; }
       MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
       const n4 = parseInt(mode.slice(5), 10);
       if (!isNaN(n4)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n4 < 0 ? 99999 : n4; }
@@ -711,29 +714,49 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         const n = parseInt(mode.slice(6), 10);   // #term1:-1 で いちばん下
         if (!isNaN(n)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n < 0 ? 99999 : n; }
       }
-      else { MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); }
+      else { MQ.ui.parent.open('settings'); }
       const open = [];
       MQ.content.subjectAreas().forEach(function (a) { a.stages.forEach(function (st) { if (MQ.content.isAvailable(st)) open.push(st.id); }); });
       say('term1 open: ' + open.join(' '));
       return;
     }
-    if (mode === 'parent') { fresh(); MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); return; }
-    /* とくい・にがて（v7.1）
-       #stats       … にせの 記ろくを 入れて おうちの人ページ（にがて 1位を ひらいた ところ）
-       #stats:-1    … 同じ・いちばん 下（教科の マップ）
-       #stats2      … 記ろくなし
-       #statsdrill  … 「この 単元を れんしゅう」→ 6問の たたかい → おわったら 記ろくが ふえる */
-    if (mode.indexOf('stats') === 0) {
+    if (mode === 'parent') { fresh(); MQ.ui.parent.open('settings'); return; }
+    /* おうちの人ページ「学習レポート」（v7.3・js/ui/parent.js）
+       #pp            … にせの 記ろく（60日ぶん）を 入れて ホーム
+       #pp:-1 / #pp:N … 同じ・スクロール
+       #pp:month      … 今月に した ホーム
+       #pp:detail     … 単元の くわしい 画面（にがて 1位）
+       #pp:settings   … 設定
+       #pp:report     … 先生用 レポート（画面）＋ 印刷用 HTML の 長さ
+       #pp:empty      … 記ろくなし
+       #pp:drill      … 「この単元を練習させる」→ 6問 → 記ろくが +6 */
+    if (mode === 'pp' || mode.indexOf('pp:') === 0) {
       fresh();
-      if (mode !== 'stats2') {
-        const seed = function (stageId, unit, pat, wrongs) {
+      const sub = mode.split(':')[1] || '';
+      if (sub !== 'empty') {
+        const today = new Date(2026, 8, 5);      // 土曜
+        const seed = function (stageId, unit, pat, wrongs, sec) {
           const res = [];
           pat.split('').forEach(function (c, i) {
             const w = wrongs && wrongs[i % wrongs.length];
-            res.push({ stageId: stageId, unit: unit, type: 'number', ok: c === '1', given: c === '1' ? null : (w ? w[1] : '0'), answer: w ? w[2] : '1', prompt: w ? w[0] : (unit + ' の 問題 ' + i) });
+            res.push({ stageId: stageId, unit: unit, type: 'number', ok: c === '1', given: c === '1' ? null : (w ? w[1] : '0'), answer: w ? w[2] : '1', prompt: w ? w[0] : (unit + ' の 問題 ' + i), sec: sec || 12 });
           });
           return res;
         };
+        // 60日ぶん：週2日 休み・古いほど 正解率 低め・時間 長め
+        const plan = [['sansu3-1', 'かけ算のきまり'], ['sansu3-2', '時間をもとめる'], ['sansu3-4', '暗算'], ['kokugo3-1', 'かん字の読み'], ['kokugo3-3', '主語と述語'], ['rikashakai3-1', '理科／こん虫']];
+        for (let i = 59; i >= 1; i--) {
+          const d = new Date(2026, 8, 5 - i);
+          if (d.getDay() === 2 || d.getDay() === 5) continue;
+          MQ.stats.setNow(d);
+          const rate = 0.55 + (59 - i) / 59 * 0.3;
+          const n = 6 + ((i * 7) % 9);
+          const pk = plan[i % plan.length];
+          let pat = '';
+          for (let k = 0; k < n; k++) pat += (((i * 31 + k * 17) % 100) / 100 < rate) ? '1' : '0';
+          MQ.save.update(function (pl) { MQ.stats.record(pl, { results: seed(pk[0], pk[1], pat, null, 22 - Math.round((59 - i) / 59 * 9)) }); });
+        }
+        MQ.stats.setNow(today);
         MQ.save.update(function (pl) {
           MQ.stats.record(pl, { results: [].concat(
             seed('sansu3-1', 'かけ算のきまり', '11111111110111111111'),
@@ -744,40 +767,54 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
             seed('kokugo3-1', 'かん字の読み', '111111111111'),
             seed('kokugo3-3', '主語と述語', '1011010101', [['「ぼくは 本を 読む」の 主語は？', '本を', 'ぼくは']]),
             seed('rikashakai3-1', '理科／こん虫', '010101101', [['こん虫の あしは 何本？', '8本', '6本'], ['チョウの 育ち方は？', 'たまご→よう虫→せい虫', 'たまご→よう虫→さなぎ→せい虫']]),
-            seed('eigo3-1', 'あいさつ', '101'),
-            seed('sansu2-3', 'ながさ', '1111011111')
+            seed('eigo3-1', 'あいさつ', '101')
           ) });
         });
       }
-      MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex');
-      await wait(200);
       const pl = MQ.save.current();
-      const ov = MQ.stats.overview(pl, 3);
-      say('stats: やった=' + ov.played + ' 学年=' + MQ.stats.gradesWithData(pl).join(',') +
-          ' にがて=' + MQ.stats.weakest(pl, 3, 3).map(function (s) { return s.name + ' ' + s.pct + '%'; }).join(' / '));
-      say('stats: 行=' + document.querySelectorAll('.pstat__row').length + ' 学年チップ=' + document.querySelectorAll('.pstat__grades .chip').length +
-          ' コピー=' + ($('.pstat__copy') ? 'ある' : 'ない') + ' 見出しの前=' + ($('.pstat') && $('.pstat').parentNode.firstChild === $('.pstat') ? 'いちばん上' : 'ちがう'));
-      if (mode === 'stats2') { say('stats2: ' + ($('.pstat .note') ? $('.pstat .note').textContent.slice(0, 20) : 'MISSING')); dump(); return; }
-      const first = $('.pstat__weak .pstat__row');
-      if (first) { first.click(); await wait(250); }
-      say('stats: ひらいた=' + ($('.pstat__detail') ? 'ok' : 'MISSING') + ' 単元=' + document.querySelectorAll('.pstat__unit').length + ' 落とした=' + document.querySelectorAll('.pstat__wq').length +
-          ' れんしゅう=' + ($('.pstat__drill') ? 'ある' : 'ない'));
-      say('text:\n' + MQ.stats.summaryText(pl, 3));
-      if (mode === 'statsdrill') {
-        const before = pl.stats.rows['sansu3-2'].n;
-        $('.pstat__drill').click();
+      if (sub === 'month') MQ.ui.parent.setKind('month');
+      if (sub === 'detail' || sub === 'drill') {
+        const wk = MQ.stats.weakest(pl, 3, 1);
+        MQ.ui.parent.open('detail', { stageId: wk.length ? wk[0].id : 'sansu3-2' });
+      } else if (sub === 'settings' || sub === 'report') {
+        MQ.ui.parent.open(sub);
+      } else {
+        MQ.ui.parent.open('home');
+      }
+      await wait(250);
+      const pr = MQ.stats.period(pl, 'week');
+      const gr = MQ.stats.growth(pl, 3);
+      say('pp: 画面=' + (document.getElementById('screen-parent').classList.contains('is-active') ? 'parent' : 'ちがう') + ' view=' + MQ.ui.parent.view() +
+          ' 今週 ' + pr.n + '問 ' + pr.pct + '% 日 ' + pr.days + '/' + pr.daysTotal + ' 先週 ' + (pr.prev ? pr.prev.n + '問 ' + pr.prev.pct + '%' : '-') +
+          ' 成長 ' + (gr.first ? gr.first.pct + '→' + gr.last.pct + ' (' + gr.delta + ')' : '-') + ' 身についた ' + gr.masteredNow + '/' + gr.masteredPrev + ' 秒 ' + gr.secNow + '/' + gr.secPrev +
+          ' にがて=' + MQ.stats.weakest(pl, 3, 3).map(function (s) { return s.name + ' ' + s.pct + '%'; }).join('/') +
+          ' のびた=' + MQ.stats.improved(pl, 3, 2).map(function (s) { return s.name + ' ' + s.pctPrev + '→' + s.pctNow; }).join('/'));
+      say('pp: タイル=' + document.querySelectorAll('.pp-tile').length + ' 棒=' + document.querySelectorAll('.pp-bars__b').length + ' 気になる=' + document.querySelectorAll('.pp-row--weak').length +
+          ' 単元行=' + document.querySelectorAll('.pp-urow').length + ' 折れ線=' + (document.querySelector('.pp-growth polyline') ? 'ある' : 'ない') +
+          ' 見出し=' + Array.prototype.map.call(document.querySelectorAll('.pp-h'), function (e) { return e.textContent; }).slice(0, 8).join('|'));
+      if (sub === 'report') {
+        const html = MQ.ui.parent.reportHtml(pl, 3);
+        say('pp: 印刷用HTML ' + html.length + '文字 A4=' + (html.indexOf('size:A4') > 0 ? 'ok' : 'NG') + ' 見立て=' + (html.indexOf('アプリからの見立て') > 0 ? 'ある' : 'ない') + ' 表=' + document.querySelectorAll('.pp-tbl tr').length + '行');
+      }
+      if (sub === 'settings') {
+        say('pp: 設定 学期チップ=' + document.querySelectorAll('.pp-legacy .termrow .chip').length + ' フィーバー=' + ($('.pfever') ? 'ある' : 'ない') + ' きろく=' + ($('.records') ? 'ある' : 'ない') + ' AI=' + ($('.ai') ? 'ある' : 'ない') + ' 学年=' + document.querySelectorAll('.pp-segrow .pp-seg').length);
+      }
+      if (sub === 'drill') {
+        const sid = MQ.stats.weakest(pl, 3, 1)[0].id;
+        const before = pl.stats.rows[sid].n;
+        const b = $('.pp-actions .pp-btn--p');
+        if (!b) { say('pp: 練習ボタン MISSING'); dump(); return; }
+        b.click();
         await wait(500);
-        say('drill: 画面=' + (document.getElementById('screen-battle').classList.contains('is-active') ? 'battle' : 'ちがう') +
-            ' 敵=' + MQ.battle.mobTotal() + ' リベンジ=' + (MQ.battle.current().revenge ? 'yes(NG)' : 'no') + ' リボン=' + ($('.enemy__ribbon') ? 'ある(NG)' : 'ない') +
-            ' stageId=' + MQ.battle.current().stageId);
+        say('drill: 画面=' + (document.getElementById('screen-battle').classList.contains('is-active') ? 'battle' : 'ちがう') + ' 敵=' + MQ.battle.mobTotal() + ' リベンジ=' + (MQ.battle.current().revenge ? 'yes(NG)' : 'no') + ' stageId=' + MQ.battle.current().stageId);
         await playBattle('drill');
         await wait(900);
-        const after = MQ.save.current().stats.rows['sansu3-2'].n;
-        say('drill: おわり 記ろく ' + before + ' → ' + after + ' ' + (after === before + 6 ? 'OK' : 'NG') + ' けっか=' + ($('.rs') ? 'ok' : 'MISSING'));
+        const after = MQ.save.current().stats.rows[sid].n;
+        say('drill: 記ろく ' + before + ' → ' + after + ' ' + (after === before + 6 ? 'OK' : 'NG') + ' けっか=' + ($('.rs') ? 'ok' : 'MISSING'));
         dump(); return;
       }
-      const n = parseInt(mode.split(':')[1], 10);
-      if (!isNaN(n)) { const sc = $('#screen-dex .wrap'); if (sc) sc.scrollTop = n < 0 ? 99999 : n; }
+      const n = parseInt(sub, 10);
+      if (!isNaN(n)) { const sc = $('#screen-parent .pp__body'); if (sc) sc.scrollTop = n < 0 ? 99999 : n; }
       dump();
       return;
     }
@@ -1097,7 +1134,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       MQ.ai._reset();
       MQ.ai.setConfig({ key: 'AIzaTESTTESTTESTTESTTESTTESTTESTTESTTES', limit: 20 });
       MQ.ai.transport = fakeAi('ok');
-      MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex');
+      MQ.ui.parent.open('settings');
       await wait(100);
       const sec = $('.ai');
       say('aiparent: ' + (sec ? 'ok' : 'MISSING') + ' status=' + ($('.ai__status') ? $('.ai__status').textContent : ''));
@@ -1487,7 +1524,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         pl.fever = null;
       });
       if (mode === 'feverparent') {
-        MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex');
+        MQ.ui.parent.open('settings');
         await wait(200);
         const sec = $('.pfever');
         const wrap = $('#screen-dex .wrap');
@@ -1523,6 +1560,38 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
       say('fever: panel=' + ($('.fever') ? $('.fever').textContent.replace(/\s+/g, ' ') : 'MISSING') + ' biome=' + $$('.biome--fever').length + ' nodes=' + $$('.node--fever').length +
           ' pal=' + ($('.fever__bubble') ? $('.fever__bubble').textContent : 'MISSING') + ' today=' + JSON.stringify(MQ.save.current().fever));
+      dump(); return;
+    }
+    /* ごちゃまぜ バトル（v7.3）
+       #mix   … 地図の 下の むらさきの バー
+       #mix2  … ごちゃまぜ バトルの 1問め（帯・教科の モンスター・単元に 教科名）
+       #mix3  … 通して けっか画面（★は つかない・コイン +1・にげた敵は 教科ごと・記ろく） */
+    if (mode.indexOf('mix') === 0) {
+      fresh();
+      MQ.fever.setNow(new Date(2026, 8, 5));
+      MQ.save.update(function (pl) { pl.feverPick = 'eigo'; pl.fever = null; MQ.pals.add(pl, 'slime-green'); });
+      if (mode === 'mix') {
+        MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
+        say('mix: btn=' + ($('.mixbtn') ? $('.mixbtn').textContent.replace(/\s+/g, ' ') : 'MISSING') + ' open=' + MQ.content.mixOpen(MQ.save.current()));
+        dump(); return;
+      }
+      MQ.ui.battle.start('mix3'); await wait(150);
+      const q0 = MQ.battle.current();
+      say('mix2: stage=' + MQ.battle.stage().id + ' boss=' + MQ.battle.bossId() + ' q.area=' + q0.areaId + ' q.stage=' + q0.stageId + ' enemy=' + q0.enemyId + ' unit=' + $('.card__unit').textContent +
+          ' banner=' + ($('.modebanner') ? $('.modebanner').textContent : 'MISSING') + ' fever=' + (MQ.battle.fever() ? 'yes(NG)' : 'no') + ' total=' + MQ.battle.mobTotal());
+      if (mode === 'mix2') {
+        const b = $('.modebanner');
+        if (b) { const c = b.cloneNode(true); c.style.animation = 'none'; c.style.opacity = '1'; $('.arena').appendChild(c); }
+        $('.arena__msg').style.display = 'none';
+        dump(); return;
+      }
+      const stars0 = JSON.stringify(MQ.save.current().stars);
+      await playBattle('mix3', { missFirst: true });
+      await wait(900);
+      const p = MQ.save.current();
+      say('mix3: title=' + ($('.rs__title') ? $('.rs__title').textContent : 'MISSING') + ' line=' + ($('.rs__fever') ? $('.rs__fever').textContent : 'MISSING') +
+          ' starsSame=' + (JSON.stringify(p.stars) === stars0) + ' mixStar=' + (p.stars.mix3 || 0) + ' escaped=' + JSON.stringify(Object.keys(p.escaped).filter(function (k) { return p.escaped[k].length; })) +
+          ' plays=' + JSON.stringify(p.areaPlays) + ' rows=' + Object.keys(p.stats.rows).filter(function (k) { return k.indexOf('|') < 0; }).join(',') + ' next=' + ($('.rs__btns .btn--big') ? $('.rs__btns .btn--big').textContent : 'MISSING'));
       dump(); return;
     }
     // リベンジ（v3.1）：#revenge = 2日前に にげた敵が 1体目に もどってくる／#revenge:fresh = きょう にげた敵は もどらない
@@ -1588,14 +1657,14 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode === 'parent2') {
       fresh();
       MQ.terms.setNow(new Date(2026, 8, 5));
-      MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex');
+      MQ.ui.parent.open('settings');
       await wait(100);
       say('parent2: sug=' + ($('.termsug') ? $('.termsug').textContent : 'MISSING'));
       const b = $('.termsug .btn'); if (b) { b.click(); await wait(100); }
       say('parent2 after: term=' + MQ.save.current().term + ' sug=' + ($('.termsug') ? 'still' : 'gone'));
       MQ.terms.setNow(new Date(2026, 8, 5));
       MQ.save.update(function (pl) { pl.term = 0; });
-      MQ.ui.dex.render('parent');
+      MQ.ui.parent.refresh();
       dump();
       return;
     }
@@ -1948,6 +2017,14 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await wait(700);
     say('fever result: ' + ($('.rs__fever') ? $('.rs__fever').textContent : 'MISSING') + ' plays=' + JSON.stringify(MQ.save.current().areaPlays));
     MQ.save.update(function (pl) { pl.feverPick = null; pl.fever = null; });
+
+    say('--- ごちゃまぜ バトル（v7.3） ---');
+    MQ.ui.battle.start('mix3');
+    await wait(400);
+    say('mix: stage=' + (MQ.battle.stage().mix ? 'ok' : 'MISSING') + ' total=' + MQ.battle.mobTotal() + ' banner=' + ($('.modebanner') ? 'ok' : 'MISSING') + ' unit=' + ($('.card__unit').textContent.indexOf(' ・ ') > 0 ? 'ok' : 'MISSING'));
+    await playBattle('mix');
+    await wait(700);
+    say('mix result: ' + ($('.rs__fever') ? $('.rs__fever').textContent : 'MISSING') + ' mixStar=' + (MQ.save.current().stars.mix3 || 0));
 
     say('--- 国語（かん字を 書く） ---');
     MQ.ui.battle.start('kokugo3-2');

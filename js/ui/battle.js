@@ -172,10 +172,30 @@ MQ.ui.battle = (function () {
     bossOnScreen = false;
 
     const isTower = !!found.stage.tower;
-    ctx = { player: player, world: found.world, area: found.area, stage: found.stage, timeAttack: opts.timeAttack || 0 };
+    const isMix = !!found.stage.mix;
+    ctx = { player: player, world: found.world, area: found.area, stage: found.stage, timeAttack: opts.timeAttack || 0, mix: isMix };
     d.root.classList.toggle('battle--tower', isTower);
 
-    if (isTower) {
+    let mixBiome = null;
+    if (isMix) {
+      /* ごちゃまぜ バトル（v7.3）：ザコは 問題が じぶんの 教科の モンスターを つれて くる（world3.js）。
+         ボスは フィーバー教科の ボス（フィーバーが なければ くじ）。★なし・コイン +1・にげた敵は 教科ごとに */
+      const groups = MQ.content.mixGroups(player);
+      let fv = null;
+      if (MQ.fever) MQ.save.update(function (p) { fv = MQ.fever.today(p); });
+      const hit = fv ? groups.filter(function (g) { return g.area.id === fv.areaId; })[0] : null;
+      const bossArea = hit ? hit.area : (groups.length ? MQ.util.pick(groups).area : found.area);
+      ctx.bossArea = bossArea.id;
+      mixBiome = bossArea.biome || 'mountain';
+      const boss = MQ.enemies.bossFor(bossArea.id);
+      MQ.battle.start({
+        stage: found.stage, mode: 'normal', mix: true, bossArea: bossArea.id,
+        escaped: [], enemies: [], bossId: boss.id,
+        rareId: Math.random() < RARE_CHANCE ? MQ.enemies.goldenId() : null, trioIds: null, chest: true, mobs: MOBS,
+        timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
+        gear: MQ.hero.gearPower(player)
+      });
+    } else if (isTower) {
       MQ.battle.start({
         stage: found.stage, mode: 'tower',
         bossId: found.stage.bossId || 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3,
@@ -213,7 +233,7 @@ MQ.ui.battle = (function () {
 
     d.heroImg.src = MQ.hero.sprite(player);
     syncPal(player);
-    paintScene(isTower ? 'tower' : (ctx.area.biome || 'mountain'));
+    paintScene(isTower ? 'tower' : (mixBiome || ctx.area.biome || 'mountain'));
     MQ.bgm.play(isTower ? 'maou' : 'battle');
     MQ.ui.show('screen-battle');
     if (isTower) towerIntro(); else { renderQuestion(); modeBanner(); }
@@ -227,8 +247,14 @@ MQ.ui.battle = (function () {
   function modeBanner() {
     const fv = MQ.battle.fever ? MQ.battle.fever() : null;
     const sp = MQ.battle.support ? MQ.battle.support() : null;
-    if (!fv && !sp) return;
+    const mx = !!(ctx && ctx.mix);
+    if (!fv && !sp && !mx) return;
     const lines = [];
+    if (mx) {
+      const ba = ctx.bossArea ? MQ.content.areaOf(ctx.bossArea) : null;
+      lines.push(h('b', { text: 'ごちゃまぜ バトル！' }));
+      lines.push(h('span', { text: 'ぜんぶの 教科が まざる' + (ba ? '・ボスは ' + ba.name : '') + '・コイン +1' }));
+    }
     if (fv) lines.push(h('b', { text: 'フィーバー教科！ けいけんち ' + (fv.xpMul || 2) + 'ばい' }));
     if (fv && palNow) lines.push(h('span', { text: palNow.name + 'も はりきって いる！ なかまゲージ 2ばい' }));
     if (sp) lines.push(h('span', { text: MQ.fever ? MQ.fever.supportText(sp.level) : 'やさしく スタート！' }));
@@ -1790,7 +1816,7 @@ MQ.ui.battle = (function () {
       if ((sum.maxCombo || 0) > (p.bestCombo || 0)) p.bestCombo = sum.maxCombo;
       p.revengeWins = (p.revengeWins || 0) + (sum.revengeBeaten || []).length;
       // フィーバー教科（v7.2）：教科ごとの たたかった 回数（いちばん やって いない 教科を さがす ため）
-      if (MQ.fever && !ctx.tokkun && !ctx.stage.tower) MQ.fever.addPlay(p, ctx.area.id);
+      if (MQ.fever && !ctx.tokkun && !ctx.stage.tower && !ctx.mix) MQ.fever.addPlay(p, ctx.area.id);
       // とくい・にがて（v7.1）：1問ごとの 結果を 単元ごとに ためる（おうちの人ページ用）
       if (MQ.stats) MQ.stats.record(p, sum);
       // きょうの ミッション（v3.1）：進めて、クリアぶんの コイン・けいけんちは その場で
@@ -1810,8 +1836,8 @@ MQ.ui.battle = (function () {
         out.palOffer = MQ.pals.offerFrom(p, sum.defeated);
       }
 
-      /* ---- ★ と じぶんの さいこう記ろく ---- */
-      if (!ctx.tokkun) {
+      /* ---- ★ と じぶんの さいこう記ろく（ごちゃまぜ バトルには つかない・v7.3） ---- */
+      if (!ctx.tokkun && !ctx.mix) {
         const prevStars = p.stars[ctx.stage.id] || 0;
         if (sum.stars > prevStars) p.stars[ctx.stage.id] = sum.stars;
 
@@ -1841,7 +1867,7 @@ MQ.ui.battle = (function () {
       });
 
       /* ---- そうび（グレード1〜3。★2以上で 1つずつ） ---- */
-      if (sum.stars >= 2 && !ctx.tokkun) {
+      if (sum.stars >= 2 && !ctx.tokkun && !ctx.mix) {
         const g = MQ.hero.nextGear(p);
         if (g) { p.gear.push(g.id); p.equipped[g.slot] = g.id; out.gear = g; }
       }
@@ -1883,7 +1909,7 @@ MQ.ui.battle = (function () {
       }
 
       /* ---- ほし の 一式：★3の ステージが 3・6・9・12・15 に なったとき（v5.4） ---- */
-      if (!ctx.tokkun) {
+      if (!ctx.tokkun && !ctx.mix) {
         const star3 = Object.keys(p.stars || {}).filter(function (k) { return p.stars[k] >= 3; }).length;
         const g = MQ.hero.nextHoshi(p, star3);
         if (g) {

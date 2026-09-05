@@ -13,10 +13,13 @@ MQ.ui.dex = (function () {
   let picked = null;   // たからばこの たなで えらんだ たからもの（せつめいを 出す）
   let naming = false;  // なかまの なまえを 直している さいちゅう（v5.2）
   let renaming = false; // 主人公の なまえを 直している さいちゅう（v7.0）
-  let statsGrade = 0;   // とくい・にがてで 見ている 学年（0＝その子の 学年・v7.1）
-  let statsOpen = {};   // とくい・にがてで ひらいて いる ステージ id
 
   function render(which) {
+    // おうちの人ページは べつの 画面（v7.3）。せっていの 部品が render('parent') を 呼んだら そちらを 書き直す
+    if (which === 'parent' && MQ.ui.parent) {
+      if (MQ.ui.parent.isOpen()) MQ.ui.parent.refresh(); else MQ.ui.parent.open('settings');
+      return;
+    }
     if (which && which !== tab) picked = null;
     if (which) tab = which;
     const player = MQ.save.current();
@@ -29,7 +32,7 @@ MQ.ui.dex = (function () {
 
     const tabs = h('div', { class: 'tabs' }, [
       ['hero', '主人公'], ['treasure', 'たからばこ'], ['mons', 'モンスター'], ['pals', 'なかま'],
-      ['parent', 'おうちの人'], ['set', 'せってい']
+      ['set', 'せってい']
     ].map(function (t) {
       return h('button', {
         class: 'tab' + (tab === t[0] ? ' is-on' : ''), type: 'button', text: t[1],
@@ -42,7 +45,6 @@ MQ.ui.dex = (function () {
     else if (tab === 'treasure') body = treasureTab(player);
     else if (tab === 'mons') body = monsTab(player);
     else if (tab === 'pals') body = palsTab(player);
-    else if (tab === 'parent') body = parentTab(player);
     else body = settingsTab(player);
 
     const mounted = MQ.ui.mount('screen-dex', h('div', { class: 'wrap' }, [
@@ -498,195 +500,7 @@ MQ.ui.dex = (function () {
       h('div', { class: 'dexgrid' }, MQ.enemies.bosses.map(function (e) { return cell(e, 'つぎの ボス'); }))
     ]);
   }
-  /* =======================================================
-     おうちの人ページ
-     ======================================================= */
-  function parentTab(player) {
-    // （v7.1）「たんげんごとの できぐあい（さいこう記ろく）」の 一覧は とくい・にがて マップに 置きかえた
-
-    // にげられた 問題（とっくん・リベンジで もどってくる）
-    const weak = [];
-    Object.keys(player.escaped || {}).forEach(function (areaId) {
-      MQ.save.escapedIn(player, areaId).forEach(function (e) {
-        weak.push(MQ.util.stripTags(e.q && e.q.prompt ? e.q.prompt : e.key));
-      });
-    });
-
-    const log = (player.log || []).slice(0, 30).map(function (l) {
-      const dt = new Date(l.at);
-      const at = (dt.getMonth() + 1) + '/' + dt.getDate();
-      return h('div', { class: 'plog__row' }, [
-        h('span', { class: 'plog__at', text: at }),
-        h('span', { text: l.text })
-      ]);
-    });
-
-    return h('div', {}, [
-      statsSection(player),
-      h('h2', { class: 'label pstat__sep', text: 'せってい' }),
-      feverSection(player),
-      termsSection(player),
-      judgeSection(),
-      aiSection(),
-      h('h2', { class: 'label', text: 'にげられた 問題（' + weak.length + '）' }),
-      h('p', { class: 'note', style: { margin: '0 0 6px' }, text: 'とっくん と リベンジで もどってくる 問題です。' }),
-      weak.length
-        ? h('div', { class: 'plog' }, weak.slice(0, 20).map(function (t) { return h('div', { class: 'plog__row', text: t }); }))
-        : h('p', { class: 'note', text: 'にげられた 問題は ありません。' }),
-      h('h2', { class: 'label', text: 'ぼうけんの きろく' }),
-      log.length ? h('div', { class: 'plog' }, log) : h('p', { class: 'note', text: 'まだ ありません。' }),
-      h('p', { class: 'note', style: { marginTop: '14px' }, text: 'この ページの 内よう は この タブレットの 中だけに あります。ほかの 子と くらべる 機能は ありません。' })
-    ]);
-  }
-
-  /* =======================================================
-     とくい・にがて（v7.1・おうちの人ページの いちばん 上）
-       ① いま いちばん にがて（トップ3）
-       ② 教科ごとの マップ（単元＝ステージを 色で）
-       行を タップ → こまかい 単元・落とした 問題・「この 単元を れんしゅう」
-       数字は js/core/stats.js。子どもには 見せない
-     ======================================================= */
-  function statsSection(player) {
-    const own = player.grade || 3;
-    const grades = MQ.stats.gradesWithData(player);
-    if (grades.indexOf(own) === -1) grades.push(own);
-    grades.sort(function (a, b) { return a - b; });
-    const g = statsGrade && grades.indexOf(statsGrade) !== -1 ? statsGrade : own;
-    const ov = MQ.stats.overview(player, g);
-    const weak = MQ.stats.weakest(player, g, 3);
-
-    const copyBtn = h('button', {
-      class: 'btn btn--small btn--cream pstat__copy', type: 'button', text: '文字で コピー',
-      onclick: function () { MQ.sfx.tap(); copyText(MQ.stats.summaryText(player, g)); }
-    });
-    const kids = [
-      h('div', { class: 'pstat__head' }, [
-        h('h2', { class: 'label', text: 'とくい・にがて' }),
-        copyBtn
-      ]),
-      h('div', { class: 'pstat__legend' }, [
-        legend('good', 'とくい 85%〜'), legend('mid', 'ふつう'), legend('weak', 'にがて 〜59%'), legend('few', 'まだ すこし')
-      ])
-    ];
-    if (grades.length > 1) {
-      kids.push(h('div', { class: 'termrow pstat__grades' }, grades.map(function (gg) {
-        return h('button', {
-          class: 'chip chip--s' + (gg === g ? ' is-on' : ''), type: 'button', text: '小' + gg + (gg === own ? '（じぶんの 学年）' : ''),
-          onclick: function () { MQ.sfx.tap(); statsGrade = gg; render('parent'); }
-        });
-      })));
-    }
-    if (!ov.played) {
-      kids.push(h('p', { class: 'note', text: 'まだ 記ろくが ありません。たたかうと 1問ごとに ここに たまって いきます（正解は 1回目で 合った ときだけ 数えます）。' }));
-      return h('div', { class: 'pstat' }, kids);
-    }
-
-    /* ① いま いちばん にがて */
-    const wk = h('div', { class: 'pstat__weak' }, [h('h3', { text: 'いま いちばん にがて' })]);
-    if (!weak.length) {
-      wk.appendChild(h('p', { class: 'note', style: { margin: 0 }, text: 'いま にがてな 単元は ありません（さいきん 5問いじょう やった 中で 70% みまんの もの）。' }));
-    } else {
-      weak.forEach(function (s, i) { wk.appendChild(stageRow(player, s, i + 1)); });
-    }
-    kids.push(wk);
-
-    /* ② 教科ごとの マップ */
-    ov.areas.forEach(function (a) {
-      const done = a.stages.filter(function (s) { return s.n > 0; }).length;
-      const box = h('div', { class: 'pstat__area' }, [
-        h('div', { class: 'pstat__areahd' }, [
-          h('span', { text: a.name }),
-          h('small', { text: done + ' / ' + a.stages.length + ' 単元 やった' })
-        ])
-      ]);
-      a.stages.forEach(function (s) { box.appendChild(stageRow(player, s, 0)); });
-      kids.push(box);
-    });
-    kids.push(h('p', { class: 'note', text: '「さいきん」は さいきんの 20問、「ぜんぶ」は いままでの 合計。行を タップすると こまかい 単元と 落とした 問題が 見られます。' }));
-    return h('div', { class: 'pstat' }, kids);
-  }
-
-  function legend(level, text) {
-    return h('span', {}, [h('i', { class: 'pstat__dot pstat__dot--' + level }), h('span', { text: text })]);
-  }
-
-  /* ステージ（単元）の 1行。rank が あれば にがて トップの 行 */
-  function stageRow(player, s, rank) {
-    const open = !!statsOpen[s.id];
-    const pctText = s.pct == null ? '－' : s.pct + '%';
-    const row = h('button', {
-      class: 'pstat__row is-' + s.level + (open ? ' is-open' : '') + (rank ? ' pstat__row--w' : ''), type: 'button',
-      'aria-expanded': open ? 'true' : 'false',
-      onclick: function () { MQ.sfx.tap(); statsOpen[s.id] = !open; render('parent'); }
-    }, [
-      rank ? h('b', { class: 'pstat__rank', text: String(rank) }) : h('i', { class: 'pstat__rdot' }),
-      h('span', { class: 'pstat__rname', text: s.name + (rank ? '　' + s.areaName : '') }),
-      h('span', { class: 'pstat__rpct', text: pctText }),
-      h('span', { class: 'pstat__rbar' }, [h('i', { style: { width: (s.pct || 0) + '%' } })]),
-      h('span', { class: 'pstat__rsub', text: s.n ? 'さいきん ' + s.recentOk + ' / ' + s.recentN + '　ぜんぶ ' + s.ok + ' / ' + s.n + '　' + MQ.stats.LEVEL_NAME[s.level] : 'まだ やって いない' })
-    ]);
-    if (!open) return row;
-    return h('div', {}, [row, stageDetail(player, s)]);
-  }
-
-  function stageDetail(player, s) {
-    const kids = [];
-    if (s.units.length) {
-      kids.push(h('p', { class: 'pstat__h', text: 'こまかい 単元' }));
-      s.units.forEach(function (u) {
-        kids.push(h('div', { class: 'pstat__unit is-' + u.level }, [
-          h('span', {}, [h('i', { class: 'pstat__dot pstat__dot--' + u.level }), h('b', { text: u.unit })]),
-          h('span', { text: u.recentOk + ' / ' + u.recentN + (u.pct != null ? '（' + u.pct + '%）' : '') })
-        ]));
-      });
-    }
-    if (s.wrong.length) {
-      kids.push(h('p', { class: 'pstat__h', text: '落とした 問題（まちがいの 多い 順）' }));
-      s.wrong.slice(0, 8).forEach(function (w) {
-        const dt = new Date(w.at);
-        kids.push(h('div', { class: 'pstat__wq' }, [
-          h('div', { class: 'q', text: w.p + (w.u ? '　（' + w.u + '）' : '') }),
-          h('div', { class: 'a' }, [
-            h('span', { text: '答え ' }), h('b', { text: '「' + w.g + '」' }),
-            h('span', { text: '　正しくは ' }), h('em', { text: '「' + w.a + '」' }),
-            h('span', { class: 'd', text: '　' + (dt.getMonth() + 1) + '/' + dt.getDate() })
-          ]),
-          h('div', { class: 'c', text: MQ.stats.countText(w) })
-        ]));
-      });
-    }
-    if (!s.n) kids.push(h('p', { class: 'note', style: { margin: 0 }, text: 'まだ この 単元は やって いません。' }));
-    const found = MQ.content.findStage(s.id);
-    if (found && !found.stage.tower) {
-      kids.push(h('button', {
-        class: 'btn btn--small btn--gold pstat__drill', type: 'button', text: 'この 単元を れんしゅう（6問）',
-        onclick: function () { MQ.sfx.tap(); MQ.ui.battle.startDrill(s.id); }
-      }));
-    }
-    return h('div', { class: 'pstat__detail' }, kids);
-  }
-
-  /* 文字を コピー（LINE や メールに はりつける 用）。できない 端末は えらんだ 状態に して 出す */
-  function copyText(text) {
-    const done = function () { MQ.ui.toast('コピーしたよ。LINE や メールに はりつけられるよ'); };
-    const fallback = function () {
-      const ta = h('textarea', { class: 'pstat__ta', readonly: 'readonly', 'aria-label': 'とくい・にがて' });
-      ta.value = text;
-      const box = h('div', { class: 'pstat__tabox' }, [
-        h('p', { class: 'note', style: { margin: '0 0 6px' }, text: 'ながおしで コピーしてね' }),
-        ta,
-        h('button', { class: 'btn btn--small btn--stone', type: 'button', text: 'とじる', onclick: function () { box.remove(); } })
-      ]);
-      const sec = document.querySelector('.pstat');
-      if (sec) sec.insertBefore(box, sec.children[1] || null);
-      try { ta.focus(); ta.select(); } catch (e) {}
-    };
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, fallback);
-      } else fallback();
-    } catch (e) { fallback(); }
-  }
+  /* おうちの人ページは js/ui/parent.js（v7.3・べつの 画面）。ここには 設定の 部品だけ のこす */
 
   /* =======================================================
      学校で ならった ところ（v2.6・おうちの人が 決める）
@@ -948,7 +762,7 @@ MQ.ui.dex = (function () {
   /* =======================================================
      せってい（音・きろくの ほぞん）
      ======================================================= */
-  function settingsTab(player) {
+  function recordsSection(player) {
     const area = h('textarea', {
       class: 'input', rows: '4',
       style: { minHeight: '90px', fontSize: '0.8rem', fontFamily: 'monospace', padding: '8px' },
@@ -1002,10 +816,7 @@ MQ.ui.dex = (function () {
       r.readAsText(f);
     });
 
-    return h('div', {}, [
-      h('h2', { class: 'label', text: 'おと' }),
-      h('div', { style: { display: 'flex', gap: '8px' } }, MQ.ui.soundButtons()),
-
+    return h('div', { class: 'records' }, [
       h('h2', { class: 'label', text: 'きろくの ほぞん（大事）' }),
       h('p', { class: 'note', text: 'きろくは この タブレットの 中だけに あります。タブレットが こわれたり、ブラウザの データを 消すと 全部 なくなります。ときどき ほぞんして おいてください。' }),
       h('div', { style: { display: 'grid', gap: '14px', marginTop: '10px' } }, [
@@ -1014,7 +825,15 @@ MQ.ui.dex = (function () {
         fileIn,
         area,
         h('button', { class: 'btn btn--stone', type: 'button', text: '↩ きろくを もどす', onclick: function () { MQ.sfx.tap(); restore(); } })
-      ]),
+      ])
+    ]);
+  }
+
+  function settingsTab(player) {
+    return h('div', {}, [
+      h('h2', { class: 'label', text: 'おと' }),
+      h('div', { style: { display: 'flex', gap: '8px' } }, MQ.ui.soundButtons()),
+      recordsSection(player),
 
       h('h2', { class: 'label', text: 'バージョン' }),
       h('p', { class: 'note', id: 'ver-note', text: 'いまの バージョン: ' + (MQ.version || 'しらべています…') }),
@@ -1037,5 +856,9 @@ MQ.ui.dex = (function () {
   // たからものを えらんだ 状態に する（harness 用）。タブも たからばこに 合わせる
   function pick(id) { picked = id; tab = 'treasure'; }
 
-  return { render: render, pick: pick };
+  return {
+    render: render, pick: pick,
+    // おうちの人ページ（js/ui/parent.js）が つかう 設定の 部品（v7.3）
+    sections: { terms: termsSection, fever: feverSection, judge: judgeSection, ai: aiSection, records: recordsSection }
+  };
 })();

@@ -429,14 +429,26 @@ MQ.ui.map = (function () {
         h('button', { class: 'btn btn--stone', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
         h('button', { class: 'btn btn--stone', type: 'button', text: 'プレイヤー', onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); } }),
         // おうちの人ページへ まっすぐ（v7.1・とくい・にがて）
-        h('button', { class: 'btn btn--stone maptop__parent', type: 'button', text: 'おうちの人', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render('parent'); MQ.ui.show('screen-dex'); } })
+        h('button', { class: 'btn btn--stone maptop__parent', type: 'button', text: 'おうちの人', onclick: function () { MQ.sfx.tap(); MQ.ui.parent.open('home'); } })
       ]),
       gradeRow(player)
     ]);
 
-    /* ---- 下の ピンクの バー ---- */
+    /* ---- 下の バー：ごちゃまぜ バトル（v7.3・むらさき）と にげた敵（ピンク） ---- */
     const escapedCount = MQ.save.countAllEscaped(player);
+    const kid = (MQ.content.activeWorld().grade || 3) <= 2;
     const bottom = h('div', { class: 'mapbottom' }, [
+      MQ.content.mixOpen(player) ? h('button', {
+        class: 'mixbtn', type: 'button',
+        onclick: function () { MQ.sfx.tap(); MQ.ui.battle.start(MQ.content.mixStage().id); }
+      }, [
+        h('span', { class: 'mixbtn__ico' }, [h('i'), h('i'), h('i'), h('i')]),
+        h('span', { class: 'mixbtn__body' }, [
+          h('b', { class: 'mixbtn__t', text: 'ごちゃまぜ バトル' }),
+          h('span', { class: 'mixbtn__s', text: (kid ? 'ぜんぶの きょうかが まざる' : 'ぜんぶの 教科が まざる') + '・コイン +1' })
+        ]),
+        h('span', { class: 'mixbtn__go', text: '▶' })
+      ]) : null,
       escapedCount ? h('button', {
         class: 'revenge', type: 'button',
         onclick: function () { MQ.sfx.tap(); MQ.ui.battle.startTokkun(); }
@@ -472,13 +484,14 @@ MQ.ui.map = (function () {
     if (!fv) return null;
     const line = MQ.fever.palLine(player);
     const band = bands.filter(function (b) { return b.area.id === fv.areaId; })[0];
+    /* たてに 短く（タブレットは ステージが 700 しか ない・v5.6 の 教訓）：
+       1行め＝星・「フィーバー教科」・教科名・「いく ▶」／2行め＝効果／3行め＝相棒の ふきだし（いる ときだけ）。
+       なかまゲージの ことは ふきだしの 中に 入れて 2行めを 1行に おさめる */
     return h('div', { class: 'fever' }, [
       h('div', { class: 'fever__row' }, [
         h('span', { class: 'fever__star' }),
-        h('div', { class: 'fever__mid' }, [
-          h('span', { class: 'fever__label', text: 'きょうの フィーバー教科' }),
-          h('span', { class: 'fever__name', text: fv.name })
-        ]),
+        h('span', { class: 'fever__label', text: 'フィーバー教科' }),
+        h('span', { class: 'fever__name', text: fv.name }),
         h('button', {
           class: 'btn btn--small fever__go', type: 'button', text: 'いく ▶',
           onclick: function () {
@@ -488,10 +501,11 @@ MQ.ui.map = (function () {
           }
         })
       ]),
-      h('span', { class: 'fever__sub', text: 'けいけんち 2ばい・コイン +1・レアが 出やすい' + (line ? '・なかまゲージ 2ばい' : '') }),
+      h('span', { class: 'fever__sub', text: 'けいけんち 2ばい・コイン +1・レアが 出やすい' }),
       line ? h('div', { class: 'fever__pal' }, [
-        h('span', { class: 'fever__palimg' }, [MQ.enemies.node(line.pal.id, { size: 30 })]),
-        h('span', { class: 'fever__bubble', text: line.pal.name + '「' + line.text + '」' })
+        h('span', { class: 'fever__palimg' }, [MQ.enemies.node(line.pal.id, { size: 26 })]),
+        // 1行に おさめる（「きょうは」は 帯の 見出しで わかる ので 言わない）
+        h('span', { class: 'fever__bubble', text: line.pal.name + '「' + fv.name + 'に 行きたいな！ ゲージ 2ばい」' })
       ]) : null
     ]);
   }
@@ -507,7 +521,12 @@ MQ.ui.map = (function () {
     if (!ms) return null;
     const doneN = ms.list.filter(function (m) { return m.done; }).length;
     const all = doneN === ms.list.length;
-    if (missionsOpen === null) missionsOpen = !all;
+    /* はじめは ひらいて おく。ただし ステージが 短い 端末（タブレットは 700）では
+       フィーバーの 帯と 合わせると 地図が 見えなく なる ので、たたんで おく（v7.3） */
+    if (missionsOpen === null) {
+      const short = MQ.stage && MQ.stage.size ? (MQ.stage.size().h || 900) < 760 : false;
+      missionsOpen = !all && !short;
+    }
     const panel = h('div', { class: 'missions' + (missionsOpen ? ' is-open' : '') + (all ? ' is-all' : '') });
     panel.appendChild(h('button', {
       class: 'missions__head', type: 'button',
@@ -522,7 +541,7 @@ MQ.ui.map = (function () {
       return h('div', { class: 'mission' + (m.done ? ' is-done' : '') }, [
         h('span', { class: 'mission__check', text: m.done ? '✓' : '' }),
         h('span', { class: 'mission__text', text: m.text }),
-        h('span', { class: 'mission__prog', text: m.done ? 'コイン +' + MQ.missions.REWARD_EACH : (m.target > 1 && !once ? m.count + ' / ' + m.target : '') })
+        h('span', { class: 'mission__prog', text: m.done ? 'コイン +' + (m.reward || MQ.missions.REWARD_EACH) : (m.fever ? 'コイン +' + (m.reward || MQ.missions.REWARD_EACH) : (m.target > 1 && !once ? m.count + ' / ' + m.target : '')) })
       ]);
     }).concat([
       h('div', { class: 'missions__all', text: all ? 'ぜんぶ クリア！ コイン +' + MQ.missions.REWARD_ALL_COINS + '・EXP +' + MQ.missions.REWARD_ALL_XP + ' もらった' : '3つ ぜんぶで コイン +' + MQ.missions.REWARD_ALL_COINS + '・EXP +' + MQ.missions.REWARD_ALL_XP })

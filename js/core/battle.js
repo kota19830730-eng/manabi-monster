@@ -109,7 +109,7 @@ MQ.battle = (function () {
   function makeBossQuestion() {
     let q = null;
     for (let i = 0; i < 6; i++) {
-      const made = s.stage.make(1, { boss: true, index: s.bossAsked });
+      const made = s.stage.make(1, { boss: true, index: s.bossAsked, bossArea: s.bossArea });
       if (!made || !made[0]) break;
       q = prepare(made[0]);
       if (s.usedBossKeys.indexOf(q.id) === -1) break;
@@ -145,7 +145,8 @@ MQ.battle = (function () {
                   タイムアタックの ときは 無視される
        coins    … いま もっている きんのコイン（じゅうてん用の さいふ）
        fever    … きょうの フィーバー教科（v7.2）{ xpMul, coins, palPlus }。normal だけ
-       support  … サポート（v7.2）{ easy, hint, keep, extra, level }。normal だけ  */
+       support  … サポート（v7.2）{ easy, hint, keep, extra, level }。normal だけ
+       mix      … ごちゃまぜ バトル（v7.3）。おわりに コイン +1。bossArea＝ボスの 教科 id  */
   function start(opts) {
     const mode = opts.mode || 'normal';
     const stage = opts.stage;
@@ -175,7 +176,8 @@ MQ.battle = (function () {
       mobs = sortByLevel(mobs).slice(0, freshCount);
       const enemyIds = (opts.enemies || []).slice();
       mobs.forEach(function (q, i) {
-        q.enemyId = enemyIds.length ? enemyIds[i % enemyIds.length] : 'slime-green';
+        // ごちゃまぜ バトル（v7.3）は 問題が じぶんの 教科の モンスターを つれて くる
+        if (!q.enemyId) q.enemyId = enemyIds.length ? enemyIds[i % enemyIds.length] : 'slime-green';
       });
 
       revenge.forEach(function (entry) {
@@ -257,6 +259,8 @@ MQ.battle = (function () {
       fever: fever,
       support: support,
       feverXp: 0,                  // フィーバーで ふえた ぶんの けいけんち
+      mix: !!opts.mix,             // ごちゃまぜ バトル（v7.3）
+      bossArea: opts.bossArea || null,   // ごちゃまぜ の ボスの 教科
       // どうぐ・そうびの 効果（のこり）
       buff: {
         dmg: 1,
@@ -308,6 +312,7 @@ MQ.battle = (function () {
       coinsSpent: 0,               // この たたかいで つかった コイン
       recharged: false,            // じゅうてんは 1たたかいに 1回
       startedAt: now(),
+      qAt: now(),                  // いまの 問題を 出した とき（1問の 時間・v7.3）
       endedAt: 0
     };
 
@@ -376,7 +381,8 @@ MQ.battle = (function () {
   function pushResult(q, ok, given) {
     s.results.push({
       stageId: q.stageId || s.stage.id, areaId: q.areaId || null, unit: q.unit || '', type: q.type,
-      ok: !!ok, given: ok ? null : given, answer: answerText(q), prompt: q.prompt, boss: s.phase === 'boss'
+      ok: !!ok, given: ok ? null : given, answer: answerText(q), prompt: q.prompt, boss: s.phase === 'boss',
+      sec: Math.max(0, Math.round((now() - (s.qAt || s.startedAt)) / 1000))
     });
     s.retryGiven = null;
   }
@@ -762,6 +768,7 @@ MQ.battle = (function () {
   // つぎの問題へ。もどり値 { phase, entering }（entering=true なら ボス戦 開始）
   function next() {
     s.retry = false;
+    s.qAt = now();
     if (s.phase === 'mob') {
       if (s.index < s.mobs.length - 1) {
         s.index++;
@@ -808,7 +815,11 @@ MQ.battle = (function () {
     const gearCoins = s.mode !== 'tokkun' && s.answered > 0 ? (s.gear.coins || 0) : 0;
     // フィーバー教科（v7.2）の コイン
     const feverCoins = s.fever && s.answered > 0 ? (s.fever.coins || 0) : 0;
+    // ごちゃまぜ バトル（v7.3）：★の かわりに コイン +1
+    const mixCoins = s.mix && s.answered > 0 ? 1 : 0;
     return {
+      mix: s.mix,
+      mixCoins: mixCoins,
       fever: !!s.fever,
       feverBonus: s.feverXp,
       feverCoins: feverCoins,
@@ -821,7 +832,7 @@ MQ.battle = (function () {
       baseXp: s.xp,
       fastBonus: fastBonus,
       time: time,
-      coins: s.coins + starCoins + gearCoins + feverCoins,
+      coins: s.coins + starCoins + gearCoins + feverCoins + mixCoins,
       starCoins: starCoins,
       gearCoins: gearCoins,
       gearSet: s.gear.setName || '',

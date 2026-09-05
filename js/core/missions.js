@@ -20,6 +20,8 @@ MQ.missions = (function () {
   const REWARD_EACH = 1;        // 1つ クリア → コイン
   const REWARD_ALL_COINS = 2;   // 3つ ぜんぶ → コイン
   const REWARD_ALL_XP = 50;     // 3つ ぜんぶ → けいけんち
+  const REWARD_FEVER = 2;       // フィーバー教科の「たたかう」ミッション → コイン（v7.3）
+  const FEVER_RATE = 0.7;       // 「○○で たたかう」が フィーバー教科に なる 見こみ（v7.3）
   let NOW = null;
 
   function now() { return NOW || new Date(); }
@@ -78,7 +80,18 @@ MQ.missions = (function () {
     { id: 'fast', group: 'b', targets: [1], text: function () { return 'はやとき ボーナスを 1かい'; }, count: function (sum) { return sum.fastBonus ? 1 : 0; } },
     { id: 'chest', group: 'b', targets: [1], text: function () { return 'たからばこを 1かい あける'; }, count: function (sum) { return sum.chestOpened ? 1 : 0; } },
     { id: 'write', group: 'c', targets: [2, 3], text: function (n) { return 'かん字の もんだいに ' + n + 'もん せいかい'; }, count: function (sum) { return (sum.typeOk && sum.typeOk.write) || 0; }, ok: hasWrite },
-    { id: 'area', group: 'c', targets: [1], text: function (n, m) { return m.name + 'で 1かい たたかう'; }, count: function (sum, ctx, m) { return ctx && ctx.areaId === m.param && sum.mode === 'normal' ? 1 : 0; }, ok: function (p) { return areasOf(p).length > 0; }, param: function (p) { return pick(areasOf(p)); } },
+    /* 「○○で 1かい たたかう」は フィーバー教科（v7.2＝いちばん やって いない 教科）に 寄せる（v7.3）：
+       7割は フィーバー教科・そのときは コイン 2まい。ほかの 2枠は そのまま（やらされ感を 出さない） */
+    { id: 'area', group: 'c', targets: [1], text: function (n, m) { return m.name + 'で 1かい たたかう' + (m.fever ? '（フィーバー）' : ''); }, count: function (sum, ctx, m) { return ctx && ctx.areaId === m.param && sum.mode === 'normal' ? 1 : 0; }, ok: function (p) { return areasOf(p).length > 0; },
+      param: function (p) {
+        const list = areasOf(p);
+        let fv = null;
+        try { fv = MQ.fever ? MQ.fever.today(p) : null; } catch (e) { fv = null; }
+        const hit = fv ? list.filter(function (a) { return a.id === fv.areaId; })[0] : null;
+        if (hit && Math.random() < FEVER_RATE) return { id: hit.id, name: hit.name, fever: true };
+        return pick(list);
+      },
+      reward: function (param) { return param && param.fever ? REWARD_FEVER : REWARD_EACH } },
     { id: 'revenge', group: 'c', targets: [1], text: function () { return 'リベンジを 1かい せいこう'; }, count: function (sum) { return (sum.revengeBeaten || []).length; }, ok: function (p) { return escapedCount(p) > 0; } },
     { id: 'item', group: 'c', targets: [1], text: function () { return 'アイテムを 1かい つかう'; }, count: function (sum) { return (sum.itemsUsed || []).length; }, ok: function (p) { return (p.bag || []).length > 0; } },
     { id: 'tokkun', group: 'c', targets: [1], text: function () { return 'とっくんを 1かい する'; }, count: function (sum) { return sum.mode === 'tokkun' ? 1 : 0; }, ok: function (p) { return escapedCount(p) > 0; } }
@@ -93,11 +106,14 @@ MQ.missions = (function () {
       const k = cands.length ? pick(cands) : byId.battle;
       const target = pick(k.targets);
       const param = k.param ? k.param(p) : null;
-      list.push({
+      const m = {
         id: k.id, target: target, count: 0, done: false,
         param: param ? param.id : null, name: param ? param.name : null,
-        text: k.text(target, { param: param ? param.id : null, name: param ? param.name : '' })
-      });
+        fever: !!(param && param.fever),
+        reward: k.reward ? k.reward(param) : REWARD_EACH
+      };
+      m.text = k.text(target, m);
+      list.push(m);
     });
     return list;
   }
@@ -126,7 +142,8 @@ MQ.missions = (function () {
       m.count = Math.min(m.target, (m.count || 0) + inc);
       if (m.count >= m.target) { m.done = true; completed.push(m); }
     });
-    let coins = completed.length * REWARD_EACH, xp = 0, allDone = false;
+    let coins = 0, xp = 0, allDone = false;
+    completed.forEach(function (m) { coins += m.reward || REWARD_EACH; });
     if (ms.list.every(function (m) { return m.done; }) && !ms.claimedAll) {
       ms.claimedAll = true;
       allDone = true;
@@ -145,6 +162,7 @@ MQ.missions = (function () {
   return {
     KINDS: KINDS,
     REWARD_EACH: REWARD_EACH, REWARD_ALL_COINS: REWARD_ALL_COINS, REWARD_ALL_XP: REWARD_ALL_XP,
+    REWARD_FEVER: REWARD_FEVER, FEVER_RATE: FEVER_RATE,
     ensure: ensure,
     generate: generate,
     progress: progress,

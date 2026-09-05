@@ -207,6 +207,15 @@ MQ.save = (function () {
     return true;
   }
 
+  /* 学校の 学年を かえる（おうちの人ページ・v7.3）。あそべる 学年だけ。
+     あそぶ 学年も そろえ、学期の せっていは「ぜんぶ」に もどす */
+  function setGrade(g) {
+    const w = (MQ.content && MQ.content.worldForGrade) ? MQ.content.worldForGrade(g) : null;
+    if (!w || w.locked) return false;
+    update(function (p) { p.grade = g; p.playGrade = g; p.term = 0; p.units = {}; });
+    return true;
+  }
+
   // いまのプレイヤーを 書きかえて 保存する： update(function (p) { p.xp += 10; })
   function update(fn) {
     const p = current();
@@ -343,7 +352,7 @@ MQ.save = (function () {
   return {
     load: load, get: get, persist: persist,
     createPlayer: createPlayer, current: current, setCurrent: setCurrent, update: update, deletePlayer: deletePlayer,
-    setName: setName, NAME_MAX: NAME_MAX,
+    setName: setName, NAME_MAX: NAME_MAX, setGrade: setGrade,
     getSetting: getSetting, setSetting: setSetting,
     escapedIn: escapedIn, revengeReady: revengeReady, revengeAfterMs: revengeAfterMs, addEscaped: addEscaped, removeEscaped: removeEscaped, countEscaped: countEscaped,
     playGrade: playGrade, areaKey: areaKey, setPlayGrade: setPlayGrade,
