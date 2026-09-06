@@ -65,8 +65,37 @@ MQ.blocks = (function () {
   // ブロックの 大きさに 合わせた 影の あつさ（小さい ブロックは うすく）
   function rightFace(w) { return w >= 16 ? 5 : w >= 10 ? 4 : w >= 6 ? 3 : w >= 3 ? 2 : 0; }
   function bottomFace(h) { return h >= 16 ? 4 : h >= 10 ? 3 : h >= 6 ? 2 : h >= 3 ? 1 : 0; }
+  // 上の 面（光が あたる ところ）。右・下の 暗い面と 合わせて「3面」に なる
+  function topFace(h) { return h >= 16 ? 3 : h >= 10 ? 2 : h >= 6 ? 1 : 0; }
 
-  function part(p, palette) {
+  /* -------------------------------------------------------
+     マイクラ風の こまかい ざらつき（テクスチャ）
+
+     1マスの 中が べた塗りだと のっぺりして 見えるので、
+     4px の マスで ほんの少し 明るさを ばらつかせます。
+     色ごとに 作ると 重いので、**すきとおる 白と 黒だけの
+     タイルを 1枚**だけ 作って、どの 色の 上にも かさねます。
+     ------------------------------------------------------- */
+  const NOISE = (function () {
+    const N = 16, cell = 4;          // 16px の タイル（4px の マス 4×4）
+    let s = 20260907;                // いつも 同じ もように なる ように
+    function rnd() { s = (s * 9301 + 49297) % 233280; return s / 233280; }
+    let rects = '';
+    for (let y = 0; y < N; y += cell) {
+      for (let x = 0; x < N; x += cell) {
+        const r = rnd();
+        // 4マスの うち 1〜2マスだけ 明るく／暗く（うすく）
+        const c = r < 0.22 ? 'rgba(255,255,255,.085)'
+                : r > 0.80 ? 'rgba(0,0,0,.075)' : null;
+        if (!c) continue;
+        rects += '<rect x="' + x + '" y="' + y + '" width="' + cell + '" height="' + cell + '" fill="' + c + '"/>';
+      }
+    }
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + N + '" height="' + N + '">' + rects + '</svg>';
+    return 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
+  })();
+
+  function part(p, palette, plain) {
     const flags = p[5] || '';
     const key = p[4];
     const color = (key && key.charAt(0) === '#') ? key : palette[key];
@@ -80,22 +109,46 @@ MQ.blocks = (function () {
     d.style.height = hh + 'px';
 
     const sh = [];
+    const glow = flags.indexOf('g') !== -1;
     if (flags.indexOf('o') !== -1) {
       // まわりだけ（中は 空っぽ）
       d.style.background = 'transparent';
       sh.push('inset 0 0 0 ' + Math.max(3, Math.round(Math.min(w, hh) * 0.24)) + 'px ' + color);
     } else {
-      d.style.background = color;
+      d.style.backgroundColor = color;
       if (flags.indexOf('n') === -1) {
-        const rs = rightFace(w), bs = bottomFace(hh);
+        const rs = rightFace(w), bs = bottomFace(hh), ts = topFace(hh);
+        // 上の 面は 明るく（光が あたる がわ）
+        if (ts) sh.push('inset 0 ' + ts + 'px 0 ' + lighter(color, 0.22));
         if (rs) sh.push('inset ' + (-rs) + 'px 0 0 ' + darker(color, 0.3));
         if (bs) sh.push('inset 0 ' + (-bs) + 'px 0 rgba(0,0,0,.15)');
+        // まわりの ふち。黒では なく **同じ 色みの こい色**（かたちが しまる）。
+        // **細い ブロックには つけない**（6px の 本の せ に 1px の ふちを つけると
+        // 1.5倍に ふとって、となりの 白い ページを 食べて しまう）
+        if (w >= 6 && hh >= 6) sh.push('0 0 0 1px ' + darker(color, 0.45));
+        // 大きな 面だけ ざらつきを のせる（小さい 目や 歯は そのまま）。
+        // 小さく 出す とき（ずかんの タイル 52px など）は 見えないので つけない
+        // ＝ 220体が ならぶ ところが 軽く なる
+        if (!plain && w >= 10 && hh >= 10) d.style.backgroundImage = NOISE;
       }
     }
-    if (flags.indexOf('g') !== -1) sh.push('0 0 6px ' + color);
+    if (glow) sh.push('0 0 6px ' + color, '0 0 14px ' + color);
     if (sh.length) d.style.boxShadow = sh.join(', ');
     if (flags.indexOf('d') !== -1) d.style.transform = 'rotate(45deg)';
+    // 光る ところ（目・コア）は 呼吸するように 明るさが 変わる
+    if (glow) d.className = 'bx__glow';
+    else if (isEye(p, color)) d.className = 'bx__eye';
     return d;
+  }
+
+  /* 目らしい ブロックか。上のほうに ある 小さな 白／黒／赤 の 四角。
+     ここに まばたきの アニメを つける（バトルと タイトルの ときだけ 動く） */
+  function isEye(p, color) {
+    const flags = p[5] || '';
+    if (flags.indexOf('d') !== -1 || flags.indexOf('o') !== -1) return false;
+    if (p[1] > 30 || p[2] > 9 || p[3] > 11) return false;
+    const key = p[4];
+    return key === 'w' || key === 'k' || key === 'r' || key === 'y' || key === 'e';
   }
 
   // 左上の 白い ハイライト
@@ -120,9 +173,11 @@ MQ.blocks = (function () {
     const side = opts.base || BASE;
     box.style.width = side + 'px';
     box.style.height = side + 'px';
+    // まばたき・明滅の タイミングを 1体ずつ ずらす（みんな 同時だと 気もちわるい）
+    box.style.setProperty('--bxwait', (Math.random() * 6.5).toFixed(2) + 's');
     (shape || []).forEach(function (p) {
       if (!p) return;
-      const d = part(p, palette);
+      const d = part(p, palette, opts.plain);
       if (!d) return;
       box.appendChild(d);
       if ((p[5] || '').indexOf('h') !== -1) box.appendChild(highlight(p));
@@ -139,6 +194,8 @@ MQ.blocks = (function () {
     wrap.className = 'bxbox' + (opts.cls ? ' ' + opts.cls : '');
     wrap.style.width = size + 'px';
     wrap.style.height = size + 'px';
+    // 小さく 出す ときは ざらつきを 省く（見えない ので）
+    if (size < 56 && opts.plain == null) opts = Object.assign({}, opts, { plain: true });
     const inner = el(shape, colors, opts);
     inner.style.transform = 'scale(' + (size / base) + ')';
     wrap.appendChild(inner);

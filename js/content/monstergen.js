@@ -2729,6 +2729,9 @@ MQ.monsterGen = (function () {
       g.fillRect(x, y, w, h);
       if (flags.indexOf('n') === -1) {
         const rs = rightFace(w), bs = bottomFace(h);
+        // 上の 面を 明るく（blocks.js と 同じ 3面の 光・v9.1）
+        const ts = h >= 16 ? 3 : h >= 10 ? 2 : h >= 6 ? 1 : 0;
+        if (ts) { g.fillStyle = rgba(mix(col, [255, 255, 255], 0.22)); g.fillRect(x, y, w, ts); }
         if (rs) { g.fillStyle = rgba(mix(col, [0, 0, 0], 0.3)); g.fillRect(x + w - rs, y, rs, h); }
         if (bs) { g.fillStyle = 'rgba(0,0,0,.15)'; g.fillRect(x, y + h - bs, w, bs); }
       }

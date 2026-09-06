@@ -823,7 +823,9 @@ MQ.hero = (function () {
   // 主人公の画像。art.js に 絵があれば そちら
   function sprite(player, opts) {
     if (MQ.art && MQ.art.hero && (!opts || !opts.noGear)) return MQ.art.hero;
-    return MQ.pixel.url(keyFor(player, opts), layersFor(player, opts), { bevel: true });
+    // rim … モンスターと 同じ「同じ 色みの こい ふち」（v9.1）。
+    // タイトルの 勇者（poster）には つけない（モックに ふち取りが ない ため）。
+    return MQ.pixel.url(keyFor(player, opts) + ':r2', layersFor(player, opts), { bevel: true, rim: 0.45 });
   }
 
   /* =======================================================

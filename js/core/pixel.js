@@ -81,6 +81,19 @@ MQ.pixel = (function () {
       parseInt(opts.outline.slice(3, 5), 16),
       parseInt(opts.outline.slice(5, 7), 16)
     ] : null;
+    // rim … となりの 色を こく した ふち（黒では ない）。
+    // モンスター（blocks.js）と 同じ かんがえ方で、かたちが しまる。
+    const rim = opts.rim ? (opts.rim === true ? 0.45 : opts.rim) : 0;
+    function neighbor(x, y) {
+      const at = [[x, y + 1], [x - 1, y], [x + 1, y], [x, y - 1]];   // 下 → 横 → 上 の 順で さがす
+      for (let n = 0; n < at.length; n++) {
+        const nx = at[n][0], ny = at[n][1];
+        if (nx < 0 || ny < 0 || nx >= w || ny >= hh) continue;
+        const j = (ny * w + nx) * 4;
+        if (src[j + 3] !== 0) return j;
+      }
+      return -1;
+    }
 
     for (let y = 0; y < hh; y++) {
       for (let x = 0; x < w; x++) {
@@ -89,6 +102,12 @@ MQ.pixel = (function () {
           // すきま。まわりに 絵が あれば ふちを つける
           if (oc && (A(x - 1, y) || A(x + 1, y) || A(x, y - 1) || A(x, y + 1))) {
             out[i] = oc[0]; out[i + 1] = oc[1]; out[i + 2] = oc[2]; out[i + 3] = 255;
+          } else if (rim) {
+            const j = neighbor(x, y);
+            if (j >= 0) {
+              for (let c = 0; c < 3; c++) out[i + c] = src[j + c] * (1 - rim);
+              out[i + 3] = 255;
+            }
           }
           continue;
         }

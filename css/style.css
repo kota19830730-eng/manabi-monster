@@ -2136,7 +2136,29 @@ body {
 .bxbox { position: relative; flex: none; }
 .bxbox > .bx { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .bx { position: relative; }
-.bx i { position: absolute; display: block; }
+/* image-rendering は ざらつきの タイルを ぼかさない ため（拡大しても ドットの まま） */
+.bx i { position: absolute; display: block; image-rendering: pixelated; }
+
+/* いきている 感じ（v9.1）
+   ずかんで 220体が いっせいに 動くと うるさいので、
+   **バトルと タイトルの 中だけ** 動かす。
+     .bx__glow … 光る 目・コアが 呼吸するように 明るくなる
+     .bx__eye  … ときどき まばたき（たてに つぶれる）
+   ずらしは JS が --bxwait に 入れる */
+.arena .bx__glow, .title .bx__glow, .news__list .bx__glow {
+  animation: bxGlow 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--bxwait, 0s) * -1);
+}
+.arena .bx__eye, .title .bx__eye {
+  transform-origin: 50% 50%;
+  animation: bxBlink 6.5s steps(1, end) infinite;
+  animation-delay: var(--bxwait, 0s);
+}
+@keyframes bxGlow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.4); } }
+@keyframes bxBlink { 0%, 95.5%, 100% { transform: scaleY(1); } 96.5%, 98.5% { transform: scaleY(.12); } }
+@media (prefers-reduced-motion: reduce) {
+  .arena .bx__glow, .title .bx__glow, .news__list .bx__glow, .arena .bx__eye, .title .bx__eye { animation: none; }
+}
 .bxbox__png { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
 /* まだ 見ていない もの＝まっ黒の かげ */
 .bxbox.is-shadow .bx i { background: #182040 !important; box-shadow: none !important; }

@@ -104,6 +104,18 @@ MQ.news = (function () {
         { kind: 'item', id: 'tr-kaki', title: 'おうちの人から てがみ',
           text: 'ちずに ふうとうが 出たら タップ！ ひとことと おねがいが とどくよ。' }
       ]
+    },
+    {
+      v: 'v9.1', date: '2026-09-06', sw: 106,
+      items: [
+        { kind: 'mons', id: ['golem-gray', 'lizard-fire', 'boss-dragon'], grow: true,
+          title: 'モンスターが きれいに なった',
+          text: 'ひかりが あたる 上の めんが しろっぽく なって、つみきみたいに 見えるよ。' },
+        { kind: 'hero', title: 'ゆうしゃも きれいに！',
+          text: 'かたちの ふちが はっきりして、そうびが 見やすく なった。' },
+        { kind: 'mons', id: 'eyeball', title: 'てきが いきて いる みたい',
+          text: 'たたかいの あいだ、ときどき まばたきして、ひかる 目が ゆっくり ぴかぴか するよ。' }
+      ]
     }
   ];
 
