@@ -48,6 +48,7 @@ MQ.ui.map = (function () {
        押すと くわしい 中身（いままでの オレンジの 帯と ミッション 3つ）が
        地図の 上に かぶさって 出る。地図を さわると とじる。
      ======================================================= */
+  let gotStamp = null;      // きょう もらった スタンプの ごほうび（v8.4）
   function closeAll() {
     if (panelEl) panelEl.hidden = true;
     if (gradeEl) gradeEl.hidden = true;
@@ -73,7 +74,8 @@ MQ.ui.map = (function () {
   function obiBar(player, fv) {
     let ms = null;
     if (MQ.missions) MQ.save.update(function (p) { ms = MQ.missions.ensure(p); });
-    if (!fv && !ms) return null;                       // どちらも ない ときは 帯を 出さない
+    const stk = MQ.streak ? MQ.streak.info(player) : null;
+    if (!fv && !ms && !(stk && stk.fill)) return null;   // どれも ない ときは 帯を 出さない
     const doneN = ms ? ms.list.filter(function (m) { return m.done; }).length : 0;
 
     obiEl = h('button', {
@@ -90,6 +92,11 @@ MQ.ui.map = (function () {
       ms ? h('span', { class: 'mapobi__mis' + (doneN === ms.list.length ? ' is-all' : '') }, [
         h('span', { text: 'ミッション' }),
         h('b', { text: doneN + '/' + ms.list.length })
+      ]) : null,
+      /* つづけた 日（v8.4）。せまい ので 火の しるしと 数だけ */
+      (stk && stk.fill) ? h('span', { class: 'mapobi__stk' + (stk.today ? ' is-today' : '') }, [
+        h('i', { class: 'mapobi__fire' }),
+        h('b', { text: stk.days + '日' })
       ]) : null,
       h('i', { class: 'mapobi__arrow' })
     ]);
@@ -337,6 +344,13 @@ MQ.ui.map = (function () {
     const player = MQ.save.current();
     if (!player) { MQ.ui.start.render(); MQ.ui.show('screen-start'); return; }
     MQ.ui.syncCustom();
+    /* スタンプの ごほうび（v8.4）：3日・5日・7日で コイン。
+       もらえる 日は 下で パネルを ひらいて 見せる（1日 1回だけ） */
+    gotStamp = null;
+    if (MQ.streak) MQ.save.update(function (p) {
+      gotStamp = MQ.streak.claim(p);
+      if (gotStamp) MQ.save.addLog(p, 'れんぞく ' + gotStamp.days + '日！ コイン +' + gotStamp.coins);
+    });
     MQ.bgm.play('map');
 
     plan = layout();
@@ -485,6 +499,7 @@ MQ.ui.map = (function () {
        図かん・タイムアタック・プレイヤー・学年は 画面の 下の 段へ。
        -------------------------------------------------------------------- */
     panelEl = h('div', { class: 'mappanel', hidden: true }, [
+      stampPanel(player),
       feverPanel(player, feverNow),
       missionsPanel(player)
     ]);
@@ -550,12 +565,54 @@ MQ.ui.map = (function () {
       bottom
     ]));
 
+    /* ごほうびを もらった 日は スタンプの 帯を ひらいて 見せる（v8.4） */
+    if (gotStamp) {
+      togglePanel();
+      MQ.sfx.coin();
+      MQ.ui.toast('れんぞく ' + gotStamp.days + '日！ コイン +' + gotStamp.coins);
+    }
+
     // いま あそぶ ところが 見えるように スクロール
     setTimeout(function () {
       const el = document.querySelector('#screen-map .node--now');
       const sc = document.querySelector('#screen-map .map__scroll');
       if (el && sc) sc.scrollTop = Math.max(0, el.offsetTop - sc.clientHeight * 0.45);
     }, 0);
+  }
+
+  /* =======================================================
+     スタンプカレンダー（v8.4）：つづけた 日。
+       その日 1問でも 答えたら スタンプ 1つ。7マスで ひとまわり。
+       3日 コイン1／5日 コイン2／7日 コイン3。
+       **切れても ばつは ゼロ**（「また 1日めから！」だけ）。
+       ルールは js/core/streak.js
+     ======================================================= */
+  function stampPanel(player) {
+    if (!MQ.streak) return null;
+    const st = MQ.streak.info(player);
+    const kid = (MQ.content.activeWorld().grade || 3) <= 2;
+    const cells = h('div', { class: 'stamp__row' }, st.cells.map(function (c) {
+      return h('div', {
+        class: 'stamp__cell' + (c.on ? ' is-on' : '') + (c.today ? ' is-today' : '') + (c.reward ? ' has-gift' : '') +
+               ((gotStamp && gotStamp.pos === c.n) ? ' is-got' : '')
+      }, [
+        h('b', { class: 'stamp__n', text: c.on ? '★' : String(c.n) }),
+        c.reward ? h('i', { class: 'stamp__gift', text: '+' + c.reward }) : null
+      ]);
+    }));
+    // あしたの ごほうび（ここが ワクワクの 本体）
+    let sub;
+    if (!st.today) sub = kid ? 'きょう 1もん こたえると スタンプ！' : 'きょう 1問 こたえると スタンプ！';
+    else if (st.next.coins) sub = 'あした 来ると ' + st.next.n + '日め！ コイン +' + st.next.coins;
+    else sub = 'あした 来ると ' + st.next.n + '日め！';
+    return h('div', { class: 'stamp' + (st.today ? ' is-done' : '') }, [
+      h('div', { class: 'stamp__head' }, [
+        h('span', { class: 'stamp__ttl', text: kid ? 'つづけた 日' : 'つづけた 日' }),
+        h('span', { class: 'stamp__days' }, [h('b', { text: String(st.days) }), h('span', { text: '日 れんぞく' })])
+      ]),
+      cells,
+      h('span', { class: 'stamp__sub', text: sub })
+    ]);
   }
 
   /* =======================================================

@@ -44,6 +44,7 @@
     #weakmix #weaklast … 弱点（ごちゃまぜの まよいこんだ 敵／塔の ラスボス）
     #skill:kamae #skill:break #skill:clone #skill:clone2 #skill:call … ボスの わざ 3種
     #news #news:2 #news2 #news3 … あたらしい こと！（v8.3・たまった ぶん／2ページめ／1つだけ／もう 見た）
+    #streak #streak:7 #streak:0 #streak:none … スタンプカレンダー（v8.4・3日め／7日め／切れた／きょう まだ）
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -81,6 +82,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/missions.js"></script>
 <script src="../js/core/fever.js"></script>
 <script src="../js/core/pals.js"></script>
+<script src="../js/core/streak.js"></script>
 <script src="../js/core/speech.js"></script>
 <script src="../js/core/battle.js"></script>
 <!-- 教科の ファイルは **index.html と 同じ じゅんばん**（tools/smoke.js が 検査する）。
@@ -2323,6 +2325,57 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const holdAt = parseInt(parts[2], 10) || 260;   // 当たった あと（smash も 入る ように）
       const fin = (kind === 'atkfin');
       fresh();
+    /* #streak … スタンプカレンダー（つづけた 日・v8.4）
+         #streak       きょう ふくめて 3日め（コイン +1 を もらう ところ）
+         #streak:7     7日め（コイン +3）
+         #streak:0     切れた あと（0日・ばつは ない）
+         #streak:none  きのうまで 4日・きょうは まだ */
+    if (mode.indexOf('streak') === 0) {
+      const arg = mode.split(':')[1] || '3';
+      fresh();
+      MQ.save.update(function (pl) {
+        pl.seenNews = MQ.news.latest();                 // お知らせは 出さない
+        pl.coins = 0;
+        pl.stats = { rows: {}, wrong: [], days: {} };
+        const d = MQ.stats.now();
+        let back = [0, 1, 2];
+        if (arg === '7') back = [0, 1, 2, 3, 4, 5, 6];
+        else if (arg === '0') back = [4];               // 4日前に 1日だけ ＝ 切れて いる
+        else if (arg === 'none') back = [1, 2, 3, 4];   // きのうまで 4日・きょうは まだ
+        back.forEach(function (i) { pl.stats.days[MQ.stats.dayKey(MQ.stats.addDays(d, -i))] = { n: 4, ok: 3, t: 60, u: {} }; });
+      });
+      MQ.ui.news.reset();
+      MQ.ui.goMap();
+      await wait(400);
+      const st = MQ.streak.info(MQ.save.current());
+      say('streak: ' + st.days + '日・きょう ' + (st.today ? 'ついた' : 'まだ') + '／光る ' + st.fill + '／いま ' + st.here + 'マスめ' +
+          '／コイン ' + MQ.save.current().coins);
+      const panel = $('.stamp');
+      say('streak: 帯 ' + ($('.mapobi__stk') ? $('.mapobi__stk').textContent : 'なし') +
+          '／パネル ' + (panel ? 'ok' : 'MISSING') +
+          '／ひらいて いる ' + ($('.mappanel') && !$('.mappanel').hidden ? 'ok' : 'とじて いる'));
+      if (panel) {
+        const cells = $$('.stamp__cell');
+        say('streak: マス ' + cells.length + '／★ ' + cells.filter(function (c) { return c.classList.contains('is-on'); }).length +
+            '／きょう ' + cells.map(function (c, i) { return c.classList.contains('is-today') ? (i + 1) : null; }).filter(Boolean).join(',') +
+            '／ごほうび ' + cells.map(function (c, i) { return c.classList.contains('has-gift') ? (i + 1) : null; }).filter(Boolean).join(',') +
+            '／はねる ' + ($('.stamp__cell.is-got') ? 'ok' : 'なし'));
+        say('streak: ' + ($('.stamp__sub') ? $('.stamp__sub').textContent : 'MISSING'));
+        // マスが 横に はみ出して いないか（幅 400 の 中）
+        const row = $('.stamp__row').getBoundingClientRect(), one = cells[0].getBoundingClientRect();
+        say('streak: 1マス ' + Math.round(one.width) + 'px／7マス ' + Math.round(row.width) + 'px（はみ出し ' +
+            (cells[6].getBoundingClientRect().right <= row.right + 1 ? 'なし OK' : 'あり MISSING') + '）');
+      }
+      // もう一度 地図に 来ても 2回は もらえない
+      const c1 = MQ.save.current().coins;
+      MQ.ui.goMap();
+      await wait(200);
+      say('streak: 2回目の 地図 → コイン ' + MQ.save.current().coins + (MQ.save.current().coins === c1 ? ' OK（ふえない）' : ' MISSING'));
+      if (!$('.mappanel') || $('.mappanel').hidden) { const b = $('.mapobi'); if (b) b.click(); }
+      await wait(200);
+      dump(); freeze(); return;
+    }
+
       // かぶとは ひっさつを 早く 出す ので、ふつうの こうげきを 見る ときは 外す
       MQ.save.update(function (pl) { pl.equipped.helm = null; });
       MQ.ui.battle.start('sansu3-2');

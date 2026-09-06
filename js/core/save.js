@@ -121,6 +121,9 @@ MQ.save = (function () {
        古い セーブは null＝まだ 見て いない → たまった ぶんを まとめて 見せる。
        あたらしく 作った 子は newPlayer で いまの 版に する（はじめてなので 何も 出さない） */
     if (typeof p.seenNews !== 'string') p.seenNews = null;
+    // スタンプカレンダー（v8.4）：ごほうびを もらった 日 { '3': 'YYYY-MM-DD' }
+    if (!p.streak || typeof p.streak !== 'object' || Array.isArray(p.streak)) p.streak = { claimed: {} };
+    if (!p.streak.claimed || typeof p.streak.claimed !== 'object') p.streak.claimed = {};
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {

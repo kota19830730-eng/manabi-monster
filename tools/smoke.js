@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/guard.js', 'js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/streak.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
 
 const MQ = global.MQ;
@@ -3196,6 +3196,81 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
 
   // ---- 出し分け ----
   const prevId = MQ.save.current() && MQ.save.current().id;
+/* ===== スタンプカレンダー（つづけた 日・v8.4）===== */
+(function () {
+  const S = MQ.streak;
+  check(!!S, 'MQ.streak が 読めて いる');
+  if (!S) return;
+  const prevId = MQ.save.current() && MQ.save.current().id;
+  const day = new Date(2026, 8, 20);           // 2026-09-20（テストの きょう）
+  MQ.stats.setNow(day);
+  function player(daysBack) {                   // daysBack = 何日前まで 答えたか の 一覧
+    MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 's1', name: 's', grade: 3, xp: 0 }], currentId: 's1', settings: {} }));
+    const p = MQ.save.current();
+    p.stats = { rows: {}, wrong: [], days: {} };
+    daysBack.forEach(function (i) { p.stats.days[MQ.stats.dayKey(MQ.stats.addDays(day, -i))] = { n: 3, ok: 2, t: 40, u: {} }; });
+    return p;
+  }
+  // ① まだ 1問も 答えて いない
+  let p = player([]);
+  let st = S.info(p);
+  check(st.days === 0 && !st.today && st.fill === 0 && st.here === 1, 'streak: なし → 0日・きょうは 1マスめ ' + JSON.stringify([st.days, st.today, st.fill, st.here]));
+  check(st.cells.length === 7 && st.cells[0].today && !st.cells[0].on, 'streak: 7マス・1マスめが きょう');
+  // ② きょう ふくめて 3日 つづいた → コイン 1
+  p = player([0, 1, 2]);
+  st = S.info(p);
+  check(st.days === 3 && st.today && st.fill === 3 && st.here === 3, 'streak: 3日 ' + JSON.stringify([st.days, st.today, st.fill, st.here]));
+  check(st.claimable === 1, 'streak: 3日で コイン 1（' + st.claimable + '）');
+  check(st.next.n === 4 && st.next.coins === 0, 'streak: あしたは 4日め・ごほうびなし');
+  let got = S.claim(p);
+  check(got && got.coins === 1 && p.coins === 1, 'streak: コインを もらう ' + JSON.stringify(got));
+  check(S.claim(p) === null && p.coins === 1, 'streak: 同じ 日に 2回は もらえない');
+  // ③ きょう まだ・きのうまで 4日 → 4マス 光って きょうは 5マスめ（コイン 2が 見える）
+  p = player([1, 2, 3, 4]);
+  st = S.info(p);
+  check(st.days === 4 && !st.today && st.fill === 4 && st.here === 5, 'streak: きのうまで 4日 → きょうは 5マスめ ' + JSON.stringify([st.days, st.today, st.fill, st.here]));
+  check(st.claimable === 0, 'streak: きょう まだなら ごほうびは まだ');
+  check(st.cells[4].reward === 2 && st.cells[2].reward === 1 && st.cells[6].reward === 3, 'streak: ごほうびは 3・5・7マスめ');
+  // ④ 7日め → コイン 3・つぎの 日は また 1マスめ
+  p = player([0, 1, 2, 3, 4, 5, 6]);
+  st = S.info(p);
+  check(st.days === 7 && st.here === 7 && st.claimable === 3, 'streak: 7日で コイン 3 ' + JSON.stringify([st.days, st.here, st.claimable]));
+  check(st.next.n === 8 && st.next.pos === 1, 'streak: 8日めは また 1マスめ');
+  // ⑤ 8日つづき → 1マスめ・光るのは 1つ
+  p = player([0, 1, 2, 3, 4, 5, 6, 7]);
+  st = S.info(p);
+  check(st.days === 8 && st.here === 1 && st.fill === 1, 'streak: 8日 → 1マスめ ' + JSON.stringify([st.days, st.here, st.fill]));
+  // ⑥ 切れた（3日前に 1日だけ）→ ばつは ない。0日から
+  p = player([3]);
+  st = S.info(p);
+  check(st.days === 0 && st.here === 1 && st.claimable === 0, 'streak: 切れても 0から（へらす ものは ない）');
+  check(p.coins === 0, 'streak: 切れても コインは へらない');
+  // ⑦ 1週めの ごほうびは つぎの 週に また もらえる
+  p = player([0, 1, 2]);
+  S.claim(p);
+  p.stats.days[MQ.stats.dayKey(MQ.stats.addDays(day, 0))] = { n: 3, ok: 2, t: 40, u: {} };
+  const day2 = new Date(2026, 8, 30);                          // 10日 あとの 3日め
+  MQ.stats.setNow(day2);
+  const p2 = MQ.save.current();
+  p2.stats = { rows: {}, wrong: [], days: {} };
+  [0, 1, 2].forEach(function (i) { p2.stats.days[MQ.stats.dayKey(MQ.stats.addDays(day2, -i))] = { n: 3, ok: 2, t: 40, u: {} }; });
+  p2.streak = { claimed: { '3': '2026-09-20' } };
+  check(S.info(p2).claimable === 1, 'streak: 日が かわれば また もらえる');
+  // ⑧ 古い セーブ
+  MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
+  check(MQ.save.current().streak && MQ.save.current().streak.claimed && S.info(MQ.save.current()).days === 0, 'streak: 古い セーブでも 落ちない');
+  MQ.stats.setNow(null);
+  MQ.save.load();
+  if (prevId) MQ.save.setCurrent(prevId);
+  // 読みこみ
+  check(INDEX_HTML.indexOf('js/core/streak.js') >= 0, 'index.html に streak.js');
+  const swTx2 = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  check(swTx2.indexOf("'./js/core/streak.js'") >= 0, 'sw.js の FILES に streak.js');
+  const hx2 = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  check(hx2.indexOf('../js/core/streak.js') >= 0, 'harness.html に streak.js');
+  console.log('スタンプカレンダー: 7マス・3/5/7の ごほうび・切れても ばつなし OK');
+})();
+
   check(N.cmp('v8.2', 'v8.10') < 0 && N.cmp('v8.2', 'v7.9') > 0 && N.cmp('v8.2', 'v8.2') === 0, 'news: 版の くらべ方');
   // ① まだ 見て いない 子（古い セーブ）＝ ぜんぶ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'n1', name: 'n', grade: 3, xp: 0 }], currentId: 'n1', settings: {} }));

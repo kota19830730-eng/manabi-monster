@@ -3229,3 +3229,60 @@ body {
 .news__dot { display: block; width: 10px; height: 10px; border-radius: 3px; background: rgba(255,255,255,.22); }
 .news__dot.is-on { background: var(--gold); box-shadow: 0 0 8px rgba(255,212,71,.8); }
 .news__next { flex: 1; min-height: 50px; font-size: 19px; }
+
+/* =========================================================
+   スタンプカレンダー（つづけた 日・v8.4）
+
+   地図の 帯を 押すと 出る パネルの いちばん 上。
+   その日 1問でも 答えたら スタンプ 1つ。7マスで ひとまわり。
+   3日 コイン1／5日 コイン2／7日 コイン3。**切れても ばつは ゼロ**。
+   ルールは js/core/streak.js
+   ========================================================= */
+.stamp {
+  margin: 6px 12px 4px; padding: 8px 12px 9px; border-radius: 12px;
+  background: linear-gradient(var(--hd-1), var(--hd-2));
+  box-shadow: 0 4px 0 var(--hd-edge), inset 0 2px 0 rgba(255,255,255,.10);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.stamp__head { display: flex; align-items: center; gap: 8px; }
+.stamp__ttl { flex: 1; min-width: 0; font-family: var(--f-head); font-size: 13px; color: var(--gold-lt); letter-spacing: .04em; }
+.stamp__days { flex: none; display: flex; align-items: baseline; gap: 3px; padding: 1px 9px; border-radius: 999px; background: rgba(0,0,0,.3); font-size: 11px; color: #dbe4ff; }
+.stamp__days b { font-family: var(--f-head); font-size: 17px; line-height: 1; color: var(--gold); }
+.stamp__row { display: flex; gap: 5px; }
+.stamp__cell {
+  position: relative; flex: 1 1 0; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--frame); box-shadow: inset 0 0 0 2px rgba(255,255,255,.14), inset 0 3px 0 rgba(0,0,0,.35);
+}
+.stamp__n { font-family: var(--f-head); font-size: 15px; color: var(--lock-1); }
+/* ごほうびの ある マスは 金の わくで 目じるし */
+.stamp__cell.has-gift { box-shadow: inset 0 0 0 2px rgba(255,212,71,.45), inset 0 3px 0 rgba(0,0,0,.35); }
+.stamp__cell.has-gift .stamp__n { color: var(--tx-dim); }
+.stamp__gift {
+  position: absolute; top: -9px; right: -4px; padding: 1px 5px; border-radius: 6px;
+  background: rgba(0,0,0,.5); box-shadow: inset 0 0 0 2px var(--gold);
+  font-family: var(--f-head); font-size: 10px; font-style: normal; color: var(--gold);
+}
+/* スタンプが ついた マス */
+.stamp__cell.is-on {
+  background: linear-gradient(#ffe07a, var(--gold-2));
+  box-shadow: 0 3px 0 var(--gold-sh), inset 0 2px 0 rgba(255,255,255,.55);
+}
+.stamp__cell.is-on .stamp__n { font-size: 20px; color: var(--gold-ink); }
+.stamp__cell.is-on .stamp__gift { background: linear-gradient(var(--org-1), var(--org-2)); box-shadow: 0 2px 0 var(--org-sh); color: #fff; }
+/* きょうの マス（まだ なら オレンジの わくが ゆっくり ひかる） */
+.stamp__cell.is-today { box-shadow: inset 0 0 0 3px var(--org-1), inset 0 3px 0 rgba(0,0,0,.3); animation: pulse 1.6s ease-in-out infinite; }
+.stamp__cell.is-on.is-today { box-shadow: 0 3px 0 var(--gold-sh), inset 0 0 0 3px var(--org-1), inset 0 2px 0 rgba(255,255,255,.4); animation: none; }
+/* きょう もらった マスは ぽんと はねる */
+.stamp__cell.is-got { animation: stampPop .5s ease-out; }
+@keyframes stampPop { 0% { transform: scale(.4) rotate(-14deg); } 60% { transform: scale(1.22) rotate(4deg); } 100% { transform: scale(1); } }
+.stamp__sub { font-size: 12px; color: var(--gold-lt); }
+.stamp.is-done .stamp__sub { color: var(--gold-lt); }
+
+/* 上の 帯の「れんぞく N日」（v8.4） */
+.mapobi__stk { flex: none; display: flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 9px; border-radius: 999px;
+               background: linear-gradient(var(--navy-1), var(--navy-2)); box-shadow: 0 3px 0 var(--navy-sh); font-size: 12px; color: var(--tx-sub); }
+.mapobi__stk b { font-family: var(--f-head); color: var(--gold); }
+.mapobi__fire { flex: none; width: 11px; height: 13px; border-radius: 6px 6px 5px 5px; background: linear-gradient(var(--gold), var(--org-2)); opacity: .55; }
+.mapobi__stk.is-today .mapobi__fire { opacity: 1; box-shadow: 0 0 8px rgba(255,143,94,.9); }
+@media (prefers-reduced-motion: reduce) { .stamp__cell.is-today, .stamp__cell.is-got { animation: none; } }
