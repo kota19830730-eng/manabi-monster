@@ -2473,6 +2473,20 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   P.buy(q, 'serp-1');
   check(q.coins === before - P.price('serp-1') && P.has(q, 'serp-1'), 'コインを はらって なかまに なる');
   check(!P.canBuy(q, 'serp-1'), 'もう なかまの モンスターは 買えない');
+  /* ねだんは 段階べつ（v8.9）。育てた ほうが 早い ように、
+     Lv.20 で なる 3段階めは コインでは とても 高い。系統に 入って いない
+     もの（ゴールデンスライム・中ボス）は いままで どおり つよさべつ */
+  check(P.price('drago-1') === 3 && P.price('drago-2') === 20 && P.price('drago-3') === 40,
+    'ねだんは 1段階 3・2段階 20・3段階 40（' + [P.price('drago-1'), P.price('drago-2'), P.price('drago-3')].join('/') + '）');
+  check(P.price('skullhorse') === 3 && P.price('skullhorse-3') === 40, '息子さんの モンスターも 段階べつ');
+  check(P.price('slime-golden') === 6 && P.price('mid-golem') === 10, '系統に 入って いない ものは つよさべつ');
+  (function () {
+    // Lv.20 まで 育てる ほうが「安い」ままか（買う ほうが 得に ならない）
+    const kings = MQ.enemies.list.filter(function (e) { return e.stage === 3; });
+    check(kings.every(function (e) { return P.price(e.id) >= 40; }), '3段階めは ぜんぶ 40まい いじょう');
+    const cheap = MQ.enemies.list.filter(function (e) { return !e.hidden && P.price(e.id) <= 3; });
+    check(cheap.length >= 50, 'コイン 3まいで 買える モンスターは 50体 いじょう（お店が すかすかに ならない）: ' + cheap.length);
+  })();
   // たおした 中から なかま候補（もう なかまの もの・ボス・たからばこは えらばない）
   /* なまえを つける（v5.2）。8文字まで・からっぽで もとの 名前に もどる・進化しても のこる */
   (function () {
