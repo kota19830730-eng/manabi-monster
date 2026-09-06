@@ -172,10 +172,10 @@ MQ.battle = (function () {
     return out;
   }
 
-  // つよそうな 敵（rank3）を 1体。えらべなければ ならびの さいごの 敵
+  // 中ボス専用の モンスター（v8.1）。いなければ つよそうな ザコ → ならびの さいごの 敵
   function pickElite(areaId, mobs) {
-    if (areaId && MQ.enemies && MQ.enemies.pickIds) {
-      const id = MQ.enemies.pickIds(areaId, 1, 1)[0];
+    if (areaId && MQ.enemies && MQ.enemies.midFor) {
+      const id = MQ.enemies.midFor(areaId);
       if (id) return id;
     }
     return mobs.length ? mobs[mobs.length - 1].enemyId : 'slime-green';

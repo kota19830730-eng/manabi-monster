@@ -209,6 +209,27 @@ MQ.enemies = (function () {
     { id: 'ninja-2', name: 'シノビン', shape: 'ninja2', area: 'sansu', any: true, rank: 2, line: 'ninja', stage: 2, evo: 'ninja-3', colors: { A: '#4A5170', C: '#E84A4A' } },
     { id: 'ninja-3', name: 'カゲロード', shape: 'ninja3', area: 'sansu', any: true, rank: 3, line: 'ninja', stage: 3, colors: { A: '#333A55', C: '#E8324A' } },
 
+    /* ---------- 中ボス 8体（v8.1・エリアごとに 2体） ----------
+       ふつうの たたかいの さいごに 出る HP2 の 敵（`mid: true`）。
+       **ザコの 顔ぶれ（pickIds）には 入らない**。図かんには のる（つよさ ★★★）。
+       小4・小5の 理科／社会は AREA_ALIAS で 理科社会の 2体を 借りる。 */
+    { id: 'mid-golem',  name: 'ギガゴーレム',   shape: 'midGolem',  area: 'sansu',      mid: true, rank: 3,
+      colors: { A: '#7A6A58', B: '#4E4436', r: '#FF7A2A', y: '#FFD166' } },
+    { id: 'mid-drill',  name: 'ドリルヘッド',   shape: 'midDrill',  area: 'sansu',      mid: true, rank: 3,
+      colors: { A: '#8A93B0', B: '#4A5170', C: '#C8D0E0', r: '#FF4D4D', e: '#7AE0FF' } },
+    { id: 'mid-ogre',   name: 'オーガロード',   shape: 'midOgre',   area: 'kokugo',     mid: true, rank: 3,
+      colors: { A: '#C4443A', B: '#7A2420', w: '#FFF3D6', y: '#FFD166' } },
+    { id: 'mid-fang',   name: 'シャドウファング', shape: 'midFang', area: 'kokugo',     mid: true, rank: 3,
+      colors: { A: '#2E2A3A', B: '#1A1826', C: '#8A7ACC', r: '#FF3B30', w: '#F2F0EA' } },
+    { id: 'mid-drake',  name: 'アイスドレイク', shape: 'midDrake',  area: 'rikashakai', mid: true, rank: 3,
+      colors: { A: '#6BBEE0', B: '#3E8AC4', C: '#D8F4FF', e: '#BFEAFF', w: '#FFFFFF' } },
+    { id: 'mid-jaw',    name: 'ディープジョー', shape: 'midJaw',    area: 'rikashakai', mid: true, rank: 3,
+      colors: { A: '#4A6B88', B: '#2E4A66', w: '#FFFFFF', k: '#101018', r: '#FF5A5A' } },
+    { id: 'mid-eagle',  name: 'ストームイーグル', shape: 'midEagle', area: 'eigo',      mid: true, rank: 3,
+      colors: { A: '#7A88A8', B: '#4A5568', C: '#E8EEF8', y: '#F2C14E', r: '#FF3B30' } },
+    { id: 'mid-saucer', name: 'メガソーサー',   shape: 'midSaucer', area: 'eigo',       mid: true, rank: 3,
+      colors: { A: '#8FA2C0', B: '#5A6480', e: '#7AE0FF', y: '#FFD166', w: '#FFFFFF', k: '#12121A' } },
+
     /* たからばこ（敵あつかい だが 図鑑には のせない） */
     { id: 'chest', name: 'たからばこ', shape: 'chest', hidden: true,
       colors: { p: '#A6753F', P: '#7A5326', y: '#F2C14E' } }
@@ -299,9 +320,9 @@ MQ.enemies = (function () {
 
   function pickIds(areaId, n, hard) {
     areaId = poolArea(areaId);
-    // any: true（にんじゃ）は どの エリアにも 出る
-    let pool = list.filter(function (e) { return (e.area === areaId || e.any) && !e.rare && !e.hidden; });
-    if (!pool.length) pool = list.filter(function (e) { return !e.rare && !e.hidden && e.area; });
+    // any: true（にんじゃ）は どの エリアにも 出る。中ボス（mid）は ふつうの ザコには 出ない
+    let pool = list.filter(function (e) { return (e.area === areaId || e.any) && !e.rare && !e.hidden && !e.mid; });
+    if (!pool.length) pool = list.filter(function (e) { return !e.rare && !e.hidden && !e.mid && e.area; });
     if (hard == null) hard = 0.5;
     hard = Math.max(0, Math.min(1, hard));
     const byRank = { 1: [], 2: [], 3: [] };
@@ -324,6 +345,17 @@ MQ.enemies = (function () {
   }
 
   function goldenId() { return 'slime-golden'; }
+
+  /* 中ボス（v8.1）：その エリアの 中ボスを 1体。いなければ いちばん つよそうな ザコ（rank3） */
+  function midIdsFor(areaId) {
+    const a = poolArea(areaId);
+    return list.filter(function (e) { return e.mid && e.area === a; }).map(function (e) { return e.id; });
+  }
+  function midFor(areaId) {
+    const ids = midIdsFor(areaId);
+    if (ids.length) return MQ.util.pick(ids);
+    return pickIds(areaId, 1, 1)[0] || 'slime-green';
+  }
 
   /* なかまを よぶ（v8.1）：同じ 系統（line）の べつの すがた。なければ null
      （ドラコが 呼ぶと ドラグーン／ドラゴニクス が とんでくる） */
@@ -376,6 +408,7 @@ MQ.enemies = (function () {
     get: get, node: node, shadowNode: shadowNode, dexList: dexList,
     pickIds: pickIds, goldenId: goldenId, rareId: goldenId, rareIdFor: rareIdFor, rareIdsFor: rareIdsFor,
     trioFor: trioFor, bossFor: bossFor, poolArea: poolArea, setCustom: setCustom, mateFor: mateFor,
+    midFor: midFor, midIdsFor: midIdsFor,
     customs: function () { return customs; }
   };
 })();

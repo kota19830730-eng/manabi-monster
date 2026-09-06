@@ -1138,7 +1138,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 156, '図かんは 156体（' + dex + '）');
+  check(dex === 164, '図かんは 164体（' + dex + '）');   // v8.1 で 中ボス 8体（156 → 164）
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -2881,7 +2881,20 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(eq.elite === true && eq.elitePos === 0 && eq.eliteHp === 2 && (eq.lv || 2) === 3, 'elite: さいごは 中ボス・lv3 ' + JSON.stringify({ lv: eq.lv, pos: eq.elitePos }));
   check(B.chargeInfo() === null, 'elite: 中ボスには ため を 出さない（出来事は 1つ）');
   const eliteE = MQ.enemies.get(eq.enemyId);
-  check(eliteE && (eliteE.rank === 3 || eliteE.any), 'elite: つよそうな 敵（rank3）' + eq.enemyId);
+  check(eliteE && eliteE.mid === true && eliteE.rank === 3, 'elite: 中ボス専用の モンスター ' + eq.enemyId);
+  // 中ボスは エリアごとに 2体・ふつうの ザコには 出ない・図かんには のる
+  ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
+    check(MQ.enemies.midIdsFor(a).length === 2, '中ボス: ' + a + ' は 2体 ' + MQ.enemies.midIdsFor(a).length);
+    check(MQ.enemies.midIdsFor(a).indexOf(MQ.enemies.midFor(a)) >= 0, '中ボス: midFor は その エリアから ' + a);
+    check(MQ.enemies.pickIds(a, 30, 1).every(function (id) { return !MQ.enemies.get(id).mid; }), '中ボス: ザコには 出ない ' + a);
+  });
+  // 小4・小5の 理科／社会は 理科社会の 中ボスを 借りる
+  check(MQ.enemies.midIdsFor('rika').length === 2 && MQ.enemies.midIdsFor('shakai').length === 2, '中ボス: 理科・社会は 理科社会の を 借りる');
+  check(MQ.enemies.list.filter(function (e) { return e.mid; }).length === 8, '中ボス: ぜんぶで 8体');
+  MQ.enemies.list.filter(function (e) { return e.mid; }).forEach(function (e) {
+    check(!e.hidden && !e.rare && MQ.enemies.dexList().some(function (x) { return x.id === e.id; }), '中ボス: 図かんに のる ' + e.id);
+    check(!!MQ.enemies.shapes[e.shape], '中ボス: 絵が ある ' + e.shape);
+  });
   check(B.mobs === undefined, 'elite: mobs は 外に 出さない');
   // 中ボスの 2問めは 同じ 敵・同じ しるし
   check(B.foeCount().no === 13, 'elite: 中ボスは 13体め ' + B.foeCount().no);
