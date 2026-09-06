@@ -190,7 +190,8 @@ for (let s = 1; s <= 12; s++) {
 console.log('sansu1 generated ok: ' + sansu1Count);
 
 /* ---- 小2 さんすう（v2.3）：14ステージ・問題文は ひらがな＋小1の かん字だけ ---- */
-const G1_KANJI = /[大小上下右左一二三四五六七八九十百千円人口目耳手足日月火水木金土山川子女男本字学校年生早正出入立休見音天雨花草虫犬玉王石竹糸貝車町村林森気力文名先夕空白赤青]/g;
+/* 小1の かん字 80字。v8.3 で 中・田・八 を 足した（もともと 小1の 字なのに ぬけて いた） */
+const G1_KANJI = /[中田八大小上下右左一二三四五六七八九十百千円人口目耳手足日月火水木金土山川子女男本字学校年生早正出入立休見音天雨花草虫犬玉王石竹糸貝車町村林森気力文名先夕空白赤青]/g;
 function onlyG1Kanji(s) { return !/[一-龠]/.test(String(s).replace(G1_KANJI, '')); }
 let sansu2Count = 0;
 for (let s = 1; s <= 14; s++) {
@@ -3147,6 +3148,78 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   MQ.save.load();
   if (prevId) MQ.save.setCurrent(prevId);
   console.log('v8.1: 中ボス・弱点・ボスの わざ・なかまを よぶ OK');
+})();
+
+/* ===== あたらしい こと！（お知らせ・v8.3）===== */
+(function () {
+  const N = MQ.news;
+  check(!!N, 'MQ.news が 読めて いる');
+  if (!N) return;
+  const KINDS = ['mons', 'item', 'coin', 'hero'];
+  const ids = {}; MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) { ids[e.id] = 1; });
+  const tids = {}; MQ.treasure.list.forEach(function (t) { tids[t.id] = 1; });
+  let itemN = 0;
+  N.list.forEach(function (e, i) {
+    check(/^v\d+\.\d+$/.test(e.v), 'news[' + i + ']: 版の 形 ' + e.v);
+    check(/^20\d\d-\d\d-\d\d$/.test(e.date), 'news ' + e.v + ': 日づけ ' + e.date);
+    check(typeof e.sw === 'number' && e.sw > 0, 'news ' + e.v + ': sw の 番号');
+    check(Array.isArray(e.items) && e.items.length >= 1 && e.items.length <= 3, 'news ' + e.v + ': お知らせは 1〜3つ（' + (e.items || []).length + '）');
+    if (i > 0) check(N.cmp(e.v, N.list[i - 1].v) > 0, 'news: 版は 古い → 新しい の じゅん（' + N.list[i - 1].v + ' → ' + e.v + '）');
+    (e.items || []).forEach(function (it, j) {
+      const w = 'news ' + e.v + '#' + j;
+      itemN++;
+      check(KINDS.indexOf(it.kind) !== -1, w + ': kind ' + it.kind);
+      if (it.kind === 'mons') {
+        (Array.isArray(it.id) ? it.id : [it.id]).forEach(function (id) {
+          check(!!ids[id], w + ': モンスター ' + id + ' が いる');
+        });
+        check(!Array.isArray(it.id) || it.id.length <= 3, w + ': ならべるのは 3体まで');
+      }
+      if (it.kind === 'item') check(!!tids[it.id], w + ': たからもの ' + it.id + ' が ある');
+      // 文は ひらがな＋小1の かん字だけ（どの 学年の 子も 読める）
+      check(typeof it.title === 'string' && it.title.length > 0 && it.title.length <= 18, w + ': みだしは 18字まで（' + it.title + '）');
+      check(typeof it.text === 'string' && it.text.length > 0 && it.text.length <= 62, w + ': 文は 62字まで（' + it.text.length + '字）');
+      check(onlyG1Kanji(it.title), w + ': みだしの かん字は 小1まで（' + it.title + '）');
+      check(onlyG1Kanji(it.text), w + ': 文の かん字は 小1まで（' + it.text + '）');
+    });
+  });
+  // sw.js の 版を こえて いない こと（上げた ときに ここも 見直す ため）
+  const swTx = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  const swNo = parseInt((swTx.match(/manabi-monster-v(\d+)/) || [])[1], 10);
+  const lastSw = N.list[N.list.length - 1].sw;
+  check(lastSw <= swNo, 'news: さいごの 版の sw（' + lastSw + '）は sw.js（' + swNo + '）を こえない');
+  // 読みこみ：index・harness・sw の ぜんぶに ある
+  check(INDEX_HTML.indexOf('js/content/news.js') >= 0 && INDEX_HTML.indexOf('js/ui/news.js') >= 0, 'index.html に news.js（content と ui）');
+  const hx = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  check(hx.indexOf('../js/content/news.js') >= 0 && hx.indexOf('../js/ui/news.js') >= 0, 'harness.html に news.js');
+  check(swTx.indexOf("'./js/content/news.js'") >= 0 && swTx.indexOf("'./js/ui/news.js'") >= 0, 'sw.js の FILES に news.js');
+
+  // ---- 出し分け ----
+  const prevId = MQ.save.current() && MQ.save.current().id;
+  check(N.cmp('v8.2', 'v8.10') < 0 && N.cmp('v8.2', 'v7.9') > 0 && N.cmp('v8.2', 'v8.2') === 0, 'news: 版の くらべ方');
+  // ① まだ 見て いない 子（古い セーブ）＝ ぜんぶ
+  MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'n1', name: 'n', grade: 3, xp: 0 }], currentId: 'n1', settings: {} }));
+  const old = MQ.save.current();
+  check(old.seenNews === null, 'news: 古い セーブは まだ 見て いない');
+  check(N.items(old).length === itemN, 'news: ぜんぶ 出る（' + N.items(old).length + '/' + itemN + '）');
+  check(N.pages(old).length === Math.ceil(itemN / N.PER_PAGE), 'news: 3つずつの ページ（' + N.pages(old).length + '）');
+  N.pages(old).forEach(function (pg, i) { check(pg.length >= 1 && pg.length <= 3, 'news: ページ' + i + ' は 1〜3つ'); });
+  check(N.big(old), 'news: たまって いる ときは 大アップデート');
+  // ② 見おわった あと
+  N.markSeen(old);
+  check(old.seenNews === N.latest() && N.items(old).length === 0 && N.pages(old).length === 0, 'news: 見たら もう 出ない');
+  // ③ 3つ 前の 版まで 見て いる 子
+  const mid = N.list[N.list.length - 3];
+  old.seenNews = mid.v;
+  const want = N.list.slice(N.list.length - 2).reduce(function (n, e) { return n + e.items.length; }, 0);
+  check(N.items(old).length === want, 'news: 新しい ぶんだけ 出る（' + N.items(old).length + '/' + want + '）');
+  check(N.items(old).every(function (it) { return N.cmp(it.v, mid.v) > 0; }), 'news: 見た 版は 出ない');
+  // ④ あたらしく 作った 子には 出さない（ぜんぶ はじめて なので）
+  const np = MQ.save.createPlayer('あたらし', { hair: 'gold', skin: 'mid', style: 'short' }, 3);
+  check(np.seenNews === N.latest() && N.pages(np).length === 0, 'news: 新しい 子には 出さない（' + np.seenNews + '）');
+  MQ.save.load();
+  if (prevId) MQ.save.setCurrent(prevId);
+  console.log('あたらしい こと！: ' + N.list.length + '版 ' + itemN + 'こ・出し分け OK');
 })();
 
 /* ===== 読みこみの じゅんばん（v5.0.1）=====

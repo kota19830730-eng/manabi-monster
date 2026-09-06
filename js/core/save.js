@@ -117,6 +117,10 @@ MQ.save = (function () {
     // 敵がわの 攻防（v8.1）：たおした 中ボス・弱点を ついた 数（しょうごう用）
     if (typeof p.elites !== 'number') p.elites = 0;
     if (typeof p.weakHits !== 'number') p.weakHits = 0;
+    /* あたらしい こと！（v8.3）：さいごに 見た お知らせの 版。
+       古い セーブは null＝まだ 見て いない → たまった ぶんを まとめて 見せる。
+       あたらしく 作った 子は newPlayer で いまの 版に する（はじめてなので 何も 出さない） */
+    if (typeof p.seenNews !== 'string') p.seenNews = null;
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {
@@ -172,7 +176,9 @@ MQ.save = (function () {
       grade: grade || 3,
       look: look || (MQ.hero ? MQ.hero.defaultLook() : {}),
       createdAt: new Date().toISOString(),
-      xp: 0
+      xp: 0,
+      // はじめての 子に「あたらしい こと！」は 出さない（ぜんぶ はじめて なので）
+      seenNews: MQ.news ? MQ.news.latest() : null
     });
   }
 

@@ -271,5 +271,7 @@ MQ.ui = MQ.ui || {};
   MQ.ui.goMap = function () {
     MQ.ui.map.render();
     MQ.ui.show('screen-map');
+    // あたらしい こと！（v8.3）。1回の 起動で 1回だけ・見る ものが なければ 何も しない
+    if (MQ.ui.news) MQ.ui.news.maybeShow();
   };
 })();

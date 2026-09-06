@@ -43,6 +43,7 @@
     #summon #summon2 … なかまを よぶ（よんで いる／とんできた）
     #weakmix #weaklast … 弱点（ごちゃまぜの まよいこんだ 敵／塔の ラスボス）
     #skill:kamae #skill:break #skill:clone #skill:clone2 #skill:call … ボスの わざ 3種
+    #news #news:2 #news2 #news3 … あたらしい こと！（v8.3・たまった ぶん／2ページめ／1つだけ／もう 見た）
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -115,7 +116,9 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/romaji3.js"></script>
 <script src="../js/content/terms.js"></script>
 <script src="../js/content/world3.js"></script>
+<script src="../js/content/news.js"></script>
 <script src="../js/ui/common.js"></script>
+<script src="../js/ui/news.js"></script>
 <script src="../js/ui/look.js"></script>
 <script src="../js/ui/start.js"></script>
 <script src="../js/ui/map.js"></script>
@@ -2196,6 +2199,78 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
 
+    /* #news … あたらしい こと！（お知らせ・v8.3）
+         #news    ひさしぶりに 開いた 子（たまった ぶんを 3つずつ）
+         #news:2  2ページめ（「つぎ ▶」を 1回 おす）
+         #news2   1つの 版だけ 新しい 子
+         #news3   もう 見た 子（出ない） */
+    if (mode.indexOf('news') === 0) {
+      const arg = mode.split(':')[1];
+      const kind = mode.split(':')[0];
+      fresh();
+      const N = MQ.news;
+      MQ.save.update(function (pl) {
+        if (kind === 'news2') pl.seenNews = N.list[N.list.length - 2].v;   // さいごの 1版だけ 新しい
+        else if (kind === 'news3') pl.seenNews = N.latest();               // ぜんぶ 見た
+        else pl.seenNews = null;                                           // ひさしぶり
+      });
+      MQ.ui.news.reset();
+      MQ.ui.goMap();
+      await wait(300);
+      const card = $('.newscard');
+      const p0 = MQ.save.current();
+      say('news: 版 ' + N.list.length + '／出す お知らせ ' + N.items(p0).length + 'こ・ページ ' + N.pages(p0).length +
+          '／モーダル ' + (card ? 'ok' : 'なし'));
+      if (kind === 'news3') {
+        say('news3: もう 見た 子 → ' + (card ? 'MISSING（出て しまう）' : 'OK（出ない）'));
+        dump(); return;
+      }
+      if (!card) { say('news: モーダルが 出ない MISSING'); dump(); return; }
+      say('news: みだし ' + ($('.news__title') ? $('.news__title').textContent : 'MISSING') +
+          '／サブ ' + ($('.bagcard__sub') ? $('.bagcard__sub').textContent : 'MISSING') +
+          '／ドット ' + $$('.news__dot').length);
+      function rows() {
+        return $$('.newsrow').map(function (r) {
+          return r.querySelector('.newsrow__t').textContent + '（絵 ' + (r.querySelector('.newsrow__art').children.length ? 'ok' : 'なし') + '）';
+        });
+      }
+      say('news 1ページめ: ' + rows().join(' / '));
+      // 絵は ぜんぶ 出て いるか（からっぽの 四角に なって いないか）
+      const empty = $$('.newsrow__art').filter(function (a) { return !a.children.length; }).length;
+      say('news: 絵が ない 行 ' + empty + '（0 が OK）');
+      // カードが 画面に おさまって いるか（たて700 でも）
+      const st = document.getElementById('stage').getBoundingClientRect();
+      const cr = card.getBoundingClientRect();
+      say('news: カード ' + Math.round(cr.height) + 'px / ステージ ' + Math.round(st.height) + 'px → ' +
+          (cr.top >= st.top - 1 && cr.bottom <= st.bottom + 1 ? 'おさまる OK' : 'はみ出し MISSING'));
+      const want = parseInt(arg, 10);   // #news:3 で 3ページめ
+      if (want >= 2) {
+        for (let i = 1; i < want && $('.news__next') && $('.news__nexttx').textContent.indexOf('つぎ') === 0; i++) { $('.news__next').click(); await wait(150); }
+        say('news ' + want + 'ページめ: ' + rows().join(' / ') + '／ボタン ' + $('.news__nexttx').textContent);
+        dump(); freeze(); return;
+      }
+      // さいごまで めくって とじる → seenNews が つく・2回目は 出ない
+      let guard = 0;
+      while ($('.news__next') && $('.news__nexttx').textContent.indexOf('つぎ') === 0 && guard++ < 10) {
+        $('.news__next').click(); await wait(120);
+      }
+      const last = $('.news__nexttx') ? $('.news__nexttx').textContent : 'MISSING';
+      if ($('.news__next')) $('.news__next').click();
+      await wait(200);
+      say('news: さいごの ボタン「' + last + '」→ とじた ' + ($('.newscard') ? 'MISSING' : 'OK') +
+          '／seenNews ' + MQ.save.current().seenNews + ' → ' + (MQ.save.current().seenNews === N.latest() ? 'OK' : 'MISSING'));
+      MQ.ui.news.reset();
+      MQ.ui.goMap();
+      await wait(200);
+      say('news: つぎに 地図に 来ても ' + ($('.newscard') ? 'MISSING（また 出る）' : 'OK（もう 出ない）'));
+      // 撮る 用に もう一度 出す
+      MQ.save.update(function (pl) { pl.seenNews = null; });
+      MQ.ui.news.reset();
+      MQ.ui.news.maybeShow();
+      await wait(200);
+      dump(); freeze(); return;
+    }
+
     /* #rename … 主人公の なまえを かえる（図かんの 主人公タブ・v7.0） */
     if (mode === 'rename') {
       fresh();
@@ -2711,6 +2786,19 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     MQ.ui.goMap();
     await wait(300);
     say('小4に もどす: ' + MQ.content.activeWorld().id);
+
+    // あたらしい こと！（v8.3）：ひさしぶりに 開いた 子に 出る → とじたら もう 出ない
+    MQ.save.update(function (pl) { pl.seenNews = null; });
+    MQ.ui.news.reset();
+    MQ.ui.goMap();
+    await wait(300);
+    say('あたらしい こと: モーダル ' + ($('.newscard') ? 'ok' : 'MISSING') + ' / お知らせ ' + $$('.newsrow').length + 'こ / ページ ' + MQ.news.pages(MQ.save.current()).length);
+    let ng = 0;
+    while ($('.news__next') && ng++ < 12) { $('.news__next').click(); await wait(120); }
+    MQ.ui.news.reset();
+    MQ.ui.goMap();
+    await wait(200);
+    say('あたらしい こと: とじた あと ' + ($('.newscard') ? 'MISSING（また 出る）' : 'ok（出ない）') + ' / seenNews ' + MQ.save.current().seenNews);
 
     say('=== エラー: ' + L.filter(function (t) { return t.indexOf('ERROR') === 0 || t.indexOf('MISSING') >= 0; }).length + ' ===');
     dump();
