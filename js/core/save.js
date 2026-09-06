@@ -121,6 +121,8 @@ MQ.save = (function () {
        古い セーブは null＝まだ 見て いない → たまった ぶんを まとめて 見せる。
        あたらしく 作った 子は newPlayer で いまの 版に する（はじめてなので 何も 出さない） */
     if (typeof p.seenNews !== 'string') p.seenNews = null;
+    // おうちの人からの てがみ（v8.5）：1通だけ。中身は letter.js が 作る
+    if (!p.letter || typeof p.letter !== 'object' || Array.isArray(p.letter) || !p.letter.text) p.letter = null;
     // スタンプカレンダー（v8.4）：ごほうびを もらった 日 { '3': 'YYYY-MM-DD' }
     if (!p.streak || typeof p.streak !== 'object' || Array.isArray(p.streak)) p.streak = { claimed: {} };
     if (!p.streak.claimed || typeof p.streak.claimed !== 'object') p.streak.claimed = {};

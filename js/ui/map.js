@@ -76,7 +76,8 @@ MQ.ui.map = (function () {
     if (MQ.missions) MQ.save.update(function (p) { ms = MQ.missions.ensure(p); });
     const stk = MQ.streak ? MQ.streak.info(player) : null;
     if (!fv && !ms && !(stk && stk.fill)) return null;   // どれも ない ときは 帯を 出さない
-    const doneN = ms ? ms.list.filter(function (m) { return m.done; }).length : 0;
+    const dailyN = ms ? ms.list.filter(function (m) { return !m.letter; }) : [];
+    const doneN = dailyN.filter(function (m) { return m.done; }).length;
 
     obiEl = h('button', {
       class: 'mapobi', type: 'button',
@@ -89,9 +90,9 @@ MQ.ui.map = (function () {
         h('span', { class: 'mapobi__name', text: fv.name }),
         h('i', { class: 'mapobi__x2', text: '×2' })
       ]) : null,
-      ms ? h('span', { class: 'mapobi__mis' + (doneN === ms.list.length ? ' is-all' : '') }, [
+      ms ? h('span', { class: 'mapobi__mis' + (doneN === dailyN.length ? ' is-all' : '') }, [
         h('span', { text: 'ミッション' }),
-        h('b', { text: doneN + '/' + ms.list.length })
+        h('b', { text: doneN + '/' + dailyN.length })
       ]) : null,
       /* つづけた 日（v8.4）。せまい ので 火の しるしと 数だけ */
       (stk && stk.fill) ? h('span', { class: 'mapobi__stk' + (stk.today ? ' is-today' : '') }, [
@@ -515,6 +516,18 @@ MQ.ui.map = (function () {
     const escapedCount = MQ.save.countAllEscaped(player);
     const kid = (MQ.content.activeWorld().grade || 3) <= 2;
     const bottom = h('div', { class: 'mapbottom' }, [
+      /* おうちの人からの てがみ（v8.5）。読んだら 消える */
+      (MQ.letter && MQ.letter.pending(player)) ? h('button', {
+        class: 'tegamibtn', type: 'button',
+        onclick: function () { MQ.sfx.tap(); openLetter(); }
+      }, [
+        h('span', { class: 'tegamibtn__env' }, [h('i', { class: 'flap' }), h('i', { class: 'seal' })]),
+        h('span', { class: 'tegamibtn__body' }, [
+          h('b', { class: 'tegamibtn__t', text: 'おうちの人から てがみ' }),
+          h('span', { class: 'tegamibtn__s', text: 'タップして よんでみよう' })
+        ]),
+        h('span', { class: 'tegamibtn__go', text: '▶' })
+      ]) : null,
       MQ.content.mixOpen(player) ? h('button', {
         class: 'mixbtn', type: 'button',
         onclick: function () { MQ.sfx.tap(); MQ.ui.battle.start(MQ.content.mixStage().id); }
@@ -578,6 +591,49 @@ MQ.ui.map = (function () {
       const sc = document.querySelector('#screen-map .map__scroll');
       if (el && sc) sc.scrollTop = Math.max(0, el.offsetTop - sc.clientHeight * 0.45);
     }, 0);
+  }
+
+  /* =======================================================
+     おうちの人からの てがみ（v8.5）：地図の 封筒を おすと ひらく。
+       紙の 色の カード。読むと ミッションが 1つ ふえる（教科を えらんで いた とき）。
+       **外には 送らない**。ルールは js/core/letter.js
+     ======================================================= */
+  function openLetter() {
+    const player = MQ.save.current();
+    if (!player || !MQ.letter || !MQ.letter.pending(player)) return;
+    const l = MQ.letter.get(player);
+    let got = null;
+    MQ.save.update(function (p) { got = MQ.letter.read(p); });
+    MQ.sfx.coin();
+    const stage = document.getElementById('stage') || document.body;
+    const wrap = h('div', { class: 'tegami' }, [
+      h('div', { class: 'tegami__card' }, [
+        h('div', { class: 'tegami__head' }, [
+          h('span', { class: 'tegami__env' }, [h('i', { class: 'flap' }), h('i', { class: 'seal' })]),
+          h('span', { class: 'tegami__ttl', text: 'おうちの人から' })
+        ]),
+        h('p', { class: 'tegami__text', text: l.text }),
+        (got && got.mission) ? h('div', { class: 'tegami__mis' }, [
+          h('span', { class: 'tegami__mislbl', text: 'おねがい' }),
+          h('span', { class: 'tegami__mistx', text: l.areaName + 'で 1かい たたかう' }),
+          l.reward ? h('span', { class: 'tegami__coin' }, [MQ.ui.coinNode(16), h('b', { text: '+' + l.reward })]) : null
+        ]) : null,
+        (got && got.coins) ? h('div', { class: 'tegami__mis' }, [
+          h('span', { class: 'tegami__mislbl', text: 'おくりもの' }),
+          h('span', { class: 'tegami__mistx', text: 'コインを ' + got.coins + 'まい もらった！' }),
+          h('span', { class: 'tegami__coin' }, [MQ.ui.coinNode(16), h('b', { text: '+' + got.coins })])
+        ]) : null,
+        h('button', {
+          class: 'btn btn--big tegami__ok', type: 'button',
+          onclick: function () {
+            MQ.sfx.tap();
+            if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+            render();          // 封筒を 消して ミッションを 出しなおす
+          }
+        }, [h('span', { text: 'よんだ！' }), h('span', { class: 'btn__shine' })])
+      ])
+    ]);
+    stage.appendChild(wrap);
   }
 
   /* =======================================================
@@ -662,8 +718,10 @@ MQ.ui.map = (function () {
     let ms = null;
     MQ.save.update(function (p) { ms = MQ.missions.ensure(p); });
     if (!ms) return null;
-    const doneN = ms.list.filter(function (m) { return m.done; }).length;
-    const all = doneN === ms.list.length;
+    // てがみの ミッション（v8.5）は おまけ なので「N / 3」には 数えない
+    const daily = ms.list.filter(function (m) { return !m.letter; });
+    const doneN = daily.filter(function (m) { return m.done; }).length;
+    const all = doneN === daily.length;
     /* v8.0：ここは 地図の 上に かぶさる パネルの 中なので、いつも ひらいて おく
        （地図を せまく しない。たたむ／ひらくは 上の 帯が やる） */
     if (missionsOpen === null) missionsOpen = true;
@@ -673,12 +731,12 @@ MQ.ui.map = (function () {
       onclick: function () { MQ.sfx.tap(); missionsOpen = !missionsOpen; panel.classList.toggle('is-open', missionsOpen); }
     }, [
       h('span', { class: 'missions__title', text: 'きょうの ミッション' }),
-      h('span', { class: 'missions__count', text: doneN + ' / ' + ms.list.length }),
+      h('span', { class: 'missions__count', text: doneN + ' / ' + daily.length }),
       h('span', { class: 'missions__arrow' })
     ]));
     panel.appendChild(h('div', { class: 'missions__list' }, ms.list.map(function (m) {
       const once = MQ.missions.isOnce(m);
-      return h('div', { class: 'mission' + (m.done ? ' is-done' : '') }, [
+      return h('div', { class: 'mission' + (m.done ? ' is-done' : '') + (m.letter ? ' mission--letter' : '') }, [
         h('span', { class: 'mission__check', text: m.done ? '✓' : '' }),
         h('span', { class: 'mission__text', text: m.text }),
         h('span', { class: 'mission__prog', text: m.done ? 'コイン +' + (m.reward || MQ.missions.REWARD_EACH) : (m.fever ? 'コイン +' + (m.reward || MQ.missions.REWARD_EACH) : (m.target > 1 && !once ? m.count + ' / ' + m.target : '')) })

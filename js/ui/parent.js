@@ -47,6 +47,7 @@ MQ.ui.parent = (function () {
   function backText() { return from === 'title' ? 'タイトルへ' : '子どもの画面へ'; }
 
   function gradeOf(p) { return p.grade || 3; }
+  let letterPick = {};        // 手紙の 書きかけ（教科・コイン・文）
 
   function render() {
     const p = MQ.save.current();
@@ -256,6 +257,8 @@ MQ.ui.parent = (function () {
       });
       main.push(um);
     }
+
+    main.push(letterSection(p));
 
     /* アクション */
     main.push(h('section', { class: 'pp-actions' }, [
@@ -553,6 +556,109 @@ MQ.ui.parent = (function () {
     lines.push('・どうなった（止まった／字が切れた／音が出ない など）');
     lines.push('・子どもの感想');
     return lines.join('\n');
+  }
+
+  /* =======================================================
+     子どもへのてがみ（v8.5）
+
+     40文字までの手紙＋おまけのミッション（教科を1つ）＋コイン1〜3。
+     送ると子どもの地図に封筒が出て、読むとその日のミッションが1つ増えます。
+     **外部には送信しません**（同じ端末のセーブデータの中だけ）。
+     子どもの画面には「にがて」とは出しません（ミッションの文はいつもと同じ言い方）。
+     ======================================================= */
+  function letterSection(p) {
+    const L = MQ.letter;
+    if (!L) return null;
+    const areas = L.areas();
+    const st = L.status(p);
+    const weak = weakAreaId(p);
+    let areaId = st && !st.read ? (letterPick.areaId !== undefined ? letterPick.areaId : null) : letterPick.areaId;
+    if (areaId === undefined) areaId = null;
+    let reward = letterPick.reward == null ? 1 : letterPick.reward;
+
+    const ta = h('textarea', { class: 'pp-ta pp-ta--letter', maxlength: String(L.MAX), placeholder: 'れい：きのうの かん字、すごくがんばっていたね。きょうもファイト！' });
+    const count = h('span', { class: 'pp-muted pp-tiny', text: '0 / ' + L.MAX + '文字' });
+    ta.addEventListener('input', function () { count.textContent = ta.value.length + ' / ' + L.MAX + '文字'; });
+
+    /* 教科えらび（苦手な教科をおすすめとして先頭に。子どもには理由を出しません） */
+    const areaRow = h('div', { class: 'pp-segrow' }, [
+      h('button', { class: 'pp-seg' + (areaId ? '' : ' is-on'), type: 'button', text: 'なし', onclick: function () { MQ.sfx.tap(); letterPick.areaId = null; letterPick.reward = reward; letterPick.text = ta.value; render(); } })
+    ].concat(areas.map(function (a) {
+      const rec = a.id === weak;
+      return h('button', {
+        class: 'pp-seg' + (areaId === a.id ? ' is-on' : '') + (rec ? ' pp-seg--rec' : ''), type: 'button',
+        onclick: function () { MQ.sfx.tap(); letterPick.areaId = a.id; letterPick.reward = reward; letterPick.text = ta.value; render(); }
+      }, [h('span', { text: a.name }), rec ? h('i', { class: 'pp-seg__rec', text: 'おすすめ' }) : null]);
+    })));
+
+    const rewardRow = h('div', { class: 'pp-segrow' }, [1, 2, 3].map(function (n) {
+      return h('button', {
+        class: 'pp-seg' + (reward === n ? ' is-on' : ''), type: 'button', text: 'コイン ' + n,
+        onclick: function () { MQ.sfx.tap(); letterPick.reward = n; letterPick.areaId = areaId; letterPick.text = ta.value; render(); }
+      });
+    }));
+
+    if (letterPick.text) { ta.value = letterPick.text; count.textContent = ta.value.length + ' / ' + L.MAX + '文字'; }
+
+    const rows = [
+      h('div', { class: 'pp-line pp-line--col' }, [
+        h('span', { text: 'ひとこと（' + L.MAX + '文字まで）' }),
+        ta, count
+      ]),
+      h('div', { class: 'pp-line pp-line--col' }, [
+        h('span', { text: 'おまけのミッション（なくてもかまいません）' }),
+        areaRow,
+        h('span', { class: 'pp-muted pp-small', text: '子どもの画面には「〇〇で 1かい たたかう」とだけ出ます。苦手だからとは書きません。' })
+      ]),
+      h('div', { class: 'pp-line pp-line--col' }, [
+        h('span', { text: 'ごほうび' }),
+        rewardRow,
+        h('span', { class: 'pp-muted pp-small', text: 'ミッションつきのときは、できたときにもらえます。ミッションなしのときは、読んだときにもらえます。' })
+      ]),
+      h('div', { class: 'pp-line__in' }, [
+        btn('この手紙を送る', 'pp-btn--p pp-btn--sm', function () {
+          const v = ta.value.trim();
+          if (!v) { MQ.ui.toast('ひとことを書いてください'); return; }
+          MQ.save.update(function (pl) { MQ.letter.write(pl, { text: v, areaId: areaId, reward: reward }); });
+          letterPick = {};
+          MQ.ui.toast('手紙を送りました。子どもの地図に封筒が出ます');
+          render();
+        })
+      ])
+    ];
+
+    if (st) {
+      const when = mdOf(st.at);
+      const state = !st.read ? 'まだ読んでいません' : (st.areaName ? (st.done ? '読んだ・ミッションできた' : '読んだ・ミッションはこれから') : '読みました');
+      rows.unshift(h('div', { class: 'pp-line pp-line--col pp-line--now' }, [
+        h('span', { text: 'いまの手紙（' + when + '）' }),
+        h('span', { class: 'pp-letter__now', text: '「' + st.text + '」' }),
+        h('span', { class: 'pp-muted pp-small', text: state + (st.areaName ? '・' + st.areaName + '／コイン ' + st.reward : (st.reward ? '・コイン ' + st.reward : '')) }),
+        h('div', { class: 'pp-line__in' }, [
+          btn('この手紙を消す', 'pp-btn--s pp-btn--sm', function () {
+            MQ.save.update(function (pl) { MQ.letter.clear(pl); });
+            MQ.ui.toast('手紙を消しました');
+            render();
+          })
+        ])
+      ]));
+    }
+
+    return h('section', { class: 'pp-section', id: 'pp-letter' }, [
+      sec('子どもへの手紙', '1通だけ・新しく書くと入れかわります'),
+      h('div', { class: 'pp-card pp-list' }, rows)
+    ]);
+  }
+  /* いま いちばん 正答率の 低い 教科（おすすめの 印だけに つかう） */
+  function weakAreaId(p) {
+    try {
+      const w = MQ.stats.weakest(p, gradeOf(p), 1)[0];   // v7.1 と 同じ「いま いちばん にがて」
+      return w ? w.areaId : null;
+    } catch (e) { return null; }
+  }
+  function mdOf(iso) {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '' : (d.getMonth() + 1) + '月' + d.getDate() + '日';
   }
 
   function troubleSection(p) {

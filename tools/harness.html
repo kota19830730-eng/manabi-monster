@@ -45,6 +45,7 @@
     #skill:kamae #skill:break #skill:clone #skill:clone2 #skill:call … ボスの わざ 3種
     #news #news:2 #news2 #news3 … あたらしい こと！（v8.3・たまった ぶん／2ページめ／1つだけ／もう 見た）
     #streak #streak:7 #streak:0 #streak:none … スタンプカレンダー（v8.4・3日め／7日め／切れた／きょう まだ）
+    #letter #letter2 #letter3 … おうちの人からの てがみ（v8.5・親が 書く／地図の 封筒／ミッションに 入る）
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -83,6 +84,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/fever.js"></script>
 <script src="../js/core/pals.js"></script>
 <script src="../js/core/streak.js"></script>
+<script src="../js/core/letter.js"></script>
 <script src="../js/core/speech.js"></script>
 <script src="../js/core/battle.js"></script>
 <!-- 教科の ファイルは **index.html と 同じ じゅんばん**（tools/smoke.js が 検査する）。
@@ -2376,6 +2378,84 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       dump(); freeze(); return;
     }
 
+    /* #letter … おうちの人からの てがみ（v8.5）
+         #letter   おうちの人ページで 手紙を 書いて 送る
+         #letter2  子どもの 地図の 封筒 → てがみの カード
+         #letter3  読んだ あと（ミッションに 1つ ふえて いる） */
+    if (mode.indexOf('letter') === 0) {
+      const kind = mode;
+      fresh();
+      MQ.save.update(function (pl) { pl.seenNews = MQ.news.latest(); pl.letter = null; pl.coins = 0; pl.missions = null; });
+      const areas = MQ.letter.areas();
+      if (kind === 'letter') {
+        MQ.ui.parent.open('home', { from: 'map' });
+        await wait(300);
+        const secEl = $('#pp-letter');
+        say('letter: 親の セクション ' + (secEl ? 'ok' : 'MISSING') + '／教科ボタン ' + (secEl ? $$('#pp-letter .pp-seg').length : 0) +
+            '／おすすめ ' + (secEl && $('#pp-letter .pp-seg--rec') ? 'あり' : 'なし'));
+        const ta = $('#pp-letter textarea');
+        // からっぽでは 送れない
+        $$('#pp-letter .pp-btn--p')[0].click();
+        await wait(150);
+        say('letter: からっぽ → ' + (MQ.save.current().letter ? 'MISSING（送れて しまう）' : 'OK（送れない）'));
+        ta.value = 'きょうも がんばってね！';
+        ta.dispatchEvent(new Event('input'));
+        // 教科を えらぶ（「なし」の つぎ ＝ さいしょの 教科）
+        $$('#pp-letter .pp-seg')[1].click();
+        await wait(250);
+        const ta2 = $('#pp-letter textarea');
+        say('letter: 書きかけが のこる ' + (ta2 && ta2.value === 'きょうも がんばってね！' ? 'ok' : 'MISSING「' + (ta2 && ta2.value) + '」'));
+        $$('#pp-letter .pp-btn--p')[0].click();
+        await wait(300);
+        const l = MQ.save.current().letter;
+        say('letter: 送った → ' + (l ? '「' + l.text + '」／' + (l.areaName || 'ミッションなし') + '／コイン ' + l.reward + '／読んだ ' + l.read : 'MISSING'));
+        const now = $('#pp-letter .pp-letter__now');
+        say('letter: いまの 手紙の 行 ' + (now ? now.textContent : 'MISSING'));
+        const body = $('#screen-parent .pp__body');
+        if (body && $('#pp-letter')) body.scrollTop = $('#pp-letter').offsetTop - 8;
+        dump(); freeze(); return;
+      }
+      // 子どもがわ
+      MQ.save.update(function (pl) { MQ.letter.write(pl, { text: 'きのうの かん字、よく がんばったね！', areaId: areas[0].id, reward: 2 }); });
+      MQ.ui.news.reset();
+      MQ.ui.goMap();
+      await wait(300);
+      const env = $('.tegamibtn');
+      say('letter: 地図の 封筒 ' + (env ? 'ok「' + $('.tegamibtn__t').textContent + '」' : 'MISSING'));
+      if (!env) { dump(); return; }
+      env.click();
+      await wait(300);
+      const card = $('.tegami__card');
+      say('letter: カード ' + (card ? 'ok' : 'MISSING') + '／文 ' + ($('.tegami__text') ? '「' + $('.tegami__text').textContent + '」' : 'MISSING') +
+          '／おねがい ' + ($('.tegami__mistx') ? $('.tegami__mistx').textContent : 'なし'));
+      const st = document.getElementById('stage').getBoundingClientRect(), cr = card.getBoundingClientRect();
+      say('letter: カード ' + Math.round(cr.height) + 'px／ステージ ' + Math.round(st.height) + 'px → ' +
+          (cr.top >= st.top - 1 && cr.bottom <= st.bottom + 1 ? 'おさまる OK' : 'はみ出し MISSING'));
+      if (kind === 'letter2') { dump(); freeze(); return; }
+      // #letter3：「よんだ！」→ 封筒が 消えて ミッションに 入る
+      $('.tegami__ok').click();
+      await wait(400);
+      say('letter: よんだ あと 封筒 ' + ($('.tegamibtn') ? 'MISSING（のこる）' : 'OK（消える）'));
+      const obi = $('.mapobi');
+      if (obi) obi.click();
+      await wait(250);
+      const rows = $$('.mission');
+      const lrow = $('.mission--letter');
+      say('letter: ミッションの 行 ' + rows.length + '／てがみの 行 ' + (lrow ? '「' + lrow.textContent + '」' : 'MISSING') +
+          '／かぞえ ' + ($('.missions__count') ? $('.missions__count').textContent : 'MISSING'));
+      // その 教科で 1かい たたかった ことに して みる
+      let res = null;
+      MQ.save.update(function (pl) { res = MQ.missions.progress(pl, { mode: 'normal', correct: 12 }, { areaId: areas[0].id }); });
+      say('letter: できた → コイン +' + res.coins + '／done ' + MQ.save.current().letter.done +
+          ' → ' + (res.coins >= 2 && MQ.save.current().letter.done ? 'OK' : 'MISSING'));
+      MQ.ui.goMap();
+      await wait(250);
+      const obi2 = $('.mapobi');
+      if (obi2) obi2.click();
+      await wait(250);
+      dump(); freeze(); return;
+    }
+
     /* #rename … 主人公の なまえを かえる（図かんの 主人公タブ・v7.0） */
     if (mode === 'rename') {
       fresh();
@@ -2891,6 +2971,19 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     MQ.ui.goMap();
     await wait(300);
     say('小4に もどす: ' + MQ.content.activeWorld().id);
+
+    // おうちの人からの てがみ（v8.5）：封筒 → カード → ミッションに 1つ
+    const lareas = MQ.letter.areas();
+    MQ.save.update(function (pl) { MQ.letter.write(pl, { text: 'きょうも がんばってね！', areaId: lareas[0].id, reward: 2 }); });
+    MQ.ui.goMap();
+    await wait(250);
+    say('てがみ: 封筒 ' + ($('.tegamibtn') ? 'ok' : 'MISSING'));
+    if ($('.tegamibtn')) $('.tegamibtn').click();
+    await wait(250);
+    say('てがみ: カード ' + ($('.tegami__card') ? 'ok' : 'MISSING') + ' / おねがい ' + ($('.tegami__mistx') ? 'ok' : 'なし'));
+    if ($('.tegami__ok')) $('.tegami__ok').click();
+    await wait(300);
+    say('てがみ: よんだ あと 封筒 ' + ($('.tegamibtn') ? 'MISSING' : 'ok（消える）') + ' / ミッション ' + (MQ.missions.ensure(MQ.save.current()).list.filter(function (m) { return m.letter; }).length === 1 ? 'ok' : 'MISSING'));
 
     // あたらしい こと！（v8.3）：ひさしぶりに 開いた 子に 出る → とじたら もう 出ない
     MQ.save.update(function (pl) { pl.seenNews = null; });

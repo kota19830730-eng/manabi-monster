@@ -87,6 +87,15 @@ MQ.news = (function () {
       ]
     },
     {
+      /* v8.5 は v8.6 と 同じ 日に、べつの セッションで 作った ので
+         sw の 番号だけ 前後して いる（ならびは 版の 番号で 古い → 新しい） */
+      v: 'v8.5', date: '2026-09-06', sw: 102,
+      items: [
+        { kind: 'item', id: 'tr-kaki', title: 'おうちの人から てがみ',
+          text: 'ちずに ふうとうが 出たら タップ！ ひとことと おねがいが とどくよ。' }
+      ]
+    },
+    {
       v: 'v8.6', date: '2026-09-06', sw: 101,
       items: [
         { kind: 'mons', id: ['skullhorse', 'skullhorse-2', 'skullhorse-3'], grow: true,

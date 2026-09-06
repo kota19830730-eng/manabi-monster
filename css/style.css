@@ -3286,3 +3286,76 @@ body {
 .mapobi__fire { flex: none; width: 11px; height: 13px; border-radius: 6px 6px 5px 5px; background: linear-gradient(var(--gold), var(--org-2)); opacity: .55; }
 .mapobi__stk.is-today .mapobi__fire { opacity: 1; box-shadow: 0 0 8px rgba(255,143,94,.9); }
 @media (prefers-reduced-motion: reduce) { .stamp__cell.is-today, .stamp__cell.is-got { animation: none; } }
+
+/* =========================================================
+   おうちの人からの てがみ（v8.5）
+
+   ・地図の いちばん 下の 封筒（.tegamibtn）… 読んだら 消える
+   ・押すと 紙の 色の カード（.tegami）
+   見た目の 正本は docs/STYLE_GUIDE.md の「おうちの人からの てがみ」
+   ========================================================= */
+.tegamibtn {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  border: 0; cursor: pointer; padding: 9px 16px;
+  background: linear-gradient(#fff6d6, #ffe3a0);
+  color: #4a2a06; font-family: var(--f-body); text-align: left;
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.7), 0 -3px 0 var(--gold-sh);
+}
+.tegamibtn:active { box-shadow: inset 0 3px 0 rgba(255,255,255,.4); }
+.tegamibtn__t { font-family: var(--f-head); font-size: 15px; }
+.tegamibtn__s { display: block; font-size: 11px; color: #8a6420; }
+.tegamibtn__body { flex: 1; min-width: 0; }
+.tegamibtn__go { flex: none; font-family: var(--f-head); font-size: 16px; color: var(--gold-sh); }
+/* 封筒（CSS だけで 描く） */
+.tegamibtn__env, .tegami__env {
+  position: relative; flex: none; display: block; width: 34px; height: 24px; border-radius: 3px;
+  background: linear-gradient(#fffdf4, #f0e2bd);
+  box-shadow: 0 3px 0 rgba(0,0,0,.18), inset 0 0 0 2px #c99a35;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+/* ふた（三角）。うすいと ただの 四角に 見えるので しっかり こく する */
+.tegamibtn__env .flap, .tegami__env .flap {
+  position: absolute; left: 2px; top: 2px; width: 30px; height: 15px;
+  background: linear-gradient(#e8d5a4, #c9a961);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,.22));
+}
+.tegamibtn__env .seal, .tegami__env .seal {
+  position: absolute; left: 12px; top: 8px; width: 10px; height: 10px; border-radius: 50%;
+  background: linear-gradient(var(--dgr-1), var(--dgr-2)); box-shadow: 0 1px 0 rgba(0,0,0,.3);
+}
+/* ---- てがみの カード ---- */
+.tegami {
+  position: absolute; inset: 0; z-index: 55;
+  display: flex; align-items: center; justify-content: center; padding: 16px 14px;
+  background: rgba(6,10,24,.82);
+}
+.tegami__card {
+  position: relative; width: 100%; max-width: 340px; padding: 14px 16px 14px; border-radius: 14px;
+  background: linear-gradient(var(--paper-1), var(--paper-2));
+  box-shadow: 0 8px 0 var(--paper-sh), 0 18px 30px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,255,255,.7);
+  color: var(--paper-ink); animation: popin .22s ease-out;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.tegami__head { display: flex; align-items: center; gap: 9px; }
+.tegami__env { animation: none; }
+.tegami__ttl { font-family: var(--f-head); font-size: 17px; color: var(--paper-lbl); }
+.tegami__text { margin: 0; font-size: 17px; line-height: 1.5; font-weight: 700; word-break: break-word; }
+.tegami__mis {
+  display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 10px;
+  background: rgba(255,212,71,.28); box-shadow: inset 0 0 0 2px var(--paper-sh);
+}
+.tegami__mislbl { flex: none; padding: 1px 7px; border-radius: 6px; background: var(--paper-sh); color: #fffdf4; font-family: var(--f-head); font-size: 11px; }
+.tegami__mistx { flex: 1; min-width: 0; font-size: 13px; }
+.tegami__coin { flex: none; display: flex; align-items: center; gap: 3px; font-family: var(--f-head); font-size: 13px; color: #8a6420; }
+.tegami__ok { min-height: 50px; }
+/* ミッションの 中の てがみの ぶん（金わく） */
+.mission--letter { border-top: 0; padding: 6px 8px; border-radius: 10px; background: rgba(255,212,71,.12); box-shadow: inset 0 0 0 2px rgba(255,212,71,.5); }
+.mission--letter .mission__text { color: var(--gold-lt); }
+
+/* ---- おうちの人ページの「子どもへの手紙」（v8.5・大人向けの 明るい 画面） ---- */
+.pp-ta--letter { min-height: 68px; }
+.pp-seg--rec { position: relative; }
+.pp-seg__rec { position: absolute; top: -8px; right: -6px; padding: 0 5px; border-radius: 6px; background: #c98c12; color: #fff; font-size: 9px; font-style: normal; line-height: 15px; }
+.pp-line--now .pp-letter__now { font-size: 15px; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .tegamibtn__env { animation: none; } }

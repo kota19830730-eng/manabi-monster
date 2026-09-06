@@ -144,7 +144,11 @@ MQ.missions = (function () {
     });
     let coins = 0, xp = 0, allDone = false;
     completed.forEach(function (m) { coins += m.reward || REWARD_EACH; });
-    if (ms.list.every(function (m) { return m.done; }) && !ms.claimedAll) {
+    /* おうちの人からの てがみの ミッション（v8.5）は おまけ なので
+       「3つ ぜんぶ」には 数えない。できたら 手紙を「できた」に する */
+    completed.forEach(function (m) { if (m.letter && p.letter) p.letter.done = true; });
+    const daily = ms.list.filter(function (m) { return !m.letter; });
+    if (daily.every(function (m) { return m.done; }) && !ms.claimedAll) {
       ms.claimedAll = true;
       allDone = true;
       coins += REWARD_ALL_COINS;

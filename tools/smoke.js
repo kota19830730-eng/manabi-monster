@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/guard.js', 'js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/streak.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
 
 const MQ = global.MQ;
@@ -3194,6 +3194,84 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   MQ.save.load();
   if (prevId) MQ.save.setCurrent(prevId);
   console.log('v8.1: 中ボス・弱点・ボスの わざ・なかまを よぶ OK');
+})();
+
+/* ===== おうちの人からの てがみ（v8.5）===== */
+(function () {
+  const L = MQ.letter;
+  check(!!L, 'MQ.letter が 読めて いる');
+  if (!L) return;
+  const prevId = MQ.save.current() && MQ.save.current().id;
+  function fresh() {
+    MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'l1', name: 'l', grade: 3, playGrade: 3, xp: 0 }], currentId: 'l1', settings: {} }));
+    const p = MQ.save.current();
+    p.missions = null;
+    return p;
+  }
+  let p = fresh();
+  check(p.letter === null, 'てがみ: はじめは ない');
+  check(L.pending(p) === false, 'てがみ: 封筒は 出ない');
+  // からっぽ・空白だけは 送れない
+  check(L.write(p, { text: '   ' }) === null && !p.letter, 'てがみ: からっぽは 送れない');
+  // 40文字まで
+  const long = 'あ'.repeat(60);
+  L.write(p, { text: long });
+  check(p.letter.text.length === L.MAX, 'てがみ: ' + L.MAX + '文字まで（' + p.letter.text.length + '）');
+  // 教科と コイン
+  const areas = L.areas();
+  check(areas.length >= 2, 'てがみ: えらべる 教科 ' + areas.length);
+  L.write(p, { text: '  きょうも がんばってね  ', areaId: areas[0].id, reward: 9 });
+  check(p.letter.text === 'きょうも がんばってね', 'てがみ: 前後の 空白を とる');
+  check(p.letter.areaId === areas[0].id && p.letter.areaName === areas[0].name, 'てがみ: 教科を おぼえる');
+  check(p.letter.reward === L.MAX_REWARD, 'てがみ: コインは ' + L.MAX_REWARD + 'まいまで（' + p.letter.reward + '）');
+  check(L.pending(p), 'てがみ: 封筒が 出る');
+  // 読む → ミッションが 1つ ふえる（コインは まだ）
+  const before = (MQ.missions.ensure(p).list || []).length;
+  const got = L.read(p);
+  const ms = MQ.missions.ensure(p);
+  check(ms.list.length === before + 1, 'てがみ: ミッションが 1つ ふえる（' + before + ' → ' + ms.list.length + '）');
+  const lm = ms.list.filter(function (m) { return m.letter; })[0];
+  check(!!lm && lm.param === areas[0].id && lm.reward === L.MAX_REWARD, 'てがみ: ミッションの 中身 ' + JSON.stringify(lm && [lm.param, lm.reward]));
+  check(lm && lm.text.indexOf('にがて') === -1 && lm.text.indexOf(areas[0].name) >= 0, 'てがみ: 子どもの 文に「にがて」を 書かない（' + (lm && lm.text) + '）');
+  check(got.coins === 0 && (p.coins || 0) === 0, 'てがみ: ミッションつきは 読んだ だけでは コインなし');
+  check(!L.pending(p) && p.letter.read, 'てがみ: 読んだら 封筒は 消える');
+  check(L.read(p) === null, 'てがみ: 2回は 読めない');
+  // ミッションを クリア → コインと「できた」
+  const r = MQ.missions.progress(p, { mode: 'normal', correct: 1 }, { areaId: areas[0].id });
+  // ほかの ミッションも 同時に できる ことが ある ので、てがみの ぶんが 入って いるかを 見る
+  const lc = r.completed.filter(function (m) { return m.letter; })[0];
+  check(!!lc && r.coins >= L.MAX_REWARD && p.letter.done, 'てがみ: できたら コイン ' + r.coins + '（てがみ ' + (lc ? lc.reward : 'なし') + '）・done ' + p.letter.done);
+  // てがみの ミッションは「3つ ぜんぶ」に 数えない
+  const p2 = fresh();
+  MQ.missions.ensure(p2);
+  L.write(p2, { text: 'てがみ', areaId: areas[0].id, reward: 1 });
+  L.read(p2);
+  const ms2 = MQ.missions.ensure(p2);
+  ms2.list.forEach(function (m) { if (!m.letter) { m.count = m.target; m.done = true; } });
+  const r2 = MQ.missions.progress(p2, { mode: 'normal' }, {});
+  check(r2.allDone === true, 'てがみ: 3つ ぜんぶの ボーナスは てがみを 待たない');
+  // ミッションなしの てがみ → 読んだ ときに コイン
+  const p3 = fresh();
+  L.write(p3, { text: 'あそぼうね', reward: 2 });
+  const g3 = L.read(p3);
+  check(g3.coins === 2 && p3.coins === 2 && p3.letter.done, 'てがみ: ミッションなしは 読んだ ときに コイン');
+  // 消す・上書き
+  L.write(p3, { text: 'つぎの てがみ', reward: 1 });
+  check(p3.letter.text === 'つぎの てがみ' && !p3.letter.read, 'てがみ: 新しく 書くと 上書き（1通だけ）');
+  L.clear(p3);
+  check(!p3.letter && !L.pending(p3), 'てがみ: 消せる');
+  // 古い セーブ
+  MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
+  check(MQ.save.current().letter === null, 'てがみ: 古い セーブは null');
+  MQ.save.load();
+  if (prevId) MQ.save.setCurrent(prevId);
+  // 読みこみ
+  check(INDEX_HTML.indexOf('js/core/letter.js') >= 0, 'index.html に letter.js');
+  const swTx3 = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  check(swTx3.indexOf("'./js/core/letter.js'") >= 0, 'sw.js の FILES に letter.js');
+  const hx3 = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  check(hx3.indexOf('../js/core/letter.js') >= 0, 'harness.html に letter.js');
+  console.log('おうちの人からの てがみ: 40文字・ミッション・ごほうび・1通だけ OK');
 })();
 
 /* ===== スタンプカレンダー（つづけた 日・v8.4）===== */
