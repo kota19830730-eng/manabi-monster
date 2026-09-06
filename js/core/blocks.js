@@ -95,7 +95,7 @@ MQ.blocks = (function () {
     return 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
   })();
 
-  function part(p, palette, plain) {
+  function part(p, palette, plain, isEye) {
     const flags = p[5] || '';
     const key = p[4];
     const color = (key && key.charAt(0) === '#') ? key : palette[key];
@@ -137,18 +137,45 @@ MQ.blocks = (function () {
     if (flags.indexOf('d') !== -1) d.style.transform = 'rotate(45deg)';
     // 光る ところ（目・コア）は 呼吸するように 明るさが 変わる
     if (glow) d.className = 'bx__glow';
-    else if (isEye(p, color)) d.className = 'bx__eye';
+    else if (isEye) d.className = 'bx__eye';
     return d;
   }
 
-  /* 目らしい ブロックか。上のほうに ある 小さな 白／黒／赤 の 四角。
-     ここに まばたきの アニメを つける（バトルと タイトルの ときだけ 動く） */
-  function isEye(p, color) {
-    const flags = p[5] || '';
-    if (flags.indexOf('d') !== -1 || flags.indexOf('o') !== -1) return false;
-    if (p[1] > 30 || p[2] > 9 || p[3] > 11) return false;
-    const key = p[4];
-    return key === 'w' || key === 'k' || key === 'r' || key === 'y' || key === 'e';
+  /* まばたきさせる ブロックを 形ぜんたいから えらぶ。
+
+     1つずつ 見て 決めると、歯・くちばし・белい おなかまで 消えて しまう。
+     そこで **絵ぜんたいを 見て「いちばん 上の 目の 行」だけ**を えらぶ：
+
+       ① 光る ブロック（g）が 顔の あたりに ある モンスターは **まばたきしない**
+          （その 子の 目は 光る ほう。`.bx__glow` が 明滅する）
+       ② のこりの 候補＝上半分（y 2〜22）の 小さな（9×11 まで）白か 黒 の 四角
+       ③ その 中で **いちばん 上の 行**（さいしょの y から 3px 以内）だけ
+       ④ それが 4つ いじょう なら やめる（たぶん 目では なく もよう）
+
+     かえり値は「まばたきさせる ブロック」の Set（絵の 中の 番号） */
+  function pickEyes(shape) {
+    const out = {};
+    if (!shape || !shape.length) return out;
+    let glow = false;
+    const cand = [];
+    for (let i = 0; i < shape.length; i++) {
+      const p = shape[i];
+      if (!p) continue;
+      const f = p[5] || '';
+      if (f.indexOf('g') !== -1 && p[1] <= 24) { glow = true; continue; }
+      if (f.indexOf('d') !== -1 || f.indexOf('o') !== -1) continue;
+      if (p[1] < 2 || p[1] > 22) continue;
+      if (p[2] > 9 || p[3] > 11) continue;
+      if (p[4] !== 'w' && p[4] !== 'k') continue;
+      cand.push(i);
+    }
+    if (glow || !cand.length) return out;
+    let top = 48;
+    cand.forEach(function (i) { if (shape[i][1] < top) top = shape[i][1]; });
+    const keep = cand.filter(function (i) { return shape[i][1] <= top + 3; });
+    if (keep.length > 4) return out;      // ならんだ もよう。目では ない
+    keep.forEach(function (i) { out[i] = true; });
+    return out;
   }
 
   // 左上の 白い ハイライト
@@ -175,9 +202,10 @@ MQ.blocks = (function () {
     box.style.height = side + 'px';
     // まばたき・明滅の タイミングを 1体ずつ ずらす（みんな 同時だと 気もちわるい）
     box.style.setProperty('--bxwait', (Math.random() * 6.5).toFixed(2) + 's');
-    (shape || []).forEach(function (p) {
+    const eyes = pickEyes(shape);
+    (shape || []).forEach(function (p, i) {
       if (!p) return;
-      const d = part(p, palette, opts.plain);
+      const d = part(p, palette, opts.plain, eyes[i]);
       if (!d) return;
       box.appendChild(d);
       if ((p[5] || '').indexOf('h') !== -1) box.appendChild(highlight(p));
@@ -220,6 +248,7 @@ MQ.blocks = (function () {
 
   return {
     el: el, box: box, imgBox: imgBox, fill: fill,
+    pickEyesTest: pickEyes,          // 道具（まばたきの 検査）から 見る ため
     mix: mix, darker: darker, lighter: lighter,
     BASE: BASE, ITEM: ITEM
   };
