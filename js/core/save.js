@@ -114,6 +114,9 @@ MQ.save = (function () {
     // てきの ため → カウンター（v7.7）：おうちの人ページの 切りかえ（はじめは つける）と 決めた 数
     if (typeof p.attacks !== 'boolean') p.attacks = true;
     if (typeof p.counters !== 'number') p.counters = 0;
+    // 敵がわの 攻防（v8.1）：たおした 中ボス・弱点を ついた 数（しょうごう用）
+    if (typeof p.elites !== 'number') p.elites = 0;
+    if (typeof p.weakHits !== 'number') p.weakHits = 0;
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {

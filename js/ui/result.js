@@ -211,6 +211,9 @@ MQ.ui.result = (function () {
     if (sum.multiKO.length) {
       cards.push(itemCard(null, sum.multiKO.map(function (n) { return n + '体'; }).join('・') + ' まとめて', { text: 'KO', cls: 'rs__badge--new' }, 'rs__item--text'));
     }
+    // 敵がわの 攻防（v8.1）：中ボスを たおした／弱点を ついた
+    if (sum.elites) cards.push(itemCard(null, '中ボスを たおした', { text: '+' + MQ.battle.XP.eliteBonus + ' EXP', cls: 'rs__badge--gold' }, 'rs__item--text'));
+    if (sum.weakHits) cards.push(itemCard(null, '弱点を ついた ' + sum.weakHits + '回', { text: 'ばつぐん', cls: 'rs__badge--new' }, 'rs__item--text'));
     const items = cards.length
       ? h('div', { class: 'rs__items' }, cards.slice(0, 3))
       : h('div', { class: 'rs__items rs__items--none' }, [

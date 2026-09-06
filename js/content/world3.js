@@ -242,7 +242,14 @@ MQ.content = (function () {
     q = Object.assign({}, q);
     q.unit = 'さいごの もんだい ・ ' + slot.label;
     q.id = 'tower' + grade + ':' + slot.kind + ':' + q.id;
+    q.subject = slot.area || slot.kind;   // 弱点の 教科（v8.1）が 見る。areaId は 変えない（にげた敵・記ろくの 行き先が 変わる ので）
     return q;
+  }
+
+  // 塔で 出る 教科（エリア id・v8.1 ラスボスの 弱点の 候補）。ローマ字は エリアでは ないので 入らない
+  function towerSubjects(stage) {
+    const order = (stage && stage.order) || [];
+    return order.map(function (slot) { return slot.area || slot.kind; }).filter(function (id) { return !!areaOf(id); });
   }
 
   // 小1・小2は 2教科（さんすう・こくご）が こうたいで 出る（v6.4）
@@ -326,14 +333,30 @@ MQ.content = (function () {
           st.make(k, opts.lv ? { lv: opts.lv } : {}).forEach(function (q) {
             const c = tag(q, g, st);
             c.enemyId = MQ.enemies.pickIds(g.area.id, 1, 0.5)[0];   // その 教科の モンスターが 出る
+            c.group = g;
             out.push(c);
           });
         });
+        /* 弱点の 教科（v8.1）：3体に 1体は「まよいこんだ 敵」＝ べつの 教科の モンスターが この 問題を もつ。
+           その 敵は この 問題の 教科が 弱点（q.weak）。1回めで 正解 → こうかは ばつぐん（core） */
+        if (groups.length >= 2 && !opts.lv) {
+          const idx = MQ.util.shuffle(out.map(function (_, i) { return i; })).slice(0, Math.floor(out.length / WEAK_RATE));
+          idx.forEach(function (i) {
+            const c = out[i];
+            const others = groups.filter(function (x) { return x.area.id !== c.group.area.id; });
+            if (!others.length) return;
+            const g2 = MQ.util.pick(others);
+            c.enemyId = MQ.enemies.pickIds(g2.area.id, 1, 0.5)[0];
+            c.weak = c.areaId;
+          });
+        }
+        out.forEach(function (c) { delete c.group; });
         return out;
       }
     };
     return stage;
   }
+  const WEAK_RATE = 3;   // ごちゃまぜの ザコの 何体に 1体が 弱点もち か
   function mixFor(grade) {
     if (!MIX[grade]) {
       const st = makeMixStage(grade);
@@ -849,7 +872,7 @@ MQ.content = (function () {
     isAvailable: isAvailable, lockedReason: lockedReason, MIN_POOL: MIN_POOL,
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,
     fragCount: fragCount, towerOpen: towerOpen, fragKey: fragKey,
-    lastBoss: lastBoss, towerStageId: towerStageId, towerName: towerName,
+    lastBoss: lastBoss, towerStageId: towerStageId, towerName: towerName, towerSubjects: towerSubjects,
     mixStage: mixStage, mixOpen: mixOpen, mixGroups: mixGroups,   // ごちゃまぜ バトル（v7.3）
     towerStage1: towerStage1, towerStage2: towerStage2, towerStage5: towerStage5,
     towerStage: towerStage, towerStage4: towerStage4,

@@ -64,7 +64,10 @@ MQ.battle = (function () {
     doubleKO: 20,                  // 2体同時を 一発ずつで たおした
     tripleKO: 40,                  // 3体同時
     chest: 30,                     // たからばこ を 開けた
-    fast: 30                       // はやとき ボーナス
+    fast: 30,                      // はやとき ボーナス
+    eliteBonus: 20,                // 中ボスを たおした（v8.1）
+    cloneBonus: 20,                // ぶんしんを 2問 つづけて 見やぶった（v8.1）
+    kamaeBreak: 10                 // たての かまえを やぶった（v8.1）
   };
   const SEC_PER_Q = 20;            // これより 早ければ はやとき ボーナス
 
@@ -79,6 +82,25 @@ MQ.battle = (function () {
   const CHARGE_BOSS = 2;
   const COUNTER_MUL = 1.5;
   const COUNTER_DMG = 2;
+
+  /* ■ 敵がわの 攻防（v8.1）。ぜんぶ「うばう」でなく「ボーナスの チャンス」（ユーザー決定 2026-09-06）
+       中ボス   … さいごの ザコは HP2（問題は lv3 を 2問）。1回めの 正解で 1ダメージ、
+                  クリティカル（コンボ3〜）・カウンター・相棒の 追い打ち・ばくれつ・弱点 なら 2ダメージ＝一発。
+                  たおすと けいけんち ＋20・コイン 1。まちがえて にげても ふつうの ザコと 同じ（あとで もどる）。
+       弱点     … 問題に weak（教科 id）が ついた 敵は、その 問題に 1回めで 正解すると
+                  「こうかは ばつぐん」＝けいけんち 1.5ばい（ボス・中ボスは 2ダメージ）。
+                  ごちゃまぜ バトル（world3.js が つける）と さいごの塔（opts.weakArea）だけ。
+       ボスの わざ … ボスの 3問め・5問め（塔は 3・5・7）に 1つずつ（大わざ と かさならない）。
+                  たての かまえ（kamae）… 正解で ガードブレイク → つぎの 1問が 2ダメージの チャンス（bossOpen）
+                  ぶんしん（clone）  … 2問 つづけて 出る。両方 1回めで 正解 → けいけんち ＋20
+                  なかまを よぶ（call）… ザコを 1体 呼ぶ（ボスの 問題数には 数えない＝おまけの けいけんち）
+                  おうちの人ページの「てきの こうげき」（opts.attacks）と いっしょに 切れる。
+       なかまを よぶ（ザコ）… 2体同時の 1体めが 2体めを よぶ（同じ 系統・たまに ゴールデンスライム）。 */
+  const ELITE_HP = 2;
+  const WEAK_MUL = 1.5;
+  const WEAK_DMG = 2;
+  const BOSS_SKILLS = ['kamae', 'clone', 'call'];
+  const SUMMON_GOLDEN = 0.1;
 
   let s = null;
 
@@ -98,7 +120,8 @@ MQ.battle = (function () {
   // 保存用：えらぶ形式は 正解を先頭に もどして 保存する
   function plain(q) {
     const copy = Object.assign({}, q);
-    ['boss', 'revenge', 'enemyId', 'rare', 'chest', 'groupId', 'groupSize', 'groupPos', 'groupIds', 'golden', 'coins'].forEach(function (k) {
+    ['boss', 'revenge', 'enemyId', 'rare', 'chest', 'groupId', 'groupSize', 'groupPos', 'groupIds', 'golden', 'coins',
+     'elite', 'eliteHp', 'elitePos', 'weak', 'summon', 'called'].forEach(function (k) {
       delete copy[k];
     });
     if (q.type === 'choice') {
@@ -130,7 +153,82 @@ MQ.battle = (function () {
     s.usedBossKeys.push(q.id);
     q.boss = true;
     q.enemyId = s.bossId;
+    // 弱点の 教科（v8.1・塔）：その 教科の 問題は 2ダメージの チャンス
+    if (s.weakArea && (q.subject || q.areaId) === s.weakArea) q.weak = s.weakArea;
     return q;
+  }
+
+  /* 中ボス（v8.1）の 問題：lv3 を HP ぶん。ほかの ザコと かぶらない ように */
+  function makeEliteQuestions(stage, n, taken) {
+    const used = {};
+    taken.forEach(function (q) { used[q.id] = true; });
+    const out = [];
+    for (let t = 0; t < 4 && out.length < n; t++) {
+      const made = stage.make(n, { boss: false, lv: 3 }) || [];
+      made.forEach(function (q) {
+        if (out.length < n && q && !used[q.id]) { used[q.id] = true; out.push(prepare(q)); }
+      });
+    }
+    return out;
+  }
+
+  // つよそうな 敵（rank3）を 1体。えらべなければ ならびの さいごの 敵
+  function pickElite(areaId, mobs) {
+    if (areaId && MQ.enemies && MQ.enemies.pickIds) {
+      const id = MQ.enemies.pickIds(areaId, 1, 1)[0];
+      if (id) return id;
+    }
+    return mobs.length ? mobs[mobs.length - 1].enemyId : 'slime-green';
+  }
+
+  // ボスが 呼ぶ ザコ（よわそうな rank1）
+  function pickCalled(areaId) {
+    if (MQ.enemies && MQ.enemies.pickIds) {
+      const id = MQ.enemies.pickIds(areaId || 'sansu', 1, 0)[0];
+      if (id) return id;
+    }
+    return 'slime-green';
+  }
+
+  /* ボスの わざの 予定（v8.1）。3問めから 2問おき（ぶんしんは 2問 つかう）。
+     大わざ（ため）は わざの 問題では 出ない（chargeInfo が 見る） */
+  function planBoss() {
+    s.bossPlan = {};
+    if (!s.attacks) return;
+    const kinds = MQ.util.shuffle(BOSS_SKILLS.slice());
+    let k = 3;
+    while (k <= s.bossMax && kinds.length) {
+      let kind = kinds.shift();
+      if (kind === 'clone' && k + 1 > s.bossMax) { kind = kinds.shift(); if (!kind) break; }
+      s.bossPlan[k] = { kind: kind, pos: 0 };
+      if (kind === 'clone') { s.bossPlan[k + 1] = { kind: 'clone', pos: 1 }; k += 3; } else k += 2;
+    }
+  }
+
+  // なかまを よぶ（ボスの わざ）：ボスの 問題の 前に ザコを 1体。ボスの 問題数には 数えない
+  function makeCalledQuestion() {
+    const bq = s.bossQ;
+    const areaId = (bq && (bq.subject || bq.areaId)) || s.bossArea || s.areaId || null;
+    let q = null;
+    for (let t = 0; t < 4; t++) {
+      const made = s.stage.make(1, { boss: false, lv: 2, index: Math.max(0, s.bossAsked - 1) });
+      if (!made || !made[0]) break;
+      q = prepare(made[0]);
+      if (!bq || q.id !== bq.id) break;
+    }
+    if (!q) return null;
+    q.called = true;
+    q.id = 'call:' + q.id;
+    q.enemyId = pickCalled(areaId);
+    return q;
+  }
+
+  // いまの ボスの 問題に ついている わざ（画面用）。{ kind, pos, open, called } か null
+  function bossSkill() {
+    if (!s || s.phase !== 'boss') return null;
+    const pl = s.bossPlan ? s.bossPlan[s.bossAsked] : null;
+    if (!pl && !s.bossOpen && !s.called) return null;
+    return { kind: pl ? pl.kind : null, pos: pl ? pl.pos : 0, open: !!s.bossOpen, called: !!s.called };
   }
 
   /* たからばこの 問題。そのステージの ふつうの問題を つかう */
@@ -159,7 +257,11 @@ MQ.battle = (function () {
        fever    … きょうの フィーバー教科（v7.2）{ xpMul, coins, palPlus }。normal だけ
        support  … サポート（v7.2）{ easy, hint, keep, extra, level }。normal だけ
        mix      … ごちゃまぜ バトル（v7.3）。おわりに コイン +1。bossArea＝ボスの 教科 id
-       attacks  … てきの ため → カウンター（v7.7）。true で あり（画面が おうちの人の せっていを 見て わたす）。とっくんでは いつも なし  */
+       attacks  … てきの ため → カウンター（v7.7）。true で あり（画面が おうちの人の せっていを 見て わたす）。とっくんでは いつも なし
+       elite    … 中ボス（v8.1）。true で さいごの ザコが HP2 に（normal だけ）。eliteId で 顔ぶれを 指定
+       summon   … なかまを よぶ（v8.1）。true で 2体同時が「よんだ」形に（同じ 系統・たまに ゴールデン）
+       areaId   … 敵を えらぶ ときの エリア（中ボス・呼ばれる ザコ）
+       weakArea … さいごの塔の ラスボスの 弱点（教科 id）。その 教科の 問題は 2ダメージ  */
   function start(opts) {
     const mode = opts.mode || 'normal';
     const stage = opts.stage;
@@ -179,7 +281,9 @@ MQ.battle = (function () {
     } else if (mode === 'normal') {
       const mobCount = opts.mobs || 9;
       const revenge = (opts.escaped || []).slice(0, 2);
-      const freshCount = Math.max(1, mobCount - revenge.length);
+      const eliteOn = !!opts.elite;
+      // 中ボス（v8.1）は さいごの 1体ぶんの 場所を つかう（問題は 2問）
+      const freshCount = Math.max(1, mobCount - revenge.length - (eliteOn ? 1 : 0));
 
       /* サポート（v7.2・にがて・はじめての 教科）：少し 多めに 作って、
          むずかしい ぶんを 落とす（12体なら 4/4/4 → 5/5/2）。ボスは そのまま */
@@ -220,6 +324,13 @@ MQ.battle = (function () {
         for (let i = 0; i < groupSize; i++) {
           ids.push(trio ? trio[i] : mobs[at + i].enemyId);
         }
+        /* なかまを よぶ（v8.1）：1体めが 2体めを よぶ。2体めは 同じ 系統の なかま、たまに ゴールデンスライム */
+        let summon = false, goldenAt = -1;
+        if (!trio && opts.summon) {
+          summon = true;
+          if (Math.random() < SUMMON_GOLDEN) { ids[1] = goldenId(); goldenAt = 1; }
+          else if (MQ.enemies && MQ.enemies.mateFor) { const m = MQ.enemies.mateFor(ids[0]); if (m) ids[1] = m; }
+        }
         for (let i = 0; i < groupSize; i++) {
           const q = mobs[at + i];
           q.enemyId = ids[i];
@@ -228,6 +339,20 @@ MQ.battle = (function () {
           q.groupPos = i;
           q.groupIds = ids;
           if (trio) q.rare = true;
+          if (summon) q.summon = true;
+          if (i === goldenAt) { q.rare = true; q.golden = true; }
+        }
+      }
+
+      /* 中ボス（v8.1）：さいごに HP2 の 敵。問題は lv3 を 2問（ならびの さいご） */
+      if (eliteOn) {
+        const eq = makeEliteQuestions(stage, ELITE_HP, mobs);
+        if (eq.length) {
+          const eliteId = opts.eliteId || pickElite(eq[0].areaId || opts.areaId, mobs);
+          eq.forEach(function (q, i) {
+            q.elite = true; q.eliteHp = ELITE_HP; q.elitePos = i; q.enemyId = eliteId;
+          });
+          mobs = mobs.concat(eq);
         }
       }
     }
@@ -238,9 +363,11 @@ MQ.battle = (function () {
       if (e && e.rare) q.rare = true;
     });
 
-    // たからばこ（まちがえても 罰なし）
+    // たからばこ（まちがえても 罰なし）。中ボス（v8.1）は さいごに おく ので その 前まで
     if (opts.chest && mode === 'normal' && mobs.length >= 3) {
-      const at = MQ.util.randInt(2, mobs.length - 1);
+      let limit = mobs.length - 1;
+      for (let i = 0; i < mobs.length; i++) if (mobs[i].elite) { limit = i; break; }
+      const at = MQ.util.randInt(2, Math.max(2, limit));
       mobs.splice(at, 0, makeChestQuestion(stage));
     }
 
@@ -278,6 +405,17 @@ MQ.battle = (function () {
       // core の 初期値は「なし」（むかしからの テストと ほかの 呼び出しを 変えない ため）。とっくんでは いつも なし
       attacks: opts.attacks === true && mode !== 'tokkun',
       counters: 0,                 // カウンターを 決めた 数
+      // 敵がわの 攻防（v8.1）
+      areaId: opts.areaId || null,
+      weakArea: opts.weakArea || null,   // 塔の ラスボスの 弱点
+      eliteLeft: ELITE_HP,         // 中ボスの のこり HP
+      elites: 0,                   // たおした 中ボスの 数
+      weakHits: 0,                 // 弱点を ついた 数
+      bossPlan: {},                // ボスの わざの 予定 { 問題番号: { kind, pos } }
+      bossOpen: false,             // ガードブレイクの あと（つぎの 1問は 2ダメージ）
+      cloneClean: false,           // ぶんしんの 1問めを 1回めで 正解した
+      called: null,                // ボスが 呼んだ ザコの 問題（いま 出ている）
+      skillHits: 0,                // ボスの わざを うまく さばいた 数
       // どうぐ・そうびの 効果（のこり）
       buff: {
         dmg: 1,
@@ -335,13 +473,26 @@ MQ.battle = (function () {
 
     // ザコが 0体なら いきなり ボス（塔）
     if (s.phase === 'boss') {
+      planBoss();
       s.bossQ = makeBossQuestion();
       s.bossAsked = 1;
     }
     return s;
   }
 
-  function current() { return s.phase === 'boss' ? s.bossQ : s.mobs[s.index]; }
+  function current() { return s.phase === 'boss' ? (s.called || s.bossQ) : s.mobs[s.index]; }
+
+  /* 画面の「てき N / M」用（v8.1）。中ボスの 2問は 1体と 数える */
+  function foeCount() {
+    let no = 0, total = 0;
+    if (!s) return { no: 0, total: 0 };
+    s.mobs.forEach(function (q, i) {
+      if (q.elite && q.elitePos > 0) return;
+      total++;
+      if (i <= s.index) no++;
+    });
+    return { no: no, total: total };
+  }
 
   /* てきの ため（v7.7）：いまの 問題の ようす。ない ときは null
        { level, need, attacking }  level＝たまった 数（attacking なら need と 同じ） */
@@ -349,13 +500,19 @@ MQ.battle = (function () {
     if (!s || !s.attacks || s.phase === 'done') return null;
     if (s.phase === 'boss') {
       const k = s.bossAsked || 0;
+      // わざ・弱点の 問題（v8.1）と 呼ばれた ザコには ため を 出さない（出来事は 1つずつ）
+      if (s.called || (s.bossPlan && s.bossPlan[k])) return null;
+      if (s.bossQ && s.bossQ.weak) return null;
+      if (s.bossOpen) return null;         // ガードブレイクの つぎの 1問（すきだらけ）も 出来事は 1つ
       const att = k > 0 && k % CHARGE_BOSS === 0;
       return { level: att ? CHARGE_BOSS : k % CHARGE_BOSS, need: CHARGE_BOSS, attacking: att, boss: true };
     }
     const q = current();
     if (!q || q.chest) return null;
+    // 1つの 問題に 出来事は 1つ（v8.1）：中ボス・弱点・なかまを よぶ 問題には ため を 出さない
+    if (q.elite || q.weak || q.summon) return null;
     let k = 0;
-    for (let i = 0; i <= s.index; i++) if (!s.mobs[i].chest) k++;
+    for (let i = 0; i <= s.index; i++) if (!s.mobs[i].chest && !s.mobs[i].elite) k++;
     const att = k % CHARGE_MOB === 0;
     return { level: att ? CHARGE_MOB : k % CHARGE_MOB, need: CHARGE_MOB, attacking: att, boss: false };
   }
@@ -416,7 +573,7 @@ MQ.battle = (function () {
   function pushResult(q, ok, given) {
     s.results.push({
       stageId: q.stageId || s.stage.id, areaId: q.areaId || null, unit: q.unit || '', type: q.type,
-      ok: !!ok, given: ok ? null : given, answer: answerText(q), prompt: q.prompt, boss: s.phase === 'boss',
+      ok: !!ok, given: ok ? null : given, answer: answerText(q), prompt: q.prompt, boss: s.phase === 'boss' && !q.called,
       sec: Math.max(0, Math.round((now() - (s.qAt || s.startedAt)) / 1000))
     });
     s.retryGiven = null;
@@ -498,9 +655,24 @@ MQ.battle = (function () {
         return { outcome: 'chest', xp: xp, coins: coins, combo: s.combo, crit: crit, note: q.note, palHit: palHit };
       }
 
+      /* ---- ボスが 呼んだ ザコ（v8.1）：ふつうの ザコと 同じ けいけんち。ボスの 問題数には 数えない ---- */
+      if (q.called) {
+        const palHit = palHitNow();
+        let xp = wasRetry ? XP.mobRetry : XP.mob;
+        if (palHit) xp += XP.pal;
+        if (crit) xp += XP.critBonus;
+        xp += s.gear.xpAdd;
+        xp = gain(xp);
+        s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
+        s.defeated.push(q.enemyId);
+        return { outcome: 'correct', called: true, xp: xp, crit: crit, combo: s.combo, palHit: palHit, note: q.note, rare: false };
+      }
+
       /* ---- ボス ---- */
       if (s.phase === 'boss') {
         const last = s.mode === 'tower';
+        const pl = s.bossPlan ? s.bossPlan[s.bossAsked] : null;
+        const skill = pl ? pl.kind : null;
         // ばくれつ こうげき：ダメージが ふえ、そのぶん けいけんちも 入る
         const palHit = palHitNow();
         let dmg = s.buff.dmg > 1 ? Math.min(s.buff.dmg, s.bossHp) : 1;
@@ -508,9 +680,27 @@ MQ.battle = (function () {
         // カウンター（v7.7）：ボスの 大わざの 問題に 1回めで 正解 → 2ダメージ
         const counter = !wasRetry && attacking();
         if (counter) { dmg = Math.min(Math.max(dmg, COUNTER_DMG), s.bossHp); s.counters++; }
+        // 弱点（v8.1・塔）：弱点の 教科の 問題に 1回めで 正解 → 2ダメージ
+        const weakHit = !!q.weak && !wasRetry;
+        if (weakHit) { dmg = Math.min(Math.max(dmg, WEAK_DMG), s.bossHp); s.weakHits++; }
+        // すきだらけ（v8.1）：ガードブレイクの つぎの 1問に 1回めで 正解 → 2ダメージ
+        const open = s.bossOpen && !wasRetry;
+        if (open) { dmg = Math.min(Math.max(dmg, 2), s.bossHp); s.skillHits++; }
+        s.bossOpen = false;
+        // たての かまえ（v8.1）：1回めで 正解 → ガードブレイク（つぎの 1問が すきだらけ）
+        const broke = skill === 'kamae' && !wasRetry;
+        if (broke) { s.bossOpen = true; s.skillHits++; }
+        // ぶんしん（v8.1）：2問 つづけて 1回めで 正解 → ボーナス
+        let cloneKO = false;
+        if (skill === 'clone') {
+          if (pl.pos === 0) s.cloneClean = !wasRetry;
+          else { cloneKO = s.cloneClean && !wasRetry; if (cloneKO) s.skillHits++; }
+        }
         s.buff.dmg = 1;
         let xp = (wasRetry ? (last ? XP.lastHitRetry : XP.bossHitRetry) : (last ? XP.lastHit : XP.bossHit)) * dmg;
         if (crit) xp += XP.critBonus;
+        if (broke) xp += XP.kamaeBreak;
+        if (cloneKO) xp += XP.cloneBonus;
         xp += s.gear.xpAdd;                  // けん（そうび）の 効果
         s.bossHp -= dmg;
         const defeated = s.bossHp <= 0;
@@ -529,7 +719,8 @@ MQ.battle = (function () {
         return {
           outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note, palHit: palHit,
           counter: counter,
-          dmg: dmg, burst: dmg > 1 && !counter ? dmg : 0, coins: defeated ? 1 : 0,
+          weakHit: weakHit, skill: skill, clonePos: pl ? pl.pos : 0, broke: broke, open: open, cloneKO: cloneKO,   // v8.1
+          dmg: dmg, burst: dmg > 1 && !counter && !weakHit && !open ? dmg : 0, coins: defeated ? 1 : 0,
           hpLeft: s.bossHp, defeated: defeated, last: last,
           enrage: !defeated && s.bossHp <= s.enrageAt && s.enraged,
           fled: !defeated && s.phase === 'done'
@@ -559,7 +750,37 @@ MQ.battle = (function () {
       // カウンター（v7.7）：てきの こうげきの 問題に 1回めで 正解 → けいけんち 1.5ばい
       const counter = !wasRetry && attacking();
       if (counter) { xp = Math.round(xp * COUNTER_MUL); s.counters++; }
+      // 弱点（v8.1・ごちゃまぜ）：弱点の 教科の 問題に 1回めで 正解 → けいけんち 1.5ばい
+      const weakHit = !!q.weak && !wasRetry;
+      if (weakHit) { xp = Math.round(xp * WEAK_MUL); s.weakHits++; }
       xp += s.gear.xpAdd;                    // けん（そうび）の 効果
+
+      /* ---- 中ボス（v8.1）：HP2。つよい 一発（クリティカル・カウンター・追い打ち・ばくれつ・弱点）なら 2ダメージ ---- */
+      if (q.elite) {
+        const dmg = Math.min(s.eliteLeft, (crit || counter || palHit || burst || weakHit) ? 2 : 1);
+        s.eliteLeft -= dmg;
+        if (s.eliteLeft > 0) {
+          xp = gain(xp);
+          s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
+          return {
+            outcome: 'elitehit', xp: xp, crit: crit, combo: s.combo, palHit: palHit, note: q.note,
+            burst: burst, counter: counter, weakHit: weakHit, dmg: dmg, hpLeft: s.eliteLeft, hpMax: q.eliteHp || ELITE_HP
+          };
+        }
+        // たおした：のこりの 問題は とばす。ボーナス＋コイン
+        while (s.mobs[s.index + 1] && s.mobs[s.index + 1].elite) s.mobs.splice(s.index + 1, 1);
+        xp += XP.eliteBonus;
+        s.coins += 1;
+        s.elites++;
+        xp = gain(xp);
+        s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
+        s.defeated.push(q.enemyId);
+        return {
+          outcome: 'correct', elite: true, xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit,
+          multi: null, note: q.note, burst: burst, coins: 1, revenge: false, counter: counter, weakHit: weakHit, dmg: dmg
+        };
+      }
+
       xp = gain(xp);
       s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
       // ゴールデンスライムは コインを 落とす
@@ -569,13 +790,21 @@ MQ.battle = (function () {
       if (q.revenge) s.revengeBeaten.push(q.id);
       return {
         outcome: 'correct', xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit,
-        multi: multi, note: q.note, burst: burst, coins: coins, revenge: !!q.revenge, counter: counter
+        multi: multi, note: q.note, burst: burst, coins: coins, revenge: !!q.revenge, counter: counter,
+        weakHit: weakHit, summon: !!q.summon
       };
     }
 
     /* ---- まちがい ---- */
     // てきの こうげきの 問題で まちがえた → 「くらった」（演出だけ・v7.7）
     const hit = !wasRetry && attacking();
+    // ボスの わざの 問題（v8.1）：かまえは そのまま・ぶんしんは ボーナスなし・すきは とじる（演出だけ）
+    const plNow = (s.phase === 'boss' && !q.called && s.bossPlan) ? s.bossPlan[s.bossAsked] : null;
+    const skillNow = plNow ? plNow.kind : null;
+    if (!wasRetry && s.phase === 'boss' && !q.called) {
+      s.bossOpen = false;
+      if (skillNow === 'clone' && plNow.pos === 0) s.cloneClean = false;
+    }
     if (!wasRetry && !s.timeAttack) {
       s.retry = true;
       s.retryGiven = givenText(q, value);
@@ -584,7 +813,7 @@ MQ.battle = (function () {
       if (s.buff.freeze > 0) { s.buff.freeze--; s.frozenQ = q.id; frozen = true; }
       if (s.frozenQ !== q.id) s.combo = 0;
       if (q.groupId) s.groupClean = false;
-      return { outcome: 'retry', hint: makeHint(q), frozen: frozen, combo: s.combo, hit: hit };
+      return { outcome: 'retry', hint: makeHint(q), frozen: frozen, combo: s.combo, hit: hit, skill: skillNow, elite: !!q.elite, weak: !!q.weak };
     }
 
     // てっぺき まもり：2回目に まちがえても にげられない（答えは 見せずに もう1回）
@@ -607,6 +836,15 @@ MQ.battle = (function () {
     }
 
     s.escapedNow.push(q);
+    // ボスが 呼んだ ザコ（v8.1）に にげられた：ボスとの たたかいは そのまま つづく
+    if (q.called) {
+      return { outcome: 'wrong', called: true, answerText: answerText(q), note: q.note };
+    }
+    // 中ボス（v8.1）に にげられた：のこりの 問題も とばす（ふつうの ザコと 同じく あとで もどる）
+    if (q.elite) {
+      while (s.mobs[s.index + 1] && s.mobs[s.index + 1].elite) s.mobs.splice(s.index + 1, 1);
+      return { outcome: 'wrong', elite: true, answerText: answerText(q), note: q.note };
+    }
     if (s.phase === 'boss') {
       if (s.bossAsked >= s.bossMax) {
         s.phase = 'done';
@@ -661,17 +899,18 @@ MQ.battle = (function () {
     if (s.phase !== 'mob') return out;
     for (let i = s.index; i < s.mobs.length && out.length < n; i++) {
       const q = s.mobs[i];
-      if (q.chest || q.groupId || q.rare) continue;
+      if (q.chest || q.groupId || q.rare || q.elite) continue;
       out.push(i);
     }
     return out;
   }
 
-  // たからばこを さしこむ 場所：いまの ザコ（まとめて 出た ときは その 組）の すぐ あと
+  // たからばこを さしこむ 場所：いまの ザコ（まとめて 出た ときは その 組・中ボスは 2問）の すぐ あと
   function chestSlot() {
     let i = s.index;
     const q = s.mobs[i];
     if (q && q.groupId) while (i + 1 < s.mobs.length && s.mobs[i + 1].groupId === q.groupId) i++;
+    if (q && q.elite) while (i + 1 < s.mobs.length && s.mobs[i + 1].elite) i++;
     return i + 1;
   }
 
@@ -822,14 +1061,19 @@ MQ.battle = (function () {
       }
       if (!s.hasBoss) { s.phase = 'done'; s.endedAt = now(); return { phase: 'done' }; }
       s.phase = 'boss';
+      planBoss();
       s.bossQ = makeBossQuestion();
       s.bossAsked = 1;
       return { phase: 'boss', entering: true };
     }
     if (s.phase === 'boss') {
+      // 呼ばれた ザコの あと（v8.1）：用意ずみの ボスの 問題へ（問題数は ふえない）
+      if (s.called) { s.called = null; return { phase: 'boss', afterCall: true }; }
       s.bossQ = makeBossQuestion();
       s.bossAsked++;
-      return { phase: 'boss' };
+      const pl = s.bossPlan ? s.bossPlan[s.bossAsked] : null;
+      if (pl && pl.kind === 'call') s.called = makeCalledQuestion();
+      return { phase: 'boss', call: !!s.called };
     }
     return { phase: 'done' };
   }
@@ -865,6 +1109,9 @@ MQ.battle = (function () {
       mix: s.mix,
       mixCoins: mixCoins,
       counters: s.counters,            // カウンターを 決めた 数（v7.7）
+      elites: s.elites,                // たおした 中ボス（v8.1）
+      weakHits: s.weakHits,            // 弱点を ついた 数（v8.1）
+      skillHits: s.skillHits,          // ボスの わざを さばいた 数（v8.1）
       fever: !!s.fever,
       feverBonus: s.feverXp,
       feverCoins: feverCoins,
@@ -915,6 +1162,14 @@ MQ.battle = (function () {
     preHint: preHint,                                // サポート（v7.2）
     chargeInfo: chargeInfo, attacking: attacking,    // てきの ため → カウンター（v7.7）
     CHARGE_MOB: CHARGE_MOB, CHARGE_BOSS: CHARGE_BOSS, COUNTER_MUL: COUNTER_MUL, COUNTER_DMG: COUNTER_DMG,
+    // 敵がわの 攻防（v8.1）
+    ELITE_HP: ELITE_HP, WEAK_MUL: WEAK_MUL, WEAK_DMG: WEAK_DMG, BOSS_SKILLS: BOSS_SKILLS,
+    bossSkill: bossSkill, foeCount: foeCount,
+    eliteLeft: function () { return s ? s.eliteLeft : 0; },
+    weakArea: function () { return s ? s.weakArea : null; },
+    bossPlan: function () { return s ? s.bossPlan : {}; },
+    // テスト用：ボスの わざの 予定を 決めうちに する（harness / smoke）
+    _setBossPlan: function (plan) { if (s) s.bossPlan = plan || {}; },
     fever: function () { return s ? s.fever : null; },
     support: function () { return s ? s.support : null; },
     recharge: recharge, canRecharge: canRecharge, rechargeCost: RECHARGE_COST, coinsLeft: coinsLeft,

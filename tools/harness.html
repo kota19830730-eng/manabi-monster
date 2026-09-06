@@ -39,6 +39,10 @@
     #fever #fever2 #fever3 #feverparent … きょうの フィーバー教科 と サポート（v7.2）
     #mix #mix2 #mix3 … ごちゃまぜ バトル（v7.3・地図の バー／1問め／けっか画面）
     #counter #counter2 #counter3 #counterboss … てきの ため → カウンター（v7.7）
+    #elite #elite2 … 中ボス（v8.1・あらわれた ところ／たおした ところ）
+    #summon #summon2 … なかまを よぶ（よんで いる／とんできた）
+    #weakmix #weaklast … 弱点（ごちゃまぜの まよいこんだ 敵／塔の ラスボス）
+    #skill:kamae #skill:break #skill:clone #skill:clone2 #skill:call … ボスの わざ 3種
 
   例:
   chrome --headless=new --disable-gpu --virtual-time-budget=400000 \
@@ -225,7 +229,14 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (!q) return false;
     if (q.type === 'choice') {
       const btns = $$('#screen-battle .choice');
-      const want = good ? q.answer : (q.answer + 1) % q.choices.length;
+      let want = good ? q.answer : (q.answer + 1) % q.choices.length;
+      // まちがえる ときは **押せる** まちがいを えらぶ（ヒントで 消された ボタンは 押せない）
+      if (!good) {
+        for (let i = 0; i < btns.length; i++) {
+          const j = (q.answer + 1 + i) % btns.length;
+          if (btns[j] && !btns[j].disabled) { want = j; break; }
+        }
+      }
       if (!btns[want]) { say('NO CHOICE BUTTONS'); return false; }
       btns[want].click();
       return true;
@@ -1764,6 +1775,136 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if ($('.hero.is-counter')) $('.hero').style.animationPlayState = 'paused';
       dump(); return;
     }
+    /* 敵がわの 攻防（v8.1）
+       #elite / #elite2   … 中ボスが あらわれた ところ／たおした ところ
+       #summon / #summon2 … なかまを よんで いる／とんできた
+       #weakmix / #weaklast … 弱点（ごちゃまぜ／塔の ラスボス）
+       #skill:kamae|break|clone|clone2|call … ボスの わざ */
+    if (mode === 'elite' || mode === 'elite2') {
+      fresh();
+      MQ.save.update(function (pl) { pl.equipped.helm = null; });   // かぶとで ひっさつが 早く 出ない ように
+      MQ.ui.battle.start('sansu3-1'); await wait(150);
+      let guard = 0;
+      while (guard++ < 25 && !(MQ.battle.current() && MQ.battle.current().elite)) {
+        answerViaUI(true); await wait(60);
+        if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+        await wait(3400);
+      }
+      const eq = MQ.battle.current();
+      say('elite: elite=' + (eq && eq.elite) + ' count=' + JSON.stringify(MQ.battle.foeCount()) + ' total=' + MQ.battle.mobTotal() +
+          ' ribbon=' + ($('.enemy__ribbon--elite') ? $('.enemy__ribbon--elite').textContent : 'MISSING') +
+          ' hp=' + $$('.elitehp .bosshp__seg').length + ' msg=' + $('.arena__msg').textContent);
+      if (mode === 'elite') { dump(); return; }
+      // たおすまで（HP2 なので 1〜2発）
+      let g2 = 0;
+      while (g2++ < 4 && MQ.battle.current() && MQ.battle.current().elite) {
+        answerViaUI(true); await wait(120);
+        const dm = $('.dmg'); if (dm) say('elite2: dmg=' + dm.textContent + ' msg=' + $('.arena__msg').textContent + ' hp=' + $$('.elitehp .bosshp__seg:not(.is-lost)').length);
+        if (MQ.battle.isRetry()) { answerViaUI(true); await wait(120); }
+        await wait(2400);
+      }
+      say('elite2: elites=' + MQ.battle.summary().elites + ' phase=' + MQ.battle.phase() + ' coins=' + MQ.battle.summary().coins);
+      dump(); return;
+    }
+    if (mode === 'summon' || mode === 'summon2') {
+      fresh();
+      MQ.save.update(function (pl) { pl.equipped.helm = null; });
+      MQ.ui.battle.start('sansu3-1'); await wait(150);
+      let guard = 0;
+      while (guard++ < 25 && !(MQ.battle.current() && MQ.battle.current().summon && MQ.battle.current().groupPos === (mode === 'summon' ? 0 : 1))) {
+        answerViaUI(true); await wait(60);
+        if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+        await wait(3400);
+      }
+      const q = MQ.battle.current();
+      say(mode + ': summon=' + (q && q.summon) + ' pos=' + (q && q.groupPos) + ' ids=' + JSON.stringify(q && q.groupIds) +
+          ' in=' + ($('.enemy.is-summoned') ? 'ok' : (mode === 'summon' ? '-' : 'MISSING')) + ' msg=' + $('.arena__msg').textContent);
+      dump(); return;
+    }
+    if (mode === 'weakmix' || mode === 'weaklast') {
+      fresh({ frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true } });
+      MQ.save.update(function (pl) { pl.equipped.helm = null; });
+      if (mode === 'weaklast') {
+        MQ.ui.battle.start('tower3'); await wait(3300);
+        let guard = 0;
+        while (guard++ < 12 && !(MQ.battle.current() && MQ.battle.current().weak)) {
+          answerViaUI(true); await wait(60);
+          if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+          await wait(3400);
+        }
+        const q = MQ.battle.current();
+        say('weaklast: weak=' + (q && q.weak) + ' area=' + MQ.battle.weakArea() + ' badge=' + ($('.enemy__weak') ? $('.enemy__weak').textContent : 'MISSING') +
+            ' now=' + ($('.enemy__weak.is-now') ? 'ok' : 'MISSING') + ' msg=' + $('.arena__msg').textContent);
+        const hp0 = MQ.battle.bossHp();
+        answerViaUI(true); await wait(140);
+        const b = $('.counterbanner');
+        if (b) { const c = b.cloneNode(true); c.style.animation = 'none'; c.style.opacity = '1'; $('.arena').appendChild(c); }
+        say('weaklast: banner=' + (b ? b.textContent : 'MISSING') + ' hp=' + hp0 + '→' + MQ.battle.bossHp() + ' msg=' + $('.arena__msg').textContent);
+        dump(); return;
+      }
+      MQ.ui.battle.start('mix3'); await wait(400);
+      let guard = 0;
+      while (guard++ < 20 && !(MQ.battle.current() && MQ.battle.current().weak)) {
+        answerViaUI(true); await wait(60);
+        if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+        await wait(3400);
+      }
+      const q = MQ.battle.current();
+      say('weakmix: weak=' + (q && q.weak) + ' area=' + (q && q.areaId) + ' foe=' + (q && q.enemyId) +
+          ' badge=' + ($('.enemy__weak') ? $('.enemy__weak').textContent : 'MISSING') + ' msg=' + $('.arena__msg').textContent);
+      answerViaUI(true); await wait(140);
+      const b = $('.counterbanner');
+      if (b) { const c = b.cloneNode(true); c.style.animation = 'none'; c.style.opacity = '1'; $('.arena').appendChild(c); }
+      say('weakmix: banner=' + (b ? b.textContent : 'MISSING') + ' msg=' + $('.arena__msg').textContent + ' weakHits=' + MQ.battle.summary().weakHits);
+      dump(); return;
+    }
+    if (mode.indexOf('skill') === 0) {
+      const kind = mode.split(':')[1] || 'kamae';
+      const plan = kind === 'clone' || kind === 'clone2' ? { 3: { kind: 'clone', pos: 0 }, 4: { kind: 'clone', pos: 1 } }
+        : kind === 'call' ? { 3: { kind: 'call', pos: 0 } } : { 3: { kind: 'kamae', pos: 0 } };
+      fresh();
+      // そうびを ぜんぶ 外す（たて・よろいが ある と わざと まちがえても 進まない・かぶとで ひっさつが 早く 出る）
+      MQ.save.update(function (pl) { pl.equipped = {}; });
+      MQ.ui.battle.start('sansu3-1'); await wait(150);
+      let guard = 0;
+      while (guard++ < 30 && MQ.battle.phase() !== 'boss') {
+        answerViaUI(true); await wait(60);
+        if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+        await wait(3400);
+      }
+      await wait(1900);                    // WARNING の あいだ
+      MQ.battle._setBossPlan(plan);
+      /* 3問めまで 進める。ボスの HP は 3しか ない ので **わざと 2回 まちがえて ガード**
+         （HP が へらない）→ わざの 問題を たおれる 前に 見られる */
+      let g3 = 0;
+      while (g3++ < 14 && MQ.battle.bossAsked() < 3 && !MQ.battle.isOver()) {
+        // まちがえた あと 500ms は 入力を 受けつけない（locked）ので 700ms 待ってから 2回め
+        answerViaUI(false); await wait(700);
+        if (MQ.battle.isRetry()) { answerViaUI(false); await wait(80); }
+        await wait(3200);
+      }
+      const sk = MQ.battle.bossSkill();
+      say(mode + ': asked=' + MQ.battle.bossAsked() + ' skill=' + JSON.stringify(sk) + ' foes=' + $$('.foes .enemy').length +
+          ' label=' + ($('.enemy__skill') ? $('.enemy__skill').textContent : 'MISSING') +
+          ' kamae=' + ($('.enemy__kamae') ? 'ok' : '-') + ' clone=' + ($('.enemy--clone') ? 'ok' : '-') +
+          ' called=' + (MQ.battle.current().called ? 'ok' : '-') + ' msg=' + $('.arena__msg').textContent);
+      if (kind === 'kamae' || kind === 'clone' || kind === 'call') { dump(); return; }
+      // break / clone2：もう1問 すすめて 結果を 見る
+      const hp0 = MQ.battle.bossHp();
+      answerViaUI(true); await wait(140);
+      let b = $('.counterbanner');
+      if (b) { const c = b.cloneNode(true); c.style.animation = 'none'; c.style.opacity = '1'; c.setAttribute('data-frozen', '1'); $('.arena').appendChild(c); }
+      say(mode + ': banner1=' + (b ? b.textContent : 'MISSING') + ' hp=' + hp0 + '→' + MQ.battle.bossHp() + ' msg=' + $('.arena__msg').textContent);
+      await wait(3400);
+      const sk2 = MQ.battle.bossSkill();
+      const hp1 = MQ.battle.bossHp();
+      say(mode + ': つぎ skill=' + JSON.stringify(sk2) + ' label=' + ($('.enemy__skill') ? $('.enemy__skill').textContent : 'MISSING') + ' msg=' + $('.arena__msg').textContent);
+      answerViaUI(true); await wait(140);
+      b = $('.counterbanner:not([data-frozen])');
+      if (b) { const c = b.cloneNode(true); c.style.animation = 'none'; c.style.opacity = '1'; c.setAttribute('data-frozen', '1'); $('.arena').appendChild(c); }
+      say(mode + ': banner2=' + (b ? b.textContent : 'MISSING') + ' hp=' + hp1 + '→' + MQ.battle.bossHp() + ' dmg=' + ($('.dmg') ? $('.dmg').textContent : 'MISSING') + ' msg=' + $('.arena__msg').textContent);
+      dump(); return;
+    }
     /* ごちゃまぜ バトル（v7.3）
        #mix   … 地図の 下の むらさきの バー
        #mix2  … ごちゃまぜ バトルの 1問め（帯・教科の モンスター・単元に 教科名）
@@ -2338,6 +2479,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await wait(700);
     say('mix result: ' + ($('.rs__fever') ? $('.rs__fever').textContent : 'MISSING') + ' mixStar=' + (MQ.save.current().stars.mix3 || 0));
     say('counters(v7.7): ' + (MQ.save.current().counters >= 1 ? 'ok ' + MQ.save.current().counters : 'MISSING'));
+    say('v8.1: elites=' + (MQ.save.current().elites || 0) + ' weakHits=' + (MQ.save.current().weakHits || 0) +
+        ((MQ.save.current().elites || 0) >= 1 && (MQ.save.current().weakHits || 0) >= 1 ? ' ok' : ' MISSING'));
 
     say('--- 国語（かん字を 書く） ---');
     MQ.ui.battle.start('kokugo3-2');

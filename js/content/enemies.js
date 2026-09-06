@@ -325,6 +325,15 @@ MQ.enemies = (function () {
 
   function goldenId() { return 'slime-golden'; }
 
+  /* なかまを よぶ（v8.1）：同じ 系統（line）の べつの すがた。なければ null
+     （ドラコが 呼ぶと ドラグーン／ドラゴニクス が とんでくる） */
+  function mateFor(id) {
+    const e = byId[id];
+    if (!e || !e.line) return null;
+    const mates = list.filter(function (x) { return x.line === e.line && x.id !== id && !x.rare && !x.hidden; });
+    return mates.length ? MQ.util.pick(mates).id : null;
+  }
+
   // そのエリアの レア敵（息子さんの モンスター）。写真から 作ったものも まざる
   function rareIdsFor(areaId) {
     areaId = poolArea(areaId);
@@ -366,7 +375,7 @@ MQ.enemies = (function () {
     list: list, bosses: bosses, shapes: shapes,
     get: get, node: node, shadowNode: shadowNode, dexList: dexList,
     pickIds: pickIds, goldenId: goldenId, rareId: goldenId, rareIdFor: rareIdFor, rareIdsFor: rareIdsFor,
-    trioFor: trioFor, bossFor: bossFor, poolArea: poolArea, setCustom: setCustom,
+    trioFor: trioFor, bossFor: bossFor, poolArea: poolArea, setCustom: setCustom, mateFor: mateFor,
     customs: function () { return customs; }
   };
 })();

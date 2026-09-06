@@ -1033,7 +1033,10 @@ MQ.hero = (function () {
     { id: 't-yamiset',   name: 'やみを まとう者',        how: 'やみの そうびを そろえる',    test: function (p) { return hasSet(p, 'yami'); } },
     { id: 't-gearall',   name: 'そうび マスター',        how: 'そうびを 30点 ぜんぶ あつめる', test: function (p) { return (p.gear || []).length >= gear.length; } },
     // てきの こうげきを はね返す（v7.7）
-    { id: 't-counter10', name: 'カウンターの たつじん',  how: 'カウンターを 10回 きめる',    test: function (p) { return (p.counters || 0) >= 10; } }
+    { id: 't-counter10', name: 'カウンターの たつじん',  how: 'カウンターを 10回 きめる',    test: function (p) { return (p.counters || 0) >= 10; } },
+    // 敵がわの 攻防（v8.1）
+    { id: 't-elite10',   name: '中ボス ハンター',        how: '中ボスを 10体 たおす',       test: function (p) { return (p.elites || 0) >= 10; } },
+    { id: 't-weak10',    name: '弱点を つく 者',         how: '弱点を 10回 つく',           test: function (p) { return (p.weakHits || 0) >= 10; } }
   ];
   const titleById = {};
   titles.forEach(function (t) { titleById[t.id] = t; });

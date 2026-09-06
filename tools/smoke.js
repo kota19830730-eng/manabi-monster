@@ -970,6 +970,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     fastCount: 9, bestCombo: 18, itemUses: 12, custom: [{ id: 'c1' }],
     missionsDone: 12, revengeWins: 6,  // v3.1 の しょうごう
     counters: 10,                      // v7.7 カウンターの たつじん
+    elites: 10, weakHits: 10,          // v8.1 中ボス ハンター・弱点を つく 者
     gear: MQ.hero.gear.map(function (g) { return g.id; }),   // v5.4 の そうびの しょうごう
     // v5.2 の しょうごう：なかま 10体・そのうち 1体は Lv10
     pals: (function () {
@@ -2718,7 +2719,15 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   qs.forEach(function (q) { per[q.areaId] = (per[q.areaId] || 0) + 1; });
   check(qs.length === 12 && per.sansu === 3 && per.kokugo === 3 && per.rikashakai === 3 && per.eigo === 3, 'mix: 教科ごとに 3問 ' + JSON.stringify(per));
   check(qs.every(function (q) { return q.id.indexOf('mix3:') === 0 && q.stageId && q.enemyId && q.unit.indexOf(' ・ ') > 0 || q.unit.length > 0; }), 'mix: id・stageId・enemyId・単元');
-  check(qs.every(function (q) { const e = MQ.enemies.get(q.enemyId); return e && (MQ.enemies.poolArea(e.area) === MQ.enemies.poolArea(q.areaId) || e.any); }), 'mix: モンスターは その 教科の もの');
+  // v8.1：3体に 1体は「まよいこんだ 敵」（べつの 教科の モンスター・弱点＝この 問題の 教科）。のこりは その 教科の モンスター
+  check(qs.every(function (q) {
+    const e = MQ.enemies.get(q.enemyId);
+    if (!e) return false;
+    const same = MQ.enemies.poolArea(e.area) === MQ.enemies.poolArea(q.areaId) || e.any;
+    return q.weak ? (q.weak === q.areaId && (!same || e.any)) : same;
+  }), 'mix: モンスターは その 教科の もの（弱点もちは べつの 教科）');
+  check(qs.filter(function (q) { return q.weak; }).length === 4, 'mix: 弱点もちは 12体に 4体 ' + qs.filter(function (q) { return q.weak; }).length);
+  check(!f.stage.make(1, { boss: false, lv: 2 })[0].weak, 'mix: たからばこ（lv 指定）には 弱点を つけない');
   qs.forEach(function (q, i) { validate(q, 'mix ' + i); });
   const lv = { 1: 0, 2: 0, 3: 0 };
   qs.forEach(function (q) { lv[q.lv === 1 || q.lv === 3 ? q.lv : 2]++; });
@@ -2851,6 +2860,221 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   MQ.save.load();
   if (prevId) MQ.save.setCurrent(prevId);
   console.log('attack: ならび ' + pat.join(''));
+})();
+
+/* ===== 敵がわの 攻防（v8.1）：中ボス・弱点・ボスの わざ・なかまを よぶ ===== */
+(function () {
+  const B = MQ.battle, C = MQ.content;
+  const prevId = MQ.save.get().currentId;
+  const p = MQ.save.createPlayer('こうぼう', null, 3);
+  check(p.elites === 0 && p.weakHits === 0, 'v8.1: 新しい プレイヤーは 0');
+  const st = C.findStage('sansu3-1').stage;
+  function ans(q) { return q.type === 'choice' || q.type === 'number' || q.type === 'roma' ? q.answer : q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : { q: q.answer.q, r: q.answer.r }; }
+  function wrong(q) { return q.type === 'choice' ? (q.answer + 1) % q.choices.length : q.type === 'write' ? false : -1; }
+
+  /* ---- 中ボス：12体 → 11体＋中ボス（2問）＋たからばこ＝14問。foeCount は 13体 ---- */
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: true, elite: true, areaId: 'sansu' });
+  check(B.mobTotal() === 14 && B.foeCount().total === 13, 'elite: 14問・13体 ' + B.mobTotal() + '/' + B.foeCount().total);
+  const mobs = [];
+  while (B.phase() === 'mob') { mobs.push(B.current()); if (B.current().elite) break; B.answer(ans(B.current())); B.next(); }
+  const eq = B.current();
+  check(eq.elite === true && eq.elitePos === 0 && eq.eliteHp === 2 && (eq.lv || 2) === 3, 'elite: さいごは 中ボス・lv3 ' + JSON.stringify({ lv: eq.lv, pos: eq.elitePos }));
+  check(B.chargeInfo() === null, 'elite: 中ボスには ため を 出さない（出来事は 1つ）');
+  const eliteE = MQ.enemies.get(eq.enemyId);
+  check(eliteE && (eliteE.rank === 3 || eliteE.any), 'elite: つよそうな 敵（rank3）' + eq.enemyId);
+  check(B.mobs === undefined, 'elite: mobs は 外に 出さない');
+  // 中ボスの 2問めは 同じ 敵・同じ しるし
+  check(B.foeCount().no === 13, 'elite: 中ボスは 13体め ' + B.foeCount().no);
+  // クリティカル なし（コンボを 切って から）→ 1ダメージ → elitehit
+  B.answer(wrong(eq)); const r0 = B.answer(ans(eq));
+  check(r0.outcome === 'elitehit' && r0.dmg === 1 && r0.hpLeft === 1 && B.eliteLeft() === 1, 'elite: 2回めの 正解は 1ダメージ・まだ たおれない ' + JSON.stringify({ o: r0.outcome, d: r0.dmg, l: r0.hpLeft }));
+  B.next();
+  const eq2 = B.current();
+  check(eq2.elite && eq2.elitePos === 1 && eq2.enemyId === eq.enemyId && B.foeCount().no === 13, 'elite: 2問めも 中ボス・13体めの まま');
+  const r1 = B.answer(ans(eq2));
+  check(r1.outcome === 'correct' && r1.elite === true && r1.coins === 1 && r1.xp >= B.XP.mob + B.XP.eliteBonus, 'elite: たおした → けいけんち ＋20・コイン 1 ' + JSON.stringify({ o: r1.outcome, xp: r1.xp, c: r1.coins }));
+  const nx = B.next();
+  check(nx.phase === 'boss' && nx.entering === true, 'elite: 中ボスの あとは ボス');
+  check(B.summary().elites === 1, 'elite: summary elites 1');
+  // 一発（クリティカル＝コンボ 3いじょう）なら 2問めは とばす
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: false, elite: true, areaId: 'sansu' });
+  while (!B.current().elite) { B.answer(ans(B.current())); B.next(); }
+  const total0 = B.mobTotal();
+  const r2 = B.answer(ans(B.current()));
+  check(r2.outcome === 'correct' && r2.elite && r2.dmg === 2 && B.mobTotal() === total0 - 1 && B.next().phase === 'boss', 'elite: クリティカルで 一発 → 2問めは とばす ' + JSON.stringify({ o: r2.outcome, d: r2.dmg }));
+  // にげられた → 2問めも とばす・にげた敵に 1体だけ
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: false, elite: true, areaId: 'sansu' });
+  while (!B.current().elite) { B.answer(ans(B.current())); B.next(); }
+  const eq3 = B.current();
+  B.answer(wrong(eq3)); const r3 = B.answer(wrong(eq3));
+  check(r3.outcome === 'wrong' && r3.elite === true && B.next().phase === 'boss', 'elite: にげられたら 2問めも とばす');
+  const esc = B.summary().escaped;
+  check(esc.length === 1 && !esc[0].q.elite && !esc[0].q.eliteHp, 'elite: にげた敵は 1体・elite の しるしは のこさない');
+  // elite を わたさなければ いままで どおり（13問）
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: true });
+  check(B.mobTotal() === 13 && B.foeCount().total === 13, 'elite: わたさなければ 13問 13体');
+  // ゴールデンコールの まとに 中ボスは 入らない・たからばこは 中ボスの 2問の あと
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: false, elite: true, areaId: 'sansu',
+    items: [{ id: 'g', name: 'g', power: 'golden', val: 9, uses: 1, mobOnly: true }, { id: 'c', name: 'c', power: 'chest', val: 1, uses: 1, mobOnly: true }] });
+  const ug = B.useItem('g');
+  check(ug.ok && ug.targets.every(function (i) { return !B.current().elite; }) && !B.summary().defeated.length, 'elite: ゴールデンコール ok');
+  while (!B.current().elite) { B.answer(ans(B.current())); B.next(); }
+  check(B.current().enemyId !== 'slime-golden', 'elite: 中ボスは ゴールデンに ならない');
+  const uc = B.useItem('c');
+  check(uc.ok && uc.at === B.mobIndex() + 2, 'elite: たからばこは 中ボスの 2問の あと ' + uc.at + ' / ' + B.mobIndex());
+
+  /* ---- なかまを よぶ（ザコ）：2体同時が summon・2体めは 同じ 系統 か ゴールデン ---- */
+  let summonSeen = 0, mateOk = 0, goldenSeen = 0;
+  for (let t = 0; t < 30; t++) {
+    B.start({ stage: st, mode: 'normal', enemies: ['drago-1', 'mecha-1', 'tank-1', 'magma-1'], bossId: 'boss-dragon', mobs: 12, chest: false, summon: true });
+    while (B.phase() === 'mob') {
+      const q = B.current();
+      if (q.summon && q.groupPos === 0) {
+        summonSeen++;
+        const m1 = MQ.enemies.get(q.groupIds[1]);
+        if (m1 && m1.id === 'slime-golden') goldenSeen++;
+        else if (m1 && MQ.enemies.get(q.groupIds[0]) && m1.line === MQ.enemies.get(q.groupIds[0]).line) mateOk++;
+      }
+      B.answer(ans(q)); B.next();
+    }
+  }
+  check(summonSeen === 30 && mateOk + goldenSeen === 30 && goldenSeen >= 0 && goldenSeen < 15, 'summon: 30回 ぜんぶ 呼ぶ・2体めは 同じ 系統 か ゴールデン ' + JSON.stringify({ s: summonSeen, m: mateOk, g: goldenSeen }));
+  check(MQ.enemies.mateFor('drago-1') && MQ.enemies.get(MQ.enemies.mateFor('drago-1')).line === 'drago' && MQ.enemies.mateFor('slime-green') === null, 'summon: mateFor');
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: false });
+  let anySummon = false;
+  while (B.phase() === 'mob') { if (B.current().summon) anySummon = true; B.answer(ans(B.current())); B.next(); }
+  check(!anySummon, 'summon: わたさなければ いままで どおり');
+
+  /* ---- 弱点（ごちゃまぜ）：weak の 問題に 1回めで 正解 → けいけんち 1.5ばい ---- */
+  const mixSt = C.findStage('mix3').stage;
+  B.start({ stage: mixSt, mode: 'normal', mix: true, bossArea: 'kokugo', enemies: [], bossId: 'boss-oni', mobs: 12, chest: false, areaId: 'kokugo' });
+  let weakN = 0, weakXpOk = true, plainOk = true, retryOk = true;
+  while (B.phase() === 'mob') {
+    const q = B.current();
+    if (q.weak) check(B.chargeInfo() === null, 'weak: ごちゃまぜでも 弱点の 問題に ため なし');
+    if (q.weak && weakN === 0) {
+      // 1体めは わざと まちがえてから 正解 → ばつぐんに ならない
+      B.answer(wrong(q)); const rr = B.answer(ans(q));
+      if (rr.weakHit || rr.xp !== B.XP.mobRetry) retryOk = false;
+      weakN++;
+    } else {
+      const r = B.answer(ans(q));
+      if (q.weak) { weakN++; if (!r.weakHit || r.xp < Math.round(B.XP.mob * B.WEAK_MUL)) weakXpOk = false; }
+      else if (r.weakHit) plainOk = false;
+    }
+    B.next();
+  }
+  check(weakN === 4 && weakXpOk && plainOk && retryOk && B.summary().weakHits === 3, 'weak: 4体・1回めの 正解だけ 1.5ばい・summary 3 ' + JSON.stringify({ n: weakN, s: B.summary().weakHits }));
+  // ふつうの たたかい（1教科）には 弱点が ない
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: true, elite: true, summon: true, areaId: 'sansu' });
+  let anyWeak = false;
+  while (B.phase() === 'mob') { if (B.current().weak) anyWeak = true; B.answer(ans(B.current())); B.next(); }
+  check(!anyWeak, 'weak: ふつうの たたかいには ない');
+
+  /* ---- 弱点（塔）：weakArea の 教科の 問題に 正解 → 2ダメージ。しるしは その 問題だけ ---- */
+  const tw = C.findStage('tower3').stage;
+  check(C.towerSubjects(tw).join(',') === 'sansu,kokugo,rikashakai,eigo', 'weak: 塔の 教科（ローマ字は 入らない）' + C.towerSubjects(tw).join(','));
+  B.start({ stage: tw, mode: 'tower', bossId: 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3, weakArea: 'kokugo' });
+  check(B.weakArea() === 'kokugo' && B.current().subject === 'sansu' && !B.current().weak, 'weak: 塔 1問めは 算数・弱点なし');
+  B.answer(ans(B.current())); B.next();
+  const tq = B.current();
+  check(tq.subject === 'kokugo' && tq.weak === 'kokugo', 'weak: 塔 2問めは 国語＝弱点つき');
+  check(B.chargeInfo() === null, 'weak: 弱点の 問題には ため を 出さない');
+  const hpT = B.bossHp();
+  const rt = B.answer(ans(tq));
+  check(rt.outcome === 'bosshit' && rt.weakHit === true && rt.dmg === 2 && B.bossHp() === hpT - 2 && rt.burst === 0, 'weak: 塔の 弱点は 2ダメージ ' + JSON.stringify({ d: rt.dmg, hp: B.bossHp() }));
+  check(B.summary().weakHits === 1, 'weak: 塔 summary 1');
+
+  /* ---- ボスの わざ：3問め・5問め（ぶんしんは 2問）。大わざと かさならない。attacks なしなら 出ない ---- */
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false, attacks: true });
+  while (B.phase() === 'mob') { B.answer(ans(B.current())); B.next(); }
+  const plan = B.bossPlan();
+  const ks = Object.keys(plan).map(Number).sort();
+  check(plan[3] && (plan[3].kind === 'clone' ? ks.join(',') === '3,4' : ks.join(',') === '3,5') && ks.every(function (k) { return plan[k].kind !== 'clone' || k + 1 <= 5; }),
+    'skill: 予定は 3問め（と 5問め）' + JSON.stringify(plan));
+  check(Object.keys(plan).map(function (k) { return plan[k].kind; }).every(function (k) { return B.BOSS_SKILLS.indexOf(k) >= 0; }), 'skill: しゅるいは 3つの どれか');
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false });
+  while (B.phase() === 'mob') { B.answer(ans(B.current())); B.next(); }
+  check(Object.keys(B.bossPlan()).length === 0 && B.bossSkill() === null, 'skill: attacks なしなら わざ なし');
+  // 塔は 3・5・7 に 3つ（ぶんしんが 入ると 2問 つかう）
+  B.start({ stage: tw, mode: 'tower', bossId: 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3, attacks: true });
+  const planT = B.bossPlan();
+  const kindsT = Object.keys(planT).map(function (k) { return planT[k].kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; });
+  check(kindsT.length >= 2 && planT[3] && Object.keys(planT).every(function (k) { return Number(k) <= 8; }), 'skill: 塔は 3問めから 2つ いじょう ' + JSON.stringify(planT));
+
+  // たての かまえ：正解で ガードブレイク → つぎの 1問が 2ダメージ。まちがえると すきは とじる
+  // ボスの HP を 多めに して たおれる 前に わざを ぜんぶ 見る
+  function bossStart(plan) {
+    B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false, attacks: true, bossHp: 12, bossMax: 8, enrageAt: 1 });
+    while (B.phase() === 'mob') { B.answer(ans(B.current())); B.next(); }
+    B._setBossPlan(plan);
+  }
+  bossStart({ 3: { kind: 'kamae', pos: 0 } });
+  B.answer(ans(B.current())); B.next(); B.answer(ans(B.current())); B.next();
+  check(B.bossAsked() === 3 && B.bossSkill().kind === 'kamae' && B.chargeInfo() === null, 'skill: 3問めは かまえ・ため なし');
+  const hp3 = B.bossHp();
+  const rk = B.answer(ans(B.current()));
+  check(rk.outcome === 'bosshit' && rk.skill === 'kamae' && rk.broke === true && rk.dmg === 1 && rk.xp === B.XP.bossHit + B.XP.critBonus + B.XP.kamaeBreak && B.bossHp() === hp3 - 1, 'skill: ガードブレイク ＋10 ' + JSON.stringify({ b: rk.broke, xp: rk.xp }));
+  B.next();
+  check(B.bossSkill().open === true && B.bossSkill().kind === null && B.chargeInfo() === null, 'skill: 4問めは すきだらけ（ため とは かさならない）');
+  const hp4 = B.bossHp();
+  const ro = B.answer(ans(B.current()));
+  check(ro.open === true && ro.dmg === 2 && B.bossHp() === hp4 - 2 && ro.burst === 0, 'skill: すきを ついて 2ダメージ ' + JSON.stringify({ o: ro.open, d: ro.dmg }));
+  B.next();
+  check(!B.bossSkill() || !B.bossSkill().open, 'skill: すきは 1問だけ');
+  // かまえで まちがえる → ブレイクなし・すきなし
+  bossStart({ 3: { kind: 'kamae', pos: 0 } });
+  B.answer(ans(B.current())); B.next(); B.answer(ans(B.current())); B.next();
+  const rkw = B.answer(wrong(B.current()));
+  check(rkw.outcome === 'retry' && rkw.skill === 'kamae', 'skill: かまえで まちがい → retry・skill つき');
+  const rk2 = B.answer(ans(B.current()));
+  check(rk2.broke === false && rk2.dmg === 1, 'skill: 2回めの 正解は ブレイクに ならない');
+  B.next();
+  check(!(B.bossSkill() && B.bossSkill().open), 'skill: すきも 出ない');
+  // ぶんしん：2問 つづけて 1回めで 正解 → ＋20
+  bossStart({ 3: { kind: 'clone', pos: 0 }, 4: { kind: 'clone', pos: 1 } });
+  B.answer(ans(B.current())); B.next(); B.answer(ans(B.current())); B.next();
+  check(B.bossSkill().kind === 'clone' && B.bossSkill().pos === 0, 'skill: 3問め ぶんしん 1体め');
+  const rc0 = B.answer(ans(B.current()));
+  check(rc0.skill === 'clone' && rc0.clonePos === 0 && !rc0.cloneKO && rc0.dmg === 1, 'skill: ぶんしん 1問めは 1ダメージ');
+  B.next();
+  check(B.bossSkill().kind === 'clone' && B.bossSkill().pos === 1 && B.chargeInfo() === null, 'skill: 4問め ぶんしん 2体め・大わざ なし');
+  const rc1 = B.answer(ans(B.current()));
+  check(rc1.cloneKO === true && rc1.xp === B.XP.bossHit + B.XP.critBonus + B.XP.cloneBonus, 'skill: 見やぶった ＋20 ' + rc1.xp);
+  bossStart({ 3: { kind: 'clone', pos: 0 }, 4: { kind: 'clone', pos: 1 } });
+  B.answer(ans(B.current())); B.next(); B.answer(ans(B.current())); B.next();
+  B.answer(wrong(B.current())); B.answer(ans(B.current())); B.next();
+  check(B.answer(ans(B.current())).cloneKO === false, 'skill: 1問めを まちがえたら ボーナス なし');
+  // なかまを よぶ：3問めの 前に ザコが 1体（ボスの 問題数は ふえない）
+  bossStart({ 3: { kind: 'call', pos: 0 } });
+  B.answer(ans(B.current())); B.next();
+  const n3 = B.next();
+  const cq = B.current();
+  check(n3.call === true && cq.called === true && cq.id.indexOf('call:') === 0 && !cq.boss && B.bossAsked() === 3 && B.chargeInfo() === null, 'skill: 3問めの 前に 呼ばれた ザコ ' + JSON.stringify({ c: n3.call, id: cq.id, k: B.bossAsked() }));
+  const ce = MQ.enemies.get(cq.enemyId);
+  check(ce && !ce.rare && ce.id.indexOf('boss-') !== 0, 'skill: 呼ばれたのは ザコ ' + cq.enemyId);
+  const hpC = B.bossHp();
+  const rcall = B.answer(ans(cq));
+  check(rcall.outcome === 'correct' && rcall.called === true && rcall.xp === B.XP.mob + B.XP.critBonus && B.bossHp() === hpC && B.summary().defeated.indexOf(cq.enemyId) >= 0, 'skill: 呼ばれた ザコ → ザコの けいけんち・ボスは そのまま ' + rcall.xp);
+  const n4 = B.next();
+  check(n4.afterCall === true && B.current().boss === true && B.bossAsked() === 3 && B.bossSkill().kind === 'call', 'skill: そのあと 3問めの ボスの 問題');
+  check(B.answer(ans(B.current())).outcome === 'bosshit', 'skill: ボスの 問題は ふつうに 当たる');
+  // 呼ばれた ザコに にげられても ボスの 問題へ
+  bossStart({ 3: { kind: 'call', pos: 0 } });
+  B.answer(ans(B.current())); B.next(); B.next();
+  const cq2 = B.current();
+  B.answer(wrong(cq2)); const rw2 = B.answer(wrong(cq2));
+  check(rw2.outcome === 'wrong' && rw2.called === true && B.phase() === 'boss' && B.next().afterCall && B.current().boss, 'skill: にげられても ボスへ');
+  check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
+  // しょうごう
+  check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
+  check(MQ.hero.titles.length === 48, 'v8.1: しょうごう 48 ' + MQ.hero.titles.length);
+  // 古い セーブ
+  MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
+  check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');
+  MQ.save.load();
+  if (prevId) MQ.save.setCurrent(prevId);
+  console.log('v8.1: 中ボス・弱点・ボスの わざ・なかまを よぶ OK');
 })();
 
 /* ===== 読みこみの じゅんばん（v5.0.1）=====

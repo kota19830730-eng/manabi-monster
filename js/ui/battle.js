@@ -195,14 +195,23 @@ MQ.ui.battle = (function () {
         escaped: [], enemies: [], bossId: boss.id,
         rareId: Math.random() < RARE_CHANCE ? MQ.enemies.goldenId() : null, trioIds: null, chest: true, mobs: MOBS,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
-        gear: MQ.hero.gearPower(player), attacks: atk
+        gear: MQ.hero.gearPower(player), attacks: atk,
+        elite: true, summon: true, areaId: bossArea.id      // 中ボス・なかまを よぶ（v8.1）
       });
     } else if (isTower) {
+      /* ラスボスの 弱点（v8.1）：塔で 出る 教科の どれか 1つ。きょうの フィーバー教科が あれば それ
+         （にがて教科を 自然に 応援する。画面では「ボスの 弱点」としか 言わない） */
+      const subs = MQ.content.towerSubjects ? MQ.content.towerSubjects(found.stage) : [];
+      let fv2 = null;
+      if (MQ.fever && subs.length) MQ.save.update(function (p) { fv2 = MQ.fever.today(p); });
+      const weakArea = subs.length ? (fv2 && subs.indexOf(fv2.areaId) >= 0 ? fv2.areaId : MQ.util.pick(subs)) : null;
+      ctx.weakArea = weakArea;
       MQ.battle.start({
         stage: found.stage, mode: 'tower',
         bossId: found.stage.bossId || 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
-        gear: MQ.hero.gearPower(player), attacks: atk
+        gear: MQ.hero.gearPower(player), attacks: atk,
+        weakArea: weakArea, areaId: subs[0] || null
       });
     } else {
       // リベンジ（v3.1）：にげてから 時間が たった 敵だけ（古い ものから）。にげた その日は とっくんで
@@ -229,7 +238,8 @@ MQ.ui.battle = (function () {
         rareId: rareId, trioIds: trioIds, chest: true, mobs: MOBS,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
         gear: MQ.hero.gearPower(player),
-        fever: fs.fever, support: fs.support, attacks: atk
+        fever: fs.fever, support: fs.support, attacks: atk,
+        elite: true, summon: true, areaId: ctx.area.id       // 中ボス・なかまを よぶ（v8.1）
       });
     }
 
@@ -349,43 +359,96 @@ MQ.ui.battle = (function () {
   /* =======================================================
      問題を 出す
      ======================================================= */
+  /* 敵がわの 攻防（v8.1）の 名前。小1・小2でも 読める ように ひらがな中心 */
+  const SKILL_NAME = { kamae: 'たての かまえ', clone: 'ぶんしん', call: 'なかまを よんだ' };
+  function weakText(areaId) {
+    const a = MQ.content.areaOf ? MQ.content.areaOf(areaId) : null;
+    const g = (MQ.content.activeWorld && MQ.content.activeWorld().grade) || 3;
+    return (g <= 2 ? 'よわい：' : '弱点：') + (a ? (a.short || a.name) : '');
+  }
+
   function renderFoes(q) {
     d.foes.innerHTML = '';
-    const ids = q.groupIds || [q.enemyId];
-    const pos = q.groupPos || 0;
-    const boss = !!q.boss;
     const last = MQ.battle.mode() === 'tower';
-    const enraged = boss && MQ.battle.isEnraged();
+    const sk = MQ.battle.bossSkill ? MQ.battle.bossSkill() : null;
+    const bossId = MQ.battle.bossId();
+    let ids = q.groupIds || [q.enemyId];
+    let pos = q.groupPos || 0;
+    let bossAt = null;       // どの 位置が ボスか（呼ばれた ザコ・ぶんしん の とき 2体 ならぶ・v8.1）
+    if (q.called) { ids = [q.enemyId, bossId]; pos = 0; bossAt = { 1: true }; }
+    else if (q.boss && sk && sk.kind === 'clone') { ids = [bossId, bossId]; pos = sk.pos; bossAt = { 0: true, 1: true }; }
+    else if (q.boss) bossAt = { 0: true };
+    const enraged = !!bossAt && MQ.battle.isEnraged();
+    // 塔の ラスボスの 弱点（v8.1）：いつも バッジを 出す。その 教科の 問題の ときは 光る
+    const bossWeak = last && bossAt ? MQ.battle.weakArea() : null;
 
     ids.forEach(function (id, i) {
       const e = MQ.enemies.get(id) || { name: '' };
+      const boss = !!(bossAt && bossAt[i]);
+      const twin = boss && ids.length > 1;         // ボスが 2体 ならぶ（ぶんしん・呼ばれた ザコの となり）
       let cls = 'enemy';
       let size = 72;
-      if (boss) { cls += last ? ' enemy--last enemy--boss' : ' enemy--boss'; size = last ? 112 : 96; }
-      else if (ids.length > 1) { cls += ' enemy--small'; size = 54; }
+      // 2体 ならぶ ときは 小さめ（ラスボスは 名前が 頭の 上に ある ので とくに 小さく）
+      if (boss) { cls += last ? ' enemy--last enemy--boss' : ' enemy--boss'; size = twin ? (last ? 72 : 80) : (last ? 112 : 96); if (twin) cls += ' enemy--twin'; }
+      else if (q.elite) { cls += ' enemy--elite'; size = 96; }                // 中ボス（v8.1）は 大きく
+      else if (ids.length > 1 && !q.called) { cls += ' enemy--small'; size = 54; }
       else if ((e.rank || 2) === 3) { cls += ' enemy--r3'; size = 86; }   // 強そうなのは 大きく
       else if ((e.rank || 2) === 1) { cls += ' enemy--r1'; size = 60; }   // よわそうなのは 小さく
       if (e.by === 'photo' && !boss && ids.length === 1) size = 96;          // じぶんの 絵の モンスターは 大きく（64マスの ドットが つぶれない・v3.2）
       if (q.rare && i === pos) cls += ' enemy--rare';
       if (q.revenge && i === pos) cls += ' enemy--revenge';   // リベンジ：赤い オーラ＋リボン（v3.1）
+      if (q.summon && i === 1 && pos === 1) cls += ' is-summoned';   // よばれて とんできた（v8.1）
       if (i < pos) cls += ' enemy--done';
       else if (i > pos) cls += ' enemy--waiting';
+      if (boss && sk && !q.called) {
+        if (sk.kind === 'clone' && i !== pos) cls += ' enemy--clone';
+        if (sk.kind === 'kamae') cls += ' enemy--kamae';
+        if (sk.open) cls += ' enemy--open';
+      }
+      const skillLabel = boss && sk && sk.kind && (i === pos || q.called) ? SKILL_NAME[sk.kind] : (boss && sk && sk.open && i === pos ? 'すきだらけ！' : null);
+      const wk = (q.weak && i === pos) ? q.weak : (boss && bossWeak && (i === pos || q.called) ? bossWeak : null);
 
       const box = h('div', { class: cls }, [
-        MQ.enemies.node(id, { size: size, cls: 'enemy__img', enrage: enraged }),
+        MQ.enemies.node(id, { size: size, cls: 'enemy__img', enrage: boss && enraged }),
         h('div', { class: 'shadow shadow--foe' }),
+        boss && sk && sk.kind === 'kamae' && !q.called ? h('span', { class: 'enemy__kamae' }) : null,
         // ラスボスは 名前が 長い（かいぞくキャプテン）ので「ラスボス」は 左上の ピルに まかせて 名前だけ（v6.4）
-        h('span', { class: 'enemy__name', text: (boss && !last ? 'ボス ' : '') + e.name }),
+        h('span', { class: 'enemy__name', text: sk && sk.kind === 'clone' && boss && i !== pos ? 'ぶんしん' : (boss && !last ? 'ボス ' : '') + e.name }),
         q.revenge && i === pos && !boss ? h('span', { class: 'enemy__ribbon', text: 'リベンジ' }) : null,
-        boss ? h('div', { class: 'bosshp' }) : null
+        q.elite && i === pos ? h('span', { class: 'enemy__ribbon enemy__ribbon--elite', text: '中ボス' }) : null,
+        skillLabel ? h('span', { class: 'enemy__skill' + (sk.open && !sk.kind ? ' enemy__skill--open' : ''), text: skillLabel }) : null,
+        wk ? h('span', { class: 'enemy__weak' + (q.weak === wk ? ' is-now' : ''), text: weakText(wk) }) : null,
+        boss && i === pos ? h('div', { class: 'bosshp' }) : null,
+        q.elite && i === pos ? h('div', { class: 'bosshp elitehp' }) : null
       ]);
       d.foes.appendChild(box);
     });
 
     d.cur = d.foes.children[Math.min(pos, d.foes.children.length - 1)];
-    if (boss) renderBossHp();
+    if (q.boss) renderBossHp();
+    if (q.elite) renderEliteHp();
     renderCharge();
   }
+
+  // 中ボス（v8.1）の HP（ボスと 同じ 赤い 玉）
+  function renderEliteHp() {
+    const el = d.foes.querySelector('.elitehp');
+    if (!el) return;
+    el.innerHTML = '';
+    const q = MQ.battle.current();
+    const max = (q && q.eliteHp) || MQ.battle.ELITE_HP || 2;
+    const hp = MQ.battle.eliteLeft ? MQ.battle.eliteLeft() : max;
+    for (let i = 0; i < max; i++) el.appendChild(h('span', { class: 'bosshp__seg' + (i >= hp ? ' is-lost' : '') }));
+  }
+
+  /* 弱点・ボスの わざ の 帯（v8.1）。カウンターの 帯と 同じ 作り（arena に おく・自分で 消える） */
+  function skillBanner(text, kind) {
+    const b = h('div', { class: 'counterbanner counterbanner--' + kind, text: text });
+    d.arena.appendChild(b);
+    if (d.msg) d.msg.classList.add('is-quiet');
+    setTimeout(function () { b.remove(); if (d.msg) d.msg.classList.remove('is-quiet'); }, 1100);
+  }
+  function weakFx() { MQ.sfx.weak(); flash(true); skillBanner('こうかは ばつぐん！', 'weak'); }
 
   /* てきの ため（v7.7）：いまの 敵の 頭の 上に 玉（ザコ 3つ・ボス 2つ）。
      たまりきった 問題は「こうげき！」の ラベルが ついて 敵が 赤く 光る */
@@ -546,6 +609,7 @@ MQ.ui.battle = (function () {
     sayAnswer(res);
     markChoices(q, -1);
     if (res.outcome === 'guard') { guardFx(); wait(2600, res.fled ? finish : advanceBoss); }
+    else if (res.called) { flee(); wait(2600, advance); }   // 呼ばれた ザコ（v8.1）：advance が ボスの 問題に もどす
     else { flee(); wait(2600, advance); }
   }
 
@@ -580,20 +644,47 @@ MQ.ui.battle = (function () {
     renderFoes(q);
 
     const e = MQ.enemies.get(q.enemyId) || { name: '' };
-    if (!bossPhase || !bossOnScreen) {
+    const sk = MQ.battle.bossSkill ? MQ.battle.bossSkill() : null;
+    if (!bossPhase || !bossOnScreen || q.called || (sk && sk.kind === 'clone' && sk.pos === 0)) {
       void d.cur.offsetWidth;
       d.cur.classList.add('is-appear');
       if (q.chest) MQ.sfx.chestAppear();
+      else if (q.elite && q.elitePos === 0) MQ.sfx.elite();
       else { MQ.sfx.appear(); if (q.rare) MQ.sfx.rare(); }
     }
 
+    const left = ' あと ' + MQ.battle.bossHp() + 'かい！';
     if (q.chest) {
       d.msg.textContent = 'たからばこが 出てきた！ あけてみよう';
+    } else if (q.called) {
+      // ボスが なかまを よんだ（v8.1）：ザコを 1体 たおしてから ボスの 問題へ
+      const b = MQ.enemies.get(MQ.battle.bossId()) || { name: 'ボス' };
+      d.msg.textContent = b.name + ' が なかまを よんだ！ ' + e.name + ' が あらわれた！';
+      MQ.sfx.whistle();
+    } else if (bossPhase && sk && sk.kind === 'kamae') {
+      // わざの ふきだしは 2行に おさめる（長いと ボスの 絵に かぶる）
+      d.msg.textContent = 'たてを かまえた！ 正解で ガードブレイク！';
+      MQ.sfx.kamae();
+    } else if (bossPhase && sk && sk.kind === 'clone') {
+      d.msg.textContent = sk.pos === 0 ? 'ぶんしんした！ 2問 つづけて 正解で 見やぶれ！' : 'ぶんしんが のこって いる！ もう1問！';
+      if (sk.pos === 0) MQ.sfx.clone();
+    } else if (bossPhase && sk && sk.open) {
+      d.msg.textContent = 'すきだらけだ！ 正解で 2ダメージ！';
     } else if (bossPhase) {
-      d.msg.textContent = !bossOnScreen ? (last ? e.name + 'が 立ちはだかる…！' : 'ボスの ' + e.name + ' が たちふさがる！')
-        : MQ.battle.isEnraged() ? e.name + ' は 本気だ！ あと ' + MQ.battle.bossHp() + 'かい！'
-        : 'こうげきだ！ あと ' + MQ.battle.bossHp() + 'かい！';
+      d.msg.textContent = !bossOnScreen ? (last ? e.name + 'が 立ちはだかる…！' + (ctx.weakArea ? ' ' + weakText(ctx.weakArea) : '') : 'ボスの ' + e.name + ' が たちふさがる！')
+        : MQ.battle.isEnraged() ? e.name + ' は 本気だ！' + left
+        : 'こうげきだ！' + left;
       bossOnScreen = true;
+    } else if (q.elite) {
+      // 中ボス（v8.1）
+      d.msg.textContent = q.elitePos === 0 ? '中ボスの ' + e.name + ' が あらわれた！ HP ' + (q.eliteHp || 2) + '！'
+        : e.name + ' は まだ たおれない！ もう1発！';
+    } else if (q.summon && q.groupPos === 0) {
+      // なかまを よぶ（v8.1）：1体めが 口ぶえで 2体めを よぶ
+      d.msg.textContent = e.name + ' が なかまを よんでいる…！';
+      MQ.sfx.whistle();
+    } else if (q.summon && q.groupPos === 1) {
+      d.msg.textContent = q.golden ? 'ゴールデンスライムが よばれて 来た！ けいけんち 3ばい！' : e.name + ' が よばれて とんできた！';
     } else if (q.groupIds && q.groupPos === 0) {
       d.msg.textContent = q.groupSize + '体 まとめて あらわれた！';
     } else {
@@ -601,6 +692,9 @@ MQ.ui.battle = (function () {
         : q.rare ? e.name + ' が あらわれた！ けいけんち 3ばい！'
         : e.name + ' が あらわれた！';
     }
+    // 弱点（v8.1）：この 問題の 教科が 弱点 → チャンス
+    if (q.weak && !q.chest && !q.called) d.msg.textContent += ' ' + weakText(q.weak) + '！ チャンス！';
+    if (bossPhase && !q.called) bossOnScreen = true;
     // てきの こうげき（v7.7）：たまりきった 問題は ふきだしも「正解で カウンター！」に
     const ci = MQ.battle.chargeInfo ? MQ.battle.chargeInfo() : null;
     if (ci && ci.attacking && !q.chest) {
@@ -622,14 +716,16 @@ MQ.ui.battle = (function () {
     d.count.innerHTML = bossPhase
       ? '<span>' + (last ? 'ラスボス' : 'ボス') + '</span>'
       : (ctx.tokkun ? '<span>とっくん</span>' : '<span>てき</span>');
+    // 中ボス（v8.1）の 2問は 1体と 数える
+    const fc = MQ.battle.foeCount ? MQ.battle.foeCount() : { no: MQ.battle.mobIndex() + 1, total: MQ.battle.mobTotal() };
     if (!bossPhase) {
-      d.count.appendChild(h('b', { text: (MQ.battle.mobIndex() + 1) + ' / ' + MQ.battle.mobTotal() }));
+      d.count.appendChild(h('b', { text: fc.no + ' / ' + fc.total }));
     }
     // フィーバー教科（v7.2）：けいけんち 2ばいの しるし
     const fv = MQ.battle.fever ? MQ.battle.fever() : null;
     if (fv) d.count.appendChild(h('i', { class: 'pillstat__fever', text: '×' + (fv.xpMul || 2) }));
     if (!bossPhase) {
-      setProgress(1 - MQ.battle.mobIndex() / Math.max(1, MQ.battle.mobTotal()));
+      setProgress(1 - (fc.no - 1) / Math.max(1, fc.total));
     } else {
       d.count.appendChild(h('b', { text: MQ.battle.bossAsked() + ' / ' + MQ.battle.bossMax() }));
       setProgress(MQ.battle.bossHp() / Math.max(1, MQ.battle.bossHpMax()));
@@ -1195,14 +1291,33 @@ MQ.ui.battle = (function () {
       return;
     }
 
+    /* ---- 中ボスに ダメージ（まだ たおれない・v8.1） ---- */
+    if (res.outcome === 'elitehit') {
+      markChoices(q, value);
+      const spc = specialOf(res.combo);
+      if (res.counter) counterFx();
+      if (res.weakHit) weakFx();
+      attack(res.crit, true, spc, { combo: res.combo || 0, finish: false, withPal: !!(spc && res.palHit) });
+      if (res.palHit) palAttack();
+      if (res.burst) burstHit();
+      popDamage(res.dmg + 'ダメージ +' + res.xp, res.crit || !!res.burst || !!res.counter || !!res.weakHit);
+      comboShow(res.combo);
+      setTimeout(renderEliteHp, 350);
+      d.msg.textContent = (res.counter ? 'カウンター！ ' : res.crit ? 'クリティカル！ ' : '') + e.name + ' に ' + res.dmg + 'ダメージ！ あと ' + res.hpLeft + '！';
+      ok(res.note);
+      wait(1700 + (spc ? Math.max(0, spc.ms - 1100) : 0), advance);
+      return;
+    }
+
     /* ---- ザコを たおした ---- */
     if (res.outcome === 'correct') {
       markChoices(q, value);
       const spc = specialOf(res.combo);
       if (res.counter) counterFx();          // てきの こうげきを はね返した（v7.7）
-      attack(res.crit, false, spc, { combo: res.combo || 0, finish: isFinisher(res), withPal: !!(spc && res.palHit) });
+      if (res.weakHit) weakFx();             // 弱点を ついた（v8.1）
+      attack(res.crit, false, spc, { combo: res.combo || 0, finish: isFinisher(res) || !!res.elite, withPal: !!(spc && res.palHit) });
       if (res.burst) burstHit();
-      popDamage((res.counter ? 'カウンター ' : '') + '+' + res.xp, res.crit || res.rare || !!res.multi || !!res.burst || !!res.counter);
+      popDamage((res.counter ? 'カウンター ' : res.weakHit ? 'ばつぐん ' : '') + '+' + res.xp, res.crit || res.rare || !!res.multi || !!res.burst || !!res.counter || !!res.weakHit || !!res.elite);
       comboShow(res.combo);
       if (res.palHit) palAttack();
       if (res.multi) {
@@ -1211,13 +1326,22 @@ MQ.ui.battle = (function () {
         shake(true);
         d.msg.textContent = res.multi >= 3 ? 'トリプル KO！！ ぜんぶ 一発で たおした！' : 'ダブル KO！ 2体 まとめて たおした！';
         d.foes.querySelectorAll('.enemy').forEach(function (el) { el.classList.add('is-down'); });
+      } else if (res.elite) {
+        // 中ボス（v8.1）を たおした：大きく 光って ゆれる
+        flash(true);
+        shake(true);
+        setTimeout(renderEliteHp, 350);
+        d.msg.textContent = (res.counter ? 'カウンター！ ' : res.crit ? 'クリティカル！ ' : '') + '中ボスの ' + e.name + ' を たおした！　けいけんち ＋' + MQ.battle.XP.eliteBonus + '　コイン ＋1';
+      } else if (res.called) {
+        // ボスが 呼んだ ザコ（v8.1）
+        d.msg.textContent = (res.palHit && palNow ? palNow.name + 'の こうげき！ ' : res.crit ? 'クリティカル！ ' : '') + 'よばれた ' + e.name + ' を たおした！ つぎは ボスだ！';
       } else {
-        d.msg.textContent = (res.counter ? 'カウンター！ ' : '') + (res.palHit && palNow ? palNow.name + 'の こうげき！ ' : '') + (res.revenge ? 'リベンジ せいこう！ ' : res.burst ? 'ばくれつ！ ' : res.crit ? 'クリティカル！ ' : '') + e.name + ' を たおした！'
-          + (res.revenge ? '　ボーナス ＋' + MQ.battle.XP.revenge : res.burst ? '　けいけんち ' + res.burst + 'ばい！' : res.counter ? '　けいけんち 1.5ばい！' : res.rare ? '　3ばいだ！' : '')
+        d.msg.textContent = (res.counter ? 'カウンター！ ' : '') + (res.weakHit ? 'こうかは ばつぐん！ ' : '') + (res.palHit && palNow ? palNow.name + 'の こうげき！ ' : '') + (res.revenge ? 'リベンジ せいこう！ ' : res.burst ? 'ばくれつ！ ' : res.crit ? 'クリティカル！ ' : '') + e.name + ' を たおした！'
+          + (res.revenge ? '　ボーナス ＋' + MQ.battle.XP.revenge : res.burst ? '　けいけんち ' + res.burst + 'ばい！' : res.counter || res.weakHit ? '　けいけんち 1.5ばい！' : res.rare ? '　3ばいだ！' : '')
           + (res.coins ? '　コイン ＋' + res.coins : '');
       }
       ok(res.note);
-      wait((res.multi ? 2200 : 1700) + (spc ? Math.max(0, spc.ms - 1100) : 0), advance);   // 大きな わざは 見おわるまで まつ
+      wait((res.multi ? 2200 : res.elite ? 2300 : 1700) + (spc ? Math.max(0, spc.ms - 1100) : 0), advance);   // 大きな わざは 見おわるまで まつ
       return;
     }
 
@@ -1248,7 +1372,10 @@ MQ.ui.battle = (function () {
       comboShow(res.combo || 0);
       d.msg.textContent = res.hit ? (res.frozen ? 'くらった！ でも 時とめで コンボは そのまま！ もう1回！' : 'くらった！ でも だいじょうぶ。もう1回 こたえよう！')
         : res.frozen ? 'おしい！ でも 時とめで コンボは そのまま！ もう1回！'
+        : res.skill === 'kamae' ? 'たてで ふせがれた！ でも だいじょうぶ。もう1回！'
+        : res.elite ? 'おしい！ 中ボスは 手ごわい。もう1回！'
         : q.boss ? 'おしい！ ふせがれた。もう1回！' : 'おしい！ ' + e.name + ' に よけられた。もう1回！';
+      if (res.skill === 'kamae') MQ.sfx.kamae();
       if (q.type === 'write' && writeMsg) { d.msg.textContent = writeMsg; writeMsg = ''; }
       showHint(res.hint, q, value);
       input = '';
@@ -1265,13 +1392,20 @@ MQ.ui.battle = (function () {
     if (res.outcome === 'bosshit') {
       markChoices(q, value);
       if (res.counter) counterFx();          // ボスの 大わざを はね返した（v7.7）
+      // ボスの わざ・弱点（v8.1）
+      if (res.weakHit) weakFx();
+      else if (res.broke) { MQ.sfx.guardBreak(); flash(false); skillBanner('ガードブレイク！', 'break'); }
+      else if (res.open) { flash(true); skillBanner('すきを ついた！', 'open'); }
+      else if (res.cloneKO) { flash(true); skillBanner('見やぶった！', 'clone'); }
       attack(res.crit, true, specialOf(res.combo), { combo: res.combo || 0, finish: !!res.defeated, withPal: !!(specialOf(res.combo) && res.palHit) });
       if (res.palHit) palAttack();
       if (res.burst) burstHit();
-      popDamage((res.counter ? 'カウンター ' + res.dmg + 'ダメージ ' : res.burst ? res.dmg + 'ダメージ ' : '') + '+' + res.xp, res.crit || !!res.burst || !!res.counter);
+      popDamage((res.counter ? 'カウンター ' + res.dmg + 'ダメージ ' : res.weakHit || res.open ? res.dmg + 'ダメージ ' : res.burst ? res.dmg + 'ダメージ ' : '') + '+' + res.xp, res.crit || !!res.burst || !!res.counter || !!res.weakHit || !!res.open || !!res.cloneKO || !!res.broke);
       comboShow(res.combo);
       setTimeout(renderBossHp, 350);
       ok(res.note);
+      // ぶんしんの 1問め：その ボスは 消えて もう1体 のこる
+      if (res.skill === 'clone' && res.clonePos === 0 && d.cur) d.cur.classList.add('is-vanish');
 
       if (res.defeated) {
         d.msg.textContent = (res.burst ? 'ばくれつ こうげき！ ' : '') + (res.last ? e.name + 'を たおした！！！' : 'ボスの ' + e.name + ' を たおした！！');
@@ -1308,7 +1442,13 @@ MQ.ui.battle = (function () {
         wait(2600, advanceBoss);
         return;
       }
-      d.msg.textContent = (res.counter ? 'カウンター！ ' + res.dmg + 'ダメージ！ ' : res.burst ? 'ばくれつ こうげき！ ' + res.dmg + 'ダメージ！ ' : 'いいぞ！ ') + 'あと ' + res.hpLeft + 'かい だ！';
+      d.msg.textContent = (res.counter ? 'カウンター！ ' + res.dmg + 'ダメージ！ '
+        : res.weakHit ? 'こうかは ばつぐん！ ' + res.dmg + 'ダメージ！ '
+        : res.open ? 'すきを ついた！ ' + res.dmg + 'ダメージ！ '
+        : res.broke ? 'ガードブレイク！ つぎの 1問は 2ダメージの チャンス！ '
+        : res.cloneKO ? 'ぶんしんを 見やぶった！ ボーナス ＋' + MQ.battle.XP.cloneBonus + '！ '
+        : res.skill === 'clone' && res.clonePos === 0 ? 'ぶんしんに あたった！ もう1体！ '
+        : res.burst ? 'ばくれつ こうげき！ ' + res.dmg + 'ダメージ！ ' : 'いいぞ！ ') + 'あと ' + res.hpLeft + 'かい だ！';
       wait(1700, advanceBoss);
       return;
     }
@@ -1333,7 +1473,9 @@ MQ.ui.battle = (function () {
     markChoices(q, value);
     flee();
     comboShow(0);
-    d.msg.textContent = e.name + ' に にげられた…';
+    d.msg.textContent = res.called ? e.name + ' に にげられた… でも ボスとの たたかいは つづく！'
+      : res.elite ? '中ボスの ' + e.name + ' に にげられた… また あとで！'
+      : e.name + ' に にげられた…';
     sayAnswer(res);
     wait(3000, advance);
   }
@@ -2072,6 +2214,8 @@ MQ.ui.battle = (function () {
       if ((sum.maxCombo || 0) > (p.bestCombo || 0)) p.bestCombo = sum.maxCombo;
       p.revengeWins = (p.revengeWins || 0) + (sum.revengeBeaten || []).length;
       p.counters = (p.counters || 0) + (sum.counters || 0);   // カウンター（v7.7・しょうごう用）
+      p.elites = (p.elites || 0) + (sum.elites || 0);         // 中ボス・弱点（v8.1・しょうごう用）
+      p.weakHits = (p.weakHits || 0) + (sum.weakHits || 0);
       // フィーバー教科（v7.2）：教科ごとの たたかった 回数（いちばん やって いない 教科を さがす ため）
       if (MQ.fever && !ctx.tokkun && !ctx.stage.tower && !ctx.mix) MQ.fever.addPlay(p, ctx.area.id);
       // とくい・にがて（v7.1）：1問ごとの 結果を 単元ごとに ためる（おうちの人ページ用）

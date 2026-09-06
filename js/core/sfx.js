@@ -122,6 +122,18 @@ MQ.sfx = (function () {
     counter: function () { tone(2093, 0.06, 'square', 0.14); tone(2794, 0.12, 'square', 0.12, 0.05); noise(0.08, 0.3, 0.02, 5000, 'highpass'); noise(0.22, 0.4, 0.14); tone(110, 0.2, 'square', 0.2, 0.14, 45); },
     // くらった（どすっ）
     enemyHit: function () { noise(0.14, 0.3, 0, 700, 'lowpass'); tone(140, 0.18, 'square', 0.18, 0, 70); },
+    /* ---- 敵がわの 攻防（v8.1） ---- */
+    // 中ボス 登場（低い ドン ドン ＋ うなり）
+    elite:   function () { tone(70, 0.16, 'square', 0.2); tone(70, 0.16, 'square', 0.2, 0.22); tone(110, 0.4, 'sawtooth', 0.12, 0.44, 180); noise(0.2, 0.15, 0.44, 600, 'lowpass'); },
+    // なかまを よぶ（ピーッ ピーッ の 口ぶえ）
+    whistle: function () { tone(1760, 0.09, 'square', 0.09, 0, 2637); tone(2093, 0.14, 'square', 0.09, 0.13, 2794); },
+    // こうかは ばつぐん（キラッと 高い 三和音）
+    weak:    function () { tone(1319, 0.07, 'square', 0.12); tone(1661, 0.07, 'square', 0.12, 0.06); tone(2093, 0.2, 'square', 0.12, 0.12); noise(0.1, 0.25, 0.1, 4000, 'highpass'); },
+    // たての かまえ（ガチッ）／ガードブレイク（パリーン）
+    kamae:   function () { noise(0.06, 0.3, 0, 2500, 'highpass'); tone(330, 0.14, 'square', 0.16, 0, 240); },
+    guardBreak: function () { noise(0.12, 0.4, 0, 6000, 'highpass'); tone(2637, 0.08, 'square', 0.12); tone(3520, 0.16, 'square', 0.1, 0.06); tone(160, 0.18, 'square', 0.18, 0.08, 60); },
+    // ぶんしん（ふわん と 2つに）
+    clone:   function () { tone(440, 0.18, 'triangle', 0.12, 0, 880); tone(440, 0.18, 'triangle', 0.12, 0.1, 880); noise(0.16, 0.12, 0.05, 2000); },
     alarm:   function () { for (let i = 0; i < 3; i++) { tone(660, 0.16, 'sawtooth', 0.12, i * 0.36); tone(494, 0.16, 'sawtooth', 0.12, i * 0.36 + 0.18); } },
     enrage:  function () { tone(110, 0.5, 'sawtooth', 0.2, 0, 220); noise(0.4, 0.25, 0.05); },
     bossdown: function () {
