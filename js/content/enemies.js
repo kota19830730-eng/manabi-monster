@@ -123,21 +123,61 @@ MQ.enemies = (function () {
     { id: 'slime-golden', name: 'ゴールデンスライム', shape: 'slime', rare: true, colors: { A: '#FFD166', B: '#B8860B' } },
 
     /* ---- 息子さんの モンスター（エリアごとの レア敵。けいけんち3倍） ---- */
-    { id: 'skullhorse', name: 'スカルホース', shape: 'skullhorse', area: 'sansu', rare: true, by: 'son',
+    { id: 'skullhorse', name: 'スカルホース', shape: 'skullhorse', area: 'sansu', rare: true, by: 'son', line: 'skullhorse', stage: 1, evo: 'skullhorse-2',
       colors: { A: '#F4F4F4', B: '#B9BFCC', w: '#FFFFFF', r: '#FF4D4D', k: '#1A1A22', s: '#8FA0BC', y: '#F2C14E' } },
-    { id: 'sameoni', name: 'サメオニ', shape: 'sameoni', area: 'rikashakai', rare: true, by: 'son',
+    { id: 'sameoni', name: 'サメオニ', shape: 'sameoni', area: 'rikashakai', rare: true, by: 'son', line: 'sameoni', stage: 1, evo: 'sameoni-2',
       colors: { A: '#5FA8DC', B: '#2E5F8A', r: '#FF9A4A', w: '#FFFFFF' } },
-    { id: 'zukan', name: 'ずかんの あくま', shape: 'zukan', area: 'kokugo', rare: true, by: 'son',
+    { id: 'zukan', name: 'ずかんの あくま', shape: 'zukan', area: 'kokugo', rare: true, by: 'son', line: 'zukan', stage: 1, evo: 'zukan-2',
       colors: { A: '#C4762E', w: '#FBF4DF', r: '#E8443A', k: '#2B2438', B: '#8A4B12', W: '#4A2D6B' } },
 
     /* ABC3きょうだい … 英語の空に 3体まとめて 出てくる */
-    { id: 'abc-a', name: 'エー', shape: 'letterA', area: 'eigo', rare: true, by: 'son', trio: 'abc',
+    { id: 'abc-a', name: 'エー', shape: 'letterA', area: 'eigo', rare: true, by: 'son', line: 'abc-a', stage: 1, evo: 'abc-a-2', trio: 'abc',
       colors: { A: '#E8443A', B: '#A82424', w: '#FFFFFF', k: '#12121A' } },
-    { id: 'abc-b', name: 'ビー', shape: 'letterB', area: 'eigo', rare: true, by: 'son', trio: 'abc',
+    { id: 'abc-b', name: 'ビー', shape: 'letterB', area: 'eigo', rare: true, by: 'son', line: 'abc-b', stage: 1, evo: 'abc-b-2', trio: 'abc',
       colors: { A: '#4CAF50', B: '#2E7D32', w: '#FFFFFF', k: '#12121A' } },
-    { id: 'abc-c', name: 'シー', shape: 'letterC', area: 'eigo', rare: true, by: 'son', trio: 'abc',
+    { id: 'abc-c', name: 'シー', shape: 'letterC', area: 'eigo', rare: true, by: 'son', line: 'abc-c', stage: 1, evo: 'abc-c-2', trio: 'abc',
       colors: { A: '#F2C14E', B: '#B8860B', w: '#FFFFFF', k: '#12121A' } },
 
+    /* ---- 息子さんの モンスターの 進化形（v8.6・相棒に すると 育つ） ----
+       Lv10 で 2段階め、Lv20 で 3段階め。もとの 絵は そのままで かざりが ふえる。
+       evoOnly＝ふつうの たたかいには 出ない（出会うのは 1段階めだけ）。
+       絵は monsterart.js の <もとの 形><段階>。 */
+    { id: 'skullhorse-2', name: 'ブレイズホース', shape: 'skullhorse2', area: 'sansu', rare: true, by: 'son', rank: 2,
+      line: 'skullhorse', stage: 2, evo: 'skullhorse-3', evoOnly: true,
+      colors: { A: '#F4F4F4', B: '#B9BFCC', w: '#FFFFFF', r: '#FF5A2A', k: '#1A1A22', s: '#8FA0BC', y: '#F2C14E' } },
+    { id: 'skullhorse-3', name: 'スカルロード', shape: 'skullhorse3', area: 'sansu', rare: true, by: 'son', rank: 3,
+      line: 'skullhorse', stage: 3, evoOnly: true,
+      colors: { A: '#F8F8F8', B: '#C4C9D6', w: '#FFFFFF', r: '#FF3B30', k: '#1A1A22', s: '#6B5A8C', y: '#FFD447', m: '#3A1050' } },
+    { id: 'sameoni-2', name: 'キバサメオニ', shape: 'sameoni2', area: 'rikashakai', rare: true, by: 'son', rank: 2,
+      line: 'sameoni', stage: 2, evo: 'sameoni-3', evoOnly: true,
+      colors: { A: '#3E8FCB', B: '#22537C', C: '#BFE6FF', r: '#FF9A4A', w: '#FFFFFF', k: '#141018' } },
+    { id: 'sameoni-3', name: 'サメオニノヌシ', shape: 'sameoni3', area: 'rikashakai', rare: true, by: 'son', rank: 3,
+      line: 'sameoni', stage: 3, evoOnly: true,
+      colors: { A: '#2E7FC4', B: '#16416B', C: '#8FD3FF', r: '#FF6B2A', w: '#FFFFFF', k: '#141018', y: '#FFD447' } },
+    { id: 'zukan-2', name: 'やみの ずかん', shape: 'zukan2', area: 'kokugo', rare: true, by: 'son', rank: 2,
+      line: 'zukan', stage: 2, evo: 'zukan-3', evoOnly: true,
+      colors: { A: '#C4762E', w: '#FBF4DF', r: '#E8443A', k: '#2B2438', B: '#8A4B12', W: '#5E2D8B' } },
+    { id: 'zukan-3', name: 'ずかんの だいまじん', shape: 'zukan3', area: 'kokugo', rare: true, by: 'son', rank: 3,
+      line: 'zukan', stage: 3, evoOnly: true,
+      colors: { A: '#D08A2E', w: '#FBF4DF', r: '#FF3B30', k: '#2B2438', B: '#7A3E0E', W: '#7A3ACC', y: '#FFD447' } },
+    { id: 'abc-a-2', name: 'エーナイト', shape: 'letterA2', area: 'eigo', rare: true, by: 'son', rank: 2,
+      line: 'abc-a', stage: 2, evo: 'abc-a-3', evoOnly: true,
+      colors: { A: '#D6392E', B: '#8A1410' } },
+    { id: 'abc-a-3', name: 'エーロード', shape: 'letterA3', area: 'eigo', rare: true, by: 'son', rank: 3,
+      line: 'abc-a', stage: 3, evoOnly: true,
+      colors: { A: '#FF5A4A', B: '#A82424' } },
+    { id: 'abc-b-2', name: 'ビーナイト', shape: 'letterB2', area: 'eigo', rare: true, by: 'son', rank: 2,
+      line: 'abc-b', stage: 2, evo: 'abc-b-3', evoOnly: true,
+      colors: { A: '#3E9A44', B: '#1F5E24' } },
+    { id: 'abc-b-3', name: 'ビーロード', shape: 'letterB3', area: 'eigo', rare: true, by: 'son', rank: 3,
+      line: 'abc-b', stage: 3, evoOnly: true,
+      colors: { A: '#5FD16A', B: '#2E7D32' } },
+    { id: 'abc-c-2', name: 'シーナイト', shape: 'letterC2', area: 'eigo', rare: true, by: 'son', rank: 2,
+      line: 'abc-c', stage: 2, evo: 'abc-c-3', evoOnly: true,
+      colors: { A: '#E0B03A', B: '#8A6410' } },
+    { id: 'abc-c-3', name: 'シーロード', shape: 'letterC3', area: 'eigo', rare: true, by: 'son', rank: 3,
+      line: 'abc-c', stage: 3, evoOnly: true,
+      colors: { A: '#FFD166', B: '#B8860B', g2: '#4CAF50' } },
     /* ---------- v4.2 あたらしい 51体（17系統 × 3段階・相棒に できる） ----------
        line＝系統／stage＝1〜3／evo＝つぎの すがた。1段階は 序盤、3段階は 終盤に 出る */
     /* ドラコ → ドラグーン → ドラゴニクス */
@@ -417,7 +457,8 @@ MQ.enemies = (function () {
   // そのエリアの レア敵（息子さんの モンスター）。写真から 作ったものも まざる
   function rareIdsFor(areaId) {
     areaId = poolArea(areaId);
-    const own = list.filter(function (e) { return e.rare && e.area === areaId && !e.trio; })
+    // 進化した すがた（evoOnly）は 出さない。出会うのは 1段階めだけ（v8.6）
+    const own = list.filter(function (e) { return e.rare && e.area === areaId && !e.trio && !e.evoOnly; })
                     .map(function (e) { return e.id; });
     // 2・3段階めは 進化でしか 出ない（v8.2）
     const mine = customs.filter(function (e) { return e.area === areaId && !e.evoOnly; }).map(function (e) { return e.id; });

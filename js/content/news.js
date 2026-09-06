@@ -85,6 +85,14 @@ MQ.news = (function () {
         { kind: 'mons', id: 'skullhorse', title: 'じぶんの モンスターも しんか',
           text: 'しゃしんから つくった モンスターも 3だんかいに かわる。もっと つよく なるよ。' }
       ]
+    },
+    {
+      v: 'v8.6', date: '2026-09-06', sw: 101,
+      items: [
+        { kind: 'mons', id: ['skullhorse', 'skullhorse-2', 'skullhorse-3'], grow: true,
+          title: 'きみの 4たいが しんか する！',
+          text: 'スカルホース・サメオニ・ずかんの あくま・ABCも、あいぼうに すると Lv.10 と Lv.20 で かわるよ。' }
+      ]
     }
   ];
 

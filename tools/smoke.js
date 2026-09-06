@@ -1111,7 +1111,8 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
 /* ---------- v4.2 あたらしい 51体（17系統 × 3段階・相棒に できる） ---------- */
 (function () {
   // v8.2 で 系統が ふえた ので、ここは v4.2 の 17系統（id が -1/-2/-3）だけを 見る
-  const L = MQ.enemies.list.filter(function (e) { return e.line && /-[123]$/.test(e.id); });
+  // 息子さんの モンスターの 進化形（v8.3）も id が -2/-3 で おわる ので rare で よける
+  const L = MQ.enemies.list.filter(function (e) { return e.line && /-[123]$/.test(e.id) && !e.rare; });
   check(L.length === 51, 'あたらしい モンスターは 51体（' + L.length + '）');
   const lines = {};
   L.forEach(function (e) { (lines[e.line] = lines[e.line] || []).push(e); });
@@ -1140,7 +1141,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 208, '図かんは 208体（' + dex + '）');   // v8.2 で 王さま形 44体（164 → 208）
+  check(dex === 220, '図かんは 220体（' + dex + '）');   // v8.3 で 息子さんの 進化形 12体（208 → 220）
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -1188,6 +1189,51 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   const rare = MQ.enemies.rareIdsFor('sansu');
   check(rare.indexOf('my-1') >= 0 && rare.indexOf('my-1-2') < 0, 'レアに 出るのは 1段階めだけ');
   MQ.enemies.setCustom([]);
+
+  /* ---- v8.6 息子さんの モンスターの 進化形（専用の すがた 12体）---- */
+  (function () {
+    const LINES = ['skullhorse', 'sameoni', 'zukan', 'abc-a', 'abc-b', 'abc-c'];
+    let ng = 0;
+    LINES.forEach(function (ln) {
+      const g = MQ.enemies.list.filter(function (e) { return e.line === ln; })
+        .sort(function (a, b) { return a.stage - b.stage; });
+      check(g.length === 3, '息子さんの ' + ln + ' は 3だんかい（' + g.length + '）');
+      if (g.length !== 3) { ng++; return; }
+      g.forEach(function (e, i) {
+        if (e.stage !== i + 1) ng++;
+        if (i < 2 && e.evo !== g[i + 1].id) ng++;      // つぎの すがたを さす
+        if (i === 2 && e.evo) ng++;                    // さいごは 進化しない
+        if (!e.rare || e.by !== 'son') ng++;           // レア・息子さんの ぶんの まま
+        if (!MQ.enemies.shapes[e.shape]) ng++;         // 絵が ある
+        if (i > 0 && (!e.evoOnly || e.trio)) ng++;     // 2・3段階めは 出ない・3きょうだいでは ない
+        if (i === 0 && e.evoOnly) ng++;                // 1段階めは いままで どおり 出る
+      });
+    });
+    check(ng === 0, '息子さんの 進化形の ならびが 正しい（' + ng + '）');
+    // ふつうの たたかいで 出会うのは 1段階めだけ
+    let leak = 0;
+    ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
+      MQ.enemies.rareIdsFor(a).forEach(function (id) {
+        const e = MQ.enemies.get(id);
+        if (e && e.evoOnly) leak++;
+      });
+    });
+    check(leak === 0, '進化した すがたは レア敵に 出ない（' + leak + '）');
+    check(MQ.enemies.trioFor('eigo').length === 3, 'ABC3きょうだいは 3体の まま');
+    // Lv10 → Lv20 で すがたが 2回 かわる
+    const p = { pals: {}, pal: null, dex: {} };
+    MQ.pals.add(p, 'skullhorse', 0);
+    MQ.pals.setActive(p, 'skullhorse');
+    p.pals['skullhorse'].exp = MQ.pals.expFor(10);
+    MQ.pals.evolveIfReady(p);
+    const lv10 = MQ.pals.active(p);
+    p.pals[lv10.id].exp = MQ.pals.expFor(20);
+    MQ.pals.evolveIfReady(p);
+    const lv20 = MQ.pals.active(p);
+    check(lv10.id === 'skullhorse-2' && lv20.id === 'skullhorse-3',
+      'スカルホースは Lv10 → ' + lv10.name + ' / Lv20 → ' + lv20.name);
+    check(MQ.pals.power(p).dmg === 2, '3段階めの 追い打ちは ボスに 2ダメージ');
+  })();
 
   /* 進化の 部品（つの・かんむり・マント）が 48マスに おさまる */
   (function () {
@@ -3150,52 +3196,6 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   console.log('v8.1: 中ボス・弱点・ボスの わざ・なかまを よぶ OK');
 })();
 
-/* ===== あたらしい こと！（お知らせ・v8.3）===== */
-(function () {
-  const N = MQ.news;
-  check(!!N, 'MQ.news が 読めて いる');
-  if (!N) return;
-  const KINDS = ['mons', 'item', 'coin', 'hero'];
-  const ids = {}; MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) { ids[e.id] = 1; });
-  const tids = {}; MQ.treasure.list.forEach(function (t) { tids[t.id] = 1; });
-  let itemN = 0;
-  N.list.forEach(function (e, i) {
-    check(/^v\d+\.\d+$/.test(e.v), 'news[' + i + ']: 版の 形 ' + e.v);
-    check(/^20\d\d-\d\d-\d\d$/.test(e.date), 'news ' + e.v + ': 日づけ ' + e.date);
-    check(typeof e.sw === 'number' && e.sw > 0, 'news ' + e.v + ': sw の 番号');
-    check(Array.isArray(e.items) && e.items.length >= 1 && e.items.length <= 3, 'news ' + e.v + ': お知らせは 1〜3つ（' + (e.items || []).length + '）');
-    if (i > 0) check(N.cmp(e.v, N.list[i - 1].v) > 0, 'news: 版は 古い → 新しい の じゅん（' + N.list[i - 1].v + ' → ' + e.v + '）');
-    (e.items || []).forEach(function (it, j) {
-      const w = 'news ' + e.v + '#' + j;
-      itemN++;
-      check(KINDS.indexOf(it.kind) !== -1, w + ': kind ' + it.kind);
-      if (it.kind === 'mons') {
-        (Array.isArray(it.id) ? it.id : [it.id]).forEach(function (id) {
-          check(!!ids[id], w + ': モンスター ' + id + ' が いる');
-        });
-        check(!Array.isArray(it.id) || it.id.length <= 3, w + ': ならべるのは 3体まで');
-      }
-      if (it.kind === 'item') check(!!tids[it.id], w + ': たからもの ' + it.id + ' が ある');
-      // 文は ひらがな＋小1の かん字だけ（どの 学年の 子も 読める）
-      check(typeof it.title === 'string' && it.title.length > 0 && it.title.length <= 18, w + ': みだしは 18字まで（' + it.title + '）');
-      check(typeof it.text === 'string' && it.text.length > 0 && it.text.length <= 62, w + ': 文は 62字まで（' + it.text.length + '字）');
-      check(onlyG1Kanji(it.title), w + ': みだしの かん字は 小1まで（' + it.title + '）');
-      check(onlyG1Kanji(it.text), w + ': 文の かん字は 小1まで（' + it.text + '）');
-    });
-  });
-  // sw.js の 版を こえて いない こと（上げた ときに ここも 見直す ため）
-  const swTx = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
-  const swNo = parseInt((swTx.match(/manabi-monster-v(\d+)/) || [])[1], 10);
-  const lastSw = N.list[N.list.length - 1].sw;
-  check(lastSw <= swNo, 'news: さいごの 版の sw（' + lastSw + '）は sw.js（' + swNo + '）を こえない');
-  // 読みこみ：index・harness・sw の ぜんぶに ある
-  check(INDEX_HTML.indexOf('js/content/news.js') >= 0 && INDEX_HTML.indexOf('js/ui/news.js') >= 0, 'index.html に news.js（content と ui）');
-  const hx = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
-  check(hx.indexOf('../js/content/news.js') >= 0 && hx.indexOf('../js/ui/news.js') >= 0, 'harness.html に news.js');
-  check(swTx.indexOf("'./js/content/news.js'") >= 0 && swTx.indexOf("'./js/ui/news.js'") >= 0, 'sw.js の FILES に news.js');
-
-  // ---- 出し分け ----
-  const prevId = MQ.save.current() && MQ.save.current().id;
 /* ===== スタンプカレンダー（つづけた 日・v8.4）===== */
 (function () {
   const S = MQ.streak;
@@ -3271,6 +3271,52 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   console.log('スタンプカレンダー: 7マス・3/5/7の ごほうび・切れても ばつなし OK');
 })();
 
+/* ===== あたらしい こと！（お知らせ・v8.3）===== */
+(function () {
+  const N = MQ.news;
+  check(!!N, 'MQ.news が 読めて いる');
+  if (!N) return;
+  const KINDS = ['mons', 'item', 'coin', 'hero'];
+  const ids = {}; MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) { ids[e.id] = 1; });
+  const tids = {}; MQ.treasure.list.forEach(function (t) { tids[t.id] = 1; });
+  let itemN = 0;
+  N.list.forEach(function (e, i) {
+    check(/^v\d+\.\d+$/.test(e.v), 'news[' + i + ']: 版の 形 ' + e.v);
+    check(/^20\d\d-\d\d-\d\d$/.test(e.date), 'news ' + e.v + ': 日づけ ' + e.date);
+    check(typeof e.sw === 'number' && e.sw > 0, 'news ' + e.v + ': sw の 番号');
+    check(Array.isArray(e.items) && e.items.length >= 1 && e.items.length <= 3, 'news ' + e.v + ': お知らせは 1〜3つ（' + (e.items || []).length + '）');
+    if (i > 0) check(N.cmp(e.v, N.list[i - 1].v) > 0, 'news: 版は 古い → 新しい の じゅん（' + N.list[i - 1].v + ' → ' + e.v + '）');
+    (e.items || []).forEach(function (it, j) {
+      const w = 'news ' + e.v + '#' + j;
+      itemN++;
+      check(KINDS.indexOf(it.kind) !== -1, w + ': kind ' + it.kind);
+      if (it.kind === 'mons') {
+        (Array.isArray(it.id) ? it.id : [it.id]).forEach(function (id) {
+          check(!!ids[id], w + ': モンスター ' + id + ' が いる');
+        });
+        check(!Array.isArray(it.id) || it.id.length <= 3, w + ': ならべるのは 3体まで');
+      }
+      if (it.kind === 'item') check(!!tids[it.id], w + ': たからもの ' + it.id + ' が ある');
+      // 文は ひらがな＋小1の かん字だけ（どの 学年の 子も 読める）
+      check(typeof it.title === 'string' && it.title.length > 0 && it.title.length <= 18, w + ': みだしは 18字まで（' + it.title + '）');
+      check(typeof it.text === 'string' && it.text.length > 0 && it.text.length <= 62, w + ': 文は 62字まで（' + it.text.length + '字）');
+      check(onlyG1Kanji(it.title), w + ': みだしの かん字は 小1まで（' + it.title + '）');
+      check(onlyG1Kanji(it.text), w + ': 文の かん字は 小1まで（' + it.text + '）');
+    });
+  });
+  // sw.js の 版を こえて いない こと（上げた ときに ここも 見直す ため）
+  const swTx = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  const swNo = parseInt((swTx.match(/manabi-monster-v(\d+)/) || [])[1], 10);
+  const lastSw = N.list[N.list.length - 1].sw;
+  check(lastSw <= swNo, 'news: さいごの 版の sw（' + lastSw + '）は sw.js（' + swNo + '）を こえない');
+  // 読みこみ：index・harness・sw の ぜんぶに ある
+  check(INDEX_HTML.indexOf('js/content/news.js') >= 0 && INDEX_HTML.indexOf('js/ui/news.js') >= 0, 'index.html に news.js（content と ui）');
+  const hx = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  check(hx.indexOf('../js/content/news.js') >= 0 && hx.indexOf('../js/ui/news.js') >= 0, 'harness.html に news.js');
+  check(swTx.indexOf("'./js/content/news.js'") >= 0 && swTx.indexOf("'./js/ui/news.js'") >= 0, 'sw.js の FILES に news.js');
+
+  // ---- 出し分け ----
+  const prevId = MQ.save.current() && MQ.save.current().id;
   check(N.cmp('v8.2', 'v8.10') < 0 && N.cmp('v8.2', 'v7.9') > 0 && N.cmp('v8.2', 'v8.2') === 0, 'news: 版の くらべ方');
   // ① まだ 見て いない 子（古い セーブ）＝ ぜんぶ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'n1', name: 'n', grade: 3, xp: 0 }], currentId: 'n1', settings: {} }));
