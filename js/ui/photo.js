@@ -1814,11 +1814,14 @@ MQ.ui.photo = (function () {
       if (aiUsed) mon.ai = true;
       if (edited) mon.edited = true;
       const how = aiUsed ? '（AIで かっこよく）' : edited && !img ? '（ドット絵を じぶんで かいた）' : edited ? '（ドットを 直した）' : '';
-      MQ.save.update(function (p) {
-        MQ.save.addCustom(p, mon);
-        MQ.save.addLog(p, 'じぶんの モンスター「' + name + '」を つくった' + how);
+      // 3段階に 育つ ように、つの つき／かんむり つきの 絵も いっしょに 作る（v8.2）
+      MQ.ui.growCustom(mon, function () {
+        MQ.save.update(function (p) {
+          MQ.save.addCustom(p, mon);
+          MQ.save.addLog(p, 'じぶんの モンスター「' + name + '」を つくった' + how);
+        });
+        MQ.ui.syncCustom();
       });
-      MQ.ui.syncCustom();
       MQ.sfx.rare();
       MQ.ui.toast(name + ' が なかまに なった！ バトルに 出てくるよ');
       img = null; outUrl = ''; edited = '';

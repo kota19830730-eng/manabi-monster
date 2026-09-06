@@ -3410,6 +3410,110 @@ MQ.monsterGen = (function () {
    'crystal snowman').split(' ').forEach(function (k) { KIND_GROUP[k] = 'mono'; });
   'tree mushroom flower cactus star flame cloud sun moon rainbow egg pumpkin'.split(' ').forEach(function (k) { KIND_GROUP[k] = 'shizen'; });
 
+  /* =======================================================
+     じぶんの モンスターの 進化（v8.2）
+
+     写真から 作った 絵・ドット絵エディタで かいた 絵・AIで かっこよく した 絵…
+     どれも「ただの 48×48 の 絵」なので、**絵の かたち（すきま）を 見て**
+     部品を おく。ゲームの 王さま形（monsterart の <形>King）と 同じ 見た目に そろえる。
+       2段階め … 金の つの 2本 ＋ むねの 赤い 宝石
+       3段階め … 金の かんむり（3とがり＋band＋宝石）＋ むらさきの マント
+     mask は 48×48 の 0/1（絵が ある ところが 1）。node でも テストできる ように
+     「どこに 何を おくか」だけを 出す 関数に して ある。
+     ======================================================= */
+  const EVO_GOLD = '#FFD447', EVO_GEM = '#FF3B30', EVO_CAPE = '#7A1FA8';
+  function maskBox(mask, N) {
+    let x0 = N, y0 = N, x1 = -1, y1 = -1;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (mask[y * N + x]) {
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    if (x1 < 0) return null;
+    return { x0: x0, y0: y0, x1: x1 + 1, y1: y1 + 1, w: x1 + 1 - x0, h: y1 + 1 - y0, cx: Math.round((x0 + x1 + 1) / 2) };
+  }
+  /* 頭の てっぺん：いちばん 上の 行に 絵が ある ところの まんなか */
+  function topCenter(mask, N, bb) {
+    let a = N, b = -1;
+    for (let x = 0; x < N; x++) if (mask[bb.y0 * N + x]) { if (x < a) a = x; if (x > b) b = x; }
+    if (b < 0) return { cx: bb.cx, w: bb.w };
+    return { cx: Math.round((a + b + 1) / 2), w: b + 1 - a };
+  }
+  /* stage 2／3 の 部品（うしろ・前）を かえす。単位は px（48×48） */
+  function evoParts(mask, stage, N) {
+    N = N || 48;
+    const bb = maskBox(mask, N);
+    if (!bb) return { back: [], front: [] };
+    const t = topCenter(mask, N, bb);
+    const back = [], front = [];
+    if (stage >= 3) {
+      // マント（うしろ）
+      const top = Math.min(N - 6, bb.y0 + Math.round(bb.h * 0.3));
+      const bottom = Math.min(N, bb.y1 + 2);
+      const w1 = Math.min(N - 2, bb.w + 6), w2 = Math.min(N - 2, bb.w + 12);
+      const x1 = Math.max(1, Math.min(N - 1 - w1, bb.cx - Math.round(w1 / 2)));
+      const x2 = Math.max(1, Math.min(N - 1 - w2, bb.cx - Math.round(w2 / 2)));
+      const h1 = Math.round((bottom - top) * 0.45);
+      if (h1 >= 3 && bottom - top - h1 >= 4) {
+        back.push([x1, top, w1, h1, EVO_CAPE]);
+        back.push([x2, top + h1, w2, bottom - top - h1, EVO_CAPE]);
+        back.push([x2, bottom - 3, w2, 3, EVO_GOLD]);
+      }
+      // かんむり（前）
+      const cw = Math.max(14, Math.min(t.w, 24));
+      const cx0 = Math.max(0, Math.min(N - cw, t.cx - Math.round(cw / 2)));
+      const sp = Math.max(4, Math.round(cw / 5));
+      const cy = Math.max(0, bb.y0 - 8);
+      front.push([cx0, cy + 2, sp, 6, EVO_GOLD]);
+      front.push([t.cx - Math.round(sp / 2), cy, sp, 8, EVO_GOLD]);
+      front.push([cx0 + cw - sp, cy + 2, sp, 6, EVO_GOLD]);
+      front.push([cx0, cy + 5, cw, 4, EVO_GOLD]);
+      front.push([t.cx - 2, cy + 5, 4, 4, EVO_GEM]);
+    } else {
+      // 2段階め：金の つの 2本 ＋ むねの 宝石
+      const hy = Math.max(0, bb.y0 - 6);
+      const lx = Math.max(0, t.cx - Math.round(t.w / 2) - 1);
+      const rx = Math.min(N - 4, t.cx + Math.round(t.w / 2) - 3);
+      front.push([lx, hy + 2, 4, 6, EVO_GOLD]);
+      front.push([lx - 1 < 0 ? 0 : lx - 1, hy, 4, 4, EVO_GOLD]);
+      front.push([rx, hy + 2, 4, 6, EVO_GOLD]);
+      front.push([Math.min(N - 4, rx + 1), hy, 4, 4, EVO_GOLD]);
+      front.push([bb.cx - 3, bb.y0 + Math.round(bb.h * 0.5), 6, 6, EVO_GEM]);
+    }
+    return { back: back, front: front };
+  }
+  /* 絵（dataURL）から つぎの 段階の 絵を 作る。ブラウザだけ（canvas を つかう） */
+  function evoPng(url, stage, cb) {
+    const N = 48;
+    const im = new Image();
+    im.onload = function () {
+      const tmp = document.createElement('canvas');
+      tmp.width = N; tmp.height = N;
+      const tg = tmp.getContext('2d');
+      tg.drawImage(im, 0, 0, N, N);
+      const d = tg.getImageData(0, 0, N, N).data;
+      const mask = new Uint8Array(N * N);
+      for (let i = 0; i < N * N; i++) mask[i] = d[i * 4 + 3] > 40 ? 1 : 0;
+      const parts = evoParts(mask, stage, N);
+      const cv = document.createElement('canvas');
+      cv.width = N; cv.height = N;
+      const g = cv.getContext('2d');
+      function draw(list) {
+        list.forEach(function (r) {
+          g.fillStyle = r[4];
+          g.fillRect(r[0], r[1], r[2], r[3]);
+          // 右と 下に 暗い 面（ゲームの 絵と 同じ 立体感）
+          g.fillStyle = 'rgba(0,0,0,.25)';
+          g.fillRect(r[0] + r[2] - 2, r[1], 2, r[3]);
+          g.fillRect(r[0], r[1] + r[3] - 2, r[2], 2);
+        });
+      }
+      draw(parts.back);
+      g.drawImage(im, 0, 0, N, N);
+      draw(parts.front);
+      cb(cv.toDataURL('image/png'));
+    };
+    im.onerror = function () { cb(null); };
+    im.src = url;
+  }
   return {
     kindName: function (k) { return KIND_NAMES[k] || k; },
     kindGroup: function (k) { return KIND_GROUP[k] || 'obake'; },
@@ -3440,6 +3544,8 @@ MQ.monsterGen = (function () {
     coarse: coarse,
     make: make,
     png: png,
+    evoParts: evoParts,
+    evoPng: evoPng,
     fromCells: fromCells,
     // テスト用
     pop: pop

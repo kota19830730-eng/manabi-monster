@@ -232,9 +232,40 @@ MQ.ui = MQ.ui || {};
   };
 
   /* いまの プレイヤーの じぶんモンスターを 敵として つかえるように する */
+  /* じぶんの モンスターの 2・3段階めの 絵を 作る（v8.2）。
+     もとの 絵に 金の つの／かんむりと マントを かさねる（monstergen.evoPng）。
+     絵が 読めない ときも 先に すすめる ように、1.5秒で あきらめる。 */
+  const growing = {};
+  MQ.ui.growCustom = function (mon, cb) {
+    const done = function () { if (cb) { const f = cb; cb = null; f(); } };
+    if (!mon || !mon.png || !MQ.monsterGen || !MQ.monsterGen.evoPng) { done(); return; }
+    if (mon.png2 && mon.png3) { done(); return; }
+    let left = 2;
+    const step = function () { if (--left <= 0) done(); };
+    setTimeout(done, 1500);
+    try {
+      MQ.monsterGen.evoPng(mon.png, 2, function (u) { if (u) mon.png2 = u; step(); });
+      MQ.monsterGen.evoPng(mon.png, 3, function (u) { if (u) mon.png3 = u; step(); });
+    } catch (e) { done(); }
+  };
+
   MQ.ui.syncCustom = function () {
     const p = MQ.save.current();
     MQ.enemies.setCustom(p ? p.custom : []);
+    if (!p || !p.custom || !p.custom.length) return;
+    // むかしの セーブ（1段階だけ）に あとから 2・3段階めの 絵を 足す
+    const need = p.custom.filter(function (m) { return m.png && !(m.png2 && m.png3) && !m.noGrow && !growing[m.id]; });
+    if (!need.length) return;
+    need.forEach(function (m) { growing[m.id] = 1; });
+    let left = need.length;
+    need.forEach(function (m) {
+      MQ.ui.growCustom(m, function () {
+        if (!m.png2 || !m.png3) m.noGrow = true;
+        if (--left > 0) return;
+        MQ.save.update(function () {});          // いまの 中身を ほぞん
+        MQ.enemies.setCustom(p.custom);
+      });
+    });
   };
 
   MQ.ui.goMap = function () {

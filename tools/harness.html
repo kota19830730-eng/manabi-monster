@@ -811,6 +811,55 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'parent') { fresh(); MQ.ui.parent.open('settings'); return; }
+    /* 相棒の 進化（v8.2）
+       #evo      … 王さま形 44体・系統の 検査（数と ならび）
+       #evo:my   … じぶんの モンスターを 作って 3段階に なるか（絵も ちがうか）
+       #evo:lv   … 相棒を Lv10 → Lv20 に して すがたが 2回 変わるか */
+    if (mode === 'evo' || mode.indexOf('evo:') === 0) {
+      fresh();
+      const sub = mode.split(':')[1] || '';
+      if (sub === 'my') {
+        const mon = { id: 'my-test', name: 'テストくん', area: 'sansu', png: fakeDrawing() };
+        await new Promise(function (res) { MQ.ui.growCustom(mon, res); });
+        say('evo: 2段階めの 絵=' + (mon.png2 ? 'できた' : 'MISSING') + ' 3段階め=' + (mon.png3 ? 'できた' : 'MISSING') +
+            ' もとと ちがう=' + (mon.png2 && mon.png2 !== mon.png && mon.png3 !== mon.png2 ? 'ok' : 'NG'));
+        MQ.save.update(function (p) { MQ.save.addCustom(p, mon); });
+        MQ.ui.syncCustom();
+        const a = MQ.enemies.get('my-test'), b = MQ.enemies.get('my-test-2'), c = MQ.enemies.get('my-test-3');
+        say('evo: ' + [a, b, c].map(function (e) { return e ? e.name + '(stage' + (e.stage || '-') + ')' : 'MISSING'; }).join(' → '));
+        // 相棒に して Lv10・Lv20 で 進化するか
+        MQ.save.update(function (p) { MQ.pals.add(p, 'my-test', 0); MQ.pals.setActive(p, 'my-test'); });
+        MQ.save.update(function (p) { p.pals['my-test'].exp = MQ.pals.expFor(10); MQ.pals.evolveIfReady(p); });
+        const l10 = MQ.pals.active(MQ.save.current());
+        MQ.save.update(function (p) { p.pals[l10.id].exp = MQ.pals.expFor(20); MQ.pals.evolveIfReady(p); });
+        const l20 = MQ.pals.active(MQ.save.current());
+        say('evo: Lv10 → ' + l10.name + ' / Lv20 → ' + l20.name + ' ' + (l10.id === 'my-test-2' && l20.id === 'my-test-3' ? 'ok' : 'NG'));
+        dump(); return;
+      }
+      if (sub === 'lv') {
+        MQ.save.update(function (p) { MQ.pals.add(p, 'slime-green', 0); MQ.pals.setActive(p, 'slime-green'); });
+        const steps = [];
+        [1, 10, 20].forEach(function (lv) {
+          MQ.save.update(function (p) {
+            const cur = MQ.pals.active(p);
+            p.pals[cur.id].exp = MQ.pals.expFor(lv);
+            MQ.pals.evolveIfReady(p);
+          });
+          const cur = MQ.pals.active(MQ.save.current());
+          steps.push('Lv' + lv + '=' + cur.name + '(つよさ ' + JSON.stringify(MQ.pals.power(MQ.save.current())) + ')');
+        });
+        say('evo: ' + steps.join(' → '));
+        dump(); return;
+      }
+      const kings = MQ.enemies.list.filter(function (e) { return e.stage === 3 && /-king$/.test(e.id); });
+      const plain = MQ.enemies.list.filter(function (e) { return !e.mid && !e.rare && !e.hidden && e.id !== 'chest'; });
+      say('evo: 図かん ' + (MQ.enemies.dexList().length + MQ.enemies.bosses.length) + '体 ／ 王さま ' + kings.length +
+          '体 ／ 進化する ' + plain.filter(function (e) { return e.evo; }).length + '体 ／ 進化しない ' +
+          plain.filter(function (e) { return !e.evo && e.stage !== 3; }).length + '体');
+      say('evo: 王さま＝' + kings.slice(0, 8).map(function (e) { return e.name; }).join('・') + ' …');
+      dump();
+      return;
+    }
     /* 地図の 上下（v8.0・A＋B）
        #mapui        … 帯を 押して パネルが 出る／地図を さわると とじる／学年えらび／下の 段
        #mapui:open   … パネルを ひらいた ところ（撮る 用）

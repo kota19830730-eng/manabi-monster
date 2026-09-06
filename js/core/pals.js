@@ -28,6 +28,10 @@ MQ.pals = (function () {
   const SURE_KILLS = 3;                // 何回 たおしたら かならず なかまに なりたがるか（v5.2）
   const NAME_MAX = 8;                  // つけられる なまえの 長さ（v5.2）
   const EVO_LV = { 1: 10, 2: 20 };     // 1段階 → Lv10 で／2段階 → Lv20 で 進化
+  /* 追い打ちの つよさ（v8.2）：育つほど 強く なる。
+     xp＝ザコの ときの けいけんち／dmg＝ボスに あたえる ダメージ。
+     大原則は そのまま：**正解した ときだけ 出る** */
+  const POWER = { 1: { xp: 10, dmg: 1 }, 2: { xp: 15, dmg: 1 }, 3: { xp: 20, dmg: 2 } };
   const PRICE = { 1: 3, 2: 6, 3: 10 }; // コインで こうかんする ときの ねだん（つよさべつ）
   const OFFER = { 1: 0.16, 2: 0.10, 3: 0.06 };  // たおした ときに なかまに なりたがる 見こみ
 
@@ -43,6 +47,13 @@ MQ.pals = (function () {
   }
 
   function enemyOf(id) { return MQ.enemies ? MQ.enemies.get(id) : null; }
+
+  /* いまの 相棒の 追い打ちの つよさ。系統に 入って いない モンスターは 1段階めの あつかい */
+  function power(p) {
+    const cur = active(p);
+    const st = cur && cur.enemy ? (cur.enemy.stage || 1) : 1;
+    return POWER[st] || POWER[1];
+  }
 
   /* なかまゲージ：正解 何問で 追い打ちか。**まちがえても へらない**（v5.2） */
   function gaugeNeed() { return GAUGE_NEED; }
@@ -215,6 +226,7 @@ MQ.pals = (function () {
     add: add, active: active, setActive: setActive, gain: gain, evolveIfReady: evolveIfReady,
     hitOn: hitOn, price: price, shopList: shopList, canBuy: canBuy, buy: buy, offerFrom: offerFrom,
     gaugeNeed: gaugeNeed, displayName: displayName, baseName: baseName, setName: setName,
+    power: power, POWER: POWER,
     MAX_LV: MAX_LV, HIT_EVERY: HIT_EVERY, EVO_LV: EVO_LV, GAUGE_NEED: GAUGE_NEED,
     SURE_KILLS: SURE_KILLS, NAME_MAX: NAME_MAX
   };

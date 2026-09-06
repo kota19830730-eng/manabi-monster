@@ -618,6 +618,10 @@ MQ.battle = (function () {
   /* 相棒の 追い打ち：3問 れんぞく 正解するたび（3・6・9…）。まちがえ直しの ときは 出ない */
   /* なかまゲージ（v5.2）：正解するたびに 1つ たまり、たまりきったら 追い打ち。
      **まちがえても へらない**（アプリの「ばつを 与えない」きまりに そろえた） */
+  /* 相棒の 追い打ちの つよさ（v8.2）。画面が わたして こない ときは 1段階めの あつかい */
+  function palPower() {
+    return (s.pal && s.pal.power) || { xp: XP.pal, dmg: 1 };
+  }
   function palHitNow() {
     if (!s.pal || !MQ.pals) return false;
     s.palGauge += 1 + (s.buff.palPlus || 0);     // きずなの わ（v5.4）で 早く たまる
@@ -648,7 +652,7 @@ MQ.battle = (function () {
       /* ---- たからばこ ---- */
       if (q.chest) {
         const palHit = palHitNow();
-        const xp = gain(XP.chest + (palHit ? XP.pal : 0) + s.gear.xpAdd);
+        const xp = gain(XP.chest + (palHit ? palPower().xp : 0) + s.gear.xpAdd);
         const coins = q.coins || 1;        // たからばこ よび（金色）は 2まい
         s.coins += coins;
         s.chestOpened = true;
@@ -659,7 +663,7 @@ MQ.battle = (function () {
       if (q.called) {
         const palHit = palHitNow();
         let xp = wasRetry ? XP.mobRetry : XP.mob;
-        if (palHit) xp += XP.pal;
+        if (palHit) xp += palPower().xp;
         if (crit) xp += XP.critBonus;
         xp += s.gear.xpAdd;
         xp = gain(xp);
@@ -676,7 +680,7 @@ MQ.battle = (function () {
         // ばくれつ こうげき：ダメージが ふえ、そのぶん けいけんちも 入る
         const palHit = palHitNow();
         let dmg = s.buff.dmg > 1 ? Math.min(s.buff.dmg, s.bossHp) : 1;
-        if (palHit) dmg = Math.min(dmg + 1, s.bossHp);      // 相棒の 追い打ち
+        if (palHit) dmg = Math.min(dmg + palPower().dmg, s.bossHp);   // 相棒の 追い打ち（3段階めは 2ダメージ・v8.2）
         // カウンター（v7.7）：ボスの 大わざの 問題に 1回めで 正解 → 2ダメージ
         const counter = !wasRetry && attacking();
         if (counter) { dmg = Math.min(Math.max(dmg, COUNTER_DMG), s.bossHp); s.counters++; }
@@ -730,7 +734,7 @@ MQ.battle = (function () {
       /* ---- ザコ ---- */
       const palHit = palHitNow();
       let xp = wasRetry ? XP.mobRetry : XP.mob;
-      if (palHit) xp += XP.pal;
+      if (palHit) xp += palPower().xp;
       if (q.rare) xp *= XP.rareMul;
       if (crit) xp += XP.critBonus;
 

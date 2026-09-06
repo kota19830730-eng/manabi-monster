@@ -23,102 +23,102 @@ MQ.enemies = (function () {
   // ふつうの敵。area ごとに 顔ぶれが かわる
   const list = [
     /* 山（算数） */
-    { id: 'golem-gray',   name: 'ゴーレム',        shape: 'golem',   area: 'sansu', rank: 2, colors: { A: '#9AA7B8', B: '#5A6A80' } },
-    { id: 'golem-lava',   name: 'マグマゴーレム',   shape: 'golem',   area: 'sansu', rank: 3, colors: { A: '#E8642C', B: '#7A2E0E' } },
-    { id: 'lizard-green', name: 'リザード',        shape: 'lizard',  area: 'sansu', rank: 2, colors: { A: '#3E9A6B', B: '#C9F0A8' } },
-    { id: 'lizard-fire',  name: 'ファイアリザード', shape: 'lizard',  area: 'sansu', rank: 3, colors: { A: '#F26B2B', B: '#FFD27A' } },
-    { id: 'skull-white',  name: 'スカル',          shape: 'skull',   area: 'sansu', rank: 2, colors: { A: '#F2F2F2' } },
-    { id: 'skull-gold',   name: 'ゴールドスカル',   shape: 'skull',   area: 'sansu', rank: 3, colors: { A: '#FFD166' } },
-    { id: 'robot-gray',   name: 'ロボ',            shape: 'robot',   area: 'sansu', rank: 2, colors: { A: '#B8C4D6', B: '#4A5568' } },
-    { id: 'robot-red',    name: 'メカロボ',        shape: 'robot',   area: 'sansu', rank: 3, colors: { A: '#FF8A5A', B: '#7A2E0E' } },
-    { id: 'eyeball',      name: 'アイボール',      shape: 'eyeball', area: 'sansu', rank: 1, colors: { A: '#2F6FD0' } },
+    { id: 'golem-gray',   name: 'ゴーレム',        shape: 'golem',   area: 'sansu', rank: 2, line: 'golem', stage: 1, evo: 'golem-lava', colors: { A: '#9AA7B8', B: '#5A6A80' } },
+    { id: 'golem-lava',   name: 'マグマゴーレム',   shape: 'golem',   area: 'sansu', rank: 3, line: 'golem', stage: 2, evo: 'golem-king', colors: { A: '#E8642C', B: '#7A2E0E' } },
+    { id: 'lizard-green', name: 'リザード',        shape: 'lizard',  area: 'sansu', rank: 2, line: 'lizard', stage: 1, evo: 'lizard-fire', colors: { A: '#3E9A6B', B: '#C9F0A8' } },
+    { id: 'lizard-fire',  name: 'ファイアリザード', shape: 'lizard',  area: 'sansu', rank: 3, line: 'lizard', stage: 2, evo: 'lizard-king', colors: { A: '#F26B2B', B: '#FFD27A' } },
+    { id: 'skull-white',  name: 'スカル',          shape: 'skull',   area: 'sansu', rank: 2, line: 'skull', stage: 1, evo: 'skull-gold', colors: { A: '#F2F2F2' } },
+    { id: 'skull-gold',   name: 'ゴールドスカル',   shape: 'skull',   area: 'sansu', rank: 3, line: 'skull', stage: 2, evo: 'skull-king', colors: { A: '#FFD166' } },
+    { id: 'robot-gray',   name: 'ロボ',            shape: 'robot',   area: 'sansu', rank: 2, line: 'robot', stage: 1, evo: 'robot-red', colors: { A: '#B8C4D6', B: '#4A5568' } },
+    { id: 'robot-red',    name: 'メカロボ',        shape: 'robot',   area: 'sansu', rank: 3, line: 'robot', stage: 2, evo: 'robot-king', colors: { A: '#FF8A5A', B: '#7A2E0E' } },
+    { id: 'eyeball',      name: 'アイボール',      shape: 'eyeball', area: 'sansu', rank: 1, line: 'eyeball', stage: 1, evo: 'eyeball-red', colors: { A: '#2F6FD0' } },
     /* 森（国語） */
-    { id: 'mush-red',     name: 'キノコン',        shape: 'mushroom', area: 'kokugo', rank: 1, colors: { A: '#FF5A5A', B: '#FFFFFF', C: '#F2E2C4' } },
-    { id: 'mush-purple',  name: 'ドクキノコン',     shape: 'mushroom', area: 'kokugo', rank: 3, colors: { A: '#8A4FD1', B: '#FFD166', C: '#F2E2C4' } },
-    { id: 'spider-black', name: 'スパイダー',      shape: 'spider',   area: 'kokugo', rank: 3, colors: { A: '#3A3A4A' } },
-    { id: 'spider-green', name: 'モリグモ',        shape: 'spider',   area: 'kokugo', rank: 2, colors: { A: '#3E9A6B' } },
-    { id: 'slime-green',  name: 'スライム',        shape: 'slime',    area: 'kokugo', rank: 1, colors: { A: '#4CD164', B: '#1E7A3C' } },
-    { id: 'slime-red',    name: 'レッドスライム',   shape: 'slime',    area: 'kokugo', rank: 2, colors: { A: '#FF5A5A', B: '#A82424' } },
-    { id: 'bat-black',    name: 'バット',          shape: 'bat',      area: 'kokugo', rank: 2, colors: { A: '#3A3A4A', B: '#22222E' } },
+    { id: 'mush-red',     name: 'キノコン',        shape: 'mushroom', area: 'kokugo', rank: 1, line: 'mushroom', stage: 1, evo: 'mush-purple', colors: { A: '#FF5A5A', B: '#FFFFFF', C: '#F2E2C4' } },
+    { id: 'mush-purple',  name: 'ドクキノコン',     shape: 'mushroom', area: 'kokugo', rank: 3, line: 'mushroom', stage: 2, evo: 'mushroom-king', colors: { A: '#8A4FD1', B: '#FFD166', C: '#F2E2C4' } },
+    { id: 'spider-black', name: 'スパイダー',      shape: 'spider',   area: 'kokugo', rank: 3, line: 'spider', stage: 2, evo: 'spider-king', colors: { A: '#3A3A4A' } },
+    { id: 'spider-green', name: 'モリグモ',        shape: 'spider',   area: 'kokugo', rank: 2, line: 'spider', stage: 1, evo: 'spider-black', colors: { A: '#3E9A6B' } },
+    { id: 'slime-green',  name: 'スライム',        shape: 'slime',    area: 'kokugo', rank: 1, line: 'slime', stage: 1, evo: 'slime-red', colors: { A: '#4CD164', B: '#1E7A3C' } },
+    { id: 'slime-red',    name: 'レッドスライム',   shape: 'slime',    area: 'kokugo', rank: 2, line: 'slime', stage: 2, evo: 'slime-king', colors: { A: '#FF5A5A', B: '#A82424' } },
+    { id: 'bat-black',    name: 'バット',          shape: 'bat',      area: 'kokugo', rank: 2, line: 'bat', stage: 1, evo: 'bat-purple', colors: { A: '#3A3A4A', B: '#22222E' } },
     /* 海（理科社会） */
-    { id: 'tako-red',     name: 'オクトパン',      shape: 'tako',  area: 'rikashakai', rank: 2, colors: { A: '#FF7A6B' } },
-    { id: 'tako-purple',  name: 'ドクタコン',      shape: 'tako',  area: 'rikashakai', rank: 3, colors: { A: '#8A4FD1' } },
-    { id: 'crab-red',     name: 'カニカニ',        shape: 'crab',  area: 'rikashakai', rank: 2, colors: { A: '#FF5A5A', B: '#A82424' } },
-    { id: 'crab-green',   name: 'イソガニン',      shape: 'crab',  area: 'rikashakai', rank: 2, colors: { A: '#3E9A6B', B: '#1E5A3C' } },
-    { id: 'shark-gray',   name: 'サメゾー',        shape: 'shark', area: 'rikashakai', rank: 3, colors: { A: '#8FA6C0' } },
-    { id: 'slime-blue',   name: 'ブルースライム',   shape: 'slime', area: 'rikashakai', rank: 1, colors: { A: '#4F8CFF', B: '#1F4FB0' } },
-    { id: 'ghost-blue',   name: 'アイスゴースト',   shape: 'ghost', area: 'rikashakai', rank: 2, colors: { A: '#8FD3FF', B: '#4FA3E0' } },
+    { id: 'tako-red',     name: 'オクトパン',      shape: 'tako',  area: 'rikashakai', rank: 2, line: 'tako', stage: 1, evo: 'tako-purple', colors: { A: '#FF7A6B' } },
+    { id: 'tako-purple',  name: 'ドクタコン',      shape: 'tako',  area: 'rikashakai', rank: 3, line: 'tako', stage: 2, evo: 'tako-king', colors: { A: '#8A4FD1' } },
+    { id: 'crab-red',     name: 'カニカニ',        shape: 'crab',  area: 'rikashakai', rank: 2, line: 'crab', stage: 1, evo: 'crab-green', colors: { A: '#FF5A5A', B: '#A82424' } },
+    { id: 'crab-green',   name: 'イソガニン',      shape: 'crab',  area: 'rikashakai', rank: 2, line: 'crab', stage: 2, evo: 'crab-king', colors: { A: '#3E9A6B', B: '#1E5A3C' } },
+    { id: 'shark-gray',   name: 'サメゾー',        shape: 'shark', area: 'rikashakai', rank: 3, line: 'shark', stage: 1, evo: 'shark-king', colors: { A: '#8FA6C0' } },
+    { id: 'slime-blue',   name: 'ブルースライム',   shape: 'slime', area: 'rikashakai', rank: 1, line: 'slime', stage: 1, evo: 'slime-red', colors: { A: '#4F8CFF', B: '#1F4FB0' } },
+    { id: 'ghost-blue',   name: 'アイスゴースト',   shape: 'ghost', area: 'rikashakai', rank: 2, line: 'ghost', stage: 1, evo: 'ghost-white', colors: { A: '#8FD3FF', B: '#4FA3E0' } },
     /* 空（英語） */
-    { id: 'cloud-white',   name: 'クラウドン',      shape: 'cloud', area: 'eigo', rank: 1, colors: { A: '#EDEEF5' } },
-    { id: 'cloud-thunder', name: 'ゴロゴロクン',    shape: 'cloud', area: 'eigo', rank: 3, colors: { A: '#6B7C9C', y: '#FFD166' } },
-    { id: 'bat-purple',    name: 'ダークバット',    shape: 'bat',   area: 'eigo', rank: 3, colors: { A: '#8A4FD1', B: '#4A2380' } },
-    { id: 'ghost-white',   name: 'ゴースト',        shape: 'ghost', area: 'eigo', rank: 2, colors: { A: '#EDEEF5', B: '#B9BCCF' } },
-    { id: 'slime-sky',     name: 'ソラスライム',    shape: 'slime', area: 'eigo', rank: 1, colors: { A: '#8FD3FF', B: '#4FA3E0' } },
-    { id: 'eyeball-red',   name: 'レッドアイ',      shape: 'eyeball', area: 'eigo', rank: 3, colors: { A: '#E8443A' } },
+    { id: 'cloud-white',   name: 'クラウドン',      shape: 'cloud', area: 'eigo', rank: 1, line: 'cloud', stage: 1, evo: 'cloud-thunder', colors: { A: '#EDEEF5' } },
+    { id: 'cloud-thunder', name: 'ゴロゴロクン',    shape: 'cloud', area: 'eigo', rank: 3, line: 'cloud', stage: 2, evo: 'cloud-king', colors: { A: '#6B7C9C', y: '#FFD166' } },
+    { id: 'bat-purple',    name: 'ダークバット',    shape: 'bat',   area: 'eigo', rank: 3, line: 'bat', stage: 2, evo: 'bat-king', colors: { A: '#8A4FD1', B: '#4A2380' } },
+    { id: 'ghost-white',   name: 'ゴースト',        shape: 'ghost', area: 'eigo', rank: 2, line: 'ghost', stage: 2, evo: 'ghost-king', colors: { A: '#EDEEF5', B: '#B9BCCF' } },
+    { id: 'slime-sky',     name: 'ソラスライム',    shape: 'slime', area: 'eigo', rank: 1, line: 'slime', stage: 1, evo: 'slime-red', colors: { A: '#8FD3FF', B: '#4FA3E0' } },
+    { id: 'eyeball-red',   name: 'レッドアイ',      shape: 'eyeball', area: 'eigo', rank: 3, line: 'eyeball', stage: 2, evo: 'eyeball-king', colors: { A: '#E8443A' } },
     /* レア（どのエリアにも たまに出る。けいけんち3倍） */
     /* 山（算数）の ついか組 */
-    { id: 'dice-white', name: 'サイコロン', shape: 'dice', area: 'sansu', rank: 1, colors: { A: '#F4F6FA', B: '#B9C2D4', P: '#2B3350' } },
-    { id: 'dice-gold', name: 'キンサイコロン', shape: 'dice', area: 'sansu', rank: 2, colors: { A: '#FFD166', B: '#C98F1B', P: '#6B4A0E' } },
-    { id: 'snake-green', name: 'ヘビゴン', shape: 'snake', area: 'sansu', rank: 1, colors: { A: '#4CD164', B: '#1E7A3C' } },
-    { id: 'snake-purple', name: 'ドクヘビゴン', shape: 'snake', area: 'sansu', rank: 3, colors: { A: '#8A4FD1', B: '#4A2380' } },
-    { id: 'scorpion-sand', name: 'サソリン', shape: 'scorpion', area: 'sansu', rank: 2, colors: { A: '#E0B15C', B: '#9C742E' } },
-    { id: 'scorpion-black', name: 'ダークサソリン', shape: 'scorpion', area: 'sansu', rank: 3, colors: { A: '#4A4A5E', B: '#26263A' } },
-    { id: 'turtle-rock', name: 'イワガメン', shape: 'turtle', area: 'sansu', rank: 2, colors: { A: '#9AA7B8', B: '#5A6A80', C: '#C9A06B' } },
-    { id: 'turtle-lava', name: 'マグマガメン', shape: 'turtle', area: 'sansu', rank: 3, colors: { A: '#7A2E0E', B: '#E8642C', C: '#4A4A5E' } },
-    { id: 'mole', name: 'モグラン', shape: 'mole', area: 'sansu', rank: 1, colors: { A: '#8A5A3C', B: '#C9A06B', C: '#FF9DB0' } },
-    { id: 'crystal-blue', name: 'クリスタルン', shape: 'crystal', area: 'sansu', rank: 1, colors: { A: '#8FD3FF', B: '#4FA3E0' } },
-    { id: 'crystal-pink', name: 'ルビリン', shape: 'crystal', area: 'sansu', rank: 2, colors: { A: '#FF7A9C', B: '#C4365E' } },
-    { id: 'wolf-gray', name: 'ウルフン', shape: 'wolf', area: 'sansu', rank: 2, colors: { A: '#9AA7B8', B: '#E6ECF5', C: '#FF9DB0' } },
-    { id: 'wolf-dark', name: 'ヤミウルフン', shape: 'wolf', area: 'sansu', rank: 3, colors: { A: '#5A4A80', B: '#C9BCE6', C: '#FF9DB0' } },
+    { id: 'dice-white', name: 'サイコロン', shape: 'dice', area: 'sansu', rank: 1, line: 'dice', stage: 1, evo: 'dice-gold', colors: { A: '#F4F6FA', B: '#B9C2D4', P: '#2B3350' } },
+    { id: 'dice-gold', name: 'キンサイコロン', shape: 'dice', area: 'sansu', rank: 2, line: 'dice', stage: 2, evo: 'dice-king', colors: { A: '#FFD166', B: '#C98F1B', P: '#6B4A0E' } },
+    { id: 'snake-green', name: 'ヘビゴン', shape: 'snake', area: 'sansu', rank: 1, line: 'snake', stage: 1, evo: 'snake-purple', colors: { A: '#4CD164', B: '#1E7A3C' } },
+    { id: 'snake-purple', name: 'ドクヘビゴン', shape: 'snake', area: 'sansu', rank: 3, line: 'snake', stage: 2, evo: 'snake-king', colors: { A: '#8A4FD1', B: '#4A2380' } },
+    { id: 'scorpion-sand', name: 'サソリン', shape: 'scorpion', area: 'sansu', rank: 2, line: 'scorpion', stage: 1, evo: 'scorpion-black', colors: { A: '#E0B15C', B: '#9C742E' } },
+    { id: 'scorpion-black', name: 'ダークサソリン', shape: 'scorpion', area: 'sansu', rank: 3, line: 'scorpion', stage: 2, evo: 'scorpion-king', colors: { A: '#4A4A5E', B: '#26263A' } },
+    { id: 'turtle-rock', name: 'イワガメン', shape: 'turtle', area: 'sansu', rank: 2, line: 'turtle', stage: 1, evo: 'turtle-lava', colors: { A: '#9AA7B8', B: '#5A6A80', C: '#C9A06B' } },
+    { id: 'turtle-lava', name: 'マグマガメン', shape: 'turtle', area: 'sansu', rank: 3, line: 'turtle', stage: 2, evo: 'turtle-king', colors: { A: '#7A2E0E', B: '#E8642C', C: '#4A4A5E' } },
+    { id: 'mole', name: 'モグラン', shape: 'mole', area: 'sansu', rank: 1, line: 'mole', stage: 1, evo: 'mole-king', colors: { A: '#8A5A3C', B: '#C9A06B', C: '#FF9DB0' } },
+    { id: 'crystal-blue', name: 'クリスタルン', shape: 'crystal', area: 'sansu', rank: 1, line: 'crystal', stage: 1, evo: 'crystal-pink', colors: { A: '#8FD3FF', B: '#4FA3E0' } },
+    { id: 'crystal-pink', name: 'ルビリン', shape: 'crystal', area: 'sansu', rank: 2, line: 'crystal', stage: 2, evo: 'crystal-king', colors: { A: '#FF7A9C', B: '#C4365E' } },
+    { id: 'wolf-gray', name: 'ウルフン', shape: 'wolf', area: 'sansu', rank: 2, line: 'wolf', stage: 1, evo: 'wolf-dark', colors: { A: '#9AA7B8', B: '#E6ECF5', C: '#FF9DB0' } },
+    { id: 'wolf-dark', name: 'ヤミウルフン', shape: 'wolf', area: 'sansu', rank: 3, line: 'wolf', stage: 2, evo: 'wolf-king', colors: { A: '#5A4A80', B: '#C9BCE6', C: '#FF9DB0' } },
     /* 森（国語）の ついか組 */
-    { id: 'owl-brown', name: 'フクロン', shape: 'owl', area: 'kokugo', rank: 2, colors: { A: '#8A5A3C', B: '#C9A06B' } },
-    { id: 'owl-white', name: 'シロフクロン', shape: 'owl', area: 'kokugo', rank: 3, colors: { A: '#EDEEF5', B: '#C9CFDB' } },
-    { id: 'frog-green', name: 'ケロッポ', shape: 'frog', area: 'kokugo', rank: 1, colors: { A: '#4CD164', B: '#C9F0A8', C: '#FF9DB0' } },
-    { id: 'frog-blue', name: 'アメケロン', shape: 'frog', area: 'kokugo', rank: 2, colors: { A: '#4F8CFF', B: '#B3D9FF', C: '#FF9DB0' } },
-    { id: 'bee-yellow', name: 'ブンバチン', shape: 'bee', area: 'kokugo', rank: 1, colors: { A: '#FFD166' } },
-    { id: 'bee-red', name: 'アカバチン', shape: 'bee', area: 'kokugo', rank: 3, colors: { A: '#FF6B5A' } },
-    { id: 'snail-orange', name: 'デンデロン', shape: 'snail', area: 'kokugo', rank: 1, colors: { A: '#F2A24B', B: '#B36A1B', C: '#F2E2C4' } },
-    { id: 'snail-purple', name: 'ドクデンデロン', shape: 'snail', area: 'kokugo', rank: 3, colors: { A: '#8A4FD1', B: '#4A2380', C: '#C9F0A8' } },
-    { id: 'tree-green', name: 'ツリーン', shape: 'tree', area: 'kokugo', rank: 2, colors: { A: '#3E9A6B', B: '#1E5A3C', C: '#8A5A3C' } },
-    { id: 'tree-autumn', name: 'モミジーン', shape: 'tree', area: 'kokugo', rank: 3, colors: { A: '#E8853A', B: '#B34E14', C: '#6B4A2E' } },
-    { id: 'fox-orange', name: 'コンゴン', shape: 'fox', area: 'kokugo', rank: 2, colors: { A: '#F2A24B', B: '#FFF3E0', C: '#FF9DB0' } },
-    { id: 'fox-white', name: 'ユキコンゴン', shape: 'fox', area: 'kokugo', rank: 3, colors: { A: '#E6ECF5', B: '#FFFFFF', C: '#FF9DB0' } },
-    { id: 'hedgehog-brown', name: 'ハリマル', shape: 'hedgehog', area: 'kokugo', rank: 2, colors: { A: '#F2E2C4', B: '#8A5A3C', C: '#FF9DB0' } },
-    { id: 'hedgehog-blue', name: 'トゲマル', shape: 'hedgehog', area: 'kokugo', rank: 3, colors: { A: '#E6ECF5', B: '#4F6FB8', C: '#FF9DB0' } },
-    { id: 'butterfly-pink', name: 'フラッタン', shape: 'butterfly', area: 'kokugo', rank: 1, colors: { A: '#FF7A9C', B: '#C4365E' } },
+    { id: 'owl-brown', name: 'フクロン', shape: 'owl', area: 'kokugo', rank: 2, line: 'owl', stage: 1, evo: 'owl-white', colors: { A: '#8A5A3C', B: '#C9A06B' } },
+    { id: 'owl-white', name: 'シロフクロン', shape: 'owl', area: 'kokugo', rank: 3, line: 'owl', stage: 2, evo: 'owl-king', colors: { A: '#EDEEF5', B: '#C9CFDB' } },
+    { id: 'frog-green', name: 'ケロッポ', shape: 'frog', area: 'kokugo', rank: 1, line: 'frog', stage: 1, evo: 'frog-blue', colors: { A: '#4CD164', B: '#C9F0A8', C: '#FF9DB0' } },
+    { id: 'frog-blue', name: 'アメケロン', shape: 'frog', area: 'kokugo', rank: 2, line: 'frog', stage: 2, evo: 'frog-king', colors: { A: '#4F8CFF', B: '#B3D9FF', C: '#FF9DB0' } },
+    { id: 'bee-yellow', name: 'ブンバチン', shape: 'bee', area: 'kokugo', rank: 1, line: 'bee', stage: 1, evo: 'bee-red', colors: { A: '#FFD166' } },
+    { id: 'bee-red', name: 'アカバチン', shape: 'bee', area: 'kokugo', rank: 3, line: 'bee', stage: 2, evo: 'bee-king', colors: { A: '#FF6B5A' } },
+    { id: 'snail-orange', name: 'デンデロン', shape: 'snail', area: 'kokugo', rank: 1, line: 'snail', stage: 1, evo: 'snail-purple', colors: { A: '#F2A24B', B: '#B36A1B', C: '#F2E2C4' } },
+    { id: 'snail-purple', name: 'ドクデンデロン', shape: 'snail', area: 'kokugo', rank: 3, line: 'snail', stage: 2, evo: 'snail-king', colors: { A: '#8A4FD1', B: '#4A2380', C: '#C9F0A8' } },
+    { id: 'tree-green', name: 'ツリーン', shape: 'tree', area: 'kokugo', rank: 2, line: 'tree', stage: 1, evo: 'tree-autumn', colors: { A: '#3E9A6B', B: '#1E5A3C', C: '#8A5A3C' } },
+    { id: 'tree-autumn', name: 'モミジーン', shape: 'tree', area: 'kokugo', rank: 3, line: 'tree', stage: 2, evo: 'tree-king', colors: { A: '#E8853A', B: '#B34E14', C: '#6B4A2E' } },
+    { id: 'fox-orange', name: 'コンゴン', shape: 'fox', area: 'kokugo', rank: 2, line: 'fox', stage: 1, evo: 'fox-white', colors: { A: '#F2A24B', B: '#FFF3E0', C: '#FF9DB0' } },
+    { id: 'fox-white', name: 'ユキコンゴン', shape: 'fox', area: 'kokugo', rank: 3, line: 'fox', stage: 2, evo: 'fox-king', colors: { A: '#E6ECF5', B: '#FFFFFF', C: '#FF9DB0' } },
+    { id: 'hedgehog-brown', name: 'ハリマル', shape: 'hedgehog', area: 'kokugo', rank: 2, line: 'hedgehog', stage: 1, evo: 'hedgehog-blue', colors: { A: '#F2E2C4', B: '#8A5A3C', C: '#FF9DB0' } },
+    { id: 'hedgehog-blue', name: 'トゲマル', shape: 'hedgehog', area: 'kokugo', rank: 3, line: 'hedgehog', stage: 2, evo: 'hedgehog-king', colors: { A: '#E6ECF5', B: '#4F6FB8', C: '#FF9DB0' } },
+    { id: 'butterfly-pink', name: 'フラッタン', shape: 'butterfly', area: 'kokugo', rank: 1, line: 'butterfly', stage: 1, evo: 'butterfly-sky', colors: { A: '#FF7A9C', B: '#C4365E' } },
     /* 海（理科社会）の ついか組 */
-    { id: 'fish-blue', name: 'トトマル', shape: 'fish', area: 'rikashakai', rank: 1, colors: { A: '#4F8CFF', B: '#B3D9FF', C: '#FFD166' } },
-    { id: 'fish-red', name: 'アカトトマル', shape: 'fish', area: 'rikashakai', rank: 2, colors: { A: '#FF6B5A', B: '#FFC9A8', C: '#FFD166' } },
-    { id: 'jelly-pink', name: 'プルリン', shape: 'jelly', area: 'rikashakai', rank: 1, colors: { A: '#FF9DB0', B: '#E06080' } },
-    { id: 'jelly-elec', name: 'エレキプルリン', shape: 'jelly', area: 'rikashakai', rank: 3, colors: { A: '#FFD166', B: '#C98F1B' } },
-    { id: 'turtle-sea', name: 'ウミガメン', shape: 'turtle', area: 'rikashakai', rank: 3, colors: { A: '#3E9A6B', B: '#1E5A3C', C: '#A8E6C0' } },
-    { id: 'seahorse-green', name: 'タツリン', shape: 'seahorse', area: 'rikashakai', rank: 1, colors: { A: '#3E9A6B', B: '#C9F0A8' } },
-    { id: 'seahorse-gold', name: 'キンタツリン', shape: 'seahorse', area: 'rikashakai', rank: 3, colors: { A: '#FFD166', B: '#FFF0B8' } },
-    { id: 'puffer-yellow', name: 'フグマル', shape: 'puffer', area: 'rikashakai', rank: 2, colors: { A: '#FFD166', B: '#C98F1B', C: '#FFF0B8' } },
-    { id: 'puffer-purple', name: 'ドクフグマル', shape: 'puffer', area: 'rikashakai', rank: 3, colors: { A: '#8A4FD1', B: '#4A2380', C: '#C9A8F0' } },
-    { id: 'star-orange', name: 'ホシデン', shape: 'star', area: 'rikashakai', rank: 1, colors: { A: '#F2A24B', B: '#C4702B' } },
-    { id: 'star-blue', name: 'アオホシデン', shape: 'star', area: 'rikashakai', rank: 2, colors: { A: '#4F8CFF', B: '#1F4FB0' } },
-    { id: 'penguin-navy', name: 'ペンペコ', shape: 'penguin', area: 'rikashakai', rank: 1, colors: { A: '#3A4A6E' } },
-    { id: 'penguin-ice', name: 'アイスペコ', shape: 'penguin', area: 'rikashakai', rank: 2, colors: { A: '#8FD3FF' } },
-    { id: 'angler-navy', name: 'チカリン', shape: 'angler', area: 'rikashakai', rank: 3, colors: { A: '#2F4A8C', B: '#4F6FB8' } },
-    { id: 'angler-black', name: 'クロチカリン', shape: 'angler', area: 'rikashakai', rank: 3, colors: { A: '#2B2B3A', B: '#4A4A5E' } },
+    { id: 'fish-blue', name: 'トトマル', shape: 'fish', area: 'rikashakai', rank: 1, line: 'fish', stage: 1, evo: 'fish-red', colors: { A: '#4F8CFF', B: '#B3D9FF', C: '#FFD166' } },
+    { id: 'fish-red', name: 'アカトトマル', shape: 'fish', area: 'rikashakai', rank: 2, line: 'fish', stage: 2, evo: 'fish-king', colors: { A: '#FF6B5A', B: '#FFC9A8', C: '#FFD166' } },
+    { id: 'jelly-pink', name: 'プルリン', shape: 'jelly', area: 'rikashakai', rank: 1, line: 'jelly', stage: 1, evo: 'jelly-elec', colors: { A: '#FF9DB0', B: '#E06080' } },
+    { id: 'jelly-elec', name: 'エレキプルリン', shape: 'jelly', area: 'rikashakai', rank: 3, line: 'jelly', stage: 2, evo: 'jelly-king', colors: { A: '#FFD166', B: '#C98F1B' } },
+    { id: 'turtle-sea', name: 'ウミガメン', shape: 'turtle', area: 'rikashakai', rank: 3, line: 'turtle', stage: 1, evo: 'turtle-lava', colors: { A: '#3E9A6B', B: '#1E5A3C', C: '#A8E6C0' } },
+    { id: 'seahorse-green', name: 'タツリン', shape: 'seahorse', area: 'rikashakai', rank: 1, line: 'seahorse', stage: 1, evo: 'seahorse-gold', colors: { A: '#3E9A6B', B: '#C9F0A8' } },
+    { id: 'seahorse-gold', name: 'キンタツリン', shape: 'seahorse', area: 'rikashakai', rank: 3, line: 'seahorse', stage: 2, evo: 'seahorse-king', colors: { A: '#FFD166', B: '#FFF0B8' } },
+    { id: 'puffer-yellow', name: 'フグマル', shape: 'puffer', area: 'rikashakai', rank: 2, line: 'puffer', stage: 1, evo: 'puffer-purple', colors: { A: '#FFD166', B: '#C98F1B', C: '#FFF0B8' } },
+    { id: 'puffer-purple', name: 'ドクフグマル', shape: 'puffer', area: 'rikashakai', rank: 3, line: 'puffer', stage: 2, evo: 'puffer-king', colors: { A: '#8A4FD1', B: '#4A2380', C: '#C9A8F0' } },
+    { id: 'star-orange', name: 'ホシデン', shape: 'star', area: 'rikashakai', rank: 1, line: 'star', stage: 1, evo: 'star-gold', colors: { A: '#F2A24B', B: '#C4702B' } },
+    { id: 'star-blue', name: 'アオホシデン', shape: 'star', area: 'rikashakai', rank: 2, line: 'star', stage: 1, evo: 'star-gold', colors: { A: '#4F8CFF', B: '#1F4FB0' } },
+    { id: 'penguin-navy', name: 'ペンペコ', shape: 'penguin', area: 'rikashakai', rank: 1, line: 'penguin', stage: 1, evo: 'penguin-ice', colors: { A: '#3A4A6E' } },
+    { id: 'penguin-ice', name: 'アイスペコ', shape: 'penguin', area: 'rikashakai', rank: 2, line: 'penguin', stage: 2, evo: 'penguin-king', colors: { A: '#8FD3FF' } },
+    { id: 'angler-navy', name: 'チカリン', shape: 'angler', area: 'rikashakai', rank: 3, line: 'angler', stage: 1, evo: 'angler-black', colors: { A: '#2F4A8C', B: '#4F6FB8' } },
+    { id: 'angler-black', name: 'クロチカリン', shape: 'angler', area: 'rikashakai', rank: 3, line: 'angler', stage: 2, evo: 'angler-king', colors: { A: '#2B2B3A', B: '#4A4A5E' } },
     /* 空（英語）の ついか組 */
-    { id: 'bird-yellow', name: 'ピヨリン', shape: 'bird', area: 'eigo', rank: 1, colors: { A: '#FFD166', B: '#F2A24B', C: '#FFF0B8' } },
-    { id: 'bird-blue', name: 'アオピヨリン', shape: 'bird', area: 'eigo', rank: 2, colors: { A: '#4F8CFF', B: '#1F4FB0', C: '#B3D9FF' } },
-    { id: 'ufo-silver', name: 'ユーフォン', shape: 'ufo', area: 'eigo', rank: 2, colors: { A: '#4CD164', B: '#B8C4D6', C: '#8FD3FF' } },
-    { id: 'ufo-dark', name: 'ダークユーフォン', shape: 'ufo', area: 'eigo', rank: 3, colors: { A: '#FF6B5A', B: '#4A4A5E', C: '#C9A8F0' } },
-    { id: 'balloon-pink', name: 'フワリン', shape: 'balloon', area: 'eigo', rank: 1, colors: { A: '#FF9DB0', B: '#E06080', C: '#FF5A7A' } },
-    { id: 'balloon-sky', name: 'ソラフワリン', shape: 'balloon', area: 'eigo', rank: 1, colors: { A: '#8FD3FF', B: '#4FA3E0', C: '#FF9DB0' } },
-    { id: 'star-gold', name: 'ピカボシ', shape: 'star', area: 'eigo', rank: 2, colors: { A: '#FFD166', B: '#C98F1B' } },
-    { id: 'sun', name: 'サンサンドン', shape: 'sun', area: 'eigo', rank: 2, colors: { A: '#FFD166', B: '#F2A24B', C: '#FF9DB0' } },
-    { id: 'moon', name: 'ミカヅキン', shape: 'moon', area: 'eigo', rank: 2, colors: { A: '#FFE08A', B: '#E0B15C' } },
-    { id: 'rocket-red', name: 'ロケットン', shape: 'rocket', area: 'eigo', rank: 3, colors: { A: '#F4F6FA', B: '#C9CFDB', C: '#FF6B5A', D: '#4F8CFF' } },
-    { id: 'rocket-blue', name: 'アオロケットン', shape: 'rocket', area: 'eigo', rank: 3, colors: { A: '#B3D9FF', B: '#8FB8E8', C: '#1F4FB0', D: '#FFD166' } },
-    { id: 'kite-red', name: 'カイトン', shape: 'kite', area: 'eigo', rank: 2, colors: { A: '#FF6B5A', B: '#FFD166' } },
-    { id: 'kite-blue', name: 'アオカイトン', shape: 'kite', area: 'eigo', rank: 2, colors: { A: '#4F8CFF', B: '#FFD166' } },
-    { id: 'tornado-gray', name: 'グルグルン', shape: 'tornado', area: 'eigo', rank: 2, colors: { A: '#B8C4D6', B: '#8A97AB' } },
-    { id: 'tornado-storm', name: 'アラシグルン', shape: 'tornado', area: 'eigo', rank: 3, colors: { A: '#6B7C9C', B: '#4A5568' } },
-    { id: 'butterfly-sky', name: 'ソラフラッタン', shape: 'butterfly', area: 'eigo', rank: 1, colors: { A: '#8FD3FF', B: '#4FA3E0' } },
+    { id: 'bird-yellow', name: 'ピヨリン', shape: 'bird', area: 'eigo', rank: 1, line: 'bird', stage: 1, evo: 'bird-blue', colors: { A: '#FFD166', B: '#F2A24B', C: '#FFF0B8' } },
+    { id: 'bird-blue', name: 'アオピヨリン', shape: 'bird', area: 'eigo', rank: 2, line: 'bird', stage: 2, evo: 'bird-king', colors: { A: '#4F8CFF', B: '#1F4FB0', C: '#B3D9FF' } },
+    { id: 'ufo-silver', name: 'ユーフォン', shape: 'ufo', area: 'eigo', rank: 2, line: 'ufo', stage: 1, evo: 'ufo-dark', colors: { A: '#4CD164', B: '#B8C4D6', C: '#8FD3FF' } },
+    { id: 'ufo-dark', name: 'ダークユーフォン', shape: 'ufo', area: 'eigo', rank: 3, line: 'ufo', stage: 2, evo: 'ufo-king', colors: { A: '#FF6B5A', B: '#4A4A5E', C: '#C9A8F0' } },
+    { id: 'balloon-pink', name: 'フワリン', shape: 'balloon', area: 'eigo', rank: 1, line: 'balloon', stage: 1, evo: 'balloon-sky', colors: { A: '#FF9DB0', B: '#E06080', C: '#FF5A7A' } },
+    { id: 'balloon-sky', name: 'ソラフワリン', shape: 'balloon', area: 'eigo', rank: 1, line: 'balloon', stage: 2, evo: 'balloon-king', colors: { A: '#8FD3FF', B: '#4FA3E0', C: '#FF9DB0' } },
+    { id: 'star-gold', name: 'ピカボシ', shape: 'star', area: 'eigo', rank: 2, line: 'star', stage: 2, evo: 'star-king', colors: { A: '#FFD166', B: '#C98F1B' } },
+    { id: 'sun', name: 'サンサンドン', shape: 'sun', area: 'eigo', rank: 2, line: 'sun', stage: 1, evo: 'sun-king', colors: { A: '#FFD166', B: '#F2A24B', C: '#FF9DB0' } },
+    { id: 'moon', name: 'ミカヅキン', shape: 'moon', area: 'eigo', rank: 2, line: 'moon', stage: 1, evo: 'moon-king', colors: { A: '#FFE08A', B: '#E0B15C' } },
+    { id: 'rocket-red', name: 'ロケットン', shape: 'rocket', area: 'eigo', rank: 3, line: 'rocket', stage: 1, evo: 'rocket-blue', colors: { A: '#F4F6FA', B: '#C9CFDB', C: '#FF6B5A', D: '#4F8CFF' } },
+    { id: 'rocket-blue', name: 'アオロケットン', shape: 'rocket', area: 'eigo', rank: 3, line: 'rocket', stage: 2, evo: 'rocket-king', colors: { A: '#B3D9FF', B: '#8FB8E8', C: '#1F4FB0', D: '#FFD166' } },
+    { id: 'kite-red', name: 'カイトン', shape: 'kite', area: 'eigo', rank: 2, line: 'kite', stage: 1, evo: 'kite-blue', colors: { A: '#FF6B5A', B: '#FFD166' } },
+    { id: 'kite-blue', name: 'アオカイトン', shape: 'kite', area: 'eigo', rank: 2, line: 'kite', stage: 2, evo: 'kite-king', colors: { A: '#4F8CFF', B: '#FFD166' } },
+    { id: 'tornado-gray', name: 'グルグルン', shape: 'tornado', area: 'eigo', rank: 2, line: 'tornado', stage: 1, evo: 'tornado-storm', colors: { A: '#B8C4D6', B: '#8A97AB' } },
+    { id: 'tornado-storm', name: 'アラシグルン', shape: 'tornado', area: 'eigo', rank: 3, line: 'tornado', stage: 2, evo: 'tornado-king', colors: { A: '#6B7C9C', B: '#4A5568' } },
+    { id: 'butterfly-sky', name: 'ソラフラッタン', shape: 'butterfly', area: 'eigo', rank: 1, line: 'butterfly', stage: 2, evo: 'butterfly-king', colors: { A: '#8FD3FF', B: '#4FA3E0' } },
 
     { id: 'slime-golden', name: 'ゴールデンスライム', shape: 'slime', rare: true, colors: { A: '#FFD166', B: '#B8860B' } },
 
@@ -230,6 +230,54 @@ MQ.enemies = (function () {
     { id: 'mid-saucer', name: 'メガソーサー',   shape: 'midSaucer', area: 'eigo',       mid: true, rank: 3,
       colors: { A: '#8FA2C0', B: '#5A6480', e: '#7AE0FF', y: '#FFD166', w: '#FFFFFF', k: '#12121A' } },
 
+    /* ---------- v8.2 王さま形 44体（系統の 3段階め） ----------
+       色ちがいだった 88体を 44の 系統に して、その さいごの すがた。
+       相棒が Lv20 に なると この すがたに なる（1体だけの 系統は Lv10）。
+       ふつうの たたかいにも rank3 として 出る。絵は monsterart.js の <形>King。 */
+    { id: 'crystal-king', name: 'ジュエルオウ', shape: 'crystalKing', area: 'sansu', rank: 3, line: 'crystal', stage: 3, colors: { A: '#FF7A9C', B: '#C4365E' } },
+    { id: 'dice-king', name: 'ダイスロード', shape: 'diceKing', area: 'sansu', rank: 3, line: 'dice', stage: 3, colors: { A: '#FFD166', B: '#C98F1B', m: '#2A2A6E' } },
+    { id: 'eyeball-king', name: 'メダマダイオウ', shape: 'eyeballKing', area: 'sansu', rank: 3, line: 'eyeball', stage: 3, colors: { A: '#E8443A', B: '#8A1C16' } },
+    { id: 'golem-king', name: 'ガンセキオウ', shape: 'golemKing', area: 'sansu', rank: 3, line: 'golem', stage: 3, colors: { A: '#E8642C', B: '#7A2E0E', m: '#1F4FA8' } },
+    { id: 'lizard-king', name: 'サラマンドロ', shape: 'lizardKing', area: 'sansu', rank: 3, line: 'lizard', stage: 3, colors: { A: '#F26B2B', B: '#FFD27A', m: '#7A1F1F' } },
+    { id: 'mole-king', name: 'ドリルオウ', shape: 'moleKing', area: 'sansu', rank: 3, line: 'mole', stage: 3, colors: { A: '#8A5A3C', B: '#C9A06B' } },
+    { id: 'robot-king', name: 'メカテイオウ', shape: 'robotKing', area: 'sansu', rank: 3, line: 'robot', stage: 3, colors: { A: '#FF8A5A', B: '#7A2E0E', m: '#B01840' } },
+    { id: 'scorpion-king', name: 'ドクバリロード', shape: 'scorpionKing', area: 'sansu', rank: 3, line: 'scorpion', stage: 3, colors: { A: '#4A4A5E', B: '#26263A' } },
+    { id: 'skull-king', name: 'ホネノミカド', shape: 'skullKing', area: 'sansu', rank: 3, line: 'skull', stage: 3, colors: { A: '#FFD166', B: '#C98F1B', m: '#3A1F5A' } },
+    { id: 'snake-king', name: 'ジャドクオウ', shape: 'snakeKing', area: 'sansu', rank: 3, line: 'snake', stage: 3, colors: { A: '#8A4FD1', B: '#4A2380' } },
+    { id: 'turtle-king', name: 'コウラダイオウ', shape: 'turtleKing', area: 'sansu', rank: 3, line: 'turtle', stage: 3, colors: { A: '#7A2E0E', B: '#E8642C', m: '#3E6A4A', g2: '#7ED957' } },
+    { id: 'wolf-king', name: 'ガルムオウ', shape: 'wolfKing', area: 'sansu', rank: 3, line: 'wolf', stage: 3, colors: { A: '#5A4A80', B: '#C9BCE6', m: '#B01840' } },
+    { id: 'bat-king', name: 'ヨルノヌシ', shape: 'batKing', area: 'kokugo', rank: 3, line: 'bat', stage: 3, colors: { A: '#8A4FD1', B: '#4A2380' } },
+    { id: 'bee-king', name: 'ハチノジョオウ', shape: 'beeKing', area: 'kokugo', rank: 3, line: 'bee', stage: 3, colors: { A: '#FF6B5A', B: '#A83224' } },
+    { id: 'butterfly-king', name: 'ハネノミカド', shape: 'butterflyKing', area: 'kokugo', rank: 3, line: 'butterfly', stage: 3, colors: { A: '#8FD3FF', B: '#4FA3E0' } },
+    { id: 'fox-king', name: 'ヨウコオウ', shape: 'foxKing', area: 'kokugo', rank: 3, line: 'fox', stage: 3, colors: { A: '#E6ECF5', B: '#FFFFFF', m: '#C2185B' } },
+    { id: 'frog-king', name: 'カエルダイオウ', shape: 'frogKing', area: 'kokugo', rank: 3, line: 'frog', stage: 3, colors: { A: '#4F8CFF', B: '#B3D9FF', g2: '#7ED957' } },
+    { id: 'hedgehog-king', name: 'トゲトゲロード', shape: 'hedgehogKing', area: 'kokugo', rank: 3, line: 'hedgehog', stage: 3, colors: { A: '#E6ECF5', B: '#4F6FB8' } },
+    { id: 'mushroom-king', name: 'キノコダイオウ', shape: 'mushroomKing', area: 'kokugo', rank: 3, line: 'mushroom', stage: 3, colors: { A: '#8A4FD1', B: '#FFD166', m: '#1F7A4F' } },
+    { id: 'owl-king', name: 'モリノケンジャ', shape: 'owlKing', area: 'kokugo', rank: 3, line: 'owl', stage: 3, colors: { A: '#EDEEF5', B: '#C9CFDB', g2: '#7ED957' } },
+    { id: 'slime-king', name: '王さまスライム', shape: 'slimeKing', area: 'kokugo', rank: 3, line: 'slime', stage: 3, colors: { A: '#FF5A5A', B: '#A82424', m: '#7A1FA8' } },
+    { id: 'snail-king', name: 'デンデンミカド', shape: 'snailKing', area: 'kokugo', rank: 3, line: 'snail', stage: 3, colors: { A: '#8A4FD1', B: '#4A2380', m: '#F2A24B' } },
+    { id: 'spider-king', name: 'アミノヌシ', shape: 'spiderKing', area: 'kokugo', rank: 3, line: 'spider', stage: 3, colors: { A: '#3A3A4A', B: '#1C1C28' } },
+    { id: 'tree-king', name: 'タイジュオウ', shape: 'treeKing', area: 'kokugo', rank: 3, line: 'tree', stage: 3, colors: { A: '#E8853A', B: '#B34E14', g2: '#7ED957' } },
+    { id: 'angler-king', name: 'シンカイノヌシ', shape: 'anglerKing', area: 'rikashakai', rank: 3, line: 'angler', stage: 3, colors: { A: '#2B2B3A', B: '#4A4A5E' } },
+    { id: 'crab-king', name: 'ハサミダイオウ', shape: 'crabKing', area: 'rikashakai', rank: 3, line: 'crab', stage: 3, colors: { A: '#3E9A6B', B: '#1E5A3C' } },
+    { id: 'fish-king', name: 'サカナダイオウ', shape: 'fishKing', area: 'rikashakai', rank: 3, line: 'fish', stage: 3, colors: { A: '#FF6B5A', B: '#FFC9A8' } },
+    { id: 'ghost-king', name: 'ユウレイロード', shape: 'ghostKing', area: 'rikashakai', rank: 3, line: 'ghost', stage: 3, colors: { A: '#EDEEF5', B: '#B9BCCF', m: '#4A3A7A' } },
+    { id: 'jelly-king', name: 'デンキノヌシ', shape: 'jellyKing', area: 'rikashakai', rank: 3, line: 'jelly', stage: 3, colors: { A: '#FFD166', B: '#C98F1B' } },
+    { id: 'penguin-king', name: 'コオリノテイオウ', shape: 'penguinKing', area: 'rikashakai', rank: 3, line: 'penguin', stage: 3, colors: { A: '#8FD3FF', B: '#4FA3E0', m: '#1F4FA8' } },
+    { id: 'puffer-king', name: 'フクラミオウ', shape: 'pufferKing', area: 'rikashakai', rank: 3, line: 'puffer', stage: 3, colors: { A: '#8A4FD1', B: '#4A2380' } },
+    { id: 'seahorse-king', name: 'タツノミカド', shape: 'seahorseKing', area: 'rikashakai', rank: 3, line: 'seahorse', stage: 3, colors: { A: '#FFD166', B: '#FFF0B8' } },
+    { id: 'shark-king', name: 'キバノヌシ', shape: 'sharkKing', area: 'rikashakai', rank: 3, line: 'shark', stage: 3, colors: { A: '#8FA6C0', B: '#5A6A80' } },
+    { id: 'star-king', name: 'ホシノオウ', shape: 'starKing', area: 'rikashakai', rank: 3, line: 'star', stage: 3, colors: { A: '#FFD166', B: '#C98F1B' } },
+    { id: 'tako-king', name: 'タコダイオウ', shape: 'takoKing', area: 'rikashakai', rank: 3, line: 'tako', stage: 3, colors: { A: '#8A4FD1', B: '#4A2380' } },
+    { id: 'balloon-king', name: 'フワフワミカド', shape: 'balloonKing', area: 'eigo', rank: 3, line: 'balloon', stage: 3, colors: { A: '#8FD3FF', B: '#4FA3E0' } },
+    { id: 'bird-king', name: 'ソラノテイオウ', shape: 'birdKing', area: 'eigo', rank: 3, line: 'bird', stage: 3, colors: { A: '#4F8CFF', B: '#1F4FB0' } },
+    { id: 'cloud-king', name: 'カミナリオウ', shape: 'cloudKing', area: 'eigo', rank: 3, line: 'cloud', stage: 3, colors: { A: '#6B7C9C', B: '#3A4558' } },
+    { id: 'kite-king', name: 'カゼノロード', shape: 'kiteKing', area: 'eigo', rank: 3, line: 'kite', stage: 3, colors: { A: '#4F8CFF', B: '#FFD166', m: '#E8853A' } },
+    { id: 'moon-king', name: 'ツキノミカド', shape: 'moonKing', area: 'eigo', rank: 3, line: 'moon', stage: 3, colors: { A: '#FFE08A', B: '#E0B15C' } },
+    { id: 'rocket-king', name: 'ロケットオウ', shape: 'rocketKing', area: 'eigo', rank: 3, line: 'rocket', stage: 3, colors: { A: '#B3D9FF', B: '#8FB8E8' } },
+    { id: 'sun-king', name: 'タイヨウオウ', shape: 'sunKing', area: 'eigo', rank: 3, line: 'sun', stage: 3, colors: { A: '#FFD166', B: '#F2A24B' } },
+    { id: 'tornado-king', name: 'アラシノヌシ', shape: 'tornadoKing', area: 'eigo', rank: 3, line: 'tornado', stage: 3, colors: { A: '#6B7C9C', B: '#4A5568' } },
+    { id: 'ufo-king', name: 'ユーフォオウ', shape: 'ufoKing', area: 'eigo', rank: 3, line: 'ufo', stage: 3, colors: { A: '#FF6B5A', B: '#4A4A5E' } },
     /* たからばこ（敵あつかい だが 図鑑には のせない） */
     { id: 'chest', name: 'たからばこ', shape: 'chest', hidden: true,
       colors: { p: '#A6753F', P: '#7A5326', y: '#F2C14E' } }
@@ -371,7 +419,8 @@ MQ.enemies = (function () {
     areaId = poolArea(areaId);
     const own = list.filter(function (e) { return e.rare && e.area === areaId && !e.trio; })
                     .map(function (e) { return e.id; });
-    const mine = customs.filter(function (e) { return e.area === areaId; }).map(function (e) { return e.id; });
+    // 2・3段階めは 進化でしか 出ない（v8.2）
+    const mine = customs.filter(function (e) { return e.area === areaId && !e.evoOnly; }).map(function (e) { return e.id; });
     return own.concat(mine);
   }
 
@@ -395,10 +444,26 @@ MQ.enemies = (function () {
 
   /* 写真から 作った モンスターを 敵として つかえるように する。
      プレイヤーを 切りかえるたびに 呼ぶ。 */
+  /* じぶんの モンスターも 3段階に 育つ（v8.2）。
+     png2 / png3（つの・かんむりを つけた 絵）が あれば、その子だけの 系統を 作る：
+       〇〇 → つよい 〇〇（Lv10）→ でんせつの 〇〇（Lv20）
+     2・3段階めは **ふつうの たたかいには 出ない**（evoOnly）。図かんには のる。
+     むかしの セーブ（png だけ）は いままで どおり 1体の まま。 */
   function setCustom(monList) {
     customs.forEach(function (m) { delete byId[m.id]; });
-    customs = (monList || []).map(function (m) {
-      return { id: m.id, name: m.name, area: m.area, png: m.png, rare: true, by: 'photo' };
+    customs = [];
+    (monList || []).forEach(function (m) {
+      const line = 'my-' + m.id;
+      const grown = !!(m.png2 && m.png3);
+      customs.push({
+        id: m.id, name: m.name, area: m.area, png: m.png, rare: true, by: 'photo',
+        line: grown ? line : null, stage: grown ? 1 : null, evo: grown ? m.id + '-2' : null
+      });
+      if (!grown) return;
+      customs.push({ id: m.id + '-2', name: 'つよい ' + m.name, area: m.area, png: m.png2, rare: true, by: 'photo',
+                     line: line, stage: 2, evo: m.id + '-3', evoOnly: true });
+      customs.push({ id: m.id + '-3', name: 'でんせつの ' + m.name, area: m.area, png: m.png3, rare: true, by: 'photo',
+                     line: line, stage: 3, evoOnly: true });
     });
     customs.forEach(function (m) { byId[m.id] = m; });
   }

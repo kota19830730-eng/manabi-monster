@@ -742,7 +742,8 @@ MQ.ui.battle = (function () {
   // いまの 相棒（core に わたす ぶん）
   function palOf(player) {
     const cur = MQ.pals ? MQ.pals.active(player) : null;
-    return cur ? { id: cur.id, name: cur.name, lv: cur.lv } : null;
+    // 追い打ちの つよさは 段階で 変わる（v8.2）
+    return cur ? { id: cur.id, name: cur.name, lv: cur.lv, stage: (cur.enemy && cur.enemy.stage) || 1, power: MQ.pals.power(player) } : null;
   }
 
   function bagOf(player) { return MQ.treasure.bagItems(player); }

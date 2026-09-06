@@ -1,0 +1,1123 @@
+[
+ {
+  "shape": "balloon",
+  "members": [
+   {
+    "id": "balloon-pink",
+    "name": "フワリン",
+    "area": "eigo",
+    "rank": 1,
+    "colors": {
+     "A": "#FF9DB0",
+     "B": "#E06080",
+     "C": "#FF5A7A"
+    }
+   },
+   {
+    "id": "balloon-sky",
+    "name": "ソラフワリン",
+    "area": "eigo",
+    "rank": 1,
+    "colors": {
+     "A": "#8FD3FF",
+     "B": "#4FA3E0",
+     "C": "#FF9DB0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "bird",
+  "members": [
+   {
+    "id": "bird-yellow",
+    "name": "ピヨリン",
+    "area": "eigo",
+    "rank": 1,
+    "colors": {
+     "A": "#FFD166",
+     "B": "#F2A24B",
+     "C": "#FFF0B8"
+    }
+   },
+   {
+    "id": "bird-blue",
+    "name": "アオピヨリン",
+    "area": "eigo",
+    "rank": 2,
+    "colors": {
+     "A": "#4F8CFF",
+     "B": "#1F4FB0",
+     "C": "#B3D9FF"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "cloud",
+  "members": [
+   {
+    "id": "cloud-white",
+    "name": "クラウドン",
+    "area": "eigo",
+    "rank": 1,
+    "colors": {
+     "A": "#EDEEF5"
+    }
+   },
+   {
+    "id": "cloud-thunder",
+    "name": "ゴロゴロクン",
+    "area": "eigo",
+    "rank": 3,
+    "colors": {
+     "A": "#6B7C9C",
+     "y": "#FFD166"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "kite",
+  "members": [
+   {
+    "id": "kite-red",
+    "name": "カイトン",
+    "area": "eigo",
+    "rank": 2,
+    "colors": {
+     "A": "#FF6B5A",
+     "B": "#FFD166"
+    }
+   },
+   {
+    "id": "kite-blue",
+    "name": "アオカイトン",
+    "area": "eigo",
+    "rank": 2,
+    "colors": {
+     "A": "#4F8CFF",
+     "B": "#FFD166"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "moon",
+  "members": [
+   {
+    "id": "moon",
+    "name": "ミカヅキン",
+    "area": "eigo",
+    "rank": 2,
+    "colors": {
+     "A": "#FFE08A",
+     "B": "#E0B15C"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "rocket",
+  "members": [
+   {
+    "id": "rocket-red",
+    "name": "ロケットン",
+    "area": "eigo",
+    "rank": 3,
+    "colors": {
+     "A": "#F4F6FA",
+     "B": "#C9CFDB",
+     "C": "#FF6B5A",
+     "D": "#4F8CFF"
+    }
+   },
+   {
+    "id": "rocket-blue",
+    "name": "アオロケットン",
+    "area": "eigo",
+    "rank": 3,
+    "colors": {
+     "A": "#B3D9FF",
+     "B": "#8FB8E8",
+     "C": "#1F4FB0",
+     "D": "#FFD166"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "sun",
+  "members": [
+   {
+    "id": "sun",
+    "name": "サンサンドン",
+    "area": "eigo",
+    "rank": 2,
+    "colors": {
+     "A": "#FFD166",
+     "B": "#F2A24B",
+     "C": "#FF9DB0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "tornado",
+  "members": [
+   {
+    "id": "tornado-gray",
+    "name": "グルグルン",
+    "area": "eigo",
+    "rank": 2,
+    "colors": {
+     "A": "#B8C4D6",
+     "B": "#8A97AB"
+    }
+   },
+   {
+    "id": "tornado-storm",
+    "name": "アラシグルン",
+    "area": "eigo",
+    "rank": 3,
+    "colors": {
+     "A": "#6B7C9C",
+     "B": "#4A5568"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "ufo",
+  "members": [
+   {
+    "id": "ufo-silver",
+    "name": "ユーフォン",
+    "area": "eigo",
+    "rank": 2,
+    "colors": {
+     "A": "#4CD164",
+     "B": "#B8C4D6",
+     "C": "#8FD3FF"
+    }
+   },
+   {
+    "id": "ufo-dark",
+    "name": "ダークユーフォン",
+    "area": "eigo",
+    "rank": 3,
+    "colors": {
+     "A": "#FF6B5A",
+     "B": "#4A4A5E",
+     "C": "#C9A8F0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "bat",
+  "members": [
+   {
+    "id": "bat-black",
+    "name": "バット",
+    "area": "kokugo",
+    "rank": 2,
+    "colors": {
+     "A": "#3A3A4A",
+     "B": "#22222E"
+    }
+   },
+   {
+    "id": "bat-purple",
+    "name": "ダークバット",
+    "area": "eigo",
+    "rank": 3,
+    "colors": {
+     "A": "#8A4FD1",
+     "B": "#4A2380"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "bee",
+  "members": [
+   {
+    "id": "bee-yellow",
+    "name": "ブンバチン",
+    "area": "kokugo",
+    "rank": 1,
+    "colors": {
+     "A": "#FFD166"
+    }
+   },
+   {
+    "id": "bee-red",
+    "name": "アカバチン",
+    "area": "kokugo",
+    "rank": 3,
+    "colors": {
+     "A": "#FF6B5A"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "butterfly",
+  "members": [
+   {
+    "id": "butterfly-pink",
+    "name": "フラッタン",
+    "area": "kokugo",
+    "rank": 1,
+    "colors": {
+     "A": "#FF7A9C",
+     "B": "#C4365E"
+    }
+   },
+   {
+    "id": "butterfly-sky",
+    "name": "ソラフラッタン",
+    "area": "eigo",
+    "rank": 1,
+    "colors": {
+     "A": "#8FD3FF",
+     "B": "#4FA3E0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "fox",
+  "members": [
+   {
+    "id": "fox-orange",
+    "name": "コンゴン",
+    "area": "kokugo",
+    "rank": 2,
+    "colors": {
+     "A": "#F2A24B",
+     "B": "#FFF3E0",
+     "C": "#FF9DB0"
+    }
+   },
+   {
+    "id": "fox-white",
+    "name": "ユキコンゴン",
+    "area": "kokugo",
+    "rank": 3,
+    "colors": {
+     "A": "#E6ECF5",
+     "B": "#FFFFFF",
+     "C": "#FF9DB0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "frog",
+  "members": [
+   {
+    "id": "frog-green",
+    "name": "ケロッポ",
+    "area": "kokugo",
+    "rank": 1,
+    "colors": {
+     "A": "#4CD164",
+     "B": "#C9F0A8",
+     "C": "#FF9DB0"
+    }
+   },
+   {
+    "id": "frog-blue",
+    "name": "アメケロン",
+    "area": "kokugo",
+    "rank": 2,
+    "colors": {
+     "A": "#4F8CFF",
+     "B": "#B3D9FF",
+     "C": "#FF9DB0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "hedgehog",
+  "members": [
+   {
+    "id": "hedgehog-brown",
+    "name": "ハリマル",
+    "area": "kokugo",
+    "rank": 2,
+    "colors": {
+     "A": "#F2E2C4",
+     "B": "#8A5A3C",
+     "C": "#FF9DB0"
+    }
+   },
+   {
+    "id": "hedgehog-blue",
+    "name": "トゲマル",
+    "area": "kokugo",
+    "rank": 3,
+    "colors": {
+     "A": "#E6ECF5",
+     "B": "#4F6FB8",
+     "C": "#FF9DB0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "mushroom",
+  "members": [
+   {
+    "id": "mush-red",
+    "name": "キノコン",
+    "area": "kokugo",
+    "rank": 1,
+    "colors": {
+     "A": "#FF5A5A",
+     "B": "#FFFFFF",
+     "C": "#F2E2C4"
+    }
+   },
+   {
+    "id": "mush-purple",
+    "name": "ドクキノコン",
+    "area": "kokugo",
+    "rank": 3,
+    "colors": {
+     "A": "#8A4FD1",
+     "B": "#FFD166",
+     "C": "#F2E2C4"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "owl",
+  "members": [
+   {
+    "id": "owl-brown",
+    "name": "フクロン",
+    "area": "kokugo",
+    "rank": 2,
+    "colors": {
+     "A": "#8A5A3C",
+     "B": "#C9A06B"
+    }
+   },
+   {
+    "id": "owl-white",
+    "name": "シロフクロン",
+    "area": "kokugo",
+    "rank": 3,
+    "colors": {
+     "A": "#EDEEF5",
+     "B": "#C9CFDB"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "slime",
+  "members": [
+   {
+    "id": "slime-green",
+    "name": "スライム",
+    "area": "kokugo",
+    "rank": 1,
+    "colors": {
+     "A": "#4CD164",
+     "B": "#1E7A3C"
+    }
+   },
+   {
+    "id": "slime-blue",
+    "name": "ブルースライム",
+    "area": "rikashakai",
+    "rank": 1,
+    "colors": {
+     "A": "#4F8CFF",
+     "B": "#1F4FB0"
+    }
+   },
+   {
+    "id": "slime-sky",
+    "name": "ソラスライム",
+    "area": "eigo",
+    "rank": 1,
+    "colors": {
+     "A": "#8FD3FF",
+     "B": "#4FA3E0"
+    }
+   },
+   {
+    "id": "slime-red",
+    "name": "レッドスライム",
+    "area": "kokugo",
+    "rank": 2,
+    "colors": {
+     "A": "#FF5A5A",
+     "B": "#A82424"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "snail",
+  "members": [
+   {
+    "id": "snail-orange",
+    "name": "デンデロン",
+    "area": "kokugo",
+    "rank": 1,
+    "colors": {
+     "A": "#F2A24B",
+     "B": "#B36A1B",
+     "C": "#F2E2C4"
+    }
+   },
+   {
+    "id": "snail-purple",
+    "name": "ドクデンデロン",
+    "area": "kokugo",
+    "rank": 3,
+    "colors": {
+     "A": "#8A4FD1",
+     "B": "#4A2380",
+     "C": "#C9F0A8"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "spider",
+  "members": [
+   {
+    "id": "spider-green",
+    "name": "モリグモ",
+    "area": "kokugo",
+    "rank": 2,
+    "colors": {
+     "A": "#3E9A6B"
+    }
+   },
+   {
+    "id": "spider-black",
+    "name": "スパイダー",
+    "area": "kokugo",
+    "rank": 3,
+    "colors": {
+     "A": "#3A3A4A"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "tree",
+  "members": [
+   {
+    "id": "tree-green",
+    "name": "ツリーン",
+    "area": "kokugo",
+    "rank": 2,
+    "colors": {
+     "A": "#3E9A6B",
+     "B": "#1E5A3C",
+     "C": "#8A5A3C"
+    }
+   },
+   {
+    "id": "tree-autumn",
+    "name": "モミジーン",
+    "area": "kokugo",
+    "rank": 3,
+    "colors": {
+     "A": "#E8853A",
+     "B": "#B34E14",
+     "C": "#6B4A2E"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "angler",
+  "members": [
+   {
+    "id": "angler-navy",
+    "name": "チカリン",
+    "area": "rikashakai",
+    "rank": 3,
+    "colors": {
+     "A": "#2F4A8C",
+     "B": "#4F6FB8"
+    }
+   },
+   {
+    "id": "angler-black",
+    "name": "クロチカリン",
+    "area": "rikashakai",
+    "rank": 3,
+    "colors": {
+     "A": "#2B2B3A",
+     "B": "#4A4A5E"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "crab",
+  "members": [
+   {
+    "id": "crab-red",
+    "name": "カニカニ",
+    "area": "rikashakai",
+    "rank": 2,
+    "colors": {
+     "A": "#FF5A5A",
+     "B": "#A82424"
+    }
+   },
+   {
+    "id": "crab-green",
+    "name": "イソガニン",
+    "area": "rikashakai",
+    "rank": 2,
+    "colors": {
+     "A": "#3E9A6B",
+     "B": "#1E5A3C"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "fish",
+  "members": [
+   {
+    "id": "fish-blue",
+    "name": "トトマル",
+    "area": "rikashakai",
+    "rank": 1,
+    "colors": {
+     "A": "#4F8CFF",
+     "B": "#B3D9FF",
+     "C": "#FFD166"
+    }
+   },
+   {
+    "id": "fish-red",
+    "name": "アカトトマル",
+    "area": "rikashakai",
+    "rank": 2,
+    "colors": {
+     "A": "#FF6B5A",
+     "B": "#FFC9A8",
+     "C": "#FFD166"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "ghost",
+  "members": [
+   {
+    "id": "ghost-blue",
+    "name": "アイスゴースト",
+    "area": "rikashakai",
+    "rank": 2,
+    "colors": {
+     "A": "#8FD3FF",
+     "B": "#4FA3E0"
+    }
+   },
+   {
+    "id": "ghost-white",
+    "name": "ゴースト",
+    "area": "eigo",
+    "rank": 2,
+    "colors": {
+     "A": "#EDEEF5",
+     "B": "#B9BCCF"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "jelly",
+  "members": [
+   {
+    "id": "jelly-pink",
+    "name": "プルリン",
+    "area": "rikashakai",
+    "rank": 1,
+    "colors": {
+     "A": "#FF9DB0",
+     "B": "#E06080"
+    }
+   },
+   {
+    "id": "jelly-elec",
+    "name": "エレキプルリン",
+    "area": "rikashakai",
+    "rank": 3,
+    "colors": {
+     "A": "#FFD166",
+     "B": "#C98F1B"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "penguin",
+  "members": [
+   {
+    "id": "penguin-navy",
+    "name": "ペンペコ",
+    "area": "rikashakai",
+    "rank": 1,
+    "colors": {
+     "A": "#3A4A6E"
+    }
+   },
+   {
+    "id": "penguin-ice",
+    "name": "アイスペコ",
+    "area": "rikashakai",
+    "rank": 2,
+    "colors": {
+     "A": "#8FD3FF"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "puffer",
+  "members": [
+   {
+    "id": "puffer-yellow",
+    "name": "フグマル",
+    "area": "rikashakai",
+    "rank": 2,
+    "colors": {
+     "A": "#FFD166",
+     "B": "#C98F1B",
+     "C": "#FFF0B8"
+    }
+   },
+   {
+    "id": "puffer-purple",
+    "name": "ドクフグマル",
+    "area": "rikashakai",
+    "rank": 3,
+    "colors": {
+     "A": "#8A4FD1",
+     "B": "#4A2380",
+     "C": "#C9A8F0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "seahorse",
+  "members": [
+   {
+    "id": "seahorse-green",
+    "name": "タツリン",
+    "area": "rikashakai",
+    "rank": 1,
+    "colors": {
+     "A": "#3E9A6B",
+     "B": "#C9F0A8"
+    }
+   },
+   {
+    "id": "seahorse-gold",
+    "name": "キンタツリン",
+    "area": "rikashakai",
+    "rank": 3,
+    "colors": {
+     "A": "#FFD166",
+     "B": "#FFF0B8"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "shark",
+  "members": [
+   {
+    "id": "shark-gray",
+    "name": "サメゾー",
+    "area": "rikashakai",
+    "rank": 3,
+    "colors": {
+     "A": "#8FA6C0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "star",
+  "members": [
+   {
+    "id": "star-orange",
+    "name": "ホシデン",
+    "area": "rikashakai",
+    "rank": 1,
+    "colors": {
+     "A": "#F2A24B",
+     "B": "#C4702B"
+    }
+   },
+   {
+    "id": "star-blue",
+    "name": "アオホシデン",
+    "area": "rikashakai",
+    "rank": 2,
+    "colors": {
+     "A": "#4F8CFF",
+     "B": "#1F4FB0"
+    }
+   },
+   {
+    "id": "star-gold",
+    "name": "ピカボシ",
+    "area": "eigo",
+    "rank": 2,
+    "colors": {
+     "A": "#FFD166",
+     "B": "#C98F1B"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "tako",
+  "members": [
+   {
+    "id": "tako-red",
+    "name": "オクトパン",
+    "area": "rikashakai",
+    "rank": 2,
+    "colors": {
+     "A": "#FF7A6B"
+    }
+   },
+   {
+    "id": "tako-purple",
+    "name": "ドクタコン",
+    "area": "rikashakai",
+    "rank": 3,
+    "colors": {
+     "A": "#8A4FD1"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "crystal",
+  "members": [
+   {
+    "id": "crystal-blue",
+    "name": "クリスタルン",
+    "area": "sansu",
+    "rank": 1,
+    "colors": {
+     "A": "#8FD3FF",
+     "B": "#4FA3E0"
+    }
+   },
+   {
+    "id": "crystal-pink",
+    "name": "ルビリン",
+    "area": "sansu",
+    "rank": 2,
+    "colors": {
+     "A": "#FF7A9C",
+     "B": "#C4365E"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "dice",
+  "members": [
+   {
+    "id": "dice-white",
+    "name": "サイコロン",
+    "area": "sansu",
+    "rank": 1,
+    "colors": {
+     "A": "#F4F6FA",
+     "B": "#B9C2D4",
+     "P": "#2B3350"
+    }
+   },
+   {
+    "id": "dice-gold",
+    "name": "キンサイコロン",
+    "area": "sansu",
+    "rank": 2,
+    "colors": {
+     "A": "#FFD166",
+     "B": "#C98F1B",
+     "P": "#6B4A0E"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "eyeball",
+  "members": [
+   {
+    "id": "eyeball",
+    "name": "アイボール",
+    "area": "sansu",
+    "rank": 1,
+    "colors": {
+     "A": "#2F6FD0"
+    }
+   },
+   {
+    "id": "eyeball-red",
+    "name": "レッドアイ",
+    "area": "eigo",
+    "rank": 3,
+    "colors": {
+     "A": "#E8443A"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "golem",
+  "members": [
+   {
+    "id": "golem-gray",
+    "name": "ゴーレム",
+    "area": "sansu",
+    "rank": 2,
+    "colors": {
+     "A": "#9AA7B8",
+     "B": "#5A6A80"
+    }
+   },
+   {
+    "id": "golem-lava",
+    "name": "マグマゴーレム",
+    "area": "sansu",
+    "rank": 3,
+    "colors": {
+     "A": "#E8642C",
+     "B": "#7A2E0E"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "lizard",
+  "members": [
+   {
+    "id": "lizard-green",
+    "name": "リザード",
+    "area": "sansu",
+    "rank": 2,
+    "colors": {
+     "A": "#3E9A6B",
+     "B": "#C9F0A8"
+    }
+   },
+   {
+    "id": "lizard-fire",
+    "name": "ファイアリザード",
+    "area": "sansu",
+    "rank": 3,
+    "colors": {
+     "A": "#F26B2B",
+     "B": "#FFD27A"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "mole",
+  "members": [
+   {
+    "id": "mole",
+    "name": "モグラン",
+    "area": "sansu",
+    "rank": 1,
+    "colors": {
+     "A": "#8A5A3C",
+     "B": "#C9A06B",
+     "C": "#FF9DB0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "robot",
+  "members": [
+   {
+    "id": "robot-gray",
+    "name": "ロボ",
+    "area": "sansu",
+    "rank": 2,
+    "colors": {
+     "A": "#B8C4D6",
+     "B": "#4A5568"
+    }
+   },
+   {
+    "id": "robot-red",
+    "name": "メカロボ",
+    "area": "sansu",
+    "rank": 3,
+    "colors": {
+     "A": "#FF8A5A",
+     "B": "#7A2E0E"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "scorpion",
+  "members": [
+   {
+    "id": "scorpion-sand",
+    "name": "サソリン",
+    "area": "sansu",
+    "rank": 2,
+    "colors": {
+     "A": "#E0B15C",
+     "B": "#9C742E"
+    }
+   },
+   {
+    "id": "scorpion-black",
+    "name": "ダークサソリン",
+    "area": "sansu",
+    "rank": 3,
+    "colors": {
+     "A": "#4A4A5E",
+     "B": "#26263A"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "skull",
+  "members": [
+   {
+    "id": "skull-white",
+    "name": "スカル",
+    "area": "sansu",
+    "rank": 2,
+    "colors": {
+     "A": "#F2F2F2"
+    }
+   },
+   {
+    "id": "skull-gold",
+    "name": "ゴールドスカル",
+    "area": "sansu",
+    "rank": 3,
+    "colors": {
+     "A": "#FFD166"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "snake",
+  "members": [
+   {
+    "id": "snake-green",
+    "name": "ヘビゴン",
+    "area": "sansu",
+    "rank": 1,
+    "colors": {
+     "A": "#4CD164",
+     "B": "#1E7A3C"
+    }
+   },
+   {
+    "id": "snake-purple",
+    "name": "ドクヘビゴン",
+    "area": "sansu",
+    "rank": 3,
+    "colors": {
+     "A": "#8A4FD1",
+     "B": "#4A2380"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "turtle",
+  "members": [
+   {
+    "id": "turtle-rock",
+    "name": "イワガメン",
+    "area": "sansu",
+    "rank": 2,
+    "colors": {
+     "A": "#9AA7B8",
+     "B": "#5A6A80",
+     "C": "#C9A06B"
+    }
+   },
+   {
+    "id": "turtle-lava",
+    "name": "マグマガメン",
+    "area": "sansu",
+    "rank": 3,
+    "colors": {
+     "A": "#7A2E0E",
+     "B": "#E8642C",
+     "C": "#4A4A5E"
+    }
+   },
+   {
+    "id": "turtle-sea",
+    "name": "ウミガメン",
+    "area": "rikashakai",
+    "rank": 3,
+    "colors": {
+     "A": "#3E9A6B",
+     "B": "#1E5A3C",
+     "C": "#A8E6C0"
+    }
+   }
+  ]
+ },
+ {
+  "shape": "wolf",
+  "members": [
+   {
+    "id": "wolf-gray",
+    "name": "ウルフン",
+    "area": "sansu",
+    "rank": 2,
+    "colors": {
+     "A": "#9AA7B8",
+     "B": "#E6ECF5",
+     "C": "#FF9DB0"
+    }
+   },
+   {
+    "id": "wolf-dark",
+    "name": "ヤミウルフン",
+    "area": "sansu",
+    "rank": 3,
+    "colors": {
+     "A": "#5A4A80",
+     "B": "#C9BCE6",
+     "C": "#FF9DB0"
+    }
+   }
+  ]
+ }
+]

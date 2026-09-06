@@ -1109,7 +1109,8 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
 
 /* ---------- v4.2 あたらしい 51体（17系統 × 3段階・相棒に できる） ---------- */
 (function () {
-  const L = MQ.enemies.list.filter(function (e) { return e.line; });
+  // v8.2 で 系統が ふえた ので、ここは v4.2 の 17系統（id が -1/-2/-3）だけを 見る
+  const L = MQ.enemies.list.filter(function (e) { return e.line && /-[123]$/.test(e.id); });
   check(L.length === 51, 'あたらしい モンスターは 51体（' + L.length + '）');
   const lines = {};
   L.forEach(function (e) { (lines[e.line] = lines[e.line] || []).push(e); });
@@ -1138,7 +1139,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 164, '図かんは 164体（' + dex + '）');   // v8.1 で 中ボス 8体（156 → 164）
+  check(dex === 208, '図かんは 208体（' + dex + '）');   // v8.2 で 王さま形 44体（164 → 208）
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -1149,6 +1150,64 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
     });
     check(MQ.enemies.pickIds(a, 12, 0.5).length === 12, a + ' の 顔ぶれが 12体 えらべる');
   });
+  /* ---- v8.2 王さま形（3段階め）と 系統 ---- */
+  const kings = MQ.enemies.list.filter(function (e) { return /-king$/.test(e.id); });
+  check(kings.length === 44, '王さま形は 44体（' + kings.length + '）');
+  check(kings.every(function (e) { return e.stage === 3 && e.line && !e.evo && e.rank === 3; }), '王さまは 3段階め・rank3・つぎは ない');
+  check(kings.every(function (e) { return !!MQ.enemies.shapes[e.shape]; }), '王さまの 絵が ぜんぶ ある');
+  // むかしから いる 88体は ぜんぶ 系統に 入って 進化する（中ボスと レアは のぞく）
+  const plain = MQ.enemies.list.filter(function (e) { return !e.mid && !e.rare && !e.hidden && e.id !== 'chest'; });
+  const noEvo = plain.filter(function (e) { return !e.evo && e.stage !== 3; });
+  check(noEvo.length === 0, '系統に 入って いない モンスターが ない（' + noEvo.map(function (e) { return e.name; }).join('・') + '）');
+  // 中ボス（v8.1）は 系統に 入れない（claude-36 の たのみ）
+  check(MQ.enemies.list.filter(function (e) { return e.mid; }).every(function (e) { return !e.line && !e.stage && !e.evo; }), '中ボスに 系統は つけない');
+  // evo の 行き先が ある・ぐるぐる 回らない
+  let evoBad = 0, evoLoop = 0;
+  MQ.enemies.list.forEach(function (e) {
+    if (!e.evo) return;
+    const to = MQ.enemies.get(e.evo);
+    if (!to) { evoBad++; return; }
+    if (to.line !== e.line || (to.stage || 0) <= (e.stage || 0)) evoLoop++;
+  });
+  check(evoBad === 0, '進化の 行き先が ぜんぶ ある');
+  check(evoLoop === 0, '進化は 同じ 系統で 1段ずつ 上がる');
+  // 追い打ちの つよさ（v8.2）
+  check(MQ.pals.POWER[1].xp === 10 && MQ.pals.POWER[2].xp === 15 && MQ.pals.POWER[3].dmg === 2, '追い打ちは 段階で 強く なる');
+
+  /* ---- v8.2 じぶんの モンスターも 3段階（写真・ドット絵）---- */
+  MQ.enemies.setCustom([{ id: 'my-1', name: 'ドラゴンくん', area: 'sansu', png: 'data:1', png2: 'data:2', png3: 'data:3' },
+                        { id: 'my-2', name: 'ふるいの', area: 'kokugo', png: 'data:x' }]);
+  const c1 = MQ.enemies.get('my-1'), c2 = MQ.enemies.get('my-1-2'), c3 = MQ.enemies.get('my-1-3');
+  check(!!c1 && !!c2 && !!c3, 'じぶんの モンスターが 3段階に なる');
+  check(c1.evo === 'my-1-2' && c2.evo === 'my-1-3' && !c3.evo, 'じぶんの モンスターの 進化さき');
+  check(c2.name === 'つよい ドラゴンくん' && c3.name === 'でんせつの ドラゴンくん', '進化した ときの 名前: ' + c2.name + ' / ' + c3.name);
+  check(c2.png === 'data:2' && c3.png === 'data:3', '段階ごとに 絵が ちがう');
+  check(!!c2.evoOnly && !!c3.evoOnly && !c1.evoOnly, '2・3段階めは ふつうの たたかいに 出ない');
+  check(!MQ.enemies.get('my-2').evo, 'むかしの セーブ（絵が 1つ）は そのまま');
+  const rare = MQ.enemies.rareIdsFor('sansu');
+  check(rare.indexOf('my-1') >= 0 && rare.indexOf('my-1-2') < 0, 'レアに 出るのは 1段階めだけ');
+  MQ.enemies.setCustom([]);
+
+  /* 進化の 部品（つの・かんむり・マント）が 48マスに おさまる */
+  (function () {
+    const N = 48;
+    function box(x0, y0, w, hh) {
+      const m = new Uint8Array(N * N);
+      for (let y = y0; y < y0 + hh; y++) for (let x = x0; x < x0 + w; x++) m[y * N + x] = 1;
+      return m;
+    }
+    [[8, 8, 32, 32], [0, 0, 48, 48], [20, 30, 8, 18], [2, 2, 44, 10]].forEach(function (b2, i) {
+      [2, 3].forEach(function (st) {
+        const p = MQ.monsterGen.evoParts(box(b2[0], b2[1], b2[2], b2[3]), st, N);
+        const all = p.back.concat(p.front);
+        check(all.length > 0, '進化の 部品が できる（絵' + i + ' 段階' + st + '）');
+        const out = all.filter(function (r) { return r[0] < 0 || r[1] < 0 || r[0] + r[2] > N || r[1] + r[3] > N; });
+        check(out.length === 0, '進化の 部品が 48マスから はみ出さない（絵' + i + ' 段階' + st + '）');
+      });
+    });
+    check(MQ.monsterGen.evoParts(new Uint8Array(N * N), 3, N).front.length === 0, 'まっしろの 絵では 部品を つけない');
+  })();
+
   // にんじゃは どの エリアにも 出る
   const ninja = MQ.enemies.list.filter(function (e) { return e.line === 'ninja'; });
   check(ninja.length === 3 && ninja.every(function (e) { return e.any; }), 'にんじゃは どの エリアにも 出る');
@@ -2952,7 +3011,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     }
   }
   check(summonSeen === 30 && mateOk + goldenSeen === 30 && goldenSeen >= 0 && goldenSeen < 15, 'summon: 30回 ぜんぶ 呼ぶ・2体めは 同じ 系統 か ゴールデン ' + JSON.stringify({ s: summonSeen, m: mateOk, g: goldenSeen }));
-  check(MQ.enemies.mateFor('drago-1') && MQ.enemies.get(MQ.enemies.mateFor('drago-1')).line === 'drago' && MQ.enemies.mateFor('slime-green') === null, 'summon: mateFor');
+  check(MQ.enemies.mateFor('drago-1') && MQ.enemies.get(MQ.enemies.mateFor('drago-1')).line === 'drago' && MQ.enemies.mateFor('mid-golem') === null, 'summon: mateFor');
   B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: false });
   let anySummon = false;
   while (B.phase() === 'mob') { if (B.current().summon) anySummon = true; B.answer(ans(B.current())); B.next(); }
