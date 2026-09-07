@@ -453,6 +453,157 @@ MQ.face = (function () {
     { id: 'green', name: 'みどり',   color: '#3e7a4b' }
   ];
 
+  /* =======================================================
+     96マスの 絵（v9.7・マイクラ風）
+
+     ユーザー「96マスの 描き直しを やって」
+             「**目が怖いわ。マイクラ風でお願いします**」
+
+     もとの 48マスを 2ばいに のばすのでは なく、**96マスで 描いた 絵**を
+     `rows2` に もたせます（pixel.js が rows2 の ある 層だけ こちらを 見る）。
+     マイクラの きまりで 描く：
+
+       ① 目は **平らな 2色**。白目の たかさを **4サブ（もとの 2マス）**に する。
+          前は 3マス＝顔の 19% で、**マイクラの Steve（12%）より ずっと 大きく、
+          じっと 見つめる 顔に なって いた**。これが「こわい」の 正体。
+       ② 口は **こい 茶色の ほそい 線**（赤い かたまりに しない）。はしを 1サブ 上げて わらう。
+       ③ かみ・ふくは **同じ 色の すこし こい かたまり**を もとの 1マスごとに ばらまく
+          （マイクラの テクスチャは これ。なめらかな グラデーションでは ない）。
+       ④ かみの 毛先を **1サブ ぎざぎざ**に する（96マスに して はじめて できる こと）。
+
+     ★ こまかい 目（白目・虹さい・ひとみ・光の 点・まつげ）には **しない**。
+       試作を 見せて「目が怖い」と 言われた 方向。もどさない。
+     ======================================================= */
+  const W2 = W * 2;                                   // 96
+  function grid2() { const g = []; for (let y = 0; y < W2; y++) g.push(new Array(W2).fill('.')); return g; }
+  function px2(g, x, y, ch) { if (x >= 0 && x < W2 && y >= 0 && y < W2) g[y][x] = ch; }
+  function rect2(g, x0, y0, x1, y1, ch) {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) px2(g, x, y, ch);
+  }
+  function block2(g, x0, y0, x1, y1, ch, dark) {
+    rect2(g, x0, y0, x1, y1, ch);
+    if (!dark) return;
+    const w = x1 - x0 + 1, hh = y1 - y0 + 1;
+    const sw = w >= 12 ? 4 : (w >= 6 ? 2 : 0);
+    const sh = hh >= 12 ? 4 : (hh >= 6 ? 2 : 0);
+    if (sw) rect2(g, x1 - sw + 1, y0, x1, y1, dark);
+    if (sh) rect2(g, x0, y1 - sh + 1, x1, y1, dark);
+  }
+  function rows2of(g) { return g.map(function (r) { return r.join(''); }); }
+  function M2(x) { return W2 - 1 - x; }               // 左右を うつす
+  // 48マスの 絵を 2ばいに のばす（かたちは そのまま）
+  function up2(rs) {
+    const g = grid2();
+    for (let y = 0; y < rs.length; y++) for (let x = 0; x < rs[y].length; x++) {
+      const ch = rs[y][x];
+      if (ch === '.' || ch === ' ') continue;
+      rect2(g, x * 2, y * 2, x * 2 + 1, y * 2 + 1, ch);
+    }
+    return g;
+  }
+  // いつも 同じ ばらまき（描き直しても ちらつかない）
+  function h2(x, y, salt) {
+    let n = (x * 92837111) ^ (y * 689287499) ^ ((salt || 0) * 283923481);
+    n = (n ^ (n >>> 13)) * 1274126177;
+    return (((n ^ (n >>> 16)) >>> 0) % 1000) / 1000;
+  }
+  /* マイクラの テクスチャ … すこし こい かたまりを **もとの 1マスごと**に ばらまく */
+  function speckle(g, from, to, rate, salt) {
+    for (let y = 0; y < W2; y += 2) for (let x = 0; x < W2; x += 2) {
+      if (g[y][x] !== from) continue;
+      if (h2(x, y, salt) > rate) continue;
+      rect2(g, x, y, x + 1, y + 1, to);
+    }
+  }
+  /* 毛先の ぎざぎざ … 下がわの ふちを 1サブ 出したり 引っこめたり する */
+  function jag(g, ch, salt) {
+    const add = [], cut = [];
+    for (let y = 0; y < W2; y++) for (let x = 0; x < W2; x++) {
+      if (g[y][x] !== ch) continue;
+      if (y + 1 < W2 && g[y + 1][x] !== '.') continue;         // 下に 何か あれば ふちでは ない
+      const r = h2(x, y + 7, salt);
+      if (r < 0.30) add.push([x, y + 1]);
+      else if (r > 0.86) cut.push([x, y]);
+    }
+    add.forEach(function (p) { if (p[1] < W2 && g[p[1]][p[0]] === '.') g[p[1]][p[0]] = ch; });
+    cut.forEach(function (p) { g[p[1]][p[0]] = '.'; });
+  }
+
+  /* 顔 … はな は 平らな こい はだ、口は こい 茶色の ほそい 線 */
+  const headRows2 = (function () {
+    const g = grid2();
+    block2(g, 26, 12, 69, 43, 's', 'S');
+    rect2(g, 46, 30, 49, 32, 'n');                             // はな
+    rect2(g, 45, 36, 50, 37, 'm');                             // 口（ほそい 線）
+    rect2(g, 43, 35, 44, 36, 'm'); rect2(g, 51, 35, 52, 36, 'm');   // はしを 上げて わらう
+    return rows2of(g);
+  })();
+
+  /* からだ … ぬのに かたまりの ざらつき（マイクラの シャツ） */
+  const bodyRows2 = (function () {
+    const g = up2(bodyRows);
+    speckle(g, 'c', 'k', 0.14, 11);
+    speckle(g, 'p', 'K', 0.14, 12);
+    return rows2of(g);
+  })();
+
+  /* め … 左目は x34〜41・右目は その 左右うつし。たかさ 4サブ＝顔の 12%（マイクラの わりあい） */
+  function eye96(g, kind, side) {
+    const flip = side === 'R';
+    const put = function (x0, y0, x1, y1, ch) {
+      if (flip) rect2(g, M2(x1), y0, M2(x0), y1, ch); else rect2(g, x0, y0, x1, y1, ch);
+    };
+    const cut = function (x, y) { if (flip) px2(g, M2(x), y, '.'); else px2(g, x, y, '.'); };
+    switch (kind) {
+      case 'maru':                                             // まるめ（かどを 落とす）
+        put(34, 24, 41, 29, 'w'); put(38, 26, 41, 29, 'e');
+        cut(34, 24); cut(41, 24); cut(34, 29); cut(41, 29); break;
+      case 'tare':                                             // たれめ（外がわが 下）
+        put(34, 26, 37, 29, 'w'); put(38, 24, 41, 27, 'e'); break;
+      case 'tsuri':                                            // つりめ（外がわが 上）
+        put(34, 24, 37, 27, 'w'); put(38, 26, 41, 29, 'e'); break;
+      case 'kira':                                             // きらきら（四角い 光を 2つ）
+        put(34, 24, 41, 28, 'e'); put(34, 24, 35, 25, 'w'); put(40, 27, 41, 28, 'w'); break;
+      case 'niko':                                             // にっこり（^ の かたち）
+        put(34, 26, 35, 27, 'e'); put(36, 24, 39, 25, 'e'); put(40, 26, 41, 27, 'e'); break;
+      case 'nemui':                                            // ねむい（上に まぶたの 線）
+        put(34, 24, 41, 25, 'e'); put(34, 26, 37, 28, 'w'); put(38, 26, 41, 28, 'e'); break;
+      case 'hoshi':                                            // ほしのめ（✦ の かたち）
+        put(34, 24, 41, 29, 'w');
+        put(37, 24, 38, 25, 'e'); put(34, 26, 41, 27, 'e'); put(37, 28, 38, 29, 'e'); break;
+      case 'haato':                                            // ハートのめ
+        put(34, 24, 41, 29, 'w');
+        put(35, 24, 36, 24, 'e'); put(39, 24, 40, 24, 'e');
+        put(34, 25, 41, 26, 'e'); put(35, 27, 40, 27, 'e');
+        put(36, 28, 39, 28, 'e'); put(37, 29, 38, 29, 'e'); break;
+      case 'neko':                                             // ねこのめ（たての ひとみ）
+        put(34, 24, 41, 29, 'e'); put(37, 25, 38, 28, 'w'); break;
+      default:                                                 // ふつう
+        put(34, 25, 37, 28, 'w'); put(38, 25, 41, 28, 'e');
+    }
+  }
+  const EYE96 = {
+    futsu: ['futsu', 'futsu'], maru: ['maru', 'maru'], tare: ['tare', 'tare'],
+    tsuri: ['tsuri', 'tsuri'], kira: ['kira', 'kira'], niko: ['niko', 'niko'],
+    nemui: ['nemui', 'nemui'], wink: ['futsu', 'niko'],
+    hoshime: ['hoshi', 'hoshi'], haato: ['haato', 'haato'], nekome: ['neko', 'neko']
+  };
+  eyeStyles.forEach(function (s) {
+    const k = EYE96[s.id];
+    if (!k) return;
+    const g = grid2();
+    eye96(g, k[0], 'L'); eye96(g, k[1], 'R');
+    s.rows2 = rows2of(g);
+  });
+
+  // かみ … かたまりの ざらつき＋毛先の ぎざぎざ（ぼうし・フードの ぬのは そのまま）
+  hairStyles.forEach(function (s, i) {
+    const g = up2(s.rows);
+    speckle(g, 'h', 'k', 0.20, i + 1);
+    jag(g, 'h', i + 1);
+    s.rows2 = rows2of(g);
+  });
+
   /* id から えらぶ（見つからなければ さいしょのもの） */
   function pick(list, id) {
     for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
@@ -465,6 +616,7 @@ MQ.face = (function () {
 
   return {
     headRows: headRows, bodyRows: bodyRows, HEAD: HEAD,
+    headRows2: headRows2, bodyRows2: bodyRows2,      // 96マスの 絵（v9.7）
     hairStyles: hairStyles, eyeStyles: eyeStyles, clothStyles: clothStyles,
     glassStyles: glassStyles, accStyles: accStyles,
     hairColors: hairColors, skinColors: skinColors, eyeColors: eyeColors,

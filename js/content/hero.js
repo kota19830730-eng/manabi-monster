@@ -164,15 +164,18 @@ MQ.hero = (function () {
         const c = bands[Math.min(bands.length - 1, Math.floor(Math.max(0, y) / 4))];
         if (ch === 'h') return c;
         if (ch === 'H') return F.darker(c, 0.25);
+        if (ch === 'k') return F.darker(c, 0.13);          // v9.7 かたまりの ざらつき
         return HEADWEAR[ch];
       };
     } else {
-      hair = Object.assign({ h: hc.color, H: F.darker(hc.color, 0.28) }, HEADWEAR);
+      hair = Object.assign({ h: hc.color, H: F.darker(hc.color, 0.28), k: F.darker(hc.color, 0.13) }, HEADWEAR);
     }
+    /* k / K … v9.7（マイクラ風）で ばらまく「すこし こい かたまり」。
+       m … 口。赤い かたまりだと 顔が こわく 見えた ので こい 茶色の 線に した。 */
     return {
-      body:  { c: cloth, C: F.darker(cloth, 0.3), p: pants, P: F.darker(pants, 0.3), b: '#ffd447', B: '#b8801d', s: skin, S: skinDark },
+      body:  { c: cloth, C: F.darker(cloth, 0.3), k: F.darker(cloth, 0.10), p: pants, P: F.darker(pants, 0.3), K: F.darker(pants, 0.10), b: '#ffd447', B: '#b8801d', s: skin, S: skinDark },
       cloth: { g: '#ffd447', d: F.darker(cloth, 0.38), D: F.darker(cloth, 0.2), w: '#ffffff', q: pants, Q: F.darker(pants, 0.3) },
-      head:  { s: skin, S: skinDark, n: F.darker(skin, 0.16), m: '#a5473a' },
+      head:  { s: skin, S: skinDark, n: F.darker(skin, 0.16), m: '#6f4234' },
       eye:   { w: '#ffffff', e: eye },
       hair:  hair,
       acc:   { r: '#ff9db0', g: '#ffd447', G: '#b8801d', w: '#fff6ee', d: '#c9a06b' }
@@ -964,11 +967,11 @@ MQ.hero = (function () {
      pixel.js が これを 見て かみの すじ・ぬのの おり・金ぞくの 光を 入れる。
      書いて ない 文字は ぬの あつかい。**色の 文字を 足したら ここにも 足す。** */
   const MAT = {
-    body:  { c: 'cloth', C: 'cloth', p: 'cloth', P: 'cloth', b: 'gold', B: 'gold', s: 'skin', S: 'skin' },
+    body:  { c: 'cloth', C: 'cloth', k: 'cloth', p: 'cloth', P: 'cloth', K: 'cloth', b: 'gold', B: 'gold', s: 'skin', S: 'skin' },
     cloth: { g: 'gold', d: 'cloth', D: 'cloth', w: 'white', q: 'cloth', Q: 'cloth' },
     head:  { s: 'skin', S: 'skin', n: 'skin', m: 'mouth' },
     eye:   { w: 'white', e: 'iris' },
-    hair:  { h: 'hair', H: 'hair', x: 'cloth', X: 'cloth', y: 'cloth', Y: 'cloth', v: 'cloth', r: 'cloth', t: 'wood' },
+    hair:  { h: 'hair', H: 'hair', k: 'hair', x: 'cloth', X: 'cloth', y: 'cloth', Y: 'cloth', v: 'cloth', r: 'cloth', t: 'wood' },
     acc:   { r: 'skin', g: 'gold', G: 'gold', w: 'white', d: 'wood' }
   };
   // そうびは 部位ごと。グレード1（かわ・木）だけ 金ぞくでは なく 木と かわ
@@ -994,11 +997,14 @@ MQ.hero = (function () {
     const cape = eq.cape && gearById[eq.cape];
     if (cape) list.push({ rows: cape.rows, palette: cape.palette, mat: gearMat('cape', cape.gradeNo) });
 
-    list.push({ rows: bodyRows, palette: P.body, mat: MAT.body });
+    /* rows2 … 96マスで 描いた 絵（v9.7）。ある 層だけ pixel.js が そちらを 使う。
+       ない パーツ（カプセル限定の 目 など）は いままで どおり 2ばいに のばす。 */
+    const eye = F.pick(F.eyeStyles, look.eye), hair = F.pick(F.hairStyles, look.hair);
+    list.push({ rows: bodyRows, rows2: F.bodyRows2, palette: P.body, mat: MAT.body });
     list.push({ rows: F.pick(F.clothStyles, look.cloth).rows, palette: P.cloth, mat: MAT.cloth });
-    list.push({ rows: F.headRows, palette: P.head, mat: MAT.head });
-    list.push({ rows: F.pick(F.eyeStyles, look.eye).rows, palette: P.eye, mat: MAT.eye });
-    list.push({ rows: F.pick(F.hairStyles, look.hair).rows, palette: P.hair, mat: MAT.hair });
+    list.push({ rows: F.headRows, rows2: F.headRows2, palette: P.head, mat: MAT.head });
+    list.push({ rows: eye.rows, rows2: eye.rows2, palette: P.eye, mat: MAT.eye });
+    list.push({ rows: hair.rows, rows2: hair.rows2, palette: P.hair, mat: MAT.hair });
     list.push({ rows: F.pick(F.accStyles, look.acc).rows, palette: P.acc, mat: MAT.acc });
     const glass = F.pick(F.glassStyles, look.glass);
     list.push({ rows: glass.rows, palette: glass.palette, mat: 'metal' });

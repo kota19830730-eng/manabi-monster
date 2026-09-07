@@ -46,11 +46,42 @@ MQ.pixel = (function () {
   const MAT_ID = {};
   MATS.forEach(function (m, i) { MAT_ID[m] = i; });
 
+  /* マイクラ風（v9.7）… ユーザー「目が怖いわ。マイクラ風でお願いします」
+
+     v9.4 の しあげは **なめらかな グラデーション＋ひとみの 光の 点**だった。
+     これが つやつやした「作りものの 目」に 見えて こわかった。
+     マイクラの テクスチャは そうでは ない：
+
+       ① 面は **平ら**。中に なめらかな 明暗を つけない
+       ② ゆらぎは **とびとび（3段階）**で、**もとの 1マス（＝2サブ）ごとの かたまり**
+          （1サブごとの こまかい ゆらぎは 84px で つぶれて「網目」に 見える）
+       ③ 立体は **ふちの 1サブだけ**（上・左が 明るい／下・右が くらい）
+       ④ **目・口は 何も しない**（FLAT）。光の 点も グラデも つけない
+
+     ここを もどすと また「つやつや」に なる。 */
+  const FLAT = {};                                  // 平らな まま にする 素材
+  [MAT_ID.iris, MAT_ID.white, MAT_ID.mouth].forEach(function (m) { FLAT[m] = 1; });
+
   // いつも 同じ ゆらぎ（描き直しても ちらつかない）
   function grain(x, y) {
     let h = (x * 73856093) ^ (y * 19349663);
     h = (h ^ (h >>> 13)) * 1274126177;
     return (((h ^ (h >>> 16)) >>> 0) % 1000) / 1000 - 0.5;    // -0.5 〜 0.5
+  }
+  /* とびとびの ゆらぎ。**もとの 1マスごと**の かたまりで -1／0／+1 を かえす。
+     （マイクラの テクスチャは 同じ 色みの 数だんかいを ばらまいて あるだけ） */
+  function step3(X, Y) {
+    const v = grain(X >> 1, Y >> 1);
+    return v < -0.18 ? -1 : (v > 0.18 ? 1 : 0);
+  }
+  // 金ぞく・金の きらり（ぽつんと 明るい マス。ななめの すじには しない）
+  function glint(X, Y) { return grain((X >> 1) + 977, (Y >> 1) - 311) > 0.42; }
+  /* 同じ ものの 明るい面・くらい面（c と C、h と k …）は **1つの かたまり**と 見なす。
+     でないと ぬのの ざらつき 1つ 1つに ふちの 明暗が ついて、
+     マイクラの 平らな テクスチャでは なく「ぼこぼこ」に 見える。 */
+  function region(ch) {
+    const c = ch.charCodeAt(0);
+    return (c >= 65 && c <= 90) ? c + 32 : c;                  // 大文字は 小文字に そろえる
   }
 
   function renderHD(layers, opts) {
@@ -85,7 +116,8 @@ MQ.pixel = (function () {
           for (let x = 0; x < row.length; x++) {
             const ch = row[x];
             if (ch === '.' || ch === ' ') continue;
-            const hex = fn ? layer.palette(ch, x, y) : layer.palette[ch];
+            // palette が 関数（レインボーの かみ）の ときは **もとの 48マスの 場所**を わたす
+            const hex = fn ? layer.palette(ch, x / SUB, y / SUB) : layer.palette[ch];
             if (!hex) continue;
             const X = x + ox2;
             if (X < 0 || X >= W) continue;
@@ -94,7 +126,7 @@ MQ.pixel = (function () {
             R[i] = (n >> 16) & 255; G[i] = (n >> 8) & 255; B[i] = n & 255;
             on[i] = 1;
             mt[i] = matStr || (mat ? (MAT_ID[mat[ch]] || 3) : 3);
-            rg[i] = li * 256 + ch.charCodeAt(0);
+            rg[i] = li * 256 + region(ch);
           }
         }
         return;
@@ -111,7 +143,7 @@ MQ.pixel = (function () {
           const n = parseInt(hex.slice(1), 16);
           const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
           const m = matStr || (mat ? (MAT_ID[mat[ch]] || 3) : 3);
-          const key = li * 256 + ch.charCodeAt(0);
+          const key = li * 256 + region(ch);
           for (let sy = 0; sy < SUB; sy++) {
             const Y = (y + oy) * SUB + sy;
             if (Y < 0 || Y >= H) continue;
@@ -134,30 +166,29 @@ MQ.pixel = (function () {
         const i = Y * W + X;
         if (!on[i]) continue;
         let k = 0;
-        const m = mt[i], g = grain(X, Y);
+        const m = mt[i];
 
-        // ---- 素材の 質感 ----
-        if (m === MAT_ID.skin)  k += g * 0.035;
-        else if (m === MAT_ID.hair)  k += ((X % 2 === 0) ? 0.06 : -0.03) + g * 0.04;
-        else if (m === MAT_ID.cloth) k += g * 0.05;
-        else if (m === MAT_ID.wood)  k += ((X % 3 === 0) ? 0.05 : 0) + g * 0.05;
-        else if (m === MAT_ID.metal) { const d = ((X - Y) % 12 + 12) % 12; k += (d === 0 || d === 1) ? 0.14 : (d === 2 ? 0.06 : 0); k += g * 0.03; }
-        else if (m === MAT_ID.gold)  { const d = ((X - Y) % 9 + 9) % 9;   k += (d === 0) ? 0.20 : (d === 1 ? 0.08 : 0);  k += g * 0.03; }
-        else if (m === MAT_ID.glow)  k += 0.10 + g * 0.04;
-        else if (m === MAT_ID.white) k += g * 0.025;
-        else if (m === MAT_ID.iris) {
-          // ひとみの 左上に 光の 点（かたまりの かどだけ）
-          const up = idx(X, Y - 1), lf = idx(X - 1, Y);
-          if (!(up >= 0 && mt[up] === MAT_ID.iris) && !(lf >= 0 && mt[lf] === MAT_ID.iris)) k += 0.62;
+        // ---- 目・口は 平らな まま（マイクラの 顔。つやを つけない）----
+        if (!FLAT[m]) {
+          // ---- 素材の ゆらぎ（とびとび・1マスの かたまり）----
+          const s = step3(X, Y);
+          if (m === MAT_ID.skin)  k += s * 0.030;
+          else if (m === MAT_ID.hair)  k += s * 0.075;
+          else if (m === MAT_ID.cloth) k += s * 0.055;
+          else if (m === MAT_ID.wood)  k += s * 0.070;
+          else if (m === MAT_ID.metal) { k += s * 0.070; if (glint(X, Y)) k += 0.12; }
+          else if (m === MAT_ID.gold)  { k += s * 0.075; if (glint(X, Y)) k += 0.18; }
+          else if (m === MAT_ID.glow)  k += 0.10 + s * 0.040;
+          else k += s * 0.045;
+
+          // ---- 立体は ふちの 1サブだけ（中は 平ら）----
+          const key = rg[i];
+          const diff = function (X2, Y2) { const j = idx(X2, Y2); return j < 0 || rg[j] !== key; };
+          if (diff(X, Y - 1)) k += 0.16;
+          if (diff(X - 1, Y)) k += 0.09;
+          if (diff(X, Y + 1)) k -= 0.18;
+          if (diff(X + 1, Y)) k -= 0.10;
         }
-
-        // ---- 色の さかいめの 立体（2だんかい）----
-        const key = rg[i];
-        const diff = function (X2, Y2) { const j = idx(X2, Y2); return j < 0 || rg[j] !== key; };
-        if (diff(X, Y - 1)) k += 0.20; else if (diff(X, Y - 2)) k += 0.08;
-        if (diff(X - 1, Y)) k += 0.10; else if (diff(X - 2, Y)) k += 0.04;
-        if (diff(X, Y + 1)) k -= 0.20; else if (diff(X, Y + 2)) k -= 0.08;
-        if (diff(X + 1, Y)) k -= 0.12; else if (diff(X + 2, Y)) k -= 0.05;
 
         if (k > 0.7) k = 0.7; else if (k < -0.5) k = -0.5;
         const j = i * 4;
