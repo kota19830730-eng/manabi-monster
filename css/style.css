@@ -3500,7 +3500,10 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 .capchip.is-on { color: #3a2606; background: linear-gradient(#ffe89a, #ffc93c); box-shadow: 0 4px 0 #a06a10, inset 0 2px 0 rgba(255,255,255,.6); }
 
 /* マシン（CSS の 四角だけ。画像ファイルは 使わない） */
-.capstage { height: 132px; display: flex; align-items: flex-end; justify-content: center; margin: 8px 0 6px; }
+/* position: relative … カプセルと 光の すじの 置きどころ（ないと カード全体に ついて 場所が ずれる）
+   z-index: 0 … ここで 1つの 層を 作る。ないと 光の すじ（z-index:-1）が
+                カードの 背景の うしろに 回って **見えなく なる** */
+.capstage { position: relative; z-index: 0; height: 132px; display: flex; align-items: flex-end; justify-content: center; margin: 8px 0 6px; overflow: visible; }
 .capmc { position: relative; width: 96px; height: 124px; }
 .capmc__dome {
   position: absolute; left: 4px; top: 0; width: 88px; height: 62px; border-radius: 44px 44px 8px 8px;
@@ -3583,3 +3586,49 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 .capbtn:active { transform: translateY(4px); box-shadow: 0 3px 0 #a06a10, inset 0 3px 0 rgba(255,255,255,.6); }
 .capbtn__t { font-family: var(--f-head); font-size: 22px; line-height: 1.1; }
 .capbtn__s { font-size: 11px; font-weight: 700; opacity: .85; }
+/* カプセルが ころころ 落ちて くる（1.0〜1.8秒。タップで とばせる） */
+.capdrop {
+  position: absolute; left: 50%; top: 8px; width: 30px; height: 30px; margin-left: -15px;
+  border-radius: 50%; background: linear-gradient(#ffe89a 0 48%, #ff8f5e 48% 100%);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.6), inset 0 -4px 6px rgba(120,50,20,.35), 0 4px 10px rgba(0,0,0,.45);
+  animation: capDrop .8s cubic-bezier(.35,.05,.3,1) forwards;
+}
+.capdrop.r--r  { background: linear-gradient(#fff3c4 0 48%, #ffc93c 48% 100%); box-shadow: inset 0 3px 0 rgba(255,255,255,.7), 0 0 16px rgba(255,212,71,.8), 0 4px 10px rgba(0,0,0,.45); }
+.capdrop.r--sr { background: linear-gradient(#e9dcff 0 48%, #9a6ae8 48% 100%); box-shadow: inset 0 3px 0 rgba(255,255,255,.7), 0 0 20px rgba(180,140,255,1), 0 4px 10px rgba(0,0,0,.45); }
+@keyframes capDrop {
+  0%   { transform: translateY(0) scale(.7); opacity: 0; }
+  18%  { transform: translateY(34px) scale(1); opacity: 1; }
+  46%  { transform: translateY(92px) scale(1); }
+  60%  { transform: translateY(74px) scale(1.04); }
+  74%  { transform: translateY(92px) scale(1); }
+  86%  { transform: translateY(86px) scale(1.12); }
+  100% { transform: translateY(88px) scale(1.3); opacity: .9; }
+}
+@media (prefers-reduced-motion: reduce) { .capdrop { animation-duration: .01s; } }
+
+/* ---- 期待度で 変わる 演出（v9.10）----
+   レアなほど ゆれが 強く・光が つき・時間が 長い。色は ウソを つかない
+   （金＝レア いじょう／むらさき＝げきレア）。 */
+.capmc.is-roll--r  { animation-duration: .14s; }
+.capmc.is-roll--sr { animation-duration: .10s; }
+/* 「ためる」だんかい：マシンが 光る */
+.capmc.is-hot .capmc__dome { box-shadow: inset 0 4px 0 rgba(255,255,255,.8), 0 0 22px 6px var(--cap-glow, rgba(255,212,71,.9)); }
+.capmc.is-roll--r  { --cap-glow: rgba(255,212,71,.9); }
+.capmc.is-roll--sr { --cap-glow: rgba(180,140,255,1); }
+/* 光の すじ（マシンの うしろ） */
+.capray {
+  position: absolute; left: 50%; bottom: 6px; width: 190px; height: 190px; margin-left: -95px;
+  pointer-events: none; z-index: -1; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, transparent 0 11deg, var(--ray) 11deg 15deg);
+  -webkit-mask-image: radial-gradient(closest-side, rgba(0,0,0,.15) 30%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(closest-side, rgba(0,0,0,.15) 30%, #000 62%, transparent 100%);
+  animation: capRay 1.6s linear infinite;
+}
+.capray--r  { --ray: rgba(255,212,71,.55); }
+.capray--sr { --ray: rgba(190,150,255,.75); }
+@keyframes capRay { to { transform: rotate(360deg); } }
+/* げきレアは 画面ぜんたいが すこし 暗く なって マシンだけ 光る */
+.capsule.is-rolling--sr .bagcard { box-shadow: 0 8px 0 var(--hd-edge), 0 18px 30px rgba(0,0,0,.5), inset 0 0 0 3px #b48cff, inset 0 3px 0 rgba(255,255,255,.12), 0 0 40px rgba(180,140,255,.55); }
+.capsule.is-rolling--sr .capsule__body > *:not(.capstage) { opacity: .35; transition: opacity .3s; }
+.capsule.is-rolling--r  .capsule__body > *:not(.capstage) { opacity: .6; transition: opacity .3s; }
+@media (prefers-reduced-motion: reduce) { .capray { animation: none; } }

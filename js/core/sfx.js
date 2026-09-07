@@ -173,6 +173,12 @@ MQ.sfx = (function () {
       noise(0.09, 0.22, 0.03, 4000, 'highpass');
       [1319, 1760].forEach(function (f, i) { tone(f, 0.14, 'square', 0.11, 0.06 + i * 0.06); });
     },
+    // 「ためる」だんかい（レア いじょう）。big＝げきレア は もっと 上まで 上がる
+    capsuleHot: function (big) {
+      sweep(big ? 0.9 : 0.6, 0.20, 0, 300, big ? 2600 : 1400, 'bandpass');
+      [880, 1109, 1319].forEach(function (f, i) { tone(f, 0.10, 'triangle', 0.09, i * 0.14); });
+      if (big) [1568, 1760, 2093].forEach(function (f, i) { tone(f, 0.10, 'triangle', 0.09, 0.46 + i * 0.14); });
+    },
     // げきレア（むらさきの 光）：ためて → ぱあっと 開く
     capsuleSr: function () {
       sweep(0.42, 0.26, 0, 500, 3600, 'bandpass');

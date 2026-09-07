@@ -27,7 +27,10 @@ MQ.ui.capsule = (function () {
   let rolling = false;  // 演出ちゅう
   let skip = null;      // タップで とばす ための 関数
   let onClose = null;
+  let held = false;     // harness で 演出を 止めて 撮る ため（本番では いつも false）
 
+  // 引いた あと 中身が 出るまで。**レアなほど 長い**（期待度）。どれも タップで とばせる
+  const ROLL_MS = { n: 1500, r: 2100, sr: 2900 };
   const KIND_NAME = { mon: 'なかま', gear: 'そうび', look: 'すがた' };
   const RARE_NAME = { n: 'ふつう', r: 'レア', sr: 'げきレア' };
 
@@ -108,7 +111,11 @@ MQ.ui.capsule = (function () {
     // ⑥ まわす ボタン
     const btn = h('button', {
       class: 'btn capgo', type: 'button',
-      onclick: function () { pull(); }
+      /* **stopPropagation を 外さない。**
+         外すと「まわす」を 押した その クリックが 下の かぶせ 1枚にも 届き、
+         「タップで とばす」が すぐ 走って **演出が 1つも 見えなく なる**
+         （2026-09-07 に ユーザーが「こんな演出なかったけど」で 見つけた バグ）。 */
+      onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); pull(); }
     }, [
       h('span', { class: 'capgo__t', text: can.ok ? 'まわす' : (pool.length ? 'あと ' + (can.short || 0) + 'まい' : 'じゅんびちゅう') }),
       h('span', { class: 'capgo__c', text: 'コイン ' + MQ.capsule.COST })
@@ -129,23 +136,58 @@ MQ.ui.capsule = (function () {
     MQ.save.update(function (pl) { res = MQ.capsule.pull(pl, kind); });
     if (!res || !res.ok) return;
 
+    /* ---- 期待度で 演出を 変える（2026-09-07・ユーザー「期待度で演出ちょっと変えて下さい」）----
+       レアなほど **長く・はでに**。ただし ウソは つかない
+       （金の カプセル＝レア いじょう、むらさき＝げきレア。出てから 変わる のでは なく
+         出る 前の 色で 分かる ＝ ここが「期待」）。
+
+         ふつう  … ゆれる → オレンジの カプセルが ころん（ぜんぶで 1.5秒）
+         レア    … ゆれが 強く なり マシンが 金色に 光る → 金の カプセル（2.1秒）
+         げきレア… 光の すじ ＋ 画面が 暗く なる ため → むらさきの カプセル（2.9秒）
+
+       どの だんかいでも **タップで すぐ 結果へ**（毎日 引く ものなので）。 */
     rolling = true;
     MQ.sfx.capsuleLever();
     const mc = root.querySelector('.capmc');
-    if (mc) mc.classList.add('is-roll');
-    setTimeout(function () { if (rolling) MQ.sfx.capsuleRoll(); }, 260);
+    const stage = root.querySelector('.capstage');
+    const rare = res.rarity;
+    const ms = ROLL_MS[rare] || ROLL_MS.n;
+    if (mc) mc.classList.add('is-roll', 'is-roll--' + rare);
+    if (root) root.classList.add('is-rolling', 'is-rolling--' + rare);
+    const timers = [];
+    const extra = [];
+    timers.push(setTimeout(function () { if (rolling) MQ.sfx.capsuleRoll(); }, 260));
 
-    // とちゅうで タップしたら すぐ 結果へ
-    const t = setTimeout(finish, 1500);
-    skip = function () { clearTimeout(t); finish(); };
-    root.classList.add('is-rolling');
+    // レア いじょうは とちゅうで「ためる」だんかいが 入る
+    if (rare !== 'n') {
+      timers.push(setTimeout(function () {
+        if (!rolling || !stage) return;
+        if (mc) mc.classList.add('is-hot');
+        const ray = h('span', { class: 'capray capray--' + rare });
+        stage.appendChild(ray); extra.push(ray);
+        if (MQ.sfx.capsuleHot) MQ.sfx.capsuleHot(rare === 'sr');
+      }, 900));
+    }
+
+    // カプセルが ころころ 落ちて くる（色が レアさの しるし）
+    timers.push(setTimeout(function () {
+      if (!rolling || !stage) return;
+      if (mc) mc.classList.remove('is-roll');
+      const drop = h('span', { class: 'capdrop r--' + rare });
+      stage.appendChild(drop); extra.push(drop);
+    }, ms - 800));
+
+    timers.push(setTimeout(finish, ms));
+    skip = function () { finish(); };
 
     function finish() {
-      if (!rolling) return;
+      if (!rolling || held) return;   // held … harness が 演出の とちゅうで 止めて 撮る ため
       rolling = false; skip = null;
-      if (root) root.classList.remove('is-rolling');
-      if (mc) mc.classList.remove('is-roll');
-      if (res.rarity === 'sr') MQ.sfx.capsuleSr(); else MQ.sfx.capsuleOpen();
+      timers.forEach(clearTimeout);
+      if (root) root.classList.remove('is-rolling', 'is-rolling--' + rare);
+      if (mc) mc.classList.remove('is-roll', 'is-roll--' + rare, 'is-hot');
+      extra.forEach(function (el) { if (el.parentNode) el.parentNode.removeChild(el); });
+      if (rare === 'sr') MQ.sfx.capsuleSr(); else MQ.sfx.capsuleOpen();
       showResult(res);
     }
   }
@@ -224,6 +266,7 @@ MQ.ui.capsule = (function () {
     kind: function () { return kind; },
     isOpen: function () { return !!root; },
     isRolling: function () { return rolling; },
-    pull: pull, skip: function () { if (skip) skip(); }
+    pull: pull, skip: function () { if (skip) skip(); },
+    hold: function () { held = true; }
   };
 })();

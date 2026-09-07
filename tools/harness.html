@@ -842,6 +842,34 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         + '　コイン=' + MQ.save.current().coins
         + '　' + (document.querySelector('.capline') || {}).textContent);
       say('capsule: わりあい = ' + [].map.call(document.querySelectorAll('.caprate__i'), function (e) { return e.textContent; }).join(' / '));
+      /* #capsule:roll[:n|r|sr] … **とばさずに** 演出を 見る。
+         ここが 抜けて いた ので「まわす」の クリックが そのまま「タップで とばす」に
+         届いて いる バグ（演出が 1つも 見えない）を 見のがした（2026-09-07）。
+         ボタンを **ほんとうに click()** して、途中の 見た目を はかる。 */
+      if (what === 'roll') {
+        const want = mode.split(':')[2] || 'n';
+        // げきレアは 天井で 出す。レアは でたらめの 数を つかんで 0.10（レアの 帯）に する
+        if (want === 'sr') MQ.save.update(function (pl) { MQ.capsule.ensure(pl).pity.mon = MQ.capsule.PITY - 1; });
+        const rnd = Math.random;
+        if (want === 'r') Math.random = function () { return 0.10; };
+        const go = document.querySelector('.capgo');
+        go.click();                                   // ← ほんものの クリック（バブリングも おきる）
+        Math.random = rnd;
+        await wait(300);
+        say('roll: 300ms → ゆれ ' + (document.querySelector('.capmc.is-roll') ? 'ok' : 'MISSING')
+          + ' / 結果は まだ ' + (document.querySelector('.capsule__result').hidden ? 'ok' : 'MISSING（すぐ 出た）'));
+        await wait(800);
+        say('roll: 1100ms → ためる ' + (document.querySelector('.capmc.is-hot') ? 'あり' : 'なし')
+          + ' / 光の すじ ' + (document.querySelector('.capray') ? 'あり' : 'なし')
+          + ' / カプセル ' + (document.querySelector('.capdrop') ? document.querySelector('.capdrop').className : 'まだ'));
+        // :shot … ためて いる ところで 止めて 撮る
+        if (mode.split(':')[3] === 'shot') { MQ.ui.capsule.hold(); freeze(); return; }
+        await wait(2200);
+        const b = document.querySelector('.capsule__result');
+        say('roll: おわり → ' + (b.hidden ? 'MISSING（出て いない）' : b.className + ' / ' + b.querySelector('.capres__name').textContent));
+        dump();
+        return;
+      }
       if (['mon', 'gear', 'look', 'sr', 'dup', 'pity'].indexOf(what) >= 0) {
         MQ.ui.capsule.pull();
         await wait(60);
@@ -3160,8 +3188,13 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if ($('.capbtn')) $('.capbtn').click();
     await wait(150);
     say('カプセル: 画面 ' + ($('.capsule') ? 'ok' : 'MISSING') + ' / ' + ($('.capline') ? $('.capline').textContent : 'MISSING'));
-    MQ.ui.capsule.pull();
-    await wait(80);
+    /* **ボタンを ほんとうに click() する。** `MQ.ui.capsule.pull()` を 直に 呼ぶと
+       クリックの バブリングが おきず、「まわす を 押した クリックが そのまま
+       タップで とばす に 届いて 演出が 消える」バグを 見のがす（2026-09-07） */
+    if ($('.capgo')) $('.capgo').click();
+    await wait(300);
+    say('カプセル: 演出 ' + ($('.capmc.is-roll') ? 'ok' : 'MISSING（すぐ 消えた）')
+      + ' / 結果は まだ ' + ($('.capsule__result').hidden ? 'ok' : 'MISSING（とばされた）'));
     MQ.ui.capsule.skip();
     await wait(150);
     say('カプセル: 出た ' + ($('.capres__name') ? $('.capres__name').textContent + ' / コイン ' + MQ.save.current().coins : 'MISSING'));
