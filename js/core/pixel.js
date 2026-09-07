@@ -69,9 +69,38 @@ MQ.pixel = (function () {
     layers.forEach(function (layer, li) {
       if (!layer) return;
       const fn = typeof layer.palette === 'function';
-      const ox = (layer.ox || 0) + dx, oy = (layer.oy || 0) + dy;
       const mat = layer.mat;
       const matStr = (typeof mat === 'string') ? (MAT_ID[mat] || 3) : 0;
+
+      /* rows2 … **はじめから 96マスで 描いた 層**（v9.4 の のこり課題・案③）。
+         もとの 48マスを 2倍に のばすのでは なく、こまかい かたち（白目・ひとみの 光・
+         かみの すじ）を そのまま 置く。1つずつ 置きかえて いける ように、
+         rows2 が ある 層だけ こちらを 通る。 */
+      if (layer.rows2) {
+        const ox2 = (layer.ox || 0) * SUB + dx * SUB, oy2 = (layer.oy || 0) * SUB + dy * SUB;
+        for (let y = 0; y < layer.rows2.length; y++) {
+          const row = layer.rows2[y];
+          const Y = y + oy2;
+          if (Y < 0 || Y >= H) continue;
+          for (let x = 0; x < row.length; x++) {
+            const ch = row[x];
+            if (ch === '.' || ch === ' ') continue;
+            const hex = fn ? layer.palette(ch, x, y) : layer.palette[ch];
+            if (!hex) continue;
+            const X = x + ox2;
+            if (X < 0 || X >= W) continue;
+            const n = parseInt(hex.slice(1), 16);
+            const i = Y * W + X;
+            R[i] = (n >> 16) & 255; G[i] = (n >> 8) & 255; B[i] = n & 255;
+            on[i] = 1;
+            mt[i] = matStr || (mat ? (MAT_ID[mat[ch]] || 3) : 3);
+            rg[i] = li * 256 + ch.charCodeAt(0);
+          }
+        }
+        return;
+      }
+
+      const ox = (layer.ox || 0) + dx, oy = (layer.oy || 0) + dy;
       for (let y = 0; y < layer.rows.length; y++) {
         const row = layer.rows[y];
         for (let x = 0; x < row.length; x++) {
