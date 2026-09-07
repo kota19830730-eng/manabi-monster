@@ -172,6 +172,14 @@ MQ.content = (function () {
     };
   }
 
+  // 小6の 算数（sansu6.js の 生成器・v10.6）
+  function sansu6Stage(no, name) {
+    return {
+      id: 'sansu6-' + no, no: no, name: name, when: '', available: true,
+      make: function (n, opts) { return MQ.sansu6.make(no, n, opts); }
+    };
+  }
+
   // 小5の 算数（sansu5.js の 生成器・v6.5）
   function sansu5Stage(no, name) {
     return {
@@ -371,6 +379,7 @@ MQ.content = (function () {
   const towerStage1 = makeTowerStage(1, TOWER_ORDER12, 'boss-obake');      // 小1：おばけキング（v6.4）
   const towerStage2 = makeTowerStage(2, TOWER_ORDER12, 'boss-kaizoku');    // 小2：かいぞくキャプテン（v6.4）
   const towerStage5 = makeTowerStage(5, TOWER_ORDER4, 'boss-blizzard');    // 小5：ブリザードキング（v6.9・じゅんばんは 小4と 同じ 5教科）
+  const towerStage6 = makeTowerStage(6, TOWER_ORDER4, 'boss-hades');       // 小6：メイオウハデス（v11.0・冥界の 神）
 
   /* =======================================================
      小3ワールド
@@ -694,13 +703,91 @@ MQ.content = (function () {
     ]
   };
 
+  const kokugo6 = function () { return MQ.kokugo6.questions; };
+  const rika6 = function () { return MQ.rika6.questions; };
+  const shakai6 = function () { return MQ.shakai6.questions; };
+  const eigo6 = function () { return MQ.eigo6.questions; };
+
+  /* 小6ワールド（v10.6〜v11.0）＝ **やみの 大陸**（ユーザー指定「小6は 闇の ステージ」）。
+     エリアの 名前も 闇の 世界に そろえる。中身の しくみは 小4・小5と 同じ 6エリア。 */
+  const world6 = {
+    id: 'g6', grade: 6, name: '小6ワールド', locked: false,
+    areas: [
+      {
+        id: 'sansu', name: 'やみの 山', short: '算数', color: 'var(--c-sansu)', biome: 'mountain',
+        stages: [
+          sansu6Stage(1, '対称な 図形'),
+          sansu6Stage(2, '文字と 式'),
+          sansu6Stage(3, '分数の かけ算'),
+          sansu6Stage(4, '分数の わり算'),
+          sansu6Stage(5, '分数と 小数'),
+          sansu6Stage(6, '比'),
+          sansu6Stage(7, '拡大図と 縮図'),
+          sansu6Stage(8, '円の 面積'),
+          sansu6Stage(9, '角柱・円柱の 体積'),
+          sansu6Stage(10, 'およその 大きさ'),
+          sansu6Stage(11, '比例'),
+          sansu6Stage(12, '反比例'),
+          sansu6Stage(13, 'ならべ方・組み合わせ'),
+          sansu6Stage(14, 'データの 調べ方'),
+          sansu6Stage(15, '量の たんい')
+        ]
+      },
+      /* 小6 国語（v10.7）：かん字 189字＋ことば */
+      {
+        id: 'kokugo', name: 'やみの 森', short: '国語', color: 'var(--c-kokugo)', biome: 'forest',
+        stages: [
+          stage('kokugo', 1, 'かん字の 読み', kokugo6, 6),
+          { id: 'kokugo6-2', no: 2, name: 'かん字を 書く', available: true, pool: listPool(kokugo6, 2, 6),
+            make: writeMixStage(kokugo6, 'kokugo', 2, 6) },
+          stage('kokugo', 3, 'ことばの きまり', kokugo6, 6),
+          stage('kokugo', 4, 'ことばの 意味', kokugo6, 6)
+        ]
+      },
+      /* 小6 理科・社会（v10.8） */
+      {
+        id: 'rika', name: 'やみの 湖', short: '理科', color: 'var(--c-rika)', biome: 'lake',
+        stages: [
+          stage('rika', 1, '燃え方・人の 体', rika6, 6),
+          stage('rika', 2, '植物と かん境', rika6, 6),
+          stage('rika', 3, '月と 太陽・大地', rika6, 6),
+          stage('rika', 4, 'てこ・水よう液・電気', rika6, 6)
+        ]
+      },
+      {
+        id: 'shakai', name: 'やみの 都', short: '社会', color: 'var(--c-shakai)', biome: 'town',
+        stages: [
+          stage('shakai', 1, 'くらしと 政治', shakai6, 6),
+          stage('shakai', 2, '歴史（1）大昔〜平安', shakai6, 6),
+          stage('shakai', 3, '歴史（2）鎌倉〜江戸', shakai6, 6),
+          stage('shakai', 4, '歴史（3）明治〜世界', shakai6, 6)
+        ]
+      },
+      /* 小6 英語（NEW HORIZON Elementary 6 を 目安に）v10.9 */
+      {
+        id: 'eigo', name: 'やみの 空', short: '英語', color: 'var(--c-eigo)', biome: 'sky',
+        stages: [
+          stage('eigo', 1, '自分の こと・日課', eigo6, 6),
+          stage('eigo', 2, '行きたい 国・町', eigo6, 6),
+          stage('eigo', 3, '夏の 思い出・生き物', eigo6, 6),
+          stage('eigo', 4, '思い出・中学校', eigo6, 6)
+        ]
+      },
+      /* 小6の さいごの塔（v11.0）。5教科の かけらで 開く */
+      {
+        id: 'tower', name: 'めいかいの 門', short: '塔', color: 'var(--c-tower)', biome: 'tower',
+        stages: [towerStage6]
+      }
+    ]
+  };
+
   const worlds = [
     world1,
     world2,
     world3,
     world4,
     world5,
-    { id: 'g6', grade: 6, name: '小6ワールド', locked: true, areas: [] }
+    world6
   ];
 
   function world(id) {

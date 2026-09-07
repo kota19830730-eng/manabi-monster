@@ -235,7 +235,8 @@ MQ.save = (function () {
      あそぶ 学年も そろえ、学期の せっていは「ぜんぶ」に もどす */
   function setGrade(g) {
     const w = (MQ.content && MQ.content.worldForGrade) ? MQ.content.worldForGrade(g) : null;
-    if (!w || w.locked) return false;
+    // v11.0：worldForGrade は 見つからない ときに 小3を かえす ので、学年そのものも くらべる
+    if (!w || w.locked || w.grade !== g) return false;
     update(function (p) { p.grade = g; p.playGrade = g; p.term = 0; p.units = {}; });
     return true;
   }
@@ -283,7 +284,7 @@ MQ.save = (function () {
   // 学年を かえる（地図の 学年チップ）。あそべない 学年は 変えない
   function setPlayGrade(g) {
     const w = (MQ.content && MQ.content.worldForGrade) ? MQ.content.worldForGrade(g) : null;
-    if (!w || w.locked) return false;
+    if (!w || w.locked || w.grade !== g) return false;   // v11.0：ない 学年を はじく
     update(function (p) { p.playGrade = g; });
     return true;
   }

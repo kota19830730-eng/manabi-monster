@@ -119,6 +119,20 @@ MQ.tiles = (function () {
     [ROAD,   ['#cfc0a2', '#c5b698']]
   ]), { margin: 1, wob: 2, taper: [8, 5, 3, 1] });
 
+  /* 小6 やみの 大陸（v11.0）：ユーザー指定「小6は 闇の ステージ」。
+     かれた むらさきの 大地・黒に 近い 森・どす黒い 海・灰むらさきの 砂・血の 色の 道。
+     ノードの 色は CSS の .map--g6 で 変える（木・岩・花）。 */
+  theme('g6', pal([
+    [GRASS,  ['#4a3f63', '#443a5b']],
+    [FOREST, ['#2a2140', '#251d39']],
+    [SEA,    ['#141026', '#110d20']],
+    [SHAL,   ['#2a1f4a', '#241a41']],
+    [RIVER,  ['#3a2a5e', '#332555']],
+    [SAND,   ['#6b5f80', '#625777']],
+    [ROCK,   ['#4f4660', '#473f57']],
+    [ROAD,   ['#8a5a6e', '#7f5265']]
+  ]), { margin: 1, wob: 3, taper: [8, 5, 3, 1] });
+
   function isLand(v) { return v >= SAND; }
   function isWater(v) { return v < SAND; }
 

@@ -894,7 +894,7 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 136, 'たからもの 136個（小3 32＋小1 18＋小2 19＋小4 32＋小5 35）: ' + MQ.treasure.total());
+check(MQ.treasure.total() === 168, 'たからもの 168個（小3 32＋小1 18＋小2 19＋小4 32＋小5 35＋小6 32）: ' + MQ.treasure.total());
 check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 35, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 35');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
@@ -1005,7 +1005,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
   // ぜんぶ そろった プレイヤーは ぜんぶ もらえる
   const dex = {};
   MQ.enemies.list.slice(0, 80).forEach(function (e) { dex[e.id] = 1; });
-  ['boss-dragon', 'boss-oni', 'boss-knight', 'boss-slime', 'boss-titan', 'boss-maou', 'boss-dark', 'boss-obake', 'boss-kaizoku', 'boss-blizzard', 'slime-golden'].forEach(function (id) { dex[id] = 1; });
+  ['boss-dragon', 'boss-oni', 'boss-knight', 'boss-slime', 'boss-titan', 'boss-maou', 'boss-dark', 'boss-obake', 'boss-kaizoku', 'boss-blizzard', 'boss-hades', 'slime-golden'].forEach(function (id) { dex[id] = 1; });
   const stars = {}; MQ.content.subjectAreas().forEach(function (a) { a.stages.forEach(function (st) { stars[st.id] = 3; }); });
   const tr = {}; MQ.treasure.list.forEach(function (t) { tr[t.id] = 2; });
   const rich = {
@@ -1237,7 +1237,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 274, '図かんは 274体（' + dex + '）');   // v9.0 で カプセル専用 54体（220 → 274）
+  check(dex === 275, '図かんは 275体（' + dex + '）');   // v11.0 で 小6の ラスボス（274 → 275）
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -1673,8 +1673,8 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     if (pw) perPower[pw.id] = (perPower[pw.id] || 0) + 1;
   });
   const want = {
-    burst: 16, shield: 12, freeze: 6, guide: 11, golden: 10, chest: 8, power: 13, charge: 11,
-    bond: 9, rush: 11, find: 11, swift: 10, elixir: 8      // v5.4 で ふえた 5つ（小5の たからもの 34 で 数が ふえた）
+    burst: 19, shield: 15, freeze: 7, guide: 14, golden: 12, chest: 10, power: 17, charge: 13,
+    bond: 12, rush: 13, find: 13, swift: 12, elixir: 11   // v11.0 で 小6の たからもの 32 が 入った
   };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
@@ -2058,12 +2058,12 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
 
 /* ---- がくねん（v2.1 えらぶ画面／v2.2 小1が あそべる） ---- */
 check(MQ.content.worlds.length === 6, 'ワールドは 6つ: ' + MQ.content.worlds.length);
-check(MQ.content.worlds.filter(function (w) { return !w.locked; }).length === 5, 'あそべる ワールドは 小1〜小5（v6.5）');
+check(MQ.content.worlds.filter(function (w) { return !w.locked; }).length === 6, 'あそべる ワールドは 小1〜小6（v10.6）');
 check(MQ.content.worldForGrade(3).id === 'g3' && MQ.content.worldForGrade(1).id === 'g1' && !MQ.content.worldForGrade(1).locked, 'worldForGrade');
 check(MQ.content.worldForGrade(2).id === 'g2' && !MQ.content.worldForGrade(2).locked, '小2は あそべる');
 check(!MQ.content.worldForGrade(4).locked, '小4は あそべる');
 check(!MQ.content.worldForGrade(5).locked && MQ.content.worldForGrade(5).areas[0].stages.length === 18, '小5は あそべる（算数 18ステージ・v6.5）');
-check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅう');
+check(!MQ.content.worldForGrade(6).locked && MQ.content.worldForGrade(6).areas[0].stages.length === 15, '小6は あそべる（算数 15ステージ・v10.6）');
 (function () {
   MQ.save.createPlayer('小1テスト', null, 1);
   check(MQ.content.activeWorld().id === 'g1', 'がくねん 1 の プレイヤーは 小1ワールド: ' + MQ.content.activeWorld().id);
@@ -2079,7 +2079,8 @@ check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅ�
   MQ.save.createPlayer('小5テスト', null, 5);
   check(MQ.content.activeWorld().id === 'g5', 'がくねん 5 の プレイヤーは 小5ワールド（v6.5）: ' + MQ.content.activeWorld().id);
   MQ.save.createPlayer('小6テスト', null, 6);
-  check(MQ.content.activeWorld().id === 'g3', 'まだ 開いていない がくねん（小6）は 小3 に たおす');
+  check(MQ.content.activeWorld().id === 'g6', 'がくねん 6 の プレイヤーは 小6ワールド（v10.6）: ' + MQ.content.activeWorld().id);
+  check(MQ.content.areaOf('sansu').name === 'やみの 山' && MQ.content.subjectAreas().length === 5 && MQ.content.hasTower(), '小6は やみの 大陸・5教科＋めいかいの 門');
   MQ.content.setActive(MQ.content.world1);
   check(MQ.content.subjectAreas().length === 2, 'setActive で 決めうち');
   MQ.content.setActive(null);
@@ -2091,7 +2092,7 @@ check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅ�
   check(MQ.save.setPlayGrade(2) === true, '小2に 変えられる');
   check(MQ.content.activeWorld().id === 'g2', '小2ワールドに 変わる: ' + MQ.content.activeWorld().id);
   check(MQ.save.current().grade === 3, '学校の 学年は 変わらない');
-  check(MQ.save.setPlayGrade(6) === false && MQ.content.activeWorld().id === 'g2', 'じゅんびちゅうの 学年（小6）には 変えられない');
+  check(MQ.save.setPlayGrade(9) === false && MQ.content.activeWorld().id === 'g2', 'ない 学年（小9）には 変えられない');
   check(MQ.save.setPlayGrade(4) === true && MQ.content.activeWorld().id === 'g4', '小4（よしゅう）にも 変えられる');
   // ふくしゅう・よしゅう中は 学期で しぼらない
   MQ.save.update(function (pl) { pl.term = 1; pl.playGrade = 2; });
@@ -2222,7 +2223,7 @@ check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅ�
   S.setNow(new Date(2026, 6, 20)); MQ.save.update(function (p2) { S.record(p2, { results: mk('kokugo3-1', 'c', '11111', 10) }); });
   check(S.masteredCount(MQ.save.current(), 3, new Date(2026, 7, 6)) === 1, '30日前に 身について いた 単元（kokugo3-1）');
   S.setNow(null);
-  check(MQ.save.setGrade(6) === false && MQ.save.setGrade(2) === true && MQ.save.current().grade === 2 && MQ.save.current().playGrade === 2 && MQ.save.current().term === 0, 'setGrade');
+  check(MQ.save.setGrade(9) === false && MQ.save.setGrade(2) === true && MQ.save.current().grade === 2 && MQ.save.current().playGrade === 2 && MQ.save.current().term === 0, 'setGrade');
   MQ.save.deletePlayer(sp.id);
 })();
 (function () {
@@ -2321,7 +2322,7 @@ check(MQ.content.worldForGrade(6).locked === true, '小6 は じゅんびちゅ�
 // ---- 画数の 表（v2.9）と 線の ならびの ルール ----
 (function () {
   const K = MQ.kakusu, HW = MQ.handwrite;
-  check(Object.keys(K.table).filter(function (k) { return /[一-龠]/.test(k); }).length === 837, 'kakusu: かん字 837字（小5 178字 ふくむ） (' + K.count() + ' entries)');
+  check(Object.keys(K.table).filter(function (k) { return /[一-龠]/.test(k); }).length === 1026, 'kakusu: かん字 1026字（小6 189字 ふくむ） (' + K.count() + ' entries)');
   (function () {
     const per = { 1: 0, 2: 0, 3: 0, 4: 0 };
     Object.keys(K.grades).forEach(function (k) { per[K.grades[k]]++; });
@@ -2981,7 +2982,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   // 入口
   const f = C.findStage('mix3');
   check(f && f.stage.mix && f.area.id === 'mix' && f.world.grade === 3 && f.stage.id === C.mixStage().id, 'mix: findStage / mixStage');
-  check(C.findStage('mix6') === null, 'mix: 開いて いない 学年は ない');
+  check(C.findStage('mix7') === null, 'mix: 開いて いない 学年は ない');
   check(C.mixOpen(p) === true && C.mixGroups(p).length === 4, 'mix: 小3は 4教科 ' + C.mixGroups(p).length);
   // 12問 → 教科ごとに 3問ずつ・id は mix3: で はじまる・教科の モンスター・単元に 教科名
   const qs = f.stage.make(12, {});
@@ -3351,7 +3352,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
   // しょうごう
   check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
-  check(MQ.hero.titles.length === 50, 'しょうごう 50（v9.0 で カプセル 2つ）: ' + MQ.hero.titles.length);
+  check(MQ.hero.titles.length === 51, 'しょうごう 51（v11.0 で 冥界を こえた 者）: ' + MQ.hero.titles.length);
   // 古い セーブ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
   check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');

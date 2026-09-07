@@ -111,6 +111,11 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/rika5.js"></script>
 <script src="../js/content/shakai5.js"></script>
 <script src="../js/content/eigo5.js"></script>
+<script src="../js/content/sansu6.js"></script>
+<script src="../js/content/kokugo6.js"></script>
+<script src="../js/content/rika6.js"></script>
+<script src="../js/content/shakai6.js"></script>
+<script src="../js/content/eigo6.js"></script>
 <script src="../js/content/kokugo4.js"></script>
 <script src="../js/content/rika4.js"></script>
 <script src="../js/content/shakai4.js"></script>
@@ -657,6 +662,41 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       document.getElementById('stage').appendChild(box);
       const fs4 = parseInt(mode.slice(6), 10);   // #figs4:-1 で いちばん 下
       if (!isNaN(fs4)) { await wait(60); box.scrollTop = fs4 < 0 ? 99999 : fs4; }
+      return;
+    }
+    // 小6ワールド（v10.6〜v11.0・やみの 大陸）：#map6(:-1) マップ／#battle6:N 算数N（1〜15）／#figs6 図／
+    //   #kokugo6（かん字を 書く）#koku6:N #rika6:N #shakai6:N #eigo6:N ／#treasure6 ／#parent6
+    if (mode === 'map6' || mode.indexOf('map6:') === 0 || mode.indexOf('battle6') === 0 || mode === 'treasure6' || mode === 'parent6' || mode === 'figs6' || mode === 'kokugo6' || mode.indexOf('koku6') === 0 || mode.indexOf('rika6') === 0 || mode.indexOf('shakai6') === 0 || mode.indexOf('eigo6') === 0) {
+      fresh({ stars: { 'sansu6-1': 3, 'sansu6-2': 2, 'sansu6-3': 3 }, treasure: { 'tr6-taisho': 2, 'tr6-moji': 1 }, frags: {} });
+      MQ.save.update(function (pl) { pl.grade = 6; pl.playGrade = 6; pl.best = {}; });
+      if (mode.indexOf('battle6') === 0) { const bn = parseInt(mode.slice(8), 10); MQ.ui.battle.start('sansu6-' + (isNaN(bn) ? 1 : bn)); await wait(600); const q = MQ.battle.current(); say('battle6: ' + q.id + ' type=' + q.type + ' answer=' + JSON.stringify(q.answer)); return; }
+      if (mode === 'kokugo6') { MQ.ui.battle.start('kokugo6-2'); await wait(600); return; }
+      if (mode.indexOf('rika6') === 0) { const rn = parseInt(mode.slice(6), 10); MQ.ui.battle.start('rika6-' + (isNaN(rn) ? 1 : rn)); await wait(600); return; }
+      if (mode.indexOf('shakai6') === 0) { const sn = parseInt(mode.slice(8), 10); MQ.ui.battle.start('shakai6-' + (isNaN(sn) ? 1 : sn)); await wait(600); return; }
+      if (mode.indexOf('eigo6') === 0) { const en = parseInt(mode.slice(6), 10); MQ.ui.battle.start('eigo6-' + (isNaN(en) ? 1 : en)); await wait(600); return; }
+      if (mode.indexOf('koku6') === 0) { const kn = parseInt(mode.slice(6), 10); MQ.ui.battle.start('kokugo6-' + (isNaN(kn) ? 1 : kn)); await wait(600); return; }
+      if (mode === 'treasure6') { MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
+      if (mode === 'parent6') { MQ.ui.parent.open('settings'); return; }
+      if (mode === 'figs6') {
+        const F = MQ.sansu6.figs6;
+        const box = document.createElement('div');
+        box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;z-index:99;align-content:start;overflow:auto;';
+        [F.symSvg('seiroku', true), F.symSvg('heiko'), F.symSvg('hishi', true), F.symSvg('daikei'), F.scaleSvg(2),
+         F.circleSvg6('circle', '5cm'), F.circleSvg6('half', '4cm'), F.circleSvg6('quarter', '6cm'), F.circleSvg6('ring', '8cm'),
+         F.prismSvg6('prism'), F.prismSvg6('tri'), F.prismSvg6('cyl'), F.propGraphSvg(2), F.histSvg([2, 4, 3, 1])
+        ].forEach(function (svg) { const d = document.createElement('div'); d.innerHTML = svg; box.appendChild(d); });
+        document.getElementById('stage').appendChild(box);
+        const fs6 = parseInt(mode.slice(6), 10);
+        if (!isNaN(fs6)) { await wait(60); box.scrollTop = fs6 < 0 ? 99999 : fs6; }
+        return;
+      }
+      MQ.ui.goMap();
+      const at6 = parseInt(mode.slice(5), 10);
+      await wait(300);
+      dismissTowerPop();
+      MQ.ui.map.paint();
+      const sc6 = $('#screen-map .map__scroll');
+      if (sc6 && !isNaN(at6)) sc6.scrollTop = at6 < 0 ? 99999 : at6;
       return;
     }
     // 小5ワールド（v6.5）：#map5(:-1) マップ／#battle5:N 算数N（1〜18）／#figs5 図／#treasure5／#parent5
@@ -1893,7 +1933,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const STAGES = mode === 'fit:all'
         ? [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'sansu3-11'], [3, 'sansu3-12'], [3, 'sansu3-16'], [3, 'sansu3-18'], [3, 'kokugo3-2'], [3, 'kokugo3-3'], [3, 'rikashakai3-1'], [3, 'eigo3-1'],
            [1, 'sansu1-8'], [2, 'sansu2-2'], [2, 'sansu2-9'], [4, 'sansu4-2'], [4, 'sansu4-7'], [4, 'sansu4-11'], [4, 'sansu4-15'],
-           [5, 'sansu5-2'], [5, 'sansu5-6'], [5, 'sansu5-10'], [5, 'sansu5-14'], [5, 'sansu5-16'], [5, 'sansu5-18']]
+           [5, 'sansu5-2'], [5, 'sansu5-6'], [5, 'sansu5-10'], [5, 'sansu5-14'], [5, 'sansu5-16'], [5, 'sansu5-18'],
+           [6, 'sansu6-1'], [6, 'sansu6-3'], [6, 'sansu6-7'], [6, 'sansu6-8'], [6, 'sansu6-9'], [6, 'sansu6-11'], [6, 'sansu6-14'], [6, 'kokugo6-3'], [6, 'rika6-1'], [6, 'shakai6-2'], [6, 'eigo6-2']]
         : [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'kokugo3-2'], [3, 'eigo3-1']];
       let worst = 0, worstQ = "", checked = 0, bad = 0, badCard = 0, badBody = 0;
       // カードから 問題文が はみ出して いないか ＋ キーや ヒントが 下で 切れて いないか
@@ -2350,6 +2391,16 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     // 小5の さいごの塔（v6.9）：#last5 バトル／#last5map 塔が 開いた 地図
+    // 小6の さいごの塔（v11.0）：#last6 バトル／#last6map 門が 開いた 地図
+    if (mode === 'last6' || mode === 'last6map') {
+      fresh({ frags: {} });
+      MQ.save.update(function (pl) { pl.grade = 6; pl.playGrade = 6; ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); });
+      if (mode === 'last6map') { MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
+      MQ.ui.battle.start('tower6');
+      await wait(3200);
+      say('tower6: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none') + ' boss=' + MQ.content.lastBoss().name);
+      return;
+    }
     if (mode === 'last5' || mode === 'last5map') {
       fresh({ frags: {} });
       MQ.save.update(function (pl) { pl.grade = 5; pl.playGrade = 5; ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); });
@@ -3164,6 +3215,29 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await playBattle('tower5');
     await wait(900);
     say('tower5 result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
+
+    say('--- 小6ワールド（v10.6〜v11.0・やみの 大陸） ---');
+    MQ.save.setPlayGrade(6);
+    MQ.ui.goMap();
+    await wait(400);
+    say('小6の 地図: nodes ' + $$('#screen-map .node').length + ' / ' + ($('#screen-map .map--g6') ? 'やみの 大陸 ok' : 'MISSING'));
+    for (const sid of ['sansu6-3', 'sansu6-8', 'kokugo6-2', 'rika6-2', 'shakai6-3', 'eigo6-4']) {
+      MQ.ui.battle.start(sid);
+      await wait(600);
+      say(sid + ' の 1問め: ' + (MQ.battle.current() ? MQ.battle.current().type + ' ' + MQ.battle.current().unit : 'MISSING'));
+      await playBattle(sid);
+      await wait(900);
+      say(sid + ' result: ' + ($('#screen-result .rs__title') ? 'ok' : 'MISSING'));
+    }
+    MQ.save.update(function (pl) { ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); });
+    MQ.ui.goMap();
+    await wait(400);
+    say('小6 門: ' + ($('#screen-map .tower') ? 'ok' : 'MISSING') + ' / 開いた: ' + (MQ.content.towerOpen(MQ.save.current()) ? 'ok' : 'MISSING') + ' / ラスボス: ' + MQ.content.lastBoss().name + (MQ.content.lastBoss().name === 'メイオウハデス' ? ' ok' : ' MISSING'));
+    MQ.ui.battle.start('tower6');
+    await wait(3200);
+    await playBattle('tower6');
+    await wait(900);
+    say('tower6 result: ' + ($('#screen-result .rs__title') ? $('#screen-result .rs__title').textContent : 'MISSING'));
 
     say('--- 小1・小2の さいごの とう（v6.4） ---');
     for (const g of [1, 2]) {

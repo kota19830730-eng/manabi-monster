@@ -1285,6 +1285,7 @@ MQ.hero = (function () {
     { id: 't-obake',     name: 'おばけの ゆうしゃ',      how: 'おばけキングを たおす',      test: function (p) { return beaten(p, 'boss-obake'); } },
     { id: 't-kaizoku',   name: 'うみの ゆうしゃ',        how: 'かいぞくキャプテンを たおす', test: function (p) { return beaten(p, 'boss-kaizoku'); } },
     { id: 't-blizzard',  name: 'ふぶきを こえた 者',      how: 'ブリザードキングを たおす',  test: function (p) { return beaten(p, 'boss-blizzard'); } },
+    { id: 't-hades',     name: '冥界を こえた 者',      how: 'メイオウハデスを たおす',   test: function (p) { return beaten(p, 'boss-hades'); } },
     // なかま（v5.2）
     { id: 't-pal1',      name: 'なかまと ともに',        how: 'なかまを 1体 つくる',       test: function (p) { return palCount(p) >= 1; } },
     { id: 't-pal10',     name: 'なかまの リーダー',       how: 'なかまを 10体 あつめる',     test: function (p) { return palCount(p) >= 10; } },

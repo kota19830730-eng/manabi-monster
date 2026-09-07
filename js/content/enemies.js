@@ -462,6 +462,10 @@ MQ.enemies = (function () {
     { id: 'boss-blizzard', area: 'tower5', name: 'ブリザードキング', shape: 'blizzard', last: true,
       colors: { A: '#BFE6FF', B: '#1F4FA8', C: '#7FC4F2', y: '#F2C14E', w: '#F4FBFF', e: '#38E0FF', k: '#122040' },
       phase2: { A: '#D6C8FF', B: '#3A1F8A', C: '#A48CF2', y: '#FFE08A', w: '#FFFFFF', e: '#FF3B30', k: '#122040' } },
+    /* 小6の ラスボス（v11.0）：冥界の 神を イメージした メイオウハデス */
+    { id: 'boss-hades', area: 'tower6', name: 'メイオウハデス', shape: 'hades', last: true,
+      colors: { A: '#2A2438', B: '#12101F', C: '#A96BE0', k: '#241E36', y: '#F2C14E', w: '#F2F2F2', e: '#FF3B30', r: '#B04BFF' },
+      phase2: { A: '#3A3050', B: '#1A1630', C: '#8FD3FF', k: '#2A2440', y: '#FFE08A', w: '#FFFFFF', e: '#FFD447', r: '#7FD8FF' } },
     /* ラスボス。HPを 2つ けずると 第2形態（色が かわる）に なる */
     { id: 'boss-maou', area: 'tower', name: 'まおう', shape: 'maou', last: true,
       colors: { A: '#7A2436', B: '#3A0E18', r: '#FF3B30', y: '#FFD447', w: '#F2F2F2' },
