@@ -1045,19 +1045,19 @@ MQ.hero = (function () {
     '...........................SSC....',
     '...........................SCC....',
     '...........kkkkkkkkkkkkkk..SSC....',
+    '...........KKkKKKKkKKKkKK..SCC....',
+    '...........KKKKkKKKKkKKKK..SSC....',
     '...........KKKKKKKKKKKKKK..SCC....',
-    '...........KKKKKKKKKKKKKK..SSC....',
-    '...........KKKKKKKKKKKKKK..SCC....',
-    '...........KKKKKKKKKKKKKK..SSC....',
-    '...........KKKKKKKKKKKKKKMMMMMMM..',
-    '...........KKKKsKKssKKeKKmmmmmmm..',
-    '...........KKKKsssssKKeKK..mmm....',
-    '...........KKsWBBssWBBeKK..mmm....',
-    '...........KKsBBBssBBBeKK..mmm....',
-    '...........KKsBBBssBBBeKK.MMMMM...',
-    '...........KKssssssssseKK.LLLLD...',
-    '...........KKssssssssseKK.AAAAD...',
-    '.............ssssssssse...AAAAD...',
+    '...........KKKssKKssKKKeK..SSC....',
+    '...........KsssssssssseeKMMMMMMM..',
+    '...........KsssssssssseeKmmmmmmm..',
+    '...........KssWBBssWBBeeK..mmm....',
+    '...........KssBBBssBBBeeK..mmm....',
+    '...........KssBBBssBBBeeK..mmm....',
+    '...........KsssssssssseeK.MMMMM...',
+    '...........KsssssssssseeK.LLLLD...',
+    '............ssssssssssee..AAAAD...',
+    '............ssssssssssee..AAAAD...',
     '.......gggggLLggggggggLDDvAAAAD...',
     '.......gggggAAGGGGGGGGADggggggg...',
     '.yyyyyyyyyGGAAAAAAAAAAADggggggg...',
@@ -1082,10 +1082,10 @@ MQ.hero = (function () {
     K: '#3b2a16', k: '#5c421f',                              // かみの毛
     s: '#ffdca8', e: '#e0b986',                              // はだ
     W: '#ffffff', B: '#2e6fe0',                              // 青い 目
-    A: '#3a3a48', L: '#4e4e5e', D: '#26262f',                // 黒い よろい
+    A: '#4a76dd', L: '#7098f2', D: '#2b4a97',                // 青い よろい（v9.8）
     g: '#ffd447', G: '#d9a418',                              // 金
-    p: '#2b2b36', q: '#1d1d26',                              // あし・くつ
-    V: '#3f66c9', v: '#294a9e',                              // 青い マント
+    p: '#2c3d6b', q: '#1d2a4c',                              // あし・くつ
+    V: '#e8443a', v: '#a82424',                              // 赤い マント（v9.8）
     M: '#5a6274', m: '#2c3040',                              // けんの つば・にぎり
     S: '#e8f3ff', C: '#5aa8f0',                              // ダイヤの 刃
     y: '#ffd447', b: '#3f66c9'                               // たて
