@@ -604,6 +604,68 @@ body {
 .title__sound { position: absolute; top: 8px; left: 8px; display: flex; gap: 6px; z-index: 6; }
 /* おうちの人ページの 入口（v7.8）。左上の おと／きょく と 同じ 小さい チップで 右上に */
 .sw--parent { position: absolute; top: 8px; right: 8px; z-index: 6; }
+
+/* ---- オープニング（v10.4）：アプリを ひらいた とき みんなが とびこんで くる ----
+   .title に is-opening が ついて いる あいだ（1.75秒）だけ、bob の かわりに とうじょうの アニメを かける。
+   おわるか タップで is-opening が 外れて、いつもの bob に もどる（bob は translateY(0) から 始まるので つぎ目は 出ない）。
+   じゅんばん：かんばんが 落ちる（0〜.6秒）→ リボン（.5）→ モンスターが 左右から ジャンプ（.35〜1.2）→
+             「A」が 落ちる（.55）→ たからばこ（.95）→ 勇者が 上から 着地（.85〜1.35）→
+             着地の しゅんかん（1.15）に 地面が ゆれる・土ぼこり・コインが はじける・かみふぶきが 降る → ボタンが せり上がる（1.2）。
+   動かすのは transform と opacity だけ（filter に さわると v10.3 の 夕日の ふちや 影が 消える）。
+   --tshift＝とちゅうで 描き直した とき（フォントが 読めた とき）の おくれ（負の 秒）。さいしょから やり直さず つづきから。
+   「動きを へらす」の 端末は いちばん 上の reduced-motion の きまりで ぜんぶ 止まり、さいごの 形が そのまま 出る。 */
+.title.is-opening .title__plaque { animation: tOpenDrop .6s cubic-bezier(.3,.9,.35,1.15) calc(0s + var(--tshift, 0s)) both; }
+.title.is-opening .title__tagrow { animation: tOpenPop .38s cubic-bezier(.3,1.4,.5,1) calc(.5s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob, .title.is-opening .title__hero, .title.is-opening .title__cube, .title.is-opening .title__chest { transform-origin: 50% 100%; }
+.title.is-opening .tmob--bat    { animation: tOpenJumpL .5s ease-out calc(.35s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob--robo   { animation: tOpenJumpL .5s ease-out calc(.42s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob--slime  { animation: tOpenJumpL .5s ease-out calc(.49s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob--lizard { animation: tOpenJumpL .5s ease-out calc(.56s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob--ninja  { animation: tOpenJumpL .5s ease-out calc(.63s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob--dragon { animation: tOpenJumpR .5s ease-out calc(.40s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob--ghost  { animation: tOpenJumpR .5s ease-out calc(.47s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob--golem  { animation: tOpenJumpR .5s ease-out calc(.54s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob--magma  { animation: tOpenJumpR .5s ease-out calc(.61s + var(--tshift, 0s)) both; }
+.title.is-opening .tmob--gold   { animation: tOpenJumpR .5s ease-out calc(.68s + var(--tshift, 0s)) both; }
+.title.is-opening .title__cube  { animation: tOpenFall .5s cubic-bezier(.3,.9,.35,1.2) calc(.55s + var(--tshift, 0s)) both; }
+.title.is-opening .title__chest { animation: tOpenPop .35s cubic-bezier(.3,1.4,.5,1) calc(.95s + var(--tshift, 0s)) both; }
+.title.is-opening .title__hero  { animation: tOpenHero .5s linear calc(.85s + var(--tshift, 0s)) both; }
+.title.is-opening .title__land  { animation: quake1fx .32s linear calc(1.15s + var(--tshift, 0s)) both; }
+.title.is-opening .title__actions { animation: tOpenRise .45s cubic-bezier(.2,.9,.3,1.1) calc(1.2s + var(--tshift, 0s)) both; }
+/* かみふぶき：inline の rotate が あるので transform は 使わず margin-top で 降らせる */
+.title.is-opening .title__bits i { animation: tOpenBits .8s ease-out calc(1.1s + var(--tshift, 0s)) both; }
+.title.is-opening .title__bits i:nth-child(even) { animation-delay: calc(1.25s + var(--tshift, 0s)); }
+/* 土ぼこり（勇者の 足もと）と コイン（たからばこ）。ふだんは opacity 0 で 見えない */
+.title__dust, .title__fly { position: absolute; width: 0; height: 0; pointer-events: none; }
+.title__dust { left: 169px; bottom: 60px; z-index: 5; }
+.title__fly  { left: 269px; bottom: 58px; z-index: 7; }
+.title__dust i { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; background: #e9d9b0; opacity: 0; }
+.title__fly i  { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 3px; background: var(--gold); box-shadow: inset 0 -3px 0 #d99b18, inset 0 2px 0 #fff0b8; opacity: 0; }
+.title__dust i:nth-child(1) { --dx: -42px; --dy: -14px; }
+.title__dust i:nth-child(2) { --dx:  42px; --dy: -14px; }
+.title__dust i:nth-child(3) { --dx: -26px; --dy: -30px; }
+.title__dust i:nth-child(4) { --dx:  26px; --dy: -30px; }
+.title__dust i:nth-child(5) { --dx: -58px; --dy:  -4px; }
+.title__dust i:nth-child(6) { --dx:  58px; --dy:  -4px; }
+.title__fly i:nth-child(1) { --dx: -46px; --dy: -70px; }
+.title__fly i:nth-child(2) { --dx: -22px; --dy: -88px; }
+.title__fly i:nth-child(3) { --dx:   6px; --dy: -94px; }
+.title__fly i:nth-child(4) { --dx:  30px; --dy: -86px; }
+.title__fly i:nth-child(5) { --dx:  52px; --dy: -66px; }
+.title.is-opening .title__dust i { animation: tOpenDust .5s ease-out calc(1.15s + var(--tshift, 0s)) both; }
+.title.is-opening .title__fly i  { animation: tOpenCoin .75s cubic-bezier(.2,.7,.5,1) calc(1.15s + var(--tshift, 0s)) both; }
+@keyframes tOpenDrop  { 0% { transform: translateY(-460px) rotate(-2deg); opacity: 0; } 15% { opacity: 1; } 70% { transform: translateY(16px) rotate(-2deg); } 85% { transform: translateY(-6px) rotate(-2deg); } 100% { transform: translateY(0) rotate(-2deg); opacity: 1; } }
+@keyframes tOpenPop   { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes tOpenJumpL { 0% { transform: translate(-190px, -30px); opacity: 0; } 12% { opacity: 1; } 55% { transform: translate(-36px, -58px); } 84% { transform: translate(0, 0) scale(1); } 92% { transform: translate(0, 0) scale(1.08, .9); } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
+@keyframes tOpenJumpR { 0% { transform: translate(190px, -30px); opacity: 0; } 12% { opacity: 1; } 55% { transform: translate(36px, -58px); } 84% { transform: translate(0, 0) scale(1); } 92% { transform: translate(0, 0) scale(1.08, .9); } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
+@keyframes tOpenFall  { 0% { transform: translateY(-220px) rotate(-30deg); opacity: 0; } 20% { opacity: 1; } 75% { transform: translateY(10px) rotate(4deg); } 100% { transform: translateY(0) rotate(0); opacity: 1; } }
+@keyframes tOpenHero  { 0% { transform: translateY(-380px); opacity: 0; } 8% { opacity: 1; } 20% { transform: translateY(-300px); } 40% { transform: translateY(-180px); } 55% { transform: translateY(-40px); } 62% { transform: translateY(0) scale(1); } 72% { transform: translateY(0) scale(1.14, .84); } 86% { transform: translateY(0) scale(.97, 1.04); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+@keyframes tOpenRise  { 0% { transform: translateY(70px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+@keyframes tOpenBits  { 0% { margin-top: -80px; opacity: 0; } 40% { opacity: 1; } 100% { margin-top: 0; opacity: 1; } }
+/* 0% は opacity 0（fill both は delay の あいだ 0% の 形で 待つ ので、ここが 見えて いると 着地の 前から 土が 出る） */
+@keyframes tOpenDust  { 0% { transform: translate(0, 0) scale(.4); opacity: 0; } 8% { opacity: .95; } 100% { transform: translate(var(--dx), var(--dy)) scale(1.3); opacity: 0; } }
+@keyframes tOpenCoin  { 0% { transform: translate(0, 10px); opacity: 0; } 15% { opacity: 1; } 55% { transform: translate(var(--dx), var(--dy)); opacity: 1; } 100% { transform: translate(calc(var(--dx) * 1.5), 6px); opacity: 0; } }
+
 .sw {
   min-height: 34px; padding: 0 9px; border: 0; border-radius: 9px; cursor: pointer;
   background: rgba(14,22,44,.7); color: #a8b6d8;

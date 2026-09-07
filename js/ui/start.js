@@ -134,8 +134,45 @@ MQ.ui.start = (function () {
       mob('ninja-2', 62, 'ninja'),
       mob('slime-golden', 58, 'gold'),
       chest(),
-      mob('magma-3', 62, 'magma')
+      mob('magma-3', 62, 'magma'),
+
+      // オープニング（v10.4）だけで 見える：勇者の 足もとの 土ぼこり 6つ・たからばこから とぶ コイン 5まい
+      h('div', { class: 'title__dust' }, [h('i'), h('i'), h('i'), h('i'), h('i'), h('i')]),
+      h('div', { class: 'title__fly' }, [h('i'), h('i'), h('i'), h('i'), h('i')])
     ]);
+  }
+
+  /* =======================================================
+     オープニング（v10.4）：アプリを ひらいた とき みんなが とびこんで くる
+     - 1回の 起動で 1回だけ（地図から「プレイヤー」で もどった ときは 出ない）
+     - フォントが 読めて 描き直す とき（boot.js）は さいしょから やり直さず、つづきから（--tshift）
+     - タップで とばせる。おわると is-opening が 外れて いつもの bob に もどる
+     - 絵と 時間は css/style.css の「オープニング（v10.4）」
+     ======================================================= */
+  const OPEN_MS = 1750;
+  let openedAt = 0;   // オープニングを はじめた 時刻（0＝まだ）
+
+  // 出すなら「何ミリ秒 おくれて 入るか」（0＝さいしょから）、出さないなら null
+  function openingShift() {
+    const now = Date.now();
+    if (!openedAt) { openedAt = now; return 0; }
+    const d = now - openedAt;
+    return d < OPEN_MS ? d : null;
+  }
+  function resetOpening() { openedAt = 0; }   // テスト用（harness #open）
+
+  function attachOpening(wrap) {
+    let m = null;
+    try { m = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)'); } catch (e) {}
+    if (m && m.matches) return;
+    const shift = openingShift();
+    if (shift === null) return;
+    wrap.classList.add('is-opening');
+    wrap.style.setProperty('--tshift', (-shift / 1000) + 's');
+    let timer = 0;
+    function done() { wrap.classList.remove('is-opening'); clearTimeout(timer); }
+    timer = setTimeout(done, OPEN_MS - shift);
+    wrap.addEventListener('pointerdown', done);   // どこを タップしても とばせる（ボタンは そのまま 効く）
   }
 
   /* =======================================================
@@ -223,6 +260,7 @@ MQ.ui.start = (function () {
       h('div', { class: 'title__actions' }, actions)
     ]));
 
+    attachOpening(wrap);   // v10.4：1回の 起動で 1回だけ
     MQ.ui.mount('screen-start', wrap);
   }
 
@@ -285,5 +323,5 @@ MQ.ui.start = (function () {
     MQ.ui.show('screen-start');
   }
 
-  return { render: render, maker: maker };
+  return { render: render, maker: maker, resetOpening: resetOpening, OPEN_MS: OPEN_MS };
 })();

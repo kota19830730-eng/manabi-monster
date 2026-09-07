@@ -547,6 +547,44 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say(L.join(' | ')); dump(); return;
     }
     if (mode === 'start') { fresh(); MQ.ui.start.render(); MQ.ui.show('screen-start'); return; }
+    // オープニング（v10.4）：#open[:<秒>]＝<秒>めで 止めて 撮る（0.3）／#open:skip＝タップで とばす（ボタンの pointerdown が バブリング）／
+    //                     #open:again＝2回めの render では 出ない／#open:mid＝とちゅう（0.3秒）で 描き直しても つづきから
+    if (mode === 'open' || mode.indexOf('open:') === 0) {
+      const arg = mode.split(':')[1] || '0.3';
+      fresh();
+      if (arg === 'skip' || arg === 'again' || arg === 'mid') {
+        MQ.ui.start.render(); MQ.ui.show('screen-start');
+        const t = $('#screen-start .title');
+        say('open: はじめ is-opening=' + t.classList.contains('is-opening') + '（true が 正）');
+        if (arg === 'skip') {
+          $('#screen-start .btn--cream').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+          say('open: タップの あと is-opening=' + t.classList.contains('is-opening') + '（false が 正）');
+        } else if (arg === 'again') {
+          await wait(2000);
+          say('open: 2秒 あと is-opening=' + t.classList.contains('is-opening') + '（false が 正）');
+          MQ.ui.start.render(); MQ.ui.show('screen-start');
+          say('open: 2回めの render is-opening=' + $('#screen-start .title').classList.contains('is-opening') + '（false が 正）');
+        } else {
+          await wait(300);
+          MQ.ui.start.render(); MQ.ui.show('screen-start');
+          const t2 = $('#screen-start .title');
+          say('open: 0.3秒で 描き直し is-opening=' + t2.classList.contains('is-opening') + ' tshift=' + t2.style.getPropertyValue('--tshift') + '（true・-0.3s くらい が 正）');
+        }
+        return;
+      }
+      const at = parseFloat(arg);
+      MQ.ui.start.resetOpening();
+      freeze();   // おわりの setTimeout を 止める（is-opening が 外れない ように）
+      MQ.ui.start.render(); MQ.ui.show('screen-start');
+      void document.body.offsetWidth;
+      const anims = document.getAnimations();
+      anims.forEach(function (a) { a.pause(); try { a.currentTime = at * 1000; } catch (e) {} });
+      const hero = $('#screen-start .title__hero').getBoundingClientRect();
+      const logo = $('#screen-start .title__plaque').getBoundingClientRect();
+      const slime = $('#screen-start .tmob--slime').getBoundingClientRect();
+      say('open: ' + at + '秒 アニメ ' + anims.length + '本 / 勇者 top ' + Math.round(hero.top) + ' / ロゴ top ' + Math.round(logo.top) + ' / スライム left ' + Math.round(slime.left) + ' / is-opening=' + $('#screen-start .title').classList.contains('is-opening'));
+      return;
+    }
     if (mode === 'maker') { try { localStorage.clear(); } catch (e) {} MQ.save.load(); MQ.ui.start.maker(); return; }
     if (mode === 'look') { fresh(); MQ.ui.look.edit(); return; }
     if (mode === 'map' || mode.indexOf('map:') === 0) {
