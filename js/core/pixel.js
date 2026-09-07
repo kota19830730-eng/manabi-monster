@@ -23,9 +23,168 @@ window.MQ = window.MQ || {};
 MQ.pixel = (function () {
   const cache = {};
 
+  /* =======================================================
+     HD（v9.4）… 2倍の こまかさで 描く
+
+     ユーザー（息子さん）「キャラの グラフィックが 上がった 気が しない」。
+     v9.1 で 変えたのは **ぬり方**だけで、点の 数は 48×48 の ままだった。
+     ここでは **1点を 2×2 に 分けて 96×96 で 描き**、あいた こまかさに
+
+       ・素材の 質感（かみの すじ・ぬのの おり・金ぞくの ななめの 光…）
+       ・**色の さかいめの 立体**（同じ 色の かたまりの ふちを 2だんかいで 明暗）
+       ・目の ハイライト
+       ・まわりの こい ふち（v9.1 の rim を 半分の 太さで）
+
+     を 入れる。**マス目（かたち）は 1つも 動かさない**ので、
+     いままでの 顔・かみがた・そうびが そのまま 使える。
+
+     どの 素材かは 呼ぶ 側（hero.js）が `layer.mat` で 教える：
+       mat: 'skin'                     … その 層は ぜんぶ その 素材
+       mat: { c: 'cloth', b: 'gold' }  … 文字ごと（書いて ない 文字は cloth）
+     ======================================================= */
+  const MATS = ['none', 'skin', 'hair', 'cloth', 'wood', 'metal', 'gold', 'white', 'iris', 'glow', 'mouth'];
+  const MAT_ID = {};
+  MATS.forEach(function (m, i) { MAT_ID[m] = i; });
+
+  // いつも 同じ ゆらぎ（描き直しても ちらつかない）
+  function grain(x, y) {
+    let h = (x * 73856093) ^ (y * 19349663);
+    h = (h ^ (h >>> 13)) * 1274126177;
+    return (((h ^ (h >>> 16)) >>> 0) % 1000) / 1000 - 0.5;    // -0.5 〜 0.5
+  }
+
+  function renderHD(layers, opts) {
+    const SUB = Math.max(2, opts.hd | 0);
+    const base = layers[0].rows;
+    const bw = opts.w || base[0].length;
+    const bh = opts.h || base.length;
+    const W = bw * SUB, H = bh * SUB;
+    const dx = opts.dx || 0, dy = opts.dy || 0;
+
+    const R = new Uint8ClampedArray(W * H), G = new Uint8ClampedArray(W * H), B = new Uint8ClampedArray(W * H);
+    const on = new Uint8Array(W * H);         // 絵が あるか
+    const mt = new Uint8Array(W * H);         // 素材
+    const rg = new Int32Array(W * H);         // 同じ 色の かたまりの 印
+
+    layers.forEach(function (layer, li) {
+      if (!layer) return;
+      const fn = typeof layer.palette === 'function';
+      const ox = (layer.ox || 0) + dx, oy = (layer.oy || 0) + dy;
+      const mat = layer.mat;
+      const matStr = (typeof mat === 'string') ? (MAT_ID[mat] || 3) : 0;
+      for (let y = 0; y < layer.rows.length; y++) {
+        const row = layer.rows[y];
+        for (let x = 0; x < row.length; x++) {
+          const ch = row[x];
+          if (ch === '.' || ch === ' ') continue;
+          const hex = fn ? layer.palette(ch, x, y) : layer.palette[ch];
+          if (!hex) continue;
+          const n = parseInt(hex.slice(1), 16);
+          const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+          const m = matStr || (mat ? (MAT_ID[mat[ch]] || 3) : 3);
+          const key = li * 256 + ch.charCodeAt(0);
+          for (let sy = 0; sy < SUB; sy++) {
+            const Y = (y + oy) * SUB + sy;
+            if (Y < 0 || Y >= H) continue;
+            for (let sx = 0; sx < SUB; sx++) {
+              const X = (x + ox) * SUB + sx;
+              if (X < 0 || X >= W) continue;
+              const i = Y * W + X;
+              R[i] = r; G[i] = g; B[i] = b; on[i] = 1; mt[i] = m; rg[i] = key;
+            }
+          }
+        }
+      }
+    });
+
+    const out = new Uint8ClampedArray(W * H * 4);
+    const idx = function (X, Y) { return (X < 0 || Y < 0 || X >= W || Y >= H) ? -1 : Y * W + X; };
+
+    for (let Y = 0; Y < H; Y++) {
+      for (let X = 0; X < W; X++) {
+        const i = Y * W + X;
+        if (!on[i]) continue;
+        let k = 0;
+        const m = mt[i], g = grain(X, Y);
+
+        // ---- 素材の 質感 ----
+        if (m === MAT_ID.skin)  k += g * 0.035;
+        else if (m === MAT_ID.hair)  k += ((X % 2 === 0) ? 0.06 : -0.03) + g * 0.04;
+        else if (m === MAT_ID.cloth) k += g * 0.05;
+        else if (m === MAT_ID.wood)  k += ((X % 3 === 0) ? 0.05 : 0) + g * 0.05;
+        else if (m === MAT_ID.metal) { const d = ((X - Y) % 12 + 12) % 12; k += (d === 0 || d === 1) ? 0.14 : (d === 2 ? 0.06 : 0); k += g * 0.03; }
+        else if (m === MAT_ID.gold)  { const d = ((X - Y) % 9 + 9) % 9;   k += (d === 0) ? 0.20 : (d === 1 ? 0.08 : 0);  k += g * 0.03; }
+        else if (m === MAT_ID.glow)  k += 0.10 + g * 0.04;
+        else if (m === MAT_ID.white) k += g * 0.025;
+        else if (m === MAT_ID.iris) {
+          // ひとみの 左上に 光の 点（かたまりの かどだけ）
+          const up = idx(X, Y - 1), lf = idx(X - 1, Y);
+          if (!(up >= 0 && mt[up] === MAT_ID.iris) && !(lf >= 0 && mt[lf] === MAT_ID.iris)) k += 0.62;
+        }
+
+        // ---- 色の さかいめの 立体（2だんかい）----
+        const key = rg[i];
+        const diff = function (X2, Y2) { const j = idx(X2, Y2); return j < 0 || rg[j] !== key; };
+        if (diff(X, Y - 1)) k += 0.20; else if (diff(X, Y - 2)) k += 0.08;
+        if (diff(X - 1, Y)) k += 0.10; else if (diff(X - 2, Y)) k += 0.04;
+        if (diff(X, Y + 1)) k -= 0.20; else if (diff(X, Y + 2)) k -= 0.08;
+        if (diff(X + 1, Y)) k -= 0.12; else if (diff(X + 2, Y)) k -= 0.05;
+
+        if (k > 0.7) k = 0.7; else if (k < -0.5) k = -0.5;
+        const j = i * 4;
+        out[j]     = k >= 0 ? R[i] + (255 - R[i]) * k : R[i] * (1 + k);
+        out[j + 1] = k >= 0 ? G[i] + (255 - G[i]) * k : G[i] * (1 + k);
+        out[j + 2] = k >= 0 ? B[i] + (255 - B[i]) * k : B[i] * (1 + k);
+        out[j + 3] = 255;
+      }
+    }
+
+    // ---- まわりの ふち（となりの 色を こく した もの。v9.1 の rim を 1点＝半分の 太さで）----
+    if (opts.rim !== false) {
+      const rim = (opts.rim === true || opts.rim == null) ? 0.5 : opts.rim;
+      for (let Y = 0; Y < H; Y++) {
+        for (let X = 0; X < W; X++) {
+          const i = Y * W + X;
+          if (on[i]) continue;
+          let j = -1;
+          const at = [[X, Y + 1], [X - 1, Y], [X + 1, Y], [X, Y - 1]];
+          for (let n = 0; n < at.length; n++) {
+            const q = idx(at[n][0], at[n][1]);
+            if (q >= 0 && on[q]) { j = q; break; }
+          }
+          if (j < 0) continue;
+          const o = i * 4;
+          out[o] = R[j] * (1 - rim); out[o + 1] = G[j] * (1 - rim); out[o + 2] = B[j] * (1 - rim); out[o + 3] = 255;
+        }
+      }
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (ctx.createImageData) {
+      const img = ctx.createImageData(W, H);
+      img.data.set(out);
+      ctx.putImageData(img, 0, 0);
+    } else {
+      // node の テスト（tools/smoke.js）の にせ Canvas は createImageData を もたない。
+      // 1点ずつ ぬる 道も のこして おく（本物の ブラウザでは 上を 通る）
+      for (let Y = 0; Y < H; Y++) {
+        for (let X = 0; X < W; X++) {
+          const j = (Y * W + X) * 4;
+          if (!out[j + 3]) continue;
+          ctx.fillStyle = 'rgb(' + out[j] + ',' + out[j + 1] + ',' + out[j + 2] + ')';
+          ctx.fillRect(X, Y, 1, 1);
+        }
+      }
+    }
+    return canvas.toDataURL('image/png');
+  }
+
   // layers: [{ rows, palette, ox, oy }, ...] を 重ねて 1枚の画像にする
   function render(layers, opts) {
     opts = opts || {};
+    if (opts.hd) return renderHD(layers, opts);
     const base = layers[0].rows;
     const width = opts.w || base[0].length;
     const height = opts.h || base.length;

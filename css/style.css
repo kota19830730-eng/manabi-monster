@@ -1063,7 +1063,7 @@ body {
 .arena__bg--tower .cloud--c { display: none; }
 
 /* ---- 主人公と 敵 ---- */
-.shadow--hero { position: absolute; left: 4px; bottom: -6px; width: 68px; height: 9px; }
+.shadow--hero { position: absolute; left: 6px; bottom: -6px; width: 74px; height: 9px; }
 .shadow--foe  { position: absolute; left: 50%; transform: translateX(-50%); bottom: -6px; width: 62px; height: 8px; }
 .enemy { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .enemy--small .shadow--foe { width: 44px; }
@@ -1200,15 +1200,18 @@ body {
 .arena__top { position: absolute; top: 10px; left: 10px; width: 256px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; z-index: 3; }   /* 右がわは あけて モンスターと かぶらない */
 .arena__msg.is-quiet { opacity: 0; }
 .arena__msg {
-  position: absolute; top: 70px; left: 94px; max-width: 190px;   /* バーの 下・勇者の 右・モンスターの 左 */
+  position: absolute; top: 70px; left: 100px; max-width: 184px;   /* バーの 下・勇者の 右・モンスターの 左 */
   padding: 5px 10px; border-radius: 12px; background: #fff; color: #1c2647;
   font-size: 13px; box-shadow: 0 5px 0 rgba(0,0,0,.22); z-index: 3;
 }
 .foes { position: absolute; right: 16px; bottom: 62px; display: flex; align-items: flex-end; gap: 8px; z-index: 2; }
-.hero { position: absolute; left: 20px; bottom: 62px; z-index: 2; }
+/* 主人公は 76 → 88px（v9.4）。HD で 点の 数が 2倍に なった ので、
+   大きく しても ぼやけない。てきは もともと 72〜112px で 大きかった ので そのまま。
+   ふきだし（.arena__msg）の 左はしと ぶつかる ので、少し 左に よせて ある。 */
+.hero { position: absolute; left: 14px; bottom: 62px; z-index: 2; }
 .hero__img { image-rendering: pixelated; }
 .hero__img, .enemy__img { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)); }
-.hero__img { width: 76px; height: 76px; animation: bob 2.4s ease-in-out infinite; }
+.hero__img { width: 84px; height: 84px; animation: bob 2.4s ease-in-out infinite; }
 .enemy__img { animation: bob 1.8s ease-in-out infinite; }
 /* ---- なかま（相棒・v4.3）：主人公の 足もとに 小さく いる ---- */
 .pal { position: absolute; left: 134px; bottom: 20px; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1px; }
@@ -3061,7 +3064,7 @@ body {
   transform: skewY(-3deg);
 }
 .cutin__face { position: relative; display: flex; align-items: flex-end; gap: 4px; animation: cutinFace .62s cubic-bezier(.15,.9,.25,1) forwards; }
-.cutin__hero { width: 78px; height: 78px; image-rendering: pixelated; filter: drop-shadow(0 0 10px var(--el, #ffd447)); }
+.cutin__hero { width: 92px; height: 92px; image-rendering: pixelated; filter: drop-shadow(0 0 10px var(--el, #ffd447)); }
 .cutin__pal { display: flex; align-items: flex-end; filter: drop-shadow(0 0 8px #ffd447); }
 .cutin__tx {
   position: relative; margin-left: 8px; font-family: var(--f-head); font-size: 15px; color: #fff;

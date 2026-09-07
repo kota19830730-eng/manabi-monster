@@ -784,6 +784,29 @@ MQ.hero = (function () {
      絵を 作る
      ======================================================= */
   // opts.noGear … そうびを つけない すがた（見た目えらび画面で 顔を 見せるため）
+  /* HD（v9.4）で つかう「この 文字は 何の 素材か」の 表。
+     pixel.js が これを 見て かみの すじ・ぬのの おり・金ぞくの 光を 入れる。
+     書いて ない 文字は ぬの あつかい。**色の 文字を 足したら ここにも 足す。** */
+  const MAT = {
+    body:  { c: 'cloth', C: 'cloth', p: 'cloth', P: 'cloth', b: 'gold', B: 'gold', s: 'skin', S: 'skin' },
+    cloth: { g: 'gold', d: 'cloth', D: 'cloth', w: 'white', q: 'cloth', Q: 'cloth' },
+    head:  { s: 'skin', S: 'skin', n: 'skin', m: 'mouth' },
+    eye:   { w: 'white', e: 'iris' },
+    hair:  { h: 'hair', H: 'hair', x: 'cloth', X: 'cloth', y: 'cloth', Y: 'cloth', v: 'cloth', r: 'cloth', t: 'wood' },
+    acc:   { r: 'skin', g: 'gold', G: 'gold', w: 'white', d: 'wood' }
+  };
+  // そうびは 部位ごと。グレード1（かわ・木）だけ 金ぞくでは なく 木と かわ
+  function gearMat(slot, gradeNo) {
+    const hard = gradeNo === 1 ? 'wood' : 'metal';
+    switch (slot) {
+      case 'weapon': return { A: hard, y: 'gold', w: 'white', e: 'glow' };
+      case 'shield': return { S: 'gold', s: hard, e: 'white' };
+      case 'helm':   return { H: hard, '<': 'cloth', e: 'cloth' };
+      case 'armor':  return { A: hard, g: 'gold', e: 'gold' };
+      default:       return 'cloth';                      // マント
+    }
+  }
+
   function layersFor(player, opts) {
     opts = opts || {};
     const look = lookOf(player);
@@ -793,20 +816,20 @@ MQ.hero = (function () {
 
     // うしろ から 手前へ
     const cape = eq.cape && gearById[eq.cape];
-    if (cape) list.push({ rows: cape.rows, palette: cape.palette });
+    if (cape) list.push({ rows: cape.rows, palette: cape.palette, mat: gearMat('cape', cape.gradeNo) });
 
-    list.push({ rows: bodyRows, palette: P.body });
-    list.push({ rows: F.pick(F.clothStyles, look.cloth).rows, palette: P.cloth });
-    list.push({ rows: F.headRows, palette: P.head });
-    list.push({ rows: F.pick(F.eyeStyles, look.eye).rows, palette: P.eye });
-    list.push({ rows: F.pick(F.hairStyles, look.hair).rows, palette: P.hair });
-    list.push({ rows: F.pick(F.accStyles, look.acc).rows, palette: P.acc });
+    list.push({ rows: bodyRows, palette: P.body, mat: MAT.body });
+    list.push({ rows: F.pick(F.clothStyles, look.cloth).rows, palette: P.cloth, mat: MAT.cloth });
+    list.push({ rows: F.headRows, palette: P.head, mat: MAT.head });
+    list.push({ rows: F.pick(F.eyeStyles, look.eye).rows, palette: P.eye, mat: MAT.eye });
+    list.push({ rows: F.pick(F.hairStyles, look.hair).rows, palette: P.hair, mat: MAT.hair });
+    list.push({ rows: F.pick(F.accStyles, look.acc).rows, palette: P.acc, mat: MAT.acc });
     const glass = F.pick(F.glassStyles, look.glass);
-    list.push({ rows: glass.rows, palette: glass.palette });
+    list.push({ rows: glass.rows, palette: glass.palette, mat: 'metal' });
 
     ['armor', 'helm', 'shield', 'weapon'].forEach(function (slot) {
       const g = eq[slot] && gearById[eq[slot]];
-      if (g) list.push({ rows: g.rows, palette: g.palette });
+      if (g) list.push({ rows: g.rows, palette: g.palette, mat: gearMat(slot, g.gradeNo) });
     });
     return list;
   }
@@ -823,9 +846,10 @@ MQ.hero = (function () {
   // 主人公の画像。art.js に 絵があれば そちら
   function sprite(player, opts) {
     if (MQ.art && MQ.art.hero && (!opts || !opts.noGear)) return MQ.art.hero;
+    // HD（v9.4）… 2倍の こまかさ＋素材の 質感。かたち（マス目）は 変えて いない。
     // rim … モンスターと 同じ「同じ 色みの こい ふち」（v9.1）。
-    // タイトルの 勇者（poster）には つけない（モックに ふち取りが ない ため）。
-    return MQ.pixel.url(keyFor(player, opts) + ':r2', layersFor(player, opts), { bevel: true, rim: 0.45 });
+    // タイトルの 勇者（poster）には どちらも つけない（モックに ふち取りが ない ため）。
+    return MQ.pixel.url(keyFor(player, opts) + ':hd2', layersFor(player, opts), { hd: 2, rim: 0.45 });
   }
 
   /* =======================================================
@@ -900,13 +924,16 @@ MQ.hero = (function () {
   const FACE_CROP = { w: 36, h: 26, dx: -6, dy: 0 };
   // からだだけの 小さい絵（ふくを えらぶ ボタン）
   const BODY_CROP = { w: 32, h: 26, dx: -8, dy: -21 };
+  // 顔だけ・体だけの 小さい絵も HD で（切りぬきの 数字は もとの マス目の まま。
+  // pixel.js が 中で 2倍に する）
+  function hdCrop(crop) { return Object.assign({ hd: 2, rim: 0.45 }, crop); }
   function faceSprite(look) {
     const p = { look: look, equipped: {} };
-    return MQ.pixel.url('face:' + keyFor(p, { noGear: true }), layersFor(p, { noGear: true }), FACE_CROP);
+    return MQ.pixel.url('face:hd2:' + keyFor(p, { noGear: true }), layersFor(p, { noGear: true }), hdCrop(FACE_CROP));
   }
   function bodySprite(look) {
     const p = { look: look, equipped: {} };
-    return MQ.pixel.url('bodyc:' + keyFor(p, { noGear: true }), layersFor(p, { noGear: true }), BODY_CROP);
+    return MQ.pixel.url('bodyc:hd2:' + keyFor(p, { noGear: true }), layersFor(p, { noGear: true }), hdCrop(BODY_CROP));
   }
   function partSprite(look, preview) {
     return preview === 'body' ? bodySprite(look) : faceSprite(look);
@@ -916,11 +943,12 @@ MQ.hero = (function () {
   function gearSprite(id) {
     const g = gearById[id];
     if (!g) return '';
-    return MQ.pixel.url('gear:' + id, [
-      MQ.pixel.silhouette(F.bodyRows, '#E7E2F0'),
-      MQ.pixel.silhouette(F.headRows, '#E7E2F0'),
-      { rows: g.rows, palette: g.palette }
-    ]);
+    // そうびだけ HD（うしろの うすい かげは 質感なしの 'white' で 平らに）
+    return MQ.pixel.url('gear:hd2:' + id, [
+      Object.assign(MQ.pixel.silhouette(F.bodyRows, '#E7E2F0'), { mat: 'white' }),
+      Object.assign(MQ.pixel.silhouette(F.headRows, '#E7E2F0'), { mat: 'white' }),
+      { rows: g.rows, palette: g.palette, mat: gearMat(g.slot, g.gradeNo) }
+    ], { hd: 2, rim: 0.45 });
   }
 
   function gearShadow(id) {
