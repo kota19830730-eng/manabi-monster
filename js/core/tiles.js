@@ -355,20 +355,95 @@ MQ.tiles = (function () {
   /* =======================================================
      マス目を Canvas に 描く（1マス＝1ピクセル・市松もよう）
      ======================================================= */
+  /* -------------------------------------------------------
+     地面を 描く（v9.2 で 4ばいの こまかさに した）
+
+     まえは「1マス＝1ピクセル」だった。CSS で 12.5倍に のばすので、
+     **1マスが 画面で 12.5px の まっ平らな 1色**に なって いた。
+     モンスターと 同じ「四角の 中が 空っぽ」の 問題。
+
+     いまは **1マスを 4×4 の 点**で 描く（絵は 4倍・のばす 倍率は 3.125）。
+     マスの 中に つみきの 立体感を 入れられる：
+
+       ・上の 行を 明るく／下の 行を 暗く（左も 少し 明るく・右を 少し 暗く）
+         ＝ blocks.js の モンスターと 同じ 3面の 光
+       ・水に せっする 陸の へりは もっと はっきり（がけに 見える）
+       ・陸の となりの 水は 暗く（岸の かげ。島が うく）
+       ・ぜんぶの 点に ほんの少し ざらつき（同じ 場所は いつも 同じ）
+       ・水は 立体に せず、よこに ながれる 明るい すじ（波）
+
+     **マス目・道・島の 形は 1マスも 変えて いない。**
+     ------------------------------------------------------- */
+  const SUB = 4;                       // 1マスを 何点で 描くか
+
+  function rgbOf(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  // いつも 同じ ざらつき（読みこみ直しても 地面が ちらつかない）
+  function grain(x, y) {
+    let h = x * 73856093 ^ y * 19349663;
+    h = (h ^ (h >>> 13)) * 1274126177;
+    return (((h ^ (h >>> 16)) >>> 0) % 1000) / 1000 - 0.5;   // -0.5 〜 0.5
+  }
+
   function paint(canvas, grid) {
     if (!canvas || !grid) return;
-    canvas.width = grid.cols;
-    canvas.height = grid.rows;
+    const cols = grid.cols, rows = grid.rows;
+    canvas.width = cols * SUB;
+    canvas.height = rows * SUB;
     const ctx = canvas.getContext('2d');
-    for (let y = 0; y < grid.rows; y++) {
-      const r = grid.cells[y];
-      for (let x = 0; x < grid.cols; x++) {
-        const table = grid.colors || COLOR;
-        const pair = table[r[x]] || table[SEA];
-        ctx.fillStyle = pair[(x + y) & 1];
-        ctx.fillRect(x, y, 1, 1);
+    const img = ctx.createImageData(cols * SUB, rows * SUB);
+    const data = img.data;
+    const table = grid.colors || COLOR;
+    const W = cols * SUB;
+
+    const typeAt = function (x, y) {
+      if (x < 0 || y < 0 || x >= cols || y >= rows) return SEA;
+      return grid.cells[y][x];
+    };
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const v = grid.cells[y][x];
+        const pair = table[v] || table[SEA];
+        const base = rgbOf(pair[(x + y) & 1]);
+        const land = isLand(v);
+        const upW = isWater(typeAt(x, y - 1));
+        const dnW = isWater(typeAt(x, y + 1));
+        const upL = isLand(typeAt(x, y - 1));
+        const lfL = isLand(typeAt(x - 1, y));
+
+        for (let sy = 0; sy < SUB; sy++) {
+          for (let sx = 0; sx < SUB; sx++) {
+            let k = 0;
+            if (land) {
+              // マスの ふち。上と 左が 明るく、下と 右が 暗い（つみきの 3面）。
+              // **よこ と たての 強さを そろえる**のが だいじ。
+              // 上下だけ 強くすると、地面が マス目では なく「よこじま」に 見える。
+              if (sy === 0) k += upW ? 0.22 : 0.11;          // 水ぎわは がけに 見せる
+              if (sy === SUB - 1) k -= dnW ? 0.20 : 0.10;
+              if (sx === 0) k += 0.08;
+              if (sx === SUB - 1) k -= 0.08;
+            } else {
+              // 水。波の すじ と 岸の かげ
+              if (((y * SUB + sy) + ((x * SUB + sx) >> 1)) % 9 === 0) k += 0.08;
+              if (upL && sy < 2) k -= 0.16 - sy * 0.06;      // 陸の 下は 暗い
+              if (lfL && sx < 2) k -= 0.07 - sx * 0.03;
+            }
+            k += grain(x * SUB + sx, y * SUB + sy) * (land ? 0.06 : 0.045);
+
+            const i = ((y * SUB + sy) * W + (x * SUB + sx)) * 4;
+            for (let c = 0; c < 3; c++) {
+              const b = base[c];
+              data[i + c] = k >= 0 ? b + (255 - b) * k : b * (1 + k);
+            }
+            data[i + 3] = 255;
+          }
+        }
       }
     }
+    ctx.putImageData(img, 0, 0);
   }
 
   // その ばしょの マスは 何か（かざりを おく ばしょ を えらぶのに 使う）

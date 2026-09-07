@@ -492,8 +492,21 @@ body {
    みんなは この 中で「下から の 位置」で おく。上に はみ出して 立つので
    overflow は かけない。画面が 高く なっても ボタンの すぐ 上に そろう。 */
 .title__land { position: relative; z-index: 3; flex: none; height: 120px; }
-.title__grass { position: absolute; left: 0; right: 0; top: 0; height: 26px; background: #63c94a; box-shadow: inset 0 4px 0 rgba(255,255,255,.22); }
-.title__dirt  { position: absolute; left: 0; right: 0; top: 26px; bottom: 0; background: #8a5a32; }
+/* タイトルの 地面（v9.2）。まえは 緑と 茶の まっ平らな 帯 2本だった。
+   **1マス 12.5px の ブロックの ならび**に する（地図の マス目と 同じ 大きさ）。
+   四角を 何十個も 置くと 重いので、くり返しの グラデーション 2枚で 作る：
+     たて方向 … 上 2px を 明るく・下 1.5px を 暗く（＝上の 面の 光）
+     よこ方向 … 右はしを 暗く（＝右の 面）
+   色は そのまま。**マイクラ風の つみき**に 見える ように するだけ。 */
+.title__grass, .title__dirt {
+  background-image:
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,.13) 0 2px, rgba(0,0,0,0) 2px 11px, rgba(0,0,0,.13) 11px 12.5px),
+    repeating-linear-gradient(90deg,
+      rgba(255,255,255,.05) 0 1px, rgba(0,0,0,0) 1px 11.3px, rgba(0,0,0,.12) 11.3px 12.5px);
+}
+.title__grass { position: absolute; left: 0; right: 0; top: 0; height: 26px; background-color: #63c94a; box-shadow: inset 0 4px 0 rgba(255,255,255,.22); }
+.title__dirt  { position: absolute; left: 0; right: 0; top: 26px; bottom: 0; background-color: #8a5a32; }
 .title__speck { position: absolute; background: #7d502c; }
 .title__speck--a { left: 44px; top: 40px; width: 10px; height: 10px; }
 .title__speck--b { left: 320px; top: 52px; width: 12px; height: 12px; }
@@ -719,6 +732,20 @@ body {
 /* ---- 地形の かざり ---- */
 .deco { position: absolute; z-index: 2; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
 .deco i { display: block; }
+
+/* かざりの 立体感（v9.2）… モンスターと 同じ「上が 明るく・右と 下が 暗い」3面。
+   **`border` で かける**のが みそ。学年ごとの 色（`.map--g1 .deco--tree i` など）が
+   `box-shadow` を まるごと 上書きする ので、box-shadow で 光を 足すと 小1・小2・
+   小4・小5 だけ 消えて しまう。border なら 色を 変えても のこる。
+   `outline` は 場所を とらずに まわりを かこむ ので、四角どうしの さかいめが 出る。
+   花（光る 点）と 波は のぞく。 */
+.deco--mt i, .deco--tree i, .deco--house i, .deco--rock i, .deco--dead i {
+  box-sizing: border-box;
+  border-top: 2px solid rgba(255,255,255,.26);
+  border-right: 2px solid rgba(0,0,0,.13);
+  border-bottom: 1px solid rgba(0,0,0,.10);
+  outline: 1px solid rgba(14,22,44,.22);
+}
 
 /* 雪山 */
 .deco--mt { transform: translate(-50%, -100%); filter: drop-shadow(0 4px 3px rgba(20,30,60,.4)); }
