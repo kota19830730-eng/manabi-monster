@@ -1068,8 +1068,8 @@ MQ.hero = (function () {
     '...........KsWBBBssBBBWeK..mmm....',
     '...........KsWBBBssBBBWeK..mmm....',
     '...........KsWBBBssBBBWeK..mmm....',
-    '...........KsssNssssNseeK.MMMMM...',
-    '...........KssssNNNNsseeK.aaaaD...',
+    '...........KsssssssssseeK.MMMMM...',
+    '...........KsssssssssseeK.aaaaD...',
     '............ssssssssssee..AAAAD...',
     '............ssssssssssee..AAAAD...',
     '.......gggggaaggggggggaDDvAAAAD...',
@@ -1125,11 +1125,31 @@ MQ.hero = (function () {
   /* v10.0（2026-09-07）から HD（1マスを 2×2 で 描く）。
      **rim（まわりの こい ふち）は つけません** … タイトルの モックに
      ふち取りは ない ので（v5.0 の きまり）。かたちは 1マスも 変えて いません。 */
+  /* 口（v10.1.1）… ユーザー「タイトル画面の 勇者の 口が へん」。
+     1ドット＝3.8px の 線は 顔（10ドット）の 10% の 太さで、はしの 点が はなれて「ひげ」に 見えた。
+     → **半ドット（rows2・68×72）**で、ほそい 線 8サブ＋はしを 1サブ 上げた わらい に する。
+     場所は 顔 x12〜23・y8〜17 ドットの 下より（y16 ドット＝サブ 32）。 */
+  const POSTER_MOUTH = (function () {
+    const rows = [];
+    for (let y = 0; y < 72; y++) {
+      let r = '';
+      for (let x = 0; x < 68; x++) {
+        const line = (y === 32 && x >= 31 && x <= 38);            // ほそい 線
+        const tip = (y === 31 && (x === 30 || x === 39));         // はしを 上げる
+        r += (line || tip) ? 'N' : '.';
+      }
+      rows.push(r);
+    }
+    return rows;
+  })();
+
   function poster() {
     /* v10.1 … ユーザー「タイトル画面の 勇者も この顔で」→ アバターと 同じ しあげ
        （lit: 'sunset'＝B案 ゆうやけ・sat: 0.2）。rim は つけない（v5.0 の きまり）。 */
-    return MQ.pixel.url('poster:v101', [{ rows: posterRows, palette: POSTER_PALETTE, mat: POSTER_MAT }],
-      { hd: 2, rim: false, lit: 'sunset', sat: 0.2 });
+    return MQ.pixel.url('poster:v1011', [
+      { rows: posterRows, palette: POSTER_PALETTE, mat: POSTER_MAT },
+      { rows: posterRows, rows2: POSTER_MOUTH, palette: { N: POSTER_PALETTE.N }, mat: { N: 'mouth' } }
+    ], { hd: 2, rim: false, lit: 'sunset', sat: 0.2 });
   }
 
   // 顔だけの 小さい絵（ヘッダーの アイコンと 見た目えらびの ボタン）
