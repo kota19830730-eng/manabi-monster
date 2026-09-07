@@ -18,6 +18,8 @@
 
    panel(look, opts)
      opts.level   … いまの レベル（かいほうの 判定に 使う）
+     opts.player  … プレイヤー（あれば こちらを 見る）。
+                    カプセル限定の パーツは レベルでは なく **持って いるか**で 決まる ため
      opts.name    … チップに 出す なまえ
      opts.title   … 左上の 見出し
      opts.actions … いちばん下に ならべる ボタン
@@ -36,6 +38,9 @@ MQ.ui.look = (function () {
   function panel(look, opts) {
     opts = opts || {};
     const level = opts.level == null ? 99 : opts.level;
+    // 持って いるかの 判定に つかう もの。プレイヤーが あれば そちら
+    // （カプセル限定の パーツは player.parts を 見ないと 分からない）
+    const who = opts.player || level;
     const tabs = MQ.hero.lookTabs;
     let tabId = tabs[0].id;
 
@@ -62,9 +67,9 @@ MQ.ui.look = (function () {
     }
 
     function choose(group, item) {
-      if (!MQ.hero.owns(item, level)) {
+      if (!MQ.hero.owns(item, who)) {
         MQ.sfx.tap();
-        MQ.ui.toast('Lv.' + item.lv + ' に なると つかえるよ');
+        MQ.ui.toast(item.gacha ? 'カプセルマシンで もらえるよ' : 'Lv.' + item.lv + ' に なると つかえるよ');
         return;
       }
       if (look[group.key] === item.id) return;
@@ -76,12 +81,16 @@ MQ.ui.look = (function () {
     // かたちの ボタン（ミニの 顔／からだ ＋ なまえ）
     function partCell(group, item) {
       const on = look[group.key] === item.id;
-      const owned = MQ.hero.owns(item, level);
+      const owned = MQ.hero.owns(item, who);
       const kids = [
         h('img', { class: 'sprite lookcell__img', src: MQ.hero.partSprite(swapped(group.key, item.id), group.preview), alt: '' }),
         h('span', { class: 'lookcell__name', text: item.name })
       ];
-      if (!owned) kids.push(h('span', { class: 'lookcell__lock', text: 'Lv.' + item.lv + 'で かいほう' }));
+      if (!owned) {
+        kids.push(h('span', { class: 'lookcell__lock',
+          // 「カプセルマシン」は 7文字で ボタンの はばに 入らず 2行に 折れる → 4文字に
+          text: item.gacha ? 'カプセル' : 'Lv.' + item.lv + 'で かいほう' }));
+      }
       kids.push(badge(item));
       return h('button', {
         class: 'lookcell' + (on ? ' is-on' : '') + (owned ? '' : ' is-lock'),
@@ -93,7 +102,7 @@ MQ.ui.look = (function () {
     // いろの ボタン
     function colorCell(group, item) {
       const on = look[group.key] === item.id;
-      const owned = MQ.hero.owns(item, level);
+      const owned = MQ.hero.owns(item, who);
       const kids = [h('i', { class: 'swatch__chip', style: { background: item.color } })];
       if (item.rainbow) kids.push(h('span', { class: 'swatch__spark', text: '✦' }));
       if (!owned) kids.push(h('span', { class: 'swatch__lock', text: 'Lv.' + item.lv }));
@@ -118,7 +127,7 @@ MQ.ui.look = (function () {
 
     function paint() {
       heroImg.src = MQ.hero.sprite({ look: look, equipped: {} }, { noGear: true });
-      const c = MQ.hero.partsCount(level);
+      const c = MQ.hero.partsCount(who);
       countHave.textContent = c.have;
       countTotal.textContent = c.total;
 
@@ -137,7 +146,7 @@ MQ.ui.look = (function () {
       h('button', {
         class: 'look__random', type: 'button',
         onclick: function () {
-          const r = MQ.hero.randomLook(level);
+          const r = MQ.hero.randomLook(who);
           Object.keys(r).forEach(function (k) { look[k] = r[k]; });
           MQ.sfx.item();
           paint();
@@ -174,7 +183,7 @@ MQ.ui.look = (function () {
     if (!player) return;
     const look = MQ.hero.lookOf(player);
     const p = panel(look, {
-      level: MQ.hero.levelFor(player),
+      level: MQ.hero.levelFor(player), player: player,
       name: player.name,
       title: 'すがたを かえる',
       actions: [

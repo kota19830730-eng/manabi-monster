@@ -121,6 +121,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/terms.js"></script>
 <script src="../js/content/world3.js"></script>
 <script src="../js/content/news.js"></script>
+<script src="../js/core/capsule.js"></script>
 <script src="../js/ui/common.js"></script>
 <script src="../js/ui/news.js"></script>
 <script src="../js/ui/look.js"></script>
@@ -132,6 +133,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/parent.js"></script>
 <script src="../js/ui/photo.js"></script>
 <script src="../js/ui/pixedit.js"></script>
+<script src="../js/ui/capsule.js"></script>
 
 <script>
 (function () {
@@ -803,6 +805,90 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const wrap = $('#screen-dex .wrap');
       if (sec && wrap) wrap.scrollTop = sec.offsetTop - 40;
       say('gear: そうび ' + MQ.save.current().gear.length + ' 点／' + (sec ? sec.textContent : 'gearnow MISSING'));
+      dump();
+      return;
+    }
+    /* カプセルマシン（v9.0）
+         #capsule        … マシンの 画面（なかま）
+         #capsule:gear   #capsule:look  … しゅるいを かえる
+         #capsule:mon    … 1回 引いた ところ
+         #capsule:sr     … げきレアが 出た ところ（むらさきの 光）
+         #capsule:dup    … かぶって コインが もどる
+         #capsule:pity   … 天井が あと 1回
+         #capsule:poor   … コインが たりない
+         #menu           … タブの 名前と ならびが 変わった メニュー */
+    if (mode.indexOf('capsule') === 0 || mode === 'menu') {
+      const what = mode.split(':')[1] || '';
+      fresh();
+      MQ.save.update(function (pl) { pl.coins = what === 'poor' ? 3 : 400; });
+      if (mode === 'menu') {
+        MQ.ui.dex.render('pals'); MQ.ui.show('screen-dex'); await wait(80);
+        const tabs = [].map.call(document.querySelectorAll('#screen-dex .tab'), function (b) { return b.textContent; });
+        say('menu: タブ = ' + tabs.join(' / '));
+        say('menu: カプセルの ボタン = ' + (document.querySelector('.capbtn') ? 'ある' : 'ない'));
+        dump(); return;
+      }
+      // 天井を あと 1回に する（:sr は これで かならず げきレアを 出す）
+      if (what === 'pity' || what === 'sr') MQ.save.update(function (pl) { MQ.capsule.ensure(pl).pity.mon = MQ.capsule.PITY - 1; });
+      // かぶり：げきレアを ぜんぶ 持って いる ことに して 天井を 立てる
+      if (what === 'dup') MQ.save.update(function (pl) {
+        const c = MQ.capsule.ensure(pl);
+        MQ.capsule.byRarity('mon', 'sr').forEach(function (x) { c.got[x.id] = 1; });
+        c.pity.mon = MQ.capsule.PITY - 1;
+      });
+      MQ.ui.capsule.open({ kind: what === 'gear' ? 'gear' : what === 'look' ? 'look' : 'mon' });
+      await wait(120);
+      say('capsule: しゅるい=' + MQ.ui.capsule.kind()
+        + '　コイン=' + MQ.save.current().coins
+        + '　' + (document.querySelector('.capline') || {}).textContent);
+      say('capsule: わりあい = ' + [].map.call(document.querySelectorAll('.caprate__i'), function (e) { return e.textContent; }).join(' / '));
+      if (['mon', 'gear', 'look', 'sr', 'dup', 'pity'].indexOf(what) >= 0) {
+        MQ.ui.capsule.pull();
+        await wait(60);
+        MQ.ui.capsule.skip();          // 演出は とばす（毎日 引く ものなので とばせる）
+        await wait(120);
+        const box = document.querySelector('.capsule__result');
+        say('capsule: 出た = ' + (box ? box.className + ' / ' + (box.querySelector('.capres__name') || {}).textContent
+          + ' / ' + (box.querySelector('.capres__msg') || {}).textContent : 'なし'));
+        say('capsule: コイン=' + MQ.save.current().coins);
+      }
+      if (what === 'poor') say('capsule: ボタン = ' + (document.querySelector('.capgo').disabled ? 'おせない' : 'おせる')
+        + ' / ' + document.querySelector('.capgo__t').textContent);
+      dump();
+      return;
+    }
+    /* オーロラ（カプセルの げきレア・v9.0）
+         #aurora     … 一式を つけて たたかう。2コンボで クリティカル・5コンボで いなずま・主人公が 光る
+         #aurora:dex … ずかんの「じぶん」（そうびの 一覧と 光る 主人公） */
+    if (mode.indexOf('aurora') === 0) {
+      fresh({ allGear: true });
+      const eq = MQ.save.current().equipped;
+      const grades = MQ.hero.slots.map(function (s) { return (MQ.hero.getGear(eq[s]) || {}).gradeName; });
+      say('aurora: つけて いる = ' + grades.join(' / ') + '　一式=' + (MQ.hero.hasAuroraSet(MQ.save.current()) ? 'yes' : 'no'));
+      if (mode.split(':')[1] === 'dex') {
+        MQ.ui.dex.render('hero'); MQ.ui.show('screen-dex'); await wait(80);
+        say('aurora: 光る 主人公 = ' + document.querySelectorAll('#screen-dex .is-gearaura').length + 'こ');
+        dump(); return;
+      }
+      MQ.ui.battle.start('sansu3-2');
+      await wait(400);
+      say('aurora: わざ 1つ 上=' + MQ.battle.specialTierUp() + '　早さ=' + MQ.battle.specialBoost() +
+          '　なかまゲージ +' + MQ.battle.buffs().palPlus);
+      let g = 0, critAt = 0, waza = '', wazaAt = 0;
+      while (MQ.battle.combo() < 5 && g++ < 30) {
+        const before = MQ.battle.combo();
+        answerViaUI(true);
+        await wait(260);                    // わざの 演出は すぐ 消える ので 先に 見る
+        if (!critAt && document.querySelector('.combo--crit')) critAt = before + 1;
+        const m = (document.querySelector('.fx') || {}).className;
+        const hit = typeof m === 'string' ? m.match(/fx--(\w+)/) : null;
+        if (hit && !waza) { waza = hit[1]; wazaAt = before + 1; }
+        await wait(1600);
+      }
+      say('aurora: クリティカルは ' + critAt + ' コンボから（ふつうは 3）');
+      say('aurora: はじめの わざ = ' + (waza || 'まだ') + '（' + wazaAt + ' コンボ）'
+        + '　ふつうは 教科の わざ／オーロラの かぶとで bolt＝いなずま に なる');
+      say('aurora: 主人公が 光る = ' + (document.querySelector('.hero.is-gearaura') ? 'yes' : 'NO'));
       dump();
       return;
     }
@@ -3064,6 +3150,24 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     MQ.ui.goMap();
     await wait(200);
     say('あたらしい こと: とじた あと ' + ($('.newscard') ? 'MISSING（また 出る）' : 'ok（出ない）') + ' / seenNews ' + MQ.save.current().seenNews);
+
+    // カプセルマシン（v9.0）：メニュー →「なかま」→ 金の ボタン → 1回 引く
+    MQ.save.update(function (pl) { pl.coins = 40; });
+    MQ.ui.dex.render('pals'); MQ.ui.show('screen-dex');
+    await wait(150);
+    say('カプセル: タブ ' + [].map.call($$('#screen-dex .tab'), function (b) { return b.textContent; }).join('/')
+      + ' / ボタン ' + ($('.capbtn') ? 'ok' : 'MISSING'));
+    if ($('.capbtn')) $('.capbtn').click();
+    await wait(150);
+    say('カプセル: 画面 ' + ($('.capsule') ? 'ok' : 'MISSING') + ' / ' + ($('.capline') ? $('.capline').textContent : 'MISSING'));
+    MQ.ui.capsule.pull();
+    await wait(80);
+    MQ.ui.capsule.skip();
+    await wait(150);
+    say('カプセル: 出た ' + ($('.capres__name') ? $('.capres__name').textContent + ' / コイン ' + MQ.save.current().coins : 'MISSING'));
+    MQ.ui.capsule.close();
+    await wait(80);
+    say('カプセル: とじた ' + ($('.capsule') ? 'MISSING（のこって いる）' : 'ok'));
 
     say('=== エラー: ' + L.filter(function (t) { return t.indexOf('ERROR') === 0 || t.indexOf('MISSING') >= 0; }).length + ' ===');
     dump();

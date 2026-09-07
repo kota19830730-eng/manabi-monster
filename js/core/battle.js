@@ -421,7 +421,9 @@ MQ.battle = (function () {
         dmg: 1,
         shield: opts.timeAttack ? 0 : gear.safe,   // たて：はじめから セーフ
         freeze: (opts.timeAttack ? 0 : gear.keep) + (support ? (support.keep || 0) : 0),   // よろい・サポート：はじめから コンボを まもる
-        xpMul: 1, palPlus: fever ? (fever.palPlus || 0) : 0, comboPlus: 0, fastSure: 0, palXp: 1
+        // オーロラの よろい（げきレア・v9.0）… なかまゲージが はじめから 2ばい
+        xpMul: 1, palPlus: (fever ? (fever.palPlus || 0) : 0) + (gear.palPlus || 0),
+        comboPlus: 0, fastSure: 0, palXp: 1
       },
       itemsUsed: [],
       frozenQ: null,     // 時とめが 効いている 問題の id
@@ -644,7 +646,8 @@ MQ.battle = (function () {
       if (!wasRetry) {
         s.combo += 1 + (s.buff.comboPlus || 0);   // コンボの まきもの（v5.4）
         if (s.combo > s.maxCombo) s.maxCombo = s.combo;
-        crit = s.combo >= 3;
+        // オーロラの けん（げきレア・v9.0）… クリティカルが 2コンボから 出る
+        crit = s.combo >= (s.gear.critEasy ? 2 : 3);
       } else if (q.groupId) {
         s.groupClean = false;
       }
@@ -708,9 +711,11 @@ MQ.battle = (function () {
         xp += s.gear.xpAdd;                  // けん（そうび）の 効果
         s.bossHp -= dmg;
         const defeated = s.bossHp <= 0;
+        // ボスを たおすと コイン 1（v2.0 第2段階）＋ オーロラの マント（げきレア・v9.0）で もう ＋2
+        const bossCoins = 1 + (s.gear.bossCoin || 0);
         if (defeated) {
           xp += last ? XP.lastBonus : XP.bossBonus;
-          s.coins += 1;            // ボスを たおすと コイン（v2.0 第2段階）
+          s.coins += bossCoins;
           s.phase = 'done';
           s.bossBeaten = true;
           s.defeated.push(s.bossId);
@@ -724,7 +729,7 @@ MQ.battle = (function () {
           outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note, palHit: palHit,
           counter: counter,
           weakHit: weakHit, skill: skill, clonePos: pl ? pl.pos : 0, broke: broke, open: open, cloneKO: cloneKO,   // v8.1
-          dmg: dmg, burst: dmg > 1 && !counter && !weakHit && !open ? dmg : 0, coins: defeated ? 1 : 0,
+          dmg: dmg, burst: dmg > 1 && !counter && !weakHit && !open ? dmg : 0, coins: defeated ? bossCoins : 0,
           hpLeft: s.bossHp, defeated: defeated, last: last,
           enrage: !defeated && s.bossHp <= s.enrageAt && s.enraged,
           fled: !defeated && s.phase === 'done'
@@ -761,7 +766,8 @@ MQ.battle = (function () {
 
       /* ---- 中ボス（v8.1）：HP2。つよい 一発（クリティカル・カウンター・追い打ち・ばくれつ・弱点）なら 2ダメージ ---- */
       if (q.elite) {
-        const dmg = Math.min(s.eliteLeft, (crit || counter || palHit || burst || weakHit) ? 2 : 1);
+        // オーロラの たて（げきレア・v9.0）… 中ボスを 一発で たおせる
+        const dmg = Math.min(s.eliteLeft, (crit || counter || palHit || burst || weakHit || s.gear.pierce) ? 2 : 1);
         s.eliteLeft -= dmg;
         if (s.eliteLeft > 0) {
           xp = gain(xp);
@@ -1193,6 +1199,10 @@ MQ.battle = (function () {
     palGaugeNeed: function () { return MQ.pals ? MQ.pals.gaugeNeed() : 3; },
     // かぶと（そうび）で ひっさつわざが 何コンボ 早く 出るか（v5.4）
     specialBoost: function () { return (s && s.gear && s.gear.special) || 0; },
+    // オーロラの かぶと（げきレア・v9.0）で ひっさつわざが 1つ 上に なるか
+    specialTierUp: function () { return !!(s && s.gear && s.gear.tierUp); },
+    // クリティカルが 何コンボから 出るか（オーロラの けんで 2に なる・v9.0）
+    critFrom: function () { return (s && s.gear && s.gear.critEasy) ? 2 : 3; },
     gear: function () { return s ? s.gear : null; },
     correct: function () { return s.correct; },
     isRetry: function () { return s.retry; },

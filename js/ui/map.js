@@ -531,7 +531,7 @@ MQ.ui.map = (function () {
        いまは 顔の 段（60px）＋ 1本の 帯（40px）だけ。
        フィーバーと ミッションの くわしい 中身は 帯を 押すと
        地図の 上に かぶさって 出る（mappanel）。
-       図かん・タイムアタック・プレイヤー・学年は 画面の 下の 段へ。
+       メニュー・タイムアタック・プレイヤー・学年は 画面の 下の 段へ。
        -------------------------------------------------------------------- */
     panelEl = h('div', { class: 'mappanel', hidden: true }, [
       stampPanel(player),
@@ -590,7 +590,7 @@ MQ.ui.map = (function () {
 
       /* ボタンの 段（v8.0）：上に あった 3つと 学年を ここへ */
       h('div', { class: 'maptabs' }, [
-        h('button', { class: 'maptab', type: 'button', text: '図かん', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
+        h('button', { class: 'maptab', type: 'button', text: 'メニュー', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
         h('button', { class: 'maptab', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
         // 「おうちの人」は タイトル画面の 右上に ひっこした（v7.8）
         h('button', { class: 'maptab', type: 'button', text: 'プレイヤー', onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); } }),

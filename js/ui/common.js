@@ -54,13 +54,19 @@ MQ.ui = MQ.ui || {};
   // v1.2 までの なごり。いまは 何も しない（模様は CSS で 描いている）
   MQ.ui.setTextures = function () {};
 
+  /* オーロラの そうびを 5点 そろえて つけて いると 主人公が 光る（げきレア・v9.0）。
+     絵じたいは 変えず、CSS の .is-gearaura を つけるだけ */
+  function auraCls(player) {
+    return (MQ.hero.hasAuroraSet && MQ.hero.hasAuroraSet(player)) ? ' is-gearaura' : '';
+  }
+
   MQ.ui.heroImg = function (player, cls) {
-    return h('img', { class: 'sprite ' + (cls || ''), src: MQ.hero.sprite(player), alt: '主人公' });
+    return h('img', { class: 'sprite ' + (cls || '') + auraCls(player), src: MQ.hero.sprite(player), alt: '主人公' });
   };
 
   // 顔だけの 小さい絵（ヘッダーの アイコン）
   MQ.ui.faceImg = function (player, cls) {
-    return h('img', { class: 'sprite ' + (cls || ''), src: MQ.hero.faceSprite(MQ.hero.lookOf(player)), alt: '' });
+    return h('img', { class: 'sprite ' + (cls || '') + auraCls(player), src: MQ.hero.faceSprite(MQ.hero.lookOf(player)), alt: '' });
   };
 
   // モンスターの 絵（CSS の div の かたまり）

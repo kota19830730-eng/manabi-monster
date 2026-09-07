@@ -30,8 +30,13 @@ MQ.ui.dex = (function () {
     const oldWrap = scr && scr.querySelector('.wrap');
     const keepTop = oldWrap && scr.classList.contains('is-active') ? oldWrap.scrollTop : 0;
 
+    /* タブの 名前と ならび（v9.0）。中身に そろえた：
+         じぶん（すがた・そうび・しょうごう）→ なかま（相棒・お店・カプセルマシン）→
+         もちもの（たからもの・アイテム）→ ずかん（ここが 本物の 図かん）→ せってい
+       よく さわる ものを 左に、あつめる ものを 右に。
+       **id は 変えない**（hero / pals / treasure / mons / set。harness と ほかの 画面が つかう） */
     const tabs = h('div', { class: 'tabs' }, [
-      ['hero', '主人公'], ['treasure', 'たからばこ'], ['mons', 'モンスター'], ['pals', 'なかま'],
+      ['hero', 'じぶん'], ['pals', 'なかま'], ['treasure', 'もちもの'], ['mons', 'ずかん'],
       ['set', 'せってい']
     ].map(function (t) {
       return h('button', {
@@ -148,9 +153,14 @@ MQ.ui.dex = (function () {
           h('i', { text: item ? item.powerShort : 'なし' })
         ]);
       }).concat(gp.setName ? [
+        // 一式の ごほうび。カプセルの 一式は けいけんちの 倍率が ない ので コインで 書く（v9.0）
         h('span', { class: 'gearnow__chip gearnow__chip--set' }, [
           h('b', { text: gp.setName + ' 一式' }),
-          h('i', { text: 'けいけんち ×' + gp.setMul.toFixed(1) })
+          h('i', {
+            text: [gp.setMul > 1 ? 'けいけんち ×' + gp.setMul.toFixed(1) : '',
+              MQ.hero.setCoinsOf ? (MQ.hero.setCoinsOf(player) ? 'コイン ＋' + MQ.hero.setCoinsOf(player) : '') : ''
+            ].filter(Boolean).join('　')
+          })
         ])
       ] : []))
     ]);
@@ -403,6 +413,20 @@ MQ.ui.dex = (function () {
       kids.push(h('p', { class: 'note', text: 'まだ なかまが いないよ。たたかいの あと「なかまに なりたそう！」と 出たら なかまに できるよ。コインでも こうかんできる。' }));
     }
 
+    /* ①b カプセルマシン（v9.0）
+       6つめの タブに せず「なかま」の 中に 置く。相棒を えらぶ・買う・引く が 1か所に そろう */
+    if (MQ.ui.capsule && MQ.capsule && player.capsuleOff !== true) {
+      const got = MQ.capsule.KIND_IDS.reduce(function (n, k) { return n + MQ.capsule.progress(player, k).have; }, 0);
+      const all = MQ.capsule.KIND_IDS.reduce(function (n, k) { return n + MQ.capsule.progress(player, k).total; }, 0);
+      kids.push(h('button', {
+        class: 'btn capbtn', type: 'button',
+        onclick: function () { MQ.sfx.tap(); MQ.ui.capsule.open({ onClose: function () { render('pals'); } }); }
+      }, [
+        h('span', { class: 'capbtn__t', text: 'カプセルマシン' }),
+        h('span', { class: 'capbtn__s', text: 'コイン ' + MQ.capsule.COST + 'まいで 1回　あつめた ' + got + ' / ' + all })
+      ]));
+    }
+
     // ② もっている なかま（タップで 交代）
     kids.push(h('h3', { class: 'dexh', text: 'なかま　' + own.length + '体' }));
     if (own.length) {
@@ -584,6 +608,32 @@ MQ.ui.dex = (function () {
        教科ごとの「たたかった 回数・さいきんの 正解率・サポート」も 出す。
        ルールは js/core/fever.js
      ======================================================= */
+  /* カプセルマシンの せつめい（v9.0・おうちの人ページ）
+     ここは **売る ときの 説明に そのまま つかう**。お金の 話を いちばん 上に 書く。 */
+  function capsuleSection(player) {
+    if (!MQ.capsule) return null;
+    const on = player.capsuleOff !== true;
+    return h('div', {}, [
+      h('h2', { class: 'label', text: 'カプセルマシン' }),
+      h('p', { class: 'note', text: 'あそんで ためた「きんのコイン」で、ここでしか 手に 入らない なかま・そうび・すがたを 1回 10まいで 引ける しくみです。メニュー →「なかま」の 中に あります。' }),
+      h('p', { class: 'note', text: '・お金は 1円も かかりません。課金は ありません。' }),
+      h('p', { class: 'note', text: '・コインは 勉強でしか たまりません（たからばこ・ボス・★3・ミッション）。' }),
+      h('p', { class: 'note', text: '・はずれは ありません。同じ ものが 出た ときは コインが 半分（5まい）もどります。' }),
+      h('p', { class: 'note', text: '・10回 引くと かならず いちばん いい ものが 出ます。' }),
+      h('button', {
+        class: 'btn btn--small ' + (on ? 'btn--stone' : 'btn--cream'), type: 'button',
+        text: on ? '子どもの 画面から かくす' : '子どもの 画面に 出す',
+        onclick: function () {
+          MQ.sfx.tap();
+          MQ.save.update(function (p) { p.capsuleOff = on; });
+          MQ.ui.toast(on ? 'カプセルマシンを かくしました' : 'カプセルマシンを 出しました');
+          if (MQ.ui.parent && MQ.ui.parent.isOpen && MQ.ui.parent.isOpen()) MQ.ui.parent.refresh();
+          else render('set');
+        }
+      })
+    ]);
+  }
+
   function feverSection(player) {
     if (!MQ.fever) return null;
     let fv = null;
@@ -879,6 +929,6 @@ MQ.ui.dex = (function () {
   return {
     render: render, pick: pick,
     // おうちの人ページ（js/ui/parent.js）が つかう 設定の 部品（v7.3）
-    sections: { terms: termsSection, fever: feverSection, judge: judgeSection, ai: aiSection, records: recordsSection }
+    sections: { terms: termsSection, fever: feverSection, judge: judgeSection, ai: aiSection, records: recordsSection, capsule: capsuleSection }
   };
 })();

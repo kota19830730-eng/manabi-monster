@@ -126,6 +126,13 @@ MQ.save = (function () {
     // スタンプカレンダー（v8.4）：ごほうびを もらった 日 { '3': 'YYYY-MM-DD' }
     if (!p.streak || typeof p.streak !== 'object' || Array.isArray(p.streak)) p.streak = { claimed: {} };
     if (!p.streak.claimed || typeof p.streak.claimed !== 'object') p.streak.claimed = {};
+    /* カプセルマシン（v9.0）
+         p.capsule … { got: {id:1}, pity: {mon,gear,look}, pulls }（中身は core/capsule.js の ensure）
+         p.parts   … カプセルで もらった すがたの パーツ { 'kemomimi': 1, ... }
+       古い セーブは からっぽ＝まだ 1つも 引いて いない、で よい。 */
+    if (!p.capsule || typeof p.capsule !== 'object' || Array.isArray(p.capsule)) p.capsule = {};
+    if (MQ.capsule && MQ.capsule.ensure) MQ.capsule.ensure(p);
+    if (!p.parts || typeof p.parts !== 'object' || Array.isArray(p.parts)) p.parts = {};
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {

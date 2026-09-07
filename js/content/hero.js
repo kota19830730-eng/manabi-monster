@@ -96,21 +96,49 @@ MQ.hero = (function () {
        item.lv = 15   … Lv15 に なると 使える
      ======================================================= */
   function levelFor(player) { return levelOf((player && player.xp) || 0); }
-  function owns(item, level) { return !item.lv || (level == null ? 99 : level) >= item.lv; }
-  function partsCount(level) {
+  /* その パーツを 持って いるか。
+       who … **レベル（数）でも プレイヤー（オブジェクト）でも よい**。
+             null は「レベルの 制限を 見ない」（見本を 出す ところ）。
+       ふつうの パーツ … item.lv いじょうの レベルなら 持って いる
+       カプセル限定（item.gacha・v9.0）… **レベルでは 開かない**。
+             player.parts に 入って いる ものだけ。
+             プレイヤーが わからない ときは「持って いない」に する
+             （おまかせが 持って いない パーツを 出さない ため）。 */
+  function owns(item, who) {
+    const player = (who && typeof who === 'object') ? who : null;
+    if (item.gacha) return !!(player && player.parts && player.parts[item.id]);
+    const level = player ? levelFor(player) : (who == null ? 99 : who);
+    return !item.lv || level >= item.lv;
+  }
+  function partsCount(who) {
     let have = 0, total = 0;
     lookGroups.forEach(function (g) {
-      g.list.forEach(function (it) { total++; if (owns(it, level)) have++; });
+      g.list.forEach(function (it) { total++; if (owns(it, who)) have++; });
     });
     return { have: have, total: total };
   }
 
   // でたらめに えらぶ（もっている パーツの 中から）
-  function randomLook(level) {
+  function randomLook(who) {
     const out = {};
     lookGroups.forEach(function (g) {
-      const pool = g.list.filter(function (it) { return owns(it, level); });
+      const pool = g.list.filter(function (it) { return owns(it, who); });
       out[g.key] = MQ.util.pick(pool.length ? pool : g.list).id;
+    });
+    return out;
+  }
+
+  /* カプセルからしか 出ない すがたパーツ（js/core/capsule.js と js/ui/capsule.js が つかう）
+     **id / name / cap を いちばん 上に 出す。**
+     capsule.js の pool() は x.id / x.name / x.cap しか 見ないので、
+     item の 中に しまうと 名前も id も 取れない（v9.0 で ここが 抜けて いた）。 */
+  function capsuleParts() {
+    const out = [];
+    lookGroups.forEach(function (g) {
+      g.list.forEach(function (it) {
+        if (!it.gacha) return;
+        out.push({ id: it.id, name: it.name, cap: it.cap || 'n', group: g.key, groupName: g.label, item: it });
+      });
     });
     return out;
   }
@@ -485,6 +513,16 @@ MQ.hero = (function () {
         gRect(g, 39, 7, 40, 31, 'A'); gRect(g, 34, 7, 34, 31, 'w');
         gRect(g, 36, 4, 40, 6, 'A');
         gRect(g, 30, 30, 33, 33, 'e'); gRect(g, 42, 30, 45, 33, 'e');
+      },
+      7: function (g) {                      // カプセル：先が まるい・つばが カプセルの 形（上下 2色）
+        gRect(g, 36, 4, 38, 6, 'A'); gRect(g, 35, 5, 35, 6, 'w');
+        gRect(g, 33, 30, 42, 31, 'w'); gRect(g, 33, 32, 42, 33, 'e');
+      },
+      8: function (g) {                      // オーロラ：光る 刃・つばが はねの ように 広がる
+        gRect(g, 36, 2, 38, 6, 'e'); gRect(g, 35, 3, 35, 6, 'w');
+        gRect(g, 39, 7, 39, 31, 'A');
+        gRect(g, 28, 30, 33, 32, 'e'); gRect(g, 42, 30, 47, 32, 'e');
+        gRect(g, 30, 33, 32, 34, 'e'); gRect(g, 43, 33, 45, 34, 'e');
       }
     },
     shield: {
@@ -506,6 +544,14 @@ MQ.hero = (function () {
         gRect(g, 3, 29, 4, 31, 'e'); gRect(g, 3, 33, 4, 35, 'e'); gRect(g, 3, 37, 4, 38, 'e');
         gRect(g, 19, 29, 20, 31, 'e'); gRect(g, 19, 33, 20, 35, 'e');
         gRect(g, 10, 32, 13, 35, 'e');
+      },
+      7: function (g) {                      // カプセル：まん中に 横の すじ（カプセルの つぎめ）
+        gRect(g, 3, 33, 20, 34, 'e');
+        gRect(g, 9, 29, 14, 31, 'e');
+      },
+      8: function (g) {                      // オーロラ：中心から 光が 広がる
+        gRect(g, 10, 28, 13, 42, 'e'); gRect(g, 3, 34, 20, 36, 'e');
+        gRect(g, 5, 30, 7, 32, 'e'); gRect(g, 16, 30, 18, 32, 'e');
       }
     },
     helm: {
@@ -529,6 +575,17 @@ MQ.hero = (function () {
         gRect(g, 8, 0, 11, 8, 'e'); gRect(g, 36, 0, 39, 8, 'e');
         gRect(g, 5, 2, 9, 5, 'e'); gRect(g, 38, 2, 42, 5, 'e');
         gRect(g, 21, 1, 26, 3, 'e');
+      },
+      7: function (g) {                      // カプセル：まるい 上＋横の すじ
+        gClear(g, 0, 2, 47, 2);
+        gRect(g, 18, 2, 29, 3, 'H');
+        gRect(g, 6, 9, 41, 10, 'e');
+      },
+      8: function (g) {                      // オーロラ：光の とがり 4つ＋ひたいの すじ
+        gClear(g, 0, 2, 47, 3);
+        gRect(g, 12, 0, 14, 5, 'e'); gRect(g, 19, 0, 21, 4, 'e');
+        gRect(g, 26, 0, 28, 4, 'e'); gRect(g, 33, 0, 35, 5, 'e');
+        gRect(g, 6, 8, 41, 9, 'e');
       }
     },
     armor: {
@@ -551,6 +608,15 @@ MQ.hero = (function () {
         gRect(g, 4, 23, 8, 27, 'e'); gRect(g, 39, 23, 43, 27, 'e');
         gRect(g, 2, 25, 5, 27, 'e'); gRect(g, 42, 25, 45, 27, 'e');
         gPaint(g, 20, 30, 27, 34, 'e');
+      },
+      7: function (g) {                      // カプセル：むねに 横の すじ 2本（上下 2色）
+        gRect(g, 12, 28, 35, 29, 'e');
+        gRect(g, 14, 31, 33, 32, 'e');
+        gRect(g, 5, 27, 9, 28, 'e'); gRect(g, 38, 27, 42, 28, 'e');
+      },
+      8: function (g) {                      // オーロラ：大きな かた当て＋むねの 光
+        gRect(g, 2, 26, 9, 31, 'e'); gRect(g, 38, 26, 45, 31, 'e');
+        gRect(g, 22, 27, 25, 35, 'e'); gRect(g, 17, 30, 30, 32, 'e');
       }
     },
     cape: {
@@ -568,6 +634,17 @@ MQ.hero = (function () {
       6: function (g) {                                        // やみ：すそが ボロボロ
         [[1, 40], [4, 41], [7, 40], [2, 42], [5, 43], [9, 38]].forEach(function (p) {
           gClear(g, p[0], p[1], p[0] + 1, 47);
+        });
+        gHem(g, 'c');
+      },
+      7: function (g) {                                        // カプセル：横の すじ＋ふちどり
+        gRect(g, 6, 30, 41, 31, 'c');
+        gHem(g, 'c');
+      },
+      8: function (g) {                                        // オーロラ：えり＋すそに 光の すじ
+        gRect(g, 12, 24, 35, 26, 'c');
+        [[6, 32], [10, 36], [14, 40], [33, 32], [29, 36], [25, 40]].forEach(function (p) {
+          gPaint(g, p[0], p[1], p[0] + 2, p[1] + 2, 'c');
         });
         gHem(g, 'c');
       }
@@ -609,6 +686,27 @@ MQ.hero = (function () {
   // 同じ グレードを 5点 そろえたら、けいけんちが ふえる（セットボーナス）
   function setMulFor(gradeNo) { return 1 + 0.1 * gradeNo; }
 
+  /* =======================================================
+     オーロラ（げきレア）だけの 力（v9.0）
+
+     ユーザー「激レアが しょぼいから もっと 欲しくなるように」（2026-09-07）。
+     数字（けいけんち＋10 など）は「やみ」と 同じに して、
+     **そのうえで ここでしか 手に 入らない 力**を 1点に 1つ つける。
+     こうすると さいごの塔の ごほうび（やみ）と くらべっこに ならず、
+     「どっちも 集めたい」に なる。
+
+     大原則は そのまま：**効果は「正解した とき」に 出る。**
+     答えを 見せる・問題を とばす 力は 作らない。
+     中身は js/core/battle.js（s.gear の フラグ）と js/ui/battle.js（specialOf）。
+     ======================================================= */
+  const AURORA_POWER = {
+    weapon: { key: 'critEasy', text: 'クリティカルが 2コンボから 出る',   short: 'クリティカル 早い' },
+    shield: { key: 'pierce',   text: '中ボスを 一発で たおせる',           short: '中ボス 一発' },
+    helm:   { key: 'tierUp',   text: 'ひっさつわざが 1つ 上に なる',       short: 'わざ 1つ 上' },
+    armor:  { key: 'palPlus',  text: 'なかまゲージが 2ばい たまる',        short: 'なかま 2ばい' },
+    cape:   { key: 'bossCoin', text: 'ボスを たおすと コイン もう ＋2',    short: 'ボスで コイン ＋2' }
+  };
+
   // グレード（手に入る 順番も この順）
   const grades = [
     { id: 'kihon',    no: 1, name: 'かわ',     how: '★2つで もらえる' },
@@ -616,7 +714,23 @@ MQ.hero = (function () {
     { id: 'ryu',      no: 3, name: 'りゅう',   how: '★2つで もらえる' },
     { id: 'densetsu', no: 4, name: 'でんせつ', how: 'かけら／ラスボス' },
     { id: 'hoshi',    no: 5, name: 'ほし',     how: '★3を あつめると' },
-    { id: 'yami',     no: 6, name: 'やみ',     how: 'さいごの塔を クリア' }
+    { id: 'yami',     no: 6, name: 'やみ',     how: 'さいごの塔を クリア' },
+    /* ここから カプセル限定（v9.0）。**★2の ごほうびでは 出ない**（isSpecial に 入れて ある）。
+       cap … カプセルマシンでの レアさ（n＝ふつう／sr＝げきレア）。
+
+       カプセル（ふつうの わく）は「てつ」と 同じ つよさ。
+       そのかわり 5点そろえると **コイン ＋3**（もう1回 引ける ように）。
+
+       オーロラ（げきレア）は 2026-09-07 に つよくした。
+       前は「りゅう」と 同じ つよさ しか なく、ふつうに 遊んで もらえる
+       「やみ」（けいけんち＋10）の 3分の1で、いちばん 出にくいのに いちばん しょぼい、
+       という あべこべに なって いた（ユーザー指摘）。
+       いまは **数字は やみと 同じ（powerNo 6）＋ セットは コイン＋6 と けいけんち×1.6 の 両方**、
+       さらに **1点ずつ オーロラだけの 力**（AURORA_POWER）を もつ。 */
+    { id: 'capsule', no: 7, name: 'カプセル', how: 'カプセルマシン',
+      capsule: true, cap: 'n', powerNo: 2, setCoins: 3 },
+    { id: 'aurora',  no: 8, name: 'オーロラ', how: 'カプセルマシン（げきレア）',
+      capsule: true, cap: 'sr', powerNo: 6, setCoins: 6, setMulNo: 6, aurora: true }
   ];
 
   const GEAR_DEF = {
@@ -662,6 +776,23 @@ MQ.hero = (function () {
       helm:   { name: 'やみの かぶと',   palette: { H: '#3A2B52', '<': '#FF5EC8', e: '#8a6be0' } },
       armor:  { name: 'やみの よろい',   palette: { A: '#3A2B52', g: '#8a6be0', e: '#FF5EC8' } },
       cape:   { name: 'やみの マント',   palette: { C: '#241A33', c: '#8a6be0' } }
+    },
+    // カプセル限定。水色＝カプセルの 宝石（j1/j2）と 同じ 色に して、
+    // カプセルの モンスターと ひとそろいに 見えるように する
+    capsule: {
+      weapon: { name: 'カプセルの けん',   palette: { A: '#9fe6ff', y: '#2f6f9f', w: '#FFFFFF', e: '#3f8fbf' } },
+      shield: { name: 'カプセルの たて',   palette: { S: '#3f8fbf', s: '#9fe6ff', e: '#FFFFFF' } },
+      helm:   { name: 'カプセルの かぶと', palette: { H: '#9fe6ff', '<': '#3f8fbf', e: '#FFFFFF' } },
+      armor:  { name: 'カプセルの よろい', palette: { A: '#7fd0ee', g: '#3f8fbf', e: '#FFFFFF' } },
+      cape:   { name: 'カプセルの マント', palette: { C: '#2f6f9f', c: '#9fe6ff' } }
+    },
+    // げきレアの わく。むらさき＝アバターの SR バッジ・カプセルの げきレアと 同じ 色
+    aurora: {
+      weapon: { name: 'オーロラの けん',   palette: { A: '#d9c2ff', y: '#4a2a8a', w: '#FFFFFF', e: '#ffd447' } },
+      shield: { name: 'オーロラの たて',   palette: { S: '#7a4fd0', s: '#c9a2ff', e: '#ffd447' } },
+      helm:   { name: 'オーロラの かぶと', palette: { H: '#b48cff', '<': '#ffd447', e: '#ffd447' } },
+      armor:  { name: 'オーロラの よろい', palette: { A: '#9a6ae8', g: '#ffd447', e: '#e0c9ff' } },
+      cape:   { name: 'オーロラの マント', palette: { C: '#4a2a8a', c: '#b48cff' } }
     }
   };
 
@@ -680,9 +811,16 @@ MQ.hero = (function () {
         name: def.name,
         rows: shapeFor(slot, g.no),
         palette: def.palette,
-        power: GEAR_POWER[slot].vals[g.no - 1],
-        powerText: GEAR_POWER[slot].text(GEAR_POWER[slot].vals[g.no - 1]),
-        powerShort: GEAR_POWER[slot].short(GEAR_POWER[slot].vals[g.no - 1])
+        capsule: !!g.capsule,
+        cap: g.cap || null,                 // カプセルマシンでの レアさ
+        aurora: !!g.aurora,
+        // カプセル限定は powerNo（＝ほかの グレードと 同じ つよさ）を 見る
+        power: GEAR_POWER[slot].vals[(g.powerNo || g.no) - 1],
+        powerText: GEAR_POWER[slot].text(GEAR_POWER[slot].vals[(g.powerNo || g.no) - 1]),
+        powerShort: GEAR_POWER[slot].short(GEAR_POWER[slot].vals[(g.powerNo || g.no) - 1]),
+        // オーロラだけの 力（げきレア）。ほかの グレードは null
+        extraText: g.aurora ? AURORA_POWER[slot].text : null,
+        extraShort: g.aurora ? AURORA_POWER[slot].short : null
       });
     });
   });
@@ -691,11 +829,21 @@ MQ.hero = (function () {
 
   function getGear(id) { return gearById[id]; }
 
+  // カプセルからしか 出ない そうび 10点（js/ui/capsule.js が つかう）
+  function capsuleGear() {
+    return gear.filter(function (g) { return g.capsule; });
+  }
+  // その そうびは カプセル限定か
+  function isCapsuleGear(id) {
+    const g = gearById[id];
+    return !!(g && g.capsule);
+  }
+
   /* グレード4いじょうは 特別な もらい方（★2では 出ない）
        でんせつ … まなびの かけら（1つ＝1点）＋ ラスボスで 5点目
        ほし     … ★3の ステージが 3・6・9・12・15 に なったとき（v5.4）
        さいごの塔を クリアする たびに 1点（v5.4） */
-  const SPECIAL_GRADES = ['densetsu', 'hoshi', 'yami'];
+  const SPECIAL_GRADES = ['densetsu', 'hoshi', 'yami', 'capsule', 'aurora'];
   function isDensetsu(id) { return String(id).indexOf('densetsu-') === 0; }
   function isSpecial(id) {
     return SPECIAL_GRADES.some(function (g) { return String(id).indexOf(g + '-') === 0; });
@@ -737,15 +885,43 @@ MQ.hero = (function () {
        { xpAdd, safe, special, keep, coins, setMul, setName } */
   function gearPower(player) {
     const eq = (player && player.equipped) || {};
-    const out = { xpAdd: 0, safe: 0, special: 0, keep: 0, coins: 0, setMul: 1, setName: '' };
+    const out = {
+      xpAdd: 0, safe: 0, special: 0, keep: 0, coins: 0, setMul: 1, setName: '',
+      // オーロラ（げきレア）だけの 力。つけて いる ぶんだけ true に なる
+      critEasy: false, pierce: false, tierUp: false, palPlus: 0, bossCoin: 0
+    };
     ORDER.forEach(function (slot) {
       const g = eq[slot] && gearById[eq[slot]];
       if (!g) return;
       out[GEAR_POWER[slot].key] += g.power;
+      if (!g.aurora) return;
+      const ex = AURORA_POWER[slot];
+      if (ex.key === 'palPlus') out.palPlus += 1;        // なかまゲージ 2ばい
+      else if (ex.key === 'bossCoin') out.bossCoin += 2;  // ボスを たおすと コイン ＋2
+      else out[ex.key] = true;
     });
     const set = equippedSetOf(player);
-    if (set) { out.setMul = setMulFor(set.no); out.setName = set.name; }
+    if (set) {
+      out.setName = set.name;
+      // カプセル限定の 一式は コイン（もう1回 引ける ように）。
+      // オーロラは setMulNo も あるので **コインと けいけんち 両方**
+      if (set.setCoins) out.coins += set.setCoins;
+      if (set.setMulNo) out.setMul = setMulFor(set.setMulNo);
+      else if (!set.setCoins) out.setMul = setMulFor(set.no);
+    }
     return out;
+  }
+
+  // 一式の コインの ごほうび（カプセル ＋3／オーロラ ＋6。ほかの グレードは 0）
+  function setCoinsOf(player) {
+    const set = equippedSetOf(player);
+    return (set && set.setCoins) || 0;
+  }
+
+  // オーロラの 一式を そろえて つけて いるか（主人公が 光る・v9.0）
+  function hasAuroraSet(player) {
+    const set = equippedSetOf(player);
+    return !!(set && set.aurora);
   }
 
   // 同じグレードを 5点 そろえたか（見た目の ごほうび演出用）
@@ -1066,7 +1242,19 @@ MQ.hero = (function () {
     { id: 't-counter10', name: 'カウンターの たつじん',  how: 'カウンターを 10回 きめる',    test: function (p) { return (p.counters || 0) >= 10; } },
     // 敵がわの 攻防（v8.1）
     { id: 't-elite10',   name: '中ボス ハンター',        how: '中ボスを 10体 たおす',       test: function (p) { return (p.elites || 0) >= 10; } },
-    { id: 't-weak10',    name: '弱点を つく 者',         how: '弱点を 10回 つく',           test: function (p) { return (p.weakHits || 0) >= 10; } }
+    { id: 't-weak10',    name: '弱点を つく 者',         how: '弱点を 10回 つく',           test: function (p) { return (p.weakHits || 0) >= 10; } },
+    /* カプセルマシン（v9.0）。数は p.capsule（core/capsule.js が 書く） */
+    { id: 't-capsule30', name: 'カプセル コレクター',    how: 'カプセルを 30回 まわす',
+      test: function (p) { return ((p.capsule && p.capsule.pulls) || 0) >= 30; } },
+    { id: 't-capsr3',    name: 'げきレアの もちぬし',    how: 'げきレアを 3つ 出す',
+      test: function (p) {
+        if (!p.capsule || !p.capsule.got || !MQ.capsule) return false;
+        let n = 0;
+        MQ.capsule.KIND_IDS.forEach(function (k) {
+          MQ.capsule.byRarity(k, 'sr').forEach(function (x) { if (p.capsule.got[x.id]) n++; });
+        });
+        return n >= 3;
+      } }
   ];
   const titleById = {};
   titles.forEach(function (t) { titleById[t.id] = t; });
@@ -1100,12 +1288,13 @@ MQ.hero = (function () {
     clothColors: F.clothColors, pantsColors: F.pantsColors,
     lookGroups: lookGroups, lookTabs: lookTabs, groupByKey: groupByKey,
     lookOf: lookOf, defaultLook: defaultLook, randomLook: randomLook, isOldLook: isOldLook,
-    levelFor: levelFor, owns: owns, partsCount: partsCount,
+    levelFor: levelFor, owns: owns, partsCount: partsCount, capsuleParts: capsuleParts,
     bodyPalette: bodyPalette, palettes: palettes, colorOf: colorOf,
     gear: gear, grades: grades, slots: ORDER, slotName: SLOT_NAME,
     getGear: getGear, nextGear: nextGear, nextDensetsu: nextDensetsu, isDensetsu: isDensetsu,
     nextHoshi: nextHoshi, nextYami: nextYami, isSpecial: isSpecial, hoshiStars: HOSHI_STARS,
-    gearPower: gearPower, gearSlotPower: GEAR_POWER, setMulFor: setMulFor,
+    capsuleGear: capsuleGear, isCapsuleGear: isCapsuleGear, hasAuroraSet: hasAuroraSet, setCoinsOf: setCoinsOf,
+    gearPower: gearPower, gearSlotPower: GEAR_POWER, auroraPower: AURORA_POWER, setMulFor: setMulFor,
     fullSetOf: fullSetOf, hasSet: hasSet, equippedSetOf: equippedSetOf,
     sprite: sprite, faceSprite: faceSprite, bodySprite: bodySprite, partSprite: partSprite, poster: poster,
     gearSprite: gearSprite, gearShadow: gearShadow, layersFor: layersFor,

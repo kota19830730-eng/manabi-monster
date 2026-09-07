@@ -70,7 +70,8 @@
     MQ.hero.lookGroups.forEach(function (g) {
       block(g.label, 'face', g.list.map(function (item) {
         const o = {}; o[g.key] = item.id;
-        return { name: item.name + (item.lv ? '(Lv' + item.lv + ')' : ''), src: MQ.hero.partSprite(look(o), g.preview) };
+        const tag = item.gacha ? '(カプセル)' : (item.lv ? '(Lv' + item.lv + ')' : '');
+        return { name: item.name + tag, src: MQ.hero.partSprite(look(o), g.preview) };
       }));
     });
   } else if (mode === 'random') {
@@ -163,12 +164,12 @@
     const items = [];
     for (let i = 0; i < 8; i++) items.push({ name: '', src: MQ.hero.sprite({ look: MQ.hero.randomLook(), equipped: eq }) });
     block('いろいろな 子', 'full', items);
-    // 6グレードを 一式で（v5.4）
-    block('グレード 6しゅるい（一式）', 'big', MQ.hero.grades.map(function (g) {
+    // グレードを 一式で（v5.4／v9.0 で カプセル限定の 2つが ふえた）
+    block('グレード ' + MQ.hero.grades.length + 'しゅるい（一式）', 'big', MQ.hero.grades.map(function (g) {
       const e = {}; MQ.hero.slots.forEach(function (sl) { e[sl] = g.id + '-' + sl; });
       return { name: g.name, src: MQ.hero.sprite({ look: one, equipped: e }) };
     }));
-    // 部位ごとに 6つ ならべる（かたちの ちがいを 見る）
+    // 部位ごとに ぜんぶ ならべる（かたちの ちがいを 見る）
     MQ.hero.slots.forEach(function (slot) {
       block(MQ.hero.slotName[slot], 'full', MQ.hero.grades.map(function (g) {
         const id = g.id + '-' + slot;

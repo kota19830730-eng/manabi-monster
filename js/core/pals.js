@@ -187,18 +187,28 @@ MQ.pals = (function () {
     if (e.by === 'photo') return 3;               // むかしの セーブの じぶんの モンスター（段階なし）
     return PRICE_SOLO[e.rank || 2] || 6;
   }
+  /* お店に ならぶのは「**野生で 会える 子**」だけ（v9.0）。
+     ・evoOnly … 育てないと 手に 入らない（息子さんの 4体の 2・3段階め）
+     ・capsuleOnly … カプセルでしか 手に 入らない
+       ここを 外さないと 抜け道が できる：カプセルで 引いた 1段階めを Lv.10 で 進化させると
+       evolveIfReady が p.pals から 消す（図かんには のこる）ので、
+       10まいで 出した 子が お店に 3まいで 復活して しまう。 */
+  function shopOnly(e) { return !e.evoOnly && !e.capsuleOnly; }
   function shopList(p) {
     if (!p) return [];
     const out = [];
     (MQ.enemies.dexList() || []).forEach(function (e) {
       if (!p.dex || !p.dex[e.id]) return;         // 会った ことが ない
       if (has(p, e.id)) return;                   // もう なかま
+      if (!shopOnly(e)) return;                   // 育てて／カプセルでしか 手に 入らない
       out.push({ id: e.id, name: e.name, price: price(e.id), enemy: e });
     });
     return out.sort(function (a, b) { return a.price - b.price; });
   }
   function canBuy(p, id) {
     if (!p || has(p, id) || !p.dex || !p.dex[id]) return false;
+    const e = enemyOf(id);
+    if (!e || !shopOnly(e)) return false;         // お店に 出ない ものは 買えない（v9.0）
     return (p.coins || 0) >= price(id);
   }
   function buy(p, id) {
@@ -232,7 +242,7 @@ MQ.pals = (function () {
   return {
     expFor: expFor, levelOf: levelOf, info: info, own: own, has: has, count: count,
     add: add, active: active, setActive: setActive, gain: gain, evolveIfReady: evolveIfReady,
-    hitOn: hitOn, price: price, shopList: shopList, canBuy: canBuy, buy: buy, offerFrom: offerFrom,
+    hitOn: hitOn, price: price, shopList: shopList, shopOnly: shopOnly, canBuy: canBuy, buy: buy, offerFrom: offerFrom,
     gaugeNeed: gaugeNeed, displayName: displayName, baseName: baseName, setName: setName,
     power: power, POWER: POWER,
     MAX_LV: MAX_LV, HIT_EVERY: HIT_EVERY, EVO_LV: EVO_LV, GAUGE_NEED: GAUGE_NEED,

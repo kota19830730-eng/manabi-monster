@@ -3078,14 +3078,14 @@ body {
 .cutin--pal .cutin__band { border-color: #ffd447; box-shadow: inset 0 0 24px rgba(255,212,71,.35); }
 
 /* ⑨ オーロラ フィナーレ（20コンボ〜）*/
-.fx__sky--aurora { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(12,6,38,.92), rgba(24,10,60,.7) 60%, rgba(10,30,50,.5)); animation: fxfade 1.9s ease-out forwards; }
+.fx__sky--starburst { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(12,6,38,.92), rgba(24,10,60,.7) 60%, rgba(10,30,50,.5)); animation: fxfade 1.9s ease-out forwards; }
 /* 虹の カーテンが 空に ゆれる */
 .fx__curtain { position: absolute; inset: 0; overflow: hidden; }
 .fx__curtain i {
   position: absolute; top: -10px; width: 40px; height: 150px; opacity: 0;
-  filter: blur(1px); animation: auroraCurtain 1.5s ease-out forwards;
+  filter: blur(1px); animation: burstCurtain 1.5s ease-out forwards;
 }
-@keyframes auroraCurtain {
+@keyframes burstCurtain {
   0%   { opacity: 0; transform: scaleY(.2) skewX(0deg); }
   28%  { opacity: .95; transform: scaleY(1) skewX(8deg); }
   60%  { opacity: .8; transform: scaleY(1.05) skewX(-8deg); }
@@ -3095,17 +3095,17 @@ body {
 .fx__pillars { position: absolute; right: 54px; bottom: 40px; }
 .fx__pillars i {
   position: absolute; bottom: 0; width: 12px; height: 0; background: linear-gradient(180deg, #fff, #7cf9c4);
-  box-shadow: 0 0 16px 5px rgba(124,249,196,.8); animation: auroraPillar .7s ease-out forwards;
+  box-shadow: 0 0 16px 5px rgba(124,249,196,.8); animation: burstPillar .7s ease-out forwards;
 }
-@keyframes auroraPillar { 0% { height: 0; opacity: 0; } 30% { height: 150px; opacity: 1; } 100% { height: 170px; opacity: 0; } }
-.fx__ring--aurora { border-color: #b8ffe6; box-shadow: 0 0 26px #7cf9c4; animation-delay: .5s; }
+@keyframes burstPillar { 0% { height: 0; opacity: 0; } 30% { height: 150px; opacity: 1; } 100% { height: 170px; opacity: 0; } }
+.fx__ring--starburst { border-color: #b8ffe6; box-shadow: 0 0 26px #7cf9c4; animation-delay: .5s; }
 /* 光が ふる */
 .fx__fall { position: absolute; inset: 0; overflow: hidden; }
-.fx__fall i { position: absolute; top: -8px; background: #eafff6; box-shadow: 0 0 8px 2px rgba(180,255,230,.9); animation: auroraFall 1.1s linear forwards; }
-@keyframes auroraFall { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(220px); opacity: 0; } }
-.fxscreen--aurora { --fs-line: rgba(200,255,240,.9); --fs-ring: #b8ffe6; }
-.fxscreen--aurora .fxscreen__tint { background: radial-gradient(circle at 87% 100px, rgba(255,255,255,1), rgba(124,249,196,.7) 26%, rgba(79,211,255,.45) 50%, rgba(10,20,44,.85) 82%); }
-.fxscreen--aurora .fxname { color: #fff; text-shadow: -3px 0 0 #12405a, 3px 0 0 #12405a, 0 -3px 0 #12405a, 0 3px 0 #12405a, 0 6px 0 #06202e, 0 0 18px #7cf9c4, 0 0 34px #4fd3ff, 0 0 52px #c48bff; }
+.fx__fall i { position: absolute; top: -8px; background: #eafff6; box-shadow: 0 0 8px 2px rgba(180,255,230,.9); animation: burstFall 1.1s linear forwards; }
+@keyframes burstFall { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(220px); opacity: 0; } }
+.fxscreen--starburst { --fs-line: rgba(200,255,240,.9); --fs-ring: #b8ffe6; }
+.fxscreen--starburst .fxscreen__tint { background: radial-gradient(circle at 87% 100px, rgba(255,255,255,1), rgba(124,249,196,.7) 26%, rgba(79,211,255,.45) 50%, rgba(10,20,44,.85) 82%); }
+.fxscreen--starburst .fxname { color: #fff; text-shadow: -3px 0 0 #12405a, 3px 0 0 #12405a, 0 -3px 0 #12405a, 0 3px 0 #12405a, 0 6px 0 #06202e, 0 0 18px #7cf9c4, 0 0 34px #4fd3ff, 0 0 52px #c48bff; }
 
 @media (prefers-reduced-motion: reduce) {
   .cutin, .cutin__face, .cutin__tx, .fx__curtain i, .fx__pillars i, .fx__fall i { animation-duration: .01s; }
@@ -3456,3 +3456,130 @@ body {
 .pp-seg__rec { position: absolute; top: -8px; right: -6px; padding: 0 5px; border-radius: 6px; background: #c98c12; color: #fff; font-size: 9px; font-style: normal; line-height: 15px; }
 .pp-line--now .pp-letter__now { font-size: 15px; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .tegamibtn__env { animation: none; } }
+
+/* ---- オーロラの そうび（げきレア・v9.0）を 5点 そろえると 主人公が 光る ----
+   カプセルマシンの げきレアが「しょぼい」と 言われた ので、
+   数字だけで なく **見て すぐ わかる ごほうび**を つけた（2026-09-07）。
+   絵じたいは 変えない（class を つけるだけ）ので、どの 画面でも 同じに 光る。
+   ※ わざの「スターバースト」（.fx--starburst）とは べつもの。名前を かぶらせない ため
+      class は is-gearaura（gear ＝ そうび）。 */
+.hero.is-gearaura .hero__img,
+img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
+@keyframes gearAura {
+  0%, 100% { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 5px rgba(180,140,255,.85)) drop-shadow(0 0 9px rgba(255,212,71,.35)); }
+  50%      { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 10px rgba(205,175,255,1)) drop-shadow(0 0 17px rgba(255,212,71,.65)); }
+}
+.hero.is-gearaura::before {
+  content: ''; position: absolute; z-index: -1; left: 50%; bottom: 2px;
+  width: 62px; height: 20px; transform: translateX(-50%); border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(190,150,255,.8), rgba(140,220,255,.35) 55%, rgba(190,150,255,0) 72%);
+  animation: gearAuraRing 2.4s ease-in-out infinite; pointer-events: none;
+}
+@keyframes gearAuraRing {
+  0%, 100% { opacity: .55; transform: translateX(-50%) scale(.9); }
+  50%      { opacity: 1;   transform: translateX(-50%) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero.is-gearaura .hero__img, img.sprite.is-gearaura, .hero.is-gearaura::before { animation: none; }
+}
+
+/* ---- カプセルマシン（v9.0）----
+   見た目は アイテムの モーダル（.bag / .bagcard）を 借りて いる。
+   ここは その 中身だけ。**.newscard は 借りない**（お知らせの 検査と 取りちがえる）。 */
+.capsule__card { max-width: 340px; }
+.capsule__body { margin-top: 10px; text-align: center; }
+
+/* しゅるいの チップ（なかま／そうび／すがた） */
+.capchips { display: flex; gap: 6px; justify-content: center; }
+.capchip {
+  flex: 1; min-height: 38px; padding: 0 6px; border: 0; border-radius: 12px; cursor: pointer;
+  font-family: var(--f-head); font-size: 15px; color: #cfe0ff;
+  background: linear-gradient(#2b3a63, #1d2846);
+  box-shadow: 0 4px 0 #0d142b, inset 0 2px 0 rgba(255,255,255,.12);
+}
+.capchip.is-on { color: #3a2606; background: linear-gradient(#ffe89a, #ffc93c); box-shadow: 0 4px 0 #a06a10, inset 0 2px 0 rgba(255,255,255,.6); }
+
+/* マシン（CSS の 四角だけ。画像ファイルは 使わない） */
+.capstage { height: 132px; display: flex; align-items: flex-end; justify-content: center; margin: 8px 0 6px; }
+.capmc { position: relative; width: 96px; height: 124px; }
+.capmc__dome {
+  position: absolute; left: 4px; top: 0; width: 88px; height: 62px; border-radius: 44px 44px 8px 8px;
+  background: linear-gradient(160deg, rgba(230,246,255,.95), rgba(150,200,235,.75));
+  box-shadow: inset 0 4px 0 rgba(255,255,255,.7), inset 0 -6px 10px rgba(30,60,100,.35), 0 3px 0 #24406a;
+}
+.capmc__ball { position: absolute; width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 3px 0 rgba(255,255,255,.55); }
+.capmc__ball--1 { left: 16px; top: 26px; background: #ff8f5e; }
+.capmc__ball--2 { left: 38px; top: 16px; background: #63d94f; }
+.capmc__ball--3 { left: 58px; top: 30px; background: #b48cff; }
+.capmc__body {
+  position: absolute; left: 0; top: 58px; width: 96px; height: 52px; border-radius: 10px;
+  background: linear-gradient(#e35b4c, #a8342a);
+  box-shadow: 0 6px 0 #6d1d17, inset 0 3px 0 rgba(255,255,255,.28);
+}
+.capmc__knob {
+  position: absolute; left: 62px; top: 74px; width: 22px; height: 22px; border-radius: 50%;
+  background: linear-gradient(#ffe89a, #f2a01c); box-shadow: 0 3px 0 #8a5a08, inset 0 2px 0 rgba(255,255,255,.6);
+}
+.capmc__slot { position: absolute; left: 12px; top: 78px; width: 34px; height: 16px; border-radius: 5px; background: #3a1410; box-shadow: inset 0 3px 6px rgba(0,0,0,.6); }
+/* まわして いる あいだ：マシンが ゆれて 玉が はねる */
+.capmc.is-roll { animation: capShake .18s linear infinite; }
+.capmc.is-roll .capmc__ball { animation: capBall .42s ease-in-out infinite; }
+.capmc.is-roll .capmc__ball--2 { animation-delay: .1s; }
+.capmc.is-roll .capmc__ball--3 { animation-delay: .2s; }
+@keyframes capShake { 0%, 100% { transform: translateX(-2px); } 50% { transform: translateX(2px); } }
+@keyframes capBall { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+
+/* あつめぐあい */
+.capbar { position: relative; height: 20px; border-radius: 999px; background: rgba(10,16,36,.85); box-shadow: inset 0 2px 6px rgba(0,0,0,.6); overflow: hidden; }
+.capbar__fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#7ee06a, #3f9a5c); }
+.capbar__t { position: relative; display: block; line-height: 20px; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+
+/* 天井（引く 前から 見せる）と わりあい */
+.capline { margin: 8px 0 4px; font-family: var(--f-head); font-size: 15px; color: #ffd447; }
+.caprate { display: flex; gap: 5px; justify-content: center; margin: 0 0 10px; flex-wrap: wrap; }
+.caprate__i { padding: 2px 8px; border-radius: 999px; font-size: 11px; background: rgba(10,16,36,.8); color: #9fb2dd; }
+.caprate__i--r { color: #ffd447; }
+.caprate__i--sr { color: #d9c2ff; box-shadow: inset 0 0 0 1px rgba(180,140,255,.5); }
+
+/* まわす ボタン（金の 3D） */
+.capgo {
+  width: 100%; height: 62px; flex-direction: column; gap: 0;
+  color: #3a2606; background: linear-gradient(#ffe89a, #ffc93c 55%, #f2a01c);
+  box-shadow: 0 7px 0 #a06a10, 0 12px 20px rgba(0,0,0,.35), inset 0 3px 0 rgba(255,255,255,.6);
+}
+.capgo:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 3px 0 #a06a10, inset 0 3px 0 rgba(255,255,255,.6); }
+.capgo:disabled { filter: grayscale(.6) brightness(.8); }
+.capgo__t { font-family: var(--f-head); font-size: 24px; line-height: 1.1; }
+.capgo__c { font-size: 12px; font-weight: 700; opacity: .85; }
+.capcoins { margin: 6px 0 0; font-size: 12px; color: var(--tx-sub); }
+.capsule__close { width: 100%; margin-top: 10px; }
+
+/* 出た もの */
+.capsule__result {
+  position: absolute; inset: 0; border-radius: 18px; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 14px;
+  background: linear-gradient(#16203f, #0b1128);
+  animation: popin .22s ease-out;
+}
+.capres__rare { padding: 3px 14px; border-radius: 999px; font-family: var(--f-head); font-size: 14px; color: #0e1424; background: #9fb2dd; }
+.r--r .capres__rare { background: linear-gradient(#ffe89a, #ffc93c); box-shadow: 0 0 16px rgba(255,212,71,.7); }
+.r--sr .capres__rare { background: linear-gradient(#d9c2ff, #9a6ae8); color: #fff; box-shadow: 0 0 20px rgba(180,140,255,.9); }
+.capres__art { display: flex; align-items: center; justify-content: center; min-height: 104px; }
+.capart__img { image-rendering: pixelated; width: 96px; height: 96px; }
+.r--r .capres__art { filter: drop-shadow(0 0 14px rgba(255,212,71,.8)); }
+.r--sr .capres__art { filter: drop-shadow(0 0 16px rgba(180,140,255,1)) drop-shadow(0 0 30px rgba(120,80,220,.7)); }
+.capres__name { margin: 0; font-family: var(--f-head); font-size: 22px; color: #fff; text-align: center; }
+.capres__msg { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: #ffd447; text-align: center; }
+.capres__ok { min-width: 160px; }
+@media (prefers-reduced-motion: reduce) {
+  .capmc.is-roll, .capmc.is-roll .capmc__ball { animation: none; }
+}
+/* なかまタブの「カプセルマシン」ボタン（金の 3D） */
+.capbtn {
+  width: 100%; min-height: 62px; margin: 10px 0 4px; flex-direction: column; gap: 1px;
+  color: #3a2606; background: linear-gradient(#ffe89a, #ffc93c 55%, #f2a01c);
+  box-shadow: 0 7px 0 #a06a10, 0 12px 20px rgba(0,0,0,.35), inset 0 3px 0 rgba(255,255,255,.6);
+}
+.capbtn:active { transform: translateY(4px); box-shadow: 0 3px 0 #a06a10, inset 0 3px 0 rgba(255,255,255,.6); }
+.capbtn__t { font-family: var(--f-head); font-size: 22px; line-height: 1.1; }
+.capbtn__s { font-size: 11px; font-weight: 700; opacity: .85; }

@@ -151,6 +151,36 @@ MQ.sfx = (function () {
     item:    function () { tone(1047, 0.08, 'square', 0.12, 0); tone(1319, 0.2, 'square', 0.12, 0.09); },
     rare:    function () { [784, 988, 1175, 1568, 1976].forEach(function (f, i) { tone(f, 0.09, 'square', 0.12, i * 0.07); }); },
 
+    /* ---- カプセルマシン（v9.0）----
+       レバー → カプセルが ころころ → パカッ の 3つ。
+       げきレアの ときは ひっさつわざの 音を 借りず、専用の 音（capsuleSr）を 鳴らす。 */
+    // レバーを 引く（ガチャッ と 機械の 音）
+    capsuleLever: function () {
+      noise(0.07, 0.28, 0, 2200, 'highpass');
+      tone(220, 0.10, 'square', 0.16, 0, 130);
+      tone(140, 0.12, 'square', 0.14, 0.09, 90);
+    },
+    // カプセルが ころころ 落ちて くる（コツ コツ コツ と 弾む）
+    capsuleRoll: function () {
+      [0, 0.16, 0.30, 0.42, 0.52].forEach(function (d, i) {
+        tone(520 + i * 60, 0.05, 'triangle', 0.10 - i * 0.012, d, 380 + i * 40);
+        noise(0.04, 0.10, d, 3000, 'highpass');
+      });
+    },
+    // パカッと 開く（ぽん ＋ きらっ）
+    capsuleOpen: function () {
+      tone(660, 0.05, 'triangle', 0.14, 0, 1200);
+      noise(0.09, 0.22, 0.03, 4000, 'highpass');
+      [1319, 1760].forEach(function (f, i) { tone(f, 0.14, 'square', 0.11, 0.06 + i * 0.06); });
+    },
+    // げきレア（むらさきの 光）：ためて → ぱあっと 開く
+    capsuleSr: function () {
+      sweep(0.42, 0.26, 0, 500, 3600, 'bandpass');
+      [1047, 1319, 1568, 2093].forEach(function (f, i) { tone(f, 0.10, 'square', 0.13, 0.30 + i * 0.06); });
+      [523, 659, 784, 1047].forEach(function (f) { tone(f, 0.85, 'triangle', 0.10, 0.54); });
+      noise(0.5, 0.16, 0.54, 6000, 'highpass');
+    },
+
     /* ---- v1.2 で ふえた 音 ---- */
     // たからばこが 出る（カタカタ）
     chestAppear: function () {
@@ -173,7 +203,7 @@ MQ.sfx = (function () {
        2 = いなずま おとし／3 = ひかりの メテオ／4 = ぎんがの ビッグバン */
     special: function (level, id) {
       const lv = level || 1;
-      // オーロラ フィナーレ（20コンボ〜・v7.5）：
+      // スターバースト ストライク（20コンボ〜・v7.5。名前は v9.5 で 変えた）：
       // きらきら 上がる → 大きな わおん → 虹の アルペジオ → ながい 余いん
       if (lv >= 5) {
         sweep(0.55, 0.3, 0, 600, 4200, 'bandpass');

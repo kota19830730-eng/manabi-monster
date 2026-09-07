@@ -243,7 +243,7 @@ MQ.ui.battle = (function () {
       });
     }
 
-    d.heroImg.src = MQ.hero.sprite(player);
+    setHero(player);
     syncPal(player);
     paintScene(isTower ? 'tower' : (mixBiome || ctx.area.biome || 'mountain'));
     MQ.bgm.play(isTower ? 'maou' : 'battle');
@@ -308,7 +308,7 @@ MQ.ui.battle = (function () {
       pal: palOf(player),
       gear: MQ.hero.gearPower(player)
     });
-    d.heroImg.src = MQ.hero.sprite(player);
+    setHero(player);
     syncPal(player);
     paintScene('mountain');
     MQ.bgm.play('battle');
@@ -343,7 +343,7 @@ MQ.ui.battle = (function () {
       pal: palOf(player),
       gear: MQ.hero.gearPower(player)
     });
-    d.heroImg.src = MQ.hero.sprite(player);
+    setHero(player);
     syncPal(player);
     paintScene(found.area.biome || 'mountain');
     MQ.bgm.play('battle');
@@ -535,7 +535,9 @@ MQ.ui.battle = (function () {
     if (n < 2) { if (d.charge) d.charge.hidden = true; return; }
     const sp = specialOf(n);
     d.combo.textContent = n + ' コンボ！' + (sp ? '　ひっさつ！' : '');
-    d.combo.className = 'combo' + (n >= 3 ? ' combo--crit' : '') + (sp ? ' combo--' + sp.id : '');
+    // クリティカルの 色。オーロラの けん（げきレア）を つけて いると 2コンボから（v9.0）
+    const critFrom = (MQ.battle.critFrom && MQ.battle.critFrom()) || 3;
+    d.combo.className = 'combo' + (n >= critFrom ? ' combo--crit' : '') + (sp ? ' combo--' + sp.id : '');
     chargeShow(n, sp);
     d.combo.classList.remove('is-pop');
     void d.combo.offsetWidth;
@@ -1635,7 +1637,7 @@ MQ.ui.battle = (function () {
      ======================================================= */
   const TIER1_MIN = 5;
   const SPECIALS = [
-    { min: 20, tier: 5, id: 'aurora', name: 'オーロラ フィナーレ！', ms: 2100 },   // v7.5
+    { min: 20, tier: 5, id: 'starburst', name: 'スターバースト ストライク！', ms: 2100 },   // v7.5（名前は v9.5 で 変えた）
     { min: 16, tier: 4, id: 'nova', name: 'ぎんがの ビッグバン！', ms: 1900 },
     { min: 12, tier: 3, id: 'star', name: 'ひかりの メテオ！',     ms: 1350 },
     { min: 8,  tier: 2, id: 'bolt', name: 'いなずま おとし！',     ms: 1100 }
@@ -1648,7 +1650,7 @@ MQ.ui.battle = (function () {
     wind: { min: 5, tier: 1, id: 'wind', name: 'かぜの たつまき！', ms: 1000 }
   };
   // 主人公の オーラと コンボの 色
-  const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff', aurora: '#b8ffe6' };
+  const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff', starburst: '#b8ffe6' };
   const NOVA_COLORS = ['#ff5e7a', '#ffd447', '#7cf9c4', '#4fd3ff', '#c48bff', '#ffffff'];
 
   function elementOf(areaId) {
@@ -1668,10 +1670,19 @@ MQ.ui.battle = (function () {
   function specialBoost() {
     return (MQ.battle.specialBoost && MQ.battle.specialBoost()) || 0;
   }
+  /* オーロラの かぶと（げきレア・v9.0）で わざが 1つ 上に なるか。
+     SPECIALS は 上（強い）から ならんで いるので、1つ 前を かえす。
+     教科の わざ（いちばん 下）の ときは SPECIALS の いちばん 下＝いなずま おとしへ */
+  function specialTierUp() {
+    return !!(MQ.battle.specialTierUp && MQ.battle.specialTierUp());
+  }
   function specialOf(combo) {
     const c = combo + specialBoost();
-    for (let i = 0; i < SPECIALS.length; i++) if (c >= SPECIALS[i].min) return SPECIALS[i];
-    if (c >= TIER1_MIN) return ELEMENTS[currentElement()];
+    const up = specialTierUp() ? 1 : 0;
+    for (let i = 0; i < SPECIALS.length; i++) {
+      if (c >= SPECIALS[i].min) return SPECIALS[Math.max(0, i - up)];
+    }
+    if (c >= TIER1_MIN) return up ? SPECIALS[SPECIALS.length - 1] : ELEMENTS[currentElement()];
     return null;
   }
   function specialById(id) {
@@ -1708,10 +1719,10 @@ MQ.ui.battle = (function () {
   function buildFx(sp) {
     const out = [];
 
-    /* ---- オーロラ フィナーレ（20コンボ〜・v7.5）：
+    /* ---- スターバースト ストライク（20コンボ〜・v7.5。名前は v9.5 で 変えた）：
        空に 虹の カーテンが ゆれ、光の 柱が 立ち、雪のような 光が ふる ---- */
-    if (sp.id === 'aurora') {
-      out.push(h('span', { class: 'fx__sky fx__sky--aurora' }));
+    if (sp.id === 'starburst') {
+      out.push(h('span', { class: 'fx__sky fx__sky--starburst' }));
       const cur = h('span', { class: 'fx__curtain' });
       ['#7cf9c4', '#4fd3ff', '#c48bff', '#ffd447', '#ff8ec4', '#7cf9c4'].forEach(function (c, i) {
         cur.appendChild(h('i', { style: {
@@ -1725,8 +1736,8 @@ MQ.ui.battle = (function () {
         pil.appendChild(h('i', { style: { left: (i * 22 - 44) + 'px', animationDelay: (0.45 + i * 0.05) + 's' } }));
       }
       out.push(pil);
-      out.push(h('span', { class: 'fx__ring fx__ring--aurora' }));
-      out.push(sparks(30, 'fx__sparks--aurora', 110, { delay: 0.5 }));
+      out.push(h('span', { class: 'fx__ring fx__ring--starburst' }));
+      out.push(sparks(30, 'fx__sparks--starburst', 110, { delay: 0.5 }));
       const fall = h('span', { class: 'fx__fall' });
       for (let i = 0; i < 16; i++) {
         fall.appendChild(h('i', { style: {
@@ -1974,6 +1985,15 @@ MQ.ui.battle = (function () {
   }
 
   /* いまの 相棒を 画面に 出す（いなければ かくす） */
+  /* 主人公の 絵を はりかえる。
+     オーロラの そうびを 5点 そろえて つけて いたら **光る**（げきレア・v9.0）。
+     自まん できる ように バトル・地図（HUD）・けっか画面の どこでも 光る。 */
+  function setHero(player) {
+    d.heroImg.src = MQ.hero.sprite(player);
+    const on = !!(MQ.hero.hasAuroraSet && MQ.hero.hasAuroraSet(player));
+    d.hero.classList.toggle('is-gearaura', on);
+  }
+
   function syncPal(player) {
     const cur = MQ.pals ? MQ.pals.active(player) : null;
     palNow = cur;

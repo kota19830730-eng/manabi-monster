@@ -1888,7 +1888,7 @@ MQ.ui.photo = (function () {
       mine.length ? h('h2', { class: 'label', text: 'つくった モンスター' }) : null,
       mine.length ? h('div', { class: 'grid' }, mine) : null,
       h('button', {
-        class: 'btn btn--big btn--stone', type: 'button', text: '図かんへ もどる',
+        class: 'btn btn--big btn--stone', type: 'button', text: 'メニューへ もどる',
         style: { marginTop: '18px' },
         onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render('mons'); MQ.ui.show('screen-dex'); }
       })

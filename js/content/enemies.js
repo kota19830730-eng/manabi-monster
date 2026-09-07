@@ -320,7 +320,121 @@ MQ.enemies = (function () {
     { id: 'ufo-king', name: 'ユーフォオウ', shape: 'ufoKing', area: 'eigo', rank: 3, line: 'ufo', stage: 3, colors: { A: '#FF6B5A', B: '#4A4A5E' } },
     /* たからばこ（敵あつかい だが 図鑑には のせない） */
     { id: 'chest', name: 'たからばこ', shape: 'chest', hidden: true,
-      colors: { p: '#A6753F', P: '#7A5326', y: '#F2C14E' } }
+      colors: { p: '#A6753F', P: '#7A5326', y: '#F2C14E' } },
+
+    /* ---------- カプセル専用（v9.0）ここから：tools/capsule/apply.js が 書く ---------- */
+    /* カプセルマシンでしか 手に 入らない 18系統 × 3段階＝54体。
+       1段階め＝capsuleOnly（引ける）／2・3段階め＝evoOnly（Lv.10 / Lv.20 で なる）。
+       area を つけないので ふつうの たたかい（pickIds）には 出ない。 */
+    { id: 'cap-knight', name: 'ミニナイト', shape: 'cap-knight', rank: 1, capsuleOnly: true, cap: 'n', line: 'cap-knight', stage: 1, evo: 'cap-knight-2',
+      colors: { A: '#4f74c8', B: '#2b4278', C: '#c3d4f5', e: '#ffe07a', r: '#ff5e5e', y: '#ffd447', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-knight-2', name: 'ブレイドナイト', shape: 'cap-knight-2', rank: 2, evoOnly: true, line: 'cap-knight', stage: 2, evo: 'cap-knight-3',
+      colors: { A: '#6182ce', B: '#405586', C: '#c9d8f6', e: '#ffe07a', r: '#ff5e5e', y: '#ffd447', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-knight-3', name: 'セイバロード', shape: 'cap-knight-3', rank: 3, evoOnly: true, line: 'cap-knight', stage: 3,
+      colors: { A: '#6f8dd2', B: '#516490', C: '#cedcf7', e: '#ffe07a', r: '#ff5e5e', y: '#ffd447', j1: '#9fe6ff', j2: '#3f8fbf', m: '#a3202c' } },
+    { id: 'cap-archer', name: 'ミニアーチャー', shape: 'cap-archer', rank: 1, capsuleOnly: true, cap: 'n', line: 'cap-archer', stage: 1, evo: 'cap-archer-2',
+      colors: { A: '#3f9a5c', B: '#25663b', C: '#b98a4a', e: '#ffe07a', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-archer-2', name: 'シューターン', shape: 'cap-archer-2', rank: 2, evoOnly: true, line: 'cap-archer', stage: 2, evo: 'cap-archer-3',
+      colors: { A: '#52a46c', B: '#3b754f', C: '#c0965c', e: '#ffe07a', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-archer-3', name: 'スターアロー', shape: 'cap-archer-3', rank: 3, evoOnly: true, line: 'cap-archer', stage: 3,
+      colors: { A: '#62ac79', B: '#4c825e', C: '#c69f6b', e: '#ffe07a', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-mage', name: 'ミニメイジ', shape: 'cap-mage', rank: 1, capsuleOnly: true, cap: 'n', line: 'cap-mage', stage: 1, evo: 'cap-mage-2',
+      colors: { A: '#8a55f0', B: '#5c2fb0', C: '#c9a2ff', e: '#4fd3ff', y: '#ffd447', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-mage-2', name: 'ソーサラン', shape: 'cap-mage-2', rank: 2, evoOnly: true, line: 'cap-mage', stage: 2, evo: 'cap-mage-3',
+      colors: { A: '#9666f2', B: '#6c44b8', C: '#ceabff', e: '#4fd3ff', y: '#ffd447', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-mage-3', name: 'アークメイジ', shape: 'cap-mage-3', rank: 3, evoOnly: true, line: 'cap-mage', stage: 3,
+      colors: { A: '#9f74f3', B: '#7954be', C: '#d3b3ff', e: '#4fd3ff', y: '#ffd447', j1: '#9fe6ff', j2: '#3f8fbf', m: '#2e1668' } },
+    { id: 'cap-lancer', name: 'ミニランサー', shape: 'cap-lancer', rank: 1, capsuleOnly: true, cap: 'n', line: 'cap-lancer', stage: 1, evo: 'cap-lancer-2',
+      colors: { A: '#d8563f', B: '#8f2a1c', C: '#f0c98a', e: '#ffe07a', r: '#ff5e5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-lancer-2', name: 'ランスガード', shape: 'cap-lancer-2', rank: 2, evoOnly: true, line: 'cap-lancer', stage: 2, evo: 'cap-lancer-3',
+      colors: { A: '#dc6752', B: '#9a3f33', C: '#f2ce96', e: '#ffe07a', r: '#ff5e5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-lancer-3', name: 'ドラグランス', shape: 'cap-lancer-3', rank: 3, evoOnly: true, line: 'cap-lancer', stage: 3,
+      colors: { A: '#df7462', B: '#a35045', C: '#f3d39f', e: '#ffe07a', r: '#ff5e5e', j1: '#9fe6ff', j2: '#3f8fbf', m: '#1e2a5c' } },
+    { id: 'cap-axer', name: 'ミニアクサー', shape: 'cap-axer', rank: 1, capsuleOnly: true, cap: 'n', line: 'cap-axer', stage: 1, evo: 'cap-axer-2',
+      colors: { A: '#a8681f', B: '#6b3c0e', C: '#d9d9e2', e: '#ff8f5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-axer-2', name: 'アクスガイ', shape: 'cap-axer-2', rank: 2, evoOnly: true, line: 'cap-axer', stage: 2, evo: 'cap-axer-3',
+      colors: { A: '#b17735', B: '#7a5026', C: '#dddde5', e: '#ff8f5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-axer-3', name: 'グランドアクス', shape: 'cap-axer-3', rank: 3, evoOnly: true, line: 'cap-axer', stage: 3,
+      colors: { A: '#b88347', B: '#865f39', C: '#e0e0e7', e: '#ff8f5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-shielder', name: 'ミニシールダー', shape: 'cap-shielder', rank: 1, capsuleOnly: true, cap: 'n', line: 'cap-shielder', stage: 1, evo: 'cap-shielder-2',
+      colors: { A: '#3f8f8a', B: '#215a56', C: '#d9d9e2', e: '#ffe07a', y: '#ffd447', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-shielder-2', name: 'ガードウォル', shape: 'cap-shielder-2', rank: 2, evoOnly: true, line: 'cap-shielder', stage: 2, evo: 'cap-shielder-3',
+      colors: { A: '#529a96', B: '#376b67', C: '#dddde5', e: '#ffe07a', y: '#ffd447', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-shielder-3', name: 'イージスロード', shape: 'cap-shielder-3', rank: 3, evoOnly: true, line: 'cap-shielder', stage: 3,
+      colors: { A: '#62a39f', B: '#497874', C: '#e0e0e7', e: '#ffe07a', y: '#ffd447', j1: '#9fe6ff', j2: '#3f8fbf', m: '#1d3757' } },
+    { id: 'cap-hammer', name: 'ミニハンマー', shape: 'cap-hammer', rank: 1, capsuleOnly: true, cap: 'n', line: 'cap-hammer', stage: 1, evo: 'cap-hammer-2',
+      colors: { A: '#c8a13f', B: '#7d5f14', C: '#9aa4b5', e: '#ff5e5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-hammer-2', name: 'ハンマドン', shape: 'cap-hammer-2', rank: 2, evoOnly: true, line: 'cap-hammer', stage: 2, evo: 'cap-hammer-3',
+      colors: { A: '#ceaa52', B: '#8a6f2c', C: '#a4adbc', e: '#ff5e5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-hammer-3', name: 'グランドハンマ', shape: 'cap-hammer-3', rank: 3, evoOnly: true, line: 'cap-hammer', stage: 3,
+      colors: { A: '#d2b262', B: '#947c3e', C: '#acb4c2', e: '#ff5e5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-dagger', name: 'ミニダガー', shape: 'cap-dagger', rank: 1, capsuleOnly: true, cap: 'n', line: 'cap-dagger', stage: 1, evo: 'cap-dagger-2',
+      colors: { A: '#5a5f8f', B: '#33375c', C: '#d9d9e2', e: '#7cf9c4', r: '#ff5e5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-dagger-2', name: 'シャドダガー', shape: 'cap-dagger-2', rank: 2, evoOnly: true, line: 'cap-dagger', stage: 2, evo: 'cap-dagger-3',
+      colors: { A: '#6b6f9a', B: '#474b6c', C: '#dddde5', e: '#7cf9c4', r: '#ff5e5e', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-dagger-3', name: 'ファントムエッジ', shape: 'cap-dagger-3', rank: 3, evoOnly: true, line: 'cap-dagger', stage: 3,
+      colors: { A: '#787ca3', B: '#585b79', C: '#e0e0e7', e: '#7cf9c4', r: '#ff5e5e', j1: '#9fe6ff', j2: '#3f8fbf', m: '#221a3a' } },
+    { id: 'cap-paladin', name: 'ミニパラディン', shape: 'cap-paladin', rank: 1, capsuleOnly: true, cap: 'n', line: 'cap-paladin', stage: 1, evo: 'cap-paladin-2',
+      colors: { A: '#e0e4ef', B: '#8f96ad', C: '#ffd447', e: '#4fd3ff', w: '#ffffff', r: '#c0392f', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-paladin-2', name: 'ホーリガード', shape: 'cap-paladin-2', rank: 2, evoOnly: true, line: 'cap-paladin', stage: 2, evo: 'cap-paladin-3',
+      colors: { A: '#e3e7f1', B: '#9aa1b5', C: '#ffd859', e: '#4fd3ff', w: '#ffffff', r: '#c0392f', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-paladin-3', name: 'セイントロード', shape: 'cap-paladin-3', rank: 3, evoOnly: true, line: 'cap-paladin', stage: 3,
+      colors: { A: '#e6e9f2', B: '#a3a9bc', C: '#ffdc68', e: '#4fd3ff', w: '#ffffff', r: '#c0392f', j1: '#9fe6ff', j2: '#3f8fbf' } },
+    { id: 'cap-starcat', name: 'ホシネコ', shape: 'cap-starcat', rank: 2, capsuleOnly: true, cap: 'r', line: 'cap-starcat', stage: 1, evo: 'cap-starcat-2',
+      colors: { A: '#3b3f8f', B: '#262a63', C: '#8fa0ff', e: '#7cf9c4', y: '#ffd447', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-starcat-2', name: 'セイザネコ', shape: 'cap-starcat-2', rank: 3, evoOnly: true, line: 'cap-starcat', stage: 2, evo: 'cap-starcat-3',
+      colors: { A: '#4a4fb8', B: '#2e3480', C: '#a3b0ff', e: '#7cf9c4', y: '#ffd447', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-starcat-3', name: 'ギンガネコ', shape: 'cap-starcat-3', rank: 3, evoOnly: true, line: 'cap-starcat', stage: 3,
+      colors: { A: '#5d63e0', B: '#3a3fa0', C: '#c2ccff', e: '#7cf9c4', y: '#ffd447', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-comet', name: 'コメットドラ', shape: 'cap-comet', rank: 2, capsuleOnly: true, cap: 'r', line: 'cap-comet', stage: 1, evo: 'cap-comet-2',
+      colors: { A: '#6a3fb5', B: '#43257a', C: '#c9a2ff', e: '#4fd3ff', r: '#ff8f5e', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-comet-2', name: 'メテオドラ', shape: 'cap-comet-2', rank: 3, evoOnly: true, line: 'cap-comet', stage: 2, evo: 'cap-comet-3',
+      colors: { A: '#8250d8', B: '#523095', C: '#d9b8ff', e: '#4fd3ff', r: '#ff8f5e', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-comet-3', name: 'ネビュラドラ', shape: 'cap-comet-3', rank: 3, evoOnly: true, line: 'cap-comet', stage: 3,
+      colors: { A: '#9a63f5', B: '#6540b8', C: '#e8d0ff', e: '#4fd3ff', r: '#ff8f5e', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-orb', name: 'リングボール', shape: 'cap-orb', rank: 2, capsuleOnly: true, cap: 'r', line: 'cap-orb', stage: 1, evo: 'cap-orb-2',
+      colors: { A: '#1f4f8f', B: '#12305c', C: '#7cf9c4', e: '#ffe07a', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-orb-2', name: 'オービットボル', shape: 'cap-orb-2', rank: 3, evoOnly: true, line: 'cap-orb', stage: 2, evo: 'cap-orb-3',
+      colors: { A: '#2765b0', B: '#173e75', C: '#8ffad0', e: '#ffe07a', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-orb-3', name: 'コスモオーブ', shape: 'cap-orb-3', rank: 3, evoOnly: true, line: 'cap-orb', stage: 3,
+      colors: { A: '#307ed6', B: '#1d4f92', C: '#a8ffdc', e: '#ffe07a', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-whale', name: 'ソラクジラ', shape: 'cap-whale', rank: 2, capsuleOnly: true, cap: 'r', line: 'cap-whale', stage: 1, evo: 'cap-whale-2',
+      colors: { A: '#2f5fb5', B: '#1b3a75', C: '#9fe6ff', e: '#ffe07a', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-whale-2', name: 'ホシクジラ', shape: 'cap-whale-2', rank: 3, evoOnly: true, line: 'cap-whale', stage: 2, evo: 'cap-whale-3',
+      colors: { A: '#3a75d8', B: '#22488f', C: '#b5edff', e: '#ffe07a', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-whale-3', name: 'セイウンクジラ', shape: 'cap-whale-3', rank: 3, evoOnly: true, line: 'cap-whale', stage: 3,
+      colors: { A: '#488ef0', B: '#2c58ac', C: '#cbf4ff', e: '#ffe07a', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-owl', name: 'ホシフクロウ', shape: 'cap-owl', rank: 2, capsuleOnly: true, cap: 'r', line: 'cap-owl', stage: 1, evo: 'cap-owl-2',
+      colors: { A: '#4a3f8f', B: '#2c2560', C: '#c9a2ff', e: '#ffe07a', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-owl-2', name: 'ヨゾラフクロ', shape: 'cap-owl-2', rank: 3, evoOnly: true, line: 'cap-owl', stage: 2, evo: 'cap-owl-3',
+      colors: { A: '#5c4fb0', B: '#372d78', C: '#d6b5ff', e: '#ffe07a', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-owl-3', name: 'ホクトフクロ', shape: 'cap-owl-3', rank: 3, evoOnly: true, line: 'cap-owl', stage: 3,
+      colors: { A: '#7060d8', B: '#453a95', C: '#e4ccff', e: '#ffe07a', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-serpent', name: 'ホシヘビ', shape: 'cap-serpent', rank: 2, capsuleOnly: true, cap: 'r', line: 'cap-serpent', stage: 1, evo: 'cap-serpent-2',
+      colors: { A: '#2f8f7a', B: '#1a5a4c', C: '#7cf9c4', e: '#ffe07a', r: '#ff5e5e', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-serpent-2', name: 'リュウセイヘビ', shape: 'cap-serpent-2', rank: 3, evoOnly: true, line: 'cap-serpent', stage: 2, evo: 'cap-serpent-3',
+      colors: { A: '#39b096', B: '#1f6f5e', C: '#8ffad0', e: '#ffe07a', r: '#ff5e5e', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-serpent-3', name: 'テンリュウヘビ', shape: 'cap-serpent-3', rank: 3, evoOnly: true, line: 'cap-serpent', stage: 3,
+      colors: { A: '#45d0b0', B: '#268a74', C: '#a8ffdc', e: '#ffe07a', r: '#ff5e5e', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-phoenix', name: 'フェニクス', shape: 'cap-phoenix', rank: 3, capsuleOnly: true, cap: 'sr', line: 'cap-phoenix', stage: 1, evo: 'cap-phoenix-2',
+      colors: { A: '#ff8f3c', B: '#b3551d', C: '#ffd166', y: '#ffe07a', e: '#fff6c9', r: '#ef4f2e', w: '#fff3c0', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-phoenix-2', name: 'ホムラノトリ', shape: 'cap-phoenix-2', rank: 3, evoOnly: true, line: 'cap-phoenix', stage: 2, evo: 'cap-phoenix-3',
+      colors: { A: '#ff7a20', B: '#a8460f', C: '#ffd970', y: '#ffe07a', e: '#fff6c9', r: '#ef4f2e', w: '#fff3c0', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-phoenix-3', name: 'テンショウトリ', shape: 'cap-phoenix-3', rank: 3, evoOnly: true, line: 'cap-phoenix', stage: 3,
+      colors: { A: '#ff5c10', B: '#8f3405', C: '#ffe08a', y: '#ffe07a', e: '#fff6c9', r: '#ef4f2e', w: '#fff3c0', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-lionking', name: 'コマオウ', shape: 'cap-lionking', rank: 3, capsuleOnly: true, cap: 'sr', line: 'cap-lionking', stage: 1, evo: 'cap-lionking-2',
+      colors: { A: '#c0392f', B: '#7d1f18', C: '#e8c88a', y: '#ffd447', e: '#ffe07a', r: '#ff8f3c', w: '#ffffff', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-lionking-2', name: 'ライジンシシ', shape: 'cap-lionking-2', rank: 3, evoOnly: true, line: 'cap-lionking', stage: 2, evo: 'cap-lionking-3',
+      colors: { A: '#d43526', B: '#8a1a12', C: '#f0d69a', y: '#ffd447', e: '#ffe07a', r: '#ff8f3c', w: '#ffffff', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-lionking-3', name: 'コンゴウシシ', shape: 'cap-lionking-3', rank: 3, evoOnly: true, line: 'cap-lionking', stage: 3,
+      colors: { A: '#e82f1a', B: '#94150c', C: '#ffdc90', y: '#ffd447', e: '#ffe07a', r: '#ff8f3c', w: '#ffffff', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-kirin', name: 'キリンジュ', shape: 'cap-kirin', rank: 3, capsuleOnly: true, cap: 'sr', line: 'cap-kirin', stage: 1, evo: 'cap-kirin-2',
+      colors: { A: '#3fa8a0', B: '#22645f', C: '#a8e6df', y: '#ffd447', e: '#ffe07a', r: '#ff8f3c', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-kirin-2', name: 'ライキリン', shape: 'cap-kirin-2', rank: 3, evoOnly: true, line: 'cap-kirin', stage: 2, evo: 'cap-kirin-3',
+      colors: { A: '#33bdb0', B: '#1a7a72', C: '#b8f0e8', y: '#ffd447', e: '#ffe07a', r: '#ff8f3c', j1: '#ffe89a', j2: '#c08a1d' } },
+    { id: 'cap-kirin-3', name: 'テンガイキリン', shape: 'cap-kirin-3', rank: 3, evoOnly: true, line: 'cap-kirin', stage: 3,
+      colors: { A: '#22d4c0', B: '#108a7e', C: '#c8f8f0', y: '#ffd447', e: '#ffe07a', r: '#ff8f3c', j1: '#ffe89a', j2: '#c08a1d' } }
+    /* ---------- カプセル専用 ここまで ---------- */
   ];
 
   // ボス（エリアごとに 1体）
@@ -408,9 +522,11 @@ MQ.enemies = (function () {
 
   function pickIds(areaId, n, hard) {
     areaId = poolArea(areaId);
-    // any: true（にんじゃ）は どの エリアにも 出る。中ボス（mid）は ふつうの ザコには 出ない
-    let pool = list.filter(function (e) { return (e.area === areaId || e.any) && !e.rare && !e.hidden && !e.mid; });
-    if (!pool.length) pool = list.filter(function (e) { return !e.rare && !e.hidden && !e.mid && e.area; });
+    /* any: true（にんじゃ）は どの エリアにも 出る。中ボス（mid）は ふつうの ザコには 出ない。
+       カプセル専用（capsuleOnly）と 進化形（evoOnly）も ふつうの たたかいには 出ない（v9.0）。
+       area を つけて いないので 1つめの しぼりでも 外れるが、はっきり 書いて おく */
+    let pool = list.filter(function (e) { return (e.area === areaId || e.any) && !e.rare && !e.hidden && !e.mid && !e.capsuleOnly && !e.evoOnly; });
+    if (!pool.length) pool = list.filter(function (e) { return !e.rare && !e.hidden && !e.mid && !e.capsuleOnly && !e.evoOnly && e.area; });
     if (hard == null) hard = 0.5;
     hard = Math.max(0, Math.min(1, hard));
     const byRank = { 1: [], 2: [], 3: [] };

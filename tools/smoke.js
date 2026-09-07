@@ -54,6 +54,8 @@ const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function 
 ['js/core/guard.js', 'js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
  'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
+// カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
+load('js/core/capsule.js');
 
 const MQ = global.MQ;
 const TYPES = ['number', 'choice', 'divrem', 'roma', 'write', 'frac'];
@@ -903,14 +905,14 @@ const trIds = MQ.treasure.list.map(function (t) { return t.id; });
 check(new Set(trIds).size === trIds.length, 'たからものの id が かぶっていない');
 
 /* ---- 主人公・そうび ---- */
-check(MQ.hero.gear.length === 30, 'そうび 30点（5部位 × 6グレード）: ' + MQ.hero.gear.length);
-check(MQ.hero.grades.length === 6, 'グレード 6しゅるい: ' + MQ.hero.grades.length);
+check(MQ.hero.gear.length === 40, 'そうび 40点（5部位 × 8グレード）: ' + MQ.hero.gear.length);
+check(MQ.hero.grades.length === 8, 'グレード 8しゅるい: ' + MQ.hero.grades.length);
 (function () {
   // v5.4：かたちが グレードごとに ちがう（前は 色だけ ちがった）
   MQ.hero.slots.forEach(function (slot) {
     const shapes = MQ.hero.gear.filter(function (g) { return g.slot === slot; })
       .map(function (g) { return g.rows.join('\n'); });
-    check(new Set(shapes).size === 6, slot + ' の かたちが 6つ とも ちがう: ' + new Set(shapes).size);
+    check(new Set(shapes).size === 8, slot + ' の かたちが 8つ とも ちがう: ' + new Set(shapes).size);
   });
   // そうびの 効果：どの グレードも 0 では ない・上の グレードほど 強い
   MQ.hero.slots.forEach(function (slot) {
@@ -927,7 +929,7 @@ check(MQ.hero.grades.length === 6, 'グレード 6しゅるい: ' + MQ.hero.grad
   check(Math.abs(gp.setMul - 1.6) < 1e-9 && gp.setName === 'やみ', 'セットボーナス ×1.6');
   // もらい方：★2の ごほうびで でんせつ・ほし・やみ は 出ない
   const pl = { gear: [], equipped: {} };
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 40; i++) {
     const g = MQ.hero.nextGear(pl);
     if (!g) break;
     check(!MQ.hero.isSpecial(g.id), '★2で もらえるのは グレード1〜3 だけ: ' + g.id);
@@ -938,6 +940,48 @@ check(MQ.hero.grades.length === 6, 'グレード 6しゅるい: ' + MQ.hero.grad
   check(MQ.hero.nextHoshi({ gear: [] }, 3).id === 'hoshi-weapon', '★3が 3つで ほしの けん');
   check(MQ.hero.nextHoshi({ gear: ['hoshi-weapon'] }, 3) === null, 'つぎの ほしは ★3が 6つから');
   check(MQ.hero.nextYami({ gear: [] }).id === 'yami-weapon', 'やみは 塔を クリアするたび');
+
+  /* ---- カプセル限定の そうび 10点（v9.0）---- */
+  const cg = MQ.hero.capsuleGear();
+  check(cg.length === 10, 'カプセル限定の そうびは 10点: ' + cg.length);
+  check(cg.every(function (g) { return g.capsule === true; }), 'カプセル限定に しるしが ある');
+  check(cg.every(function (g) { return MQ.hero.isSpecial(g.id); }),
+    '★2の ごほうびでは カプセル限定は 出ない');
+  /* つよさ（2026-09-07 に 変えた。ユーザー「激レアが しょぼい」）
+       カプセル（ふつう）… 「てつ」と 同じ
+       オーロラ（げきレア）… 「やみ」と 同じ ＋ オーロラだけの 力
+     やみを **こえない**（がんばった ごほうびと 同じ ところで 止める）。 */
+  MQ.hero.slots.forEach(function (slot) {
+    const vals = MQ.hero.gearSlotPower[slot].vals;
+    const cap = cg.filter(function (g) { return g.grade === 'capsule' && g.slot === slot; })[0];
+    const aur = cg.filter(function (g) { return g.grade === 'aurora' && g.slot === slot; })[0];
+    check(cap.power === vals[1], slot + ' カプセルの つよさ＝てつと 同じ');
+    check(aur.power === vals[5], slot + ' オーロラの つよさ＝やみと 同じ');
+    check(aur.power <= vals[5], slot + ' カプセル限定は やみを こえない');
+    check(cap.cap === 'n' && aur.cap === 'sr', slot + ' マシンでの レアさ（ふつう／げきレア）');
+    check(!cap.extraShort && !!aur.extraShort, slot + ' オーロラだけ 専用の 力を もつ');
+  });
+  // セット効果：カプセル＝コイン ＋3 だけ／オーロラ＝コイン ＋6 と けいけんち ×1.6 の 両方
+  const capFull = {}, aurFull = {};
+  MQ.hero.slots.forEach(function (slot) { capFull[slot] = 'capsule-' + slot; aurFull[slot] = 'aurora-' + slot; });
+  const cgp = MQ.hero.gearPower({ equipped: capFull });
+  const agp = MQ.hero.gearPower({ equipped: aurFull });
+  check(cgp.setMul === 1 && cgp.coins === 1 + 3 && cgp.setName === 'カプセル',
+    'カプセル 一式は コイン ＋3（けいけんち倍率は なし）: ' + JSON.stringify(cgp));
+  check(Math.abs(agp.setMul - 1.6) < 1e-9 && agp.coins === 3 + 6 && agp.setName === 'オーロラ',
+    'オーロラ 一式は コイン ＋6 と けいけんち ×1.6: ' + JSON.stringify(agp));
+  // オーロラだけの 力が 5つ ぜんぶ 立つ
+  check(agp.critEasy === true && agp.pierce === true && agp.tierUp === true &&
+        agp.palPlus === 1 && agp.bossCoin === 2, 'オーロラ 一式で 専用の 力 5つ: ' + JSON.stringify(agp));
+  check(MQ.hero.hasAuroraSet({ equipped: aurFull }) === true &&
+        MQ.hero.hasAuroraSet({ equipped: capFull }) === false, 'オーロラ 一式の ときだけ 主人公が 光る');
+  // ふつうの そうびには 専用の 力が つかない（やみを つけても）
+  const yamiFull = {};
+  MQ.hero.slots.forEach(function (slot) { yamiFull[slot] = 'yami-' + slot; });
+  const ygp = MQ.hero.gearPower({ equipped: yamiFull });
+  check(!ygp.critEasy && !ygp.pierce && !ygp.tierUp && !ygp.palPlus && !ygp.bossCoin,
+    'やみには オーロラの 力は つかない');
+  check(Math.abs(ygp.setMul - 1.6) < 1e-9 && ygp.coins === 3, 'やみ 一式は いままで どおり');
 })();
 check(MQ.hero.bodyRows.length === 48 && MQ.hero.bodyRows[0].length === 48, '主人公は 48×48');
 MQ.hero.gear.forEach(function (g) {
@@ -972,6 +1016,14 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     missionsDone: 12, revengeWins: 6,  // v3.1 の しょうごう
     counters: 10,                      // v7.7 カウンターの たつじん
     elites: 10, weakHits: 10,          // v8.1 中ボス ハンター・弱点を つく 者
+    // v9.0 カプセル コレクター（30回）・げきレアの もちぬし（げきレア 3つ）
+    capsule: (function () {
+      const got = {};
+      MQ.capsule.KIND_IDS.forEach(function (k) {
+        MQ.capsule.byRarity(k, 'sr').forEach(function (x) { got[x.id] = 1; });
+      });
+      return { pulls: 30, got: got, pity: {} };
+    })(),
     gear: MQ.hero.gear.map(function (g) { return g.id; }),   // v5.4 の そうびの しょうごう
     // v5.2 の しょうごう：なかま 10体・そのうち 1体は Lv10
     pals: (function () {
@@ -1045,7 +1097,15 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
 
   // レベルで かいほう
   const c1 = MQ.hero.partsCount(1), c20 = MQ.hero.partsCount(20);
-  check(c1.have < c1.total && c20.have === c20.total, 'パーツの かいほう: Lv1 ' + c1.have + '/' + c1.total + ' Lv20 ' + c20.have + '/' + c20.total);
+  // v9.0：カプセル限定の 20こは **レベルでは 開かない**ので Lv20 でも のこる
+  const gachaN = MQ.hero.capsuleParts().length;
+  check(c1.have < c1.total && c20.have === c20.total - gachaN,
+    'パーツの かいほう: Lv1 ' + c1.have + '/' + c1.total + ' Lv20 ' + c20.have + '/' + c20.total + '（カプセル限定 ' + gachaN + 'こ を のぞく）');
+  // カプセルで ぜんぶ そろえたら 100%
+  const allParts = { xp: 999999, parts: {} };
+  MQ.hero.capsuleParts().forEach(function (p) { allParts.parts[p.item.id] = 1; });
+  const cAll = MQ.hero.partsCount(allParts);
+  check(cAll.have === cAll.total, 'カプセルで ぜんぶ そろえたら ' + cAll.have + '/' + cAll.total);
   console.log('  パーツ: Lv1 で ' + c1.have + ' / ' + c1.total);
   for (let i = 0; i < 40; i++) {
     const l = MQ.hero.randomLook(1);
@@ -1067,6 +1127,41 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
   check(now.hair === 'wolf' && now.hairColor === 'rainbow' && now.cloth === 'robe', '新しい 見た目は そのまま');
   const bad = MQ.hero.lookOf({ look: { hairColor: 'にじいろ', eye: 'xxx' } });
   check(bad.hairColor === 'blue' && bad.eye === 'futsu', '知らない id は きほんに もどる');
+
+  /* ---- カプセル限定の すがたパーツ 20個（v9.0）---- */
+  const cps = MQ.hero.capsuleParts();
+  check(cps.length === 20, 'カプセル限定の パーツは 20こ: ' + cps.length);
+  const want = { hair: 4, eye: 3, cloth: 4, glass: 3, acc: 6 };
+  Object.keys(want).forEach(function (k) {
+    const got = cps.filter(function (p) { return p.group === k; }).length;
+    check(got === want[k], 'カプセル限定の ' + k + ' は ' + want[k] + 'こ: ' + got);
+  });
+  // レベルでは 開かない（lv を つけない）
+  check(cps.every(function (p) { return !p.item.lv; }), 'カプセル限定の パーツに lv は つけない');
+  /* capsule.js の pool() は id / name / cap しか 見ない。
+     item の 中に しまうと 名前も id も 取れない（v9.0 で ここが 抜けて いた） */
+  check(cps.every(function (p) { return p.id && p.name && p.cap; }),
+    'カプセル限定の パーツは id・name・cap を もつ');
+  const capN = { n: 0, r: 0, sr: 0 };
+  cps.forEach(function (p) { capN[p.cap]++; });
+  check(capN.n === 10 && capN.r === 6 && capN.sr === 4,
+    'すがたの レアさは ふつう10／レア6／げきレア4: ' + JSON.stringify(capN));
+  // 持って いない 子には 見えない・持って いる 子には 見える
+  const noOne = { xp: 999999 };
+  check(cps.every(function (p) { return !MQ.hero.owns(p.item, noOne); }),
+    'レベルを 上げても カプセル限定は 手に 入らない');
+  const hasOne = { xp: 0, parts: {} };
+  hasOne.parts[cps[0].item.id] = 1;
+  check(MQ.hero.owns(cps[0].item, hasOne), 'カプセルで もらったら 使える');
+  check(!MQ.hero.owns(cps[1].item, hasOne), 'もらって いない ものは 使えない');
+  // おまかせは 持って いない パーツを 出さない
+  for (let i = 0; i < 30; i++) {
+    const r = MQ.hero.randomLook(hasOne);
+    MQ.hero.lookGroups.forEach(function (g) {
+      const it = g.list.filter(function (x) { return x.id === r[g.key]; })[0];
+      if (it) check(MQ.hero.owns(it, hasOne), 'おまかせが 持って いない「' + it.name + '」を 出した');
+    });
+  }
 })();
 
 /* ---- 敵 ---- */
@@ -1112,7 +1207,8 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
 (function () {
   // v8.2 で 系統が ふえた ので、ここは v4.2 の 17系統（id が -1/-2/-3）だけを 見る
   // 息子さんの モンスターの 進化形（v8.3）も id が -2/-3 で おわる ので rare で よける
-  const L = MQ.enemies.list.filter(function (e) { return e.line && /-[123]$/.test(e.id) && !e.rare; });
+  // カプセル専用（v9.0）も 系統を もつ ので 外す
+  const L = MQ.enemies.list.filter(function (e) { return e.line && /-[123]$/.test(e.id) && !e.rare && !e.capsuleOnly && !e.evoOnly; });
   check(L.length === 51, 'あたらしい モンスターは 51体（' + L.length + '）');
   const lines = {};
   L.forEach(function (e) { (lines[e.line] = lines[e.line] || []).push(e); });
@@ -1141,7 +1237,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 220, '図かんは 220体（' + dex + '）');   // v8.3 で 息子さんの 進化形 12体（208 → 220）
+  check(dex === 274, '図かんは 274体（' + dex + '）');   // v9.0 で カプセル専用 54体（220 → 274）
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -1838,6 +1934,60 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
     MQ.battle.start({ stage: stK, mode: 'tokkun', gear: one('cape', 'yami'), escaped: [{ key: 'z8', q: { id: 'z8', type: 'number', prompt: '1+1は？', answer: 2, unit: 'テスト' }, enemyId: 'slime-green', areaId: 'kokugo' }] });
     MQ.battle.answer(2);
     check(MQ.battle.summary().gearCoins === 0, 'とっくんに マントの コインは ない');
+
+    /* =======================================================
+       オーロラ（げきレア）だけの 力（v9.0・2026-09-07）
+       ユーザー「激レアが しょぼいから もっと 欲しくなるように」→
+       やみと 同じ 数字 ＋ ここでしか 手に 入らない 力 5つ
+       ======================================================= */
+    // けん：クリティカルが 2コンボから（ふつうは 3コンボ）
+    startWith([], { gear: one('weapon', 'aurora') });
+    let ar = MQ.battle.answer(correctValue(MQ.battle.current()));
+    check(ar.combo === 1 && ar.crit === false, 'オーロラの けん：1コンボでは まだ');
+    MQ.battle.next();
+    ar = MQ.battle.answer(correctValue(MQ.battle.current()));
+    check(ar.combo === 2 && ar.crit === true, 'オーロラの けん：2コンボで クリティカル');
+    check(ar.xp === 10 + 5 + 10, 'オーロラの けん：ザコ10＋クリ5＋けん10 = 25: ' + ar.xp);
+    // たて：中ボスを 一発で（ふつうは 2問 かかる）
+    MQ.battle.start({ stage: st6, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 12), bossId: 'boss-dragon', mobs: 12, elite: true, gear: one('shield', 'aurora') });
+    (function () {
+      let elite = 0;
+      while (!MQ.battle.isOver() && MQ.battle.phase() === 'mob') {
+        const q = MQ.battle.current();
+        const isElite = !!q.elite;
+        const x = MQ.battle.answer(correctValue(q));
+        if (isElite) { elite++; check(x.outcome === 'correct' && x.elite === true, 'オーロラの たて：中ボスを 一発'); }
+        MQ.battle.next();
+      }
+      check(elite === 1, 'オーロラの たて：中ボスに 2問 かからない（' + elite + '問）');
+    })();
+    // かぶと：ひっさつわざが 1つ 上に（core は しるしだけ・絵は ui/battle.js の specialOf）
+    startWith([], { gear: one('helm', 'aurora') });
+    check(MQ.battle.specialTierUp() === true && MQ.battle.specialBoost() === 2, 'オーロラの かぶと：わざが 1つ 上');
+    startWith([], { gear: one('helm', 'yami') });
+    check(MQ.battle.specialTierUp() === false, 'やみの かぶとは 1つ 上に ならない');
+    // よろい：なかまゲージが はじめから 2ばい
+    startWith([], { gear: one('armor', 'aurora'), pal: PAL });
+    check(MQ.battle.buffs().palPlus === 1, 'オーロラの よろい：なかまゲージ 2ばい');
+    MQ.battle.answer(correctValue(MQ.battle.current()));
+    check(MQ.battle.palGauge() === 2, 'オーロラの よろい：1問で ゲージ 2つ: ' + MQ.battle.palGauge());
+    // マント：ボスを たおすと コイン 1 → 3
+    startWith([], { gear: one('cape', 'aurora') });
+    clearMobs(9);
+    (function () {
+      let last = null;
+      while (!MQ.battle.isOver()) { last = MQ.battle.answer(correctValue(MQ.battle.current())); if (!last.defeated) MQ.battle.next(); }
+      check(last.defeated === true && last.coins === 3, 'オーロラの マント：ボスで コイン 3: ' + last.coins);
+      // ボス 3 ＋ ★3 で 1 ＋ マント 3 ＝ 7
+      check(MQ.battle.summary().coins === 7, 'オーロラの マント：もらう コインの 合計 7: ' + MQ.battle.summary().coins);
+    })();
+    startWith([], { gear: one('cape', 'yami') });
+    clearMobs(9);
+    (function () {
+      let last = null;
+      while (!MQ.battle.isOver()) { last = MQ.battle.answer(correctValue(MQ.battle.current())); if (!last.defeated) MQ.battle.next(); }
+      check(last.coins === 1, 'ふつうの マントは ボスで コイン 1（いままで どおり）: ' + last.coins);
+    })();
   })();
 
   /* ---- タイムアタックでは 使えない ---- */
@@ -3201,7 +3351,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
   // しょうごう
   check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
-  check(MQ.hero.titles.length === 48, 'v8.1: しょうごう 48 ' + MQ.hero.titles.length);
+  check(MQ.hero.titles.length === 50, 'しょうごう 50（v9.0 で カプセル 2つ）: ' + MQ.hero.titles.length);
   // 古い セーブ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
   check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');
@@ -3490,6 +3640,82 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(raw.length === 1 && raw[0].msg === 'saved', 'guard: localStorage に のこる');
   G.clear();
   console.log('エラーの 保険: record/text/device/読みこみ順 OK');
+})();
+
+/* ---------- カプセルマシン（v9.0） ---------- */
+// コメントを のぞく（きまりを 日本語で 書いて あるので、そのまま だと 引っかかる）
+function stripComments(src) {
+  const block = new RegExp('/\\*[\\s\\S]*?\\*/', 'g');
+  const line = new RegExp('^\\s*//.*$', 'gm');
+  return src.replace(block, '').replace(line, '');
+}
+(function () {
+  const C = MQ.capsule;
+  check(!!C, 'capsule.js が 読めて いる');
+  if (!C) return;
+  // ① 景品の 数（なかま 18／そうび 10／すがた 20）
+  check(C.pool('mon').length === 18, 'カプセルの なかまは 18体（' + C.pool('mon').length + '）');
+  check(C.pool('gear').length === 10, 'カプセルの そうびは 10点（' + C.pool('gear').length + '）');
+  check(C.pool('look').length === 20, 'カプセルの すがたは 20こ（' + C.pool('look').length + '）');
+  check(C.byRarity('mon', 'n').length === 9 && C.byRarity('mon', 'r').length === 6 && C.byRarity('mon', 'sr').length === 3,
+    'なかまの わけ方 9 / 6 / 3');
+  // ② 引けるのは 1段階めだけ（2・3段階め・ボス・写真の モンスターは 入らない）
+  const monPool = C.pool('mon').map(function (x) { return MQ.enemies.get(x.id); });
+  check(monPool.every(function (e) { return e && e.stage === 1 && !e.evoOnly && !e.mid && !e.rare && e.by !== 'photo'; }),
+    'カプセルの なかまは 1段階めだけ');
+  check(monPool.every(function (e) { return e.line && e.evo; }), 'カプセルの なかまは 系統と 進化さきを もつ');
+  // ③ ふつうの たたかいには 出ない
+  const wild = {};
+  ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
+    for (let i = 0; i < 8; i++) MQ.enemies.pickIds(a, 12, i / 8).forEach(function (id) { wild[id] = 1; });
+  });
+  check(MQ.enemies.list.filter(function (e) { return (e.capsuleOnly || e.evoOnly) && wild[e.id]; }).length === 0,
+    'カプセル専用と 進化形は ふつうの たたかいに 出ない');
+  // ④ お店に 出ない（進化で 1段階めが 復活する 抜け道も 見る）
+  const sp = { dex: {}, pals: {}, coins: 999 };
+  MQ.enemies.dexList().forEach(function (e) { sp.dex[e.id] = 1; });
+  const shop = MQ.pals.shopList(sp).map(function (x) { return x.id; });
+  check(shop.filter(function (id) { const e = MQ.enemies.get(id); return e && (e.capsuleOnly || e.evoOnly); }).length === 0,
+    'お店に カプセル専用と 進化形は 出ない');
+  // 抜け道：1段階めを 相棒に して 進化させても、お店に もどって こない
+  const leak = { dex: {}, pals: {}, coins: 999 };
+  const first = C.pool('mon')[0].id;
+  leak.dex[first] = 1;
+  MQ.pals.add(leak, first);
+  leak.pals[first].exp = MQ.pals.expFor(20);
+  MQ.pals.evolveIfReady(leak, first);
+  check(MQ.pals.shopList(leak).filter(function (x) { return x.id === first; }).length === 0,
+    '進化しても 1段階めは お店に もどらない');
+  // ⑤ わりあい（そうびは レアの わくが ないので 95 / 0 / 5）
+  const rg = C.rates('gear');
+  check(Math.abs(rg.n - 0.95) < 1e-9 && rg.r === 0 && Math.abs(rg.sr - 0.05) < 1e-9,
+    'そうびの わりあいは 95 / 0 / 5: ' + JSON.stringify(rg));
+  C.KIND_IDS.forEach(function (k) {
+    const r = C.rates(k);
+    check(Math.abs(r.n + r.r + r.sr - 1) < 1e-9, k + ' の わりあいの 合計が 1');
+  });
+  // ⑥ 引く：コインが へる・かぶりで もどる・天井で げきレア
+  const pl = { coins: 1000, dex: {}, pals: {}, gear: [], parts: {} };
+  const r1 = C.pull(pl, 'mon', function () { return 0.9; });
+  check(r1.ok && pl.coins === 990 && !r1.dup, 'コイン 10まい へって 何かが 出る');
+  const poor = { coins: 9, dex: {}, pals: {}, gear: [], parts: {} };
+  check(C.pull(poor, 'mon').ok === false && poor.coins === 9, 'コインが たりない ときは 引けない');
+  const p2 = { coins: 1000, dex: {}, pals: {}, gear: [], parts: {} };
+  let sawSr = false;
+  for (let i = 0; i < 10; i++) if (C.pull(p2, 'look', function () { return 0.9; }).rarity === 'sr') sawSr = true;
+  check(sawSr, '10回 いないに げきレアが 出る（天井）');
+  // ⑦ 画面に 出す ことばに「ガチャ」「SR」「キラキラ」を 出さない
+  // コメントは のぞいて 見る（きまりを 日本語で 書いて ある ため）
+  const ui = stripComments(fs.readFileSync(path.join(base, 'js/ui/capsule.js'), 'utf8'));
+  check(ui.indexOf('ガチャ') === -1 && ui.indexOf('キラキラ') === -1, 'カプセルの 画面に「ガチャ」「キラキラ」と 書かない');
+  check(ui.indexOf('newscard') === -1, 'カプセルは .newscard を 借りない（お知らせの 検査と ぶつかる）');
+  // ⑧ 読みこみ順：core の capsule.js は enemies.js より あと
+  const idx = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
+  check(idx.indexOf('js/core/capsule.js') > idx.indexOf('js/content/enemies.js'), 'index: capsule.js は enemies.js の あと');
+  check(idx.indexOf('js/ui/capsule.js') > idx.indexOf('js/core/capsule.js'), 'index: ui/capsule.js は core の あと');
+  const swf = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  check(swf.indexOf("'./js/core/capsule.js'") >= 0 && swf.indexOf("'./js/ui/capsule.js'") >= 0, 'sw.js の FILES に capsule 2つ');
+  console.log('カプセルマシン: 景品 48・天井・かぶり・お店・読みこみ順 OK');
 })();
 
 // 非同期の 検査（AI の generate など）が おわってから まとめる

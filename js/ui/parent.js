@@ -466,6 +466,7 @@ MQ.ui.parent = (function () {
     main.push(wrapSec(S.terms(p)));
     main.push(wrapSec(S.fever(p)));
     main.push(wrapSec(S.judge()));
+    main.push(wrapSec(S.capsule(p)));
     main.push(wrapSec(S.records(p)));
     main.push(wrapSec(S.ai()));
 
