@@ -720,13 +720,35 @@ body {
 .tower__sign { padding: 3px 10px; border-radius: 7px; background: rgba(14,22,44,.9); box-shadow: 0 3px 0 rgba(6,10,26,.5); font-family: var(--f-head); font-size: 13px; color: #fff; white-space: nowrap; }
 .tower__sub  { padding: 2px 8px; border-radius: 6px; background: rgba(14,22,44,.85); font-size: 11px; color: #f0c7ff; white-space: nowrap; }
 .tower__art  { display: flex; flex-direction: column; align-items: center; margin-top: 3px; filter: drop-shadow(0 6px 6px rgba(10,10,40,.55)); }
-.tower__bat  { display: flex; align-items: flex-end; gap: 3px; }
-.tower__bat i { width: 9px; height: 10px; background: #7a5fd2; box-shadow: inset -2px 0 0 rgba(0,0,0,.3), inset 0 2px 0 rgba(255,255,255,.24); }
-.tower__body { position: relative; width: 64px; height: 74px; background: linear-gradient(#6a53c4, #3d2f76); box-shadow: inset -7px 0 0 rgba(0,0,0,.26), inset 0 3px 0 rgba(255,255,255,.16); }
-.tower__eye  { position: absolute; top: 16px; left: 14px; width: 10px; height: 10px; background: #ff4d4d; box-shadow: 0 0 12px #ff4d4d; animation: pulse 1.6s ease-in-out infinite; }
-.tower__eye--r { left: auto; right: 18px; }
-.tower__door { position: absolute; bottom: 0; left: 50%; margin-left: -11px; width: 22px; height: 26px; background: #1d1436; box-shadow: inset 0 3px 0 rgba(255,255,255,.08); }
-.tower--lock .tower__body { background: linear-gradient(#5b48ab, #33276a); }
+/* さいごの塔「まおうの 城」（v9.3・3案から ユーザーが B を えらんだ）
+   四角の ならびは js/ui/map.js の TOWER_B（左・下から・よこ・たて・たね）。
+   ここは 色と 光だけ。石は モンスターと 同じ 3面の 光（上が 明るく 右と 下が 暗い）＋
+   まわりに こい ふち。学年で 色を 変えないので box-shadow でも よいが、
+   かざりと そろえて border と outline で かける。 */
+/* 城は 前の 塔より 24px 高い。`.tower` は **下**が 地図の 位置に そろう ので、
+   そのままだと 看板が 24px 上がって、上の ステージ名と かさなる。
+   下に はみ出させて（margin-bottom マイナス）**場所を とる 高さを 前と 同じ**に する。 */
+.tower__art { position: relative; width: 100px; height: 108px; margin-bottom: -24px; }
+.twb { position: absolute; display: block; box-sizing: border-box;
+       border-top: 2px solid rgba(255,255,255,.20);
+       border-right: 2px solid rgba(0,0,0,.22);
+       border-bottom: 1px solid rgba(0,0,0,.16);
+       outline: 1px solid rgba(10,8,26,.45); }
+.twb--stone  { background: #4a3a72; }
+.twb--stone2 { background: #5a4889; }
+.twb--dark   { background: #2f2450; }
+.twb--gate   { background: #150f2c; border-top-color: rgba(255,255,255,.10); }
+.twb--arch   { background: #8b2f4f; }
+.twb--pole   { background: #241b40; }
+.twb--flag   { background: #c9304f; }
+/* 光る ところ（門の 上の 目・小塔の まど）は ふちを つけずに にじませる */
+.twb--eye, .twb--win { border: 0; outline: 0; animation: pulse 1.7s ease-in-out infinite; }
+.twb--eye { background: #ff4d4d; box-shadow: 0 0 12px #ff4d4d; }
+.twb--win { background: #ff6a3d; box-shadow: 0 0 9px #ff6a3d; }
+/* かけらが そろって いない ときは 城ぜんたいを 暗く（目も おとなしく） */
+.tower--lock .tower__art { filter: grayscale(.42) brightness(.72); }
+.tower--lock .twb--eye, .tower--lock .twb--win { animation: none; opacity: .75; }
+@media (prefers-reduced-motion: reduce) { .twb--eye, .twb--win { animation: none; } }
 .tower--lock .tower__aura { opacity: .8; }
 
 /* ---- 地形の かざり ---- */
@@ -3252,6 +3274,29 @@ body {
 }
 .news__x:active { transform: translateY(3px); box-shadow: 0 0 0 #0a1024, inset 0 0 0 2px rgba(255,212,71,.5); }
 .news__list { display: grid; gap: 8px; margin-top: 12px; }
+
+/* さいごの塔が ひらいた！（v9.3）
+   お知らせ画面（.news / .newscard）の 入れものを 借りて、中だけ べつに する。
+   ラスボスを 大きく 見せて、「いく！」と「あとで」を ならべる。 */
+/* 見出しは 学年で 長さが 変わる（「さいごの塔が ひらいた！」／「さいごの とうが ひらいた！」）。
+   左右の ✦に かからない ように 少し 小さく、内がわに 余白を とる */
+.towerpop__title { font-size: 20px; padding: 0 26px; }
+.towerpop__art {
+  position: relative; display: flex; justify-content: center; align-items: flex-end;
+  margin: 12px 0 6px; padding: 10px 0 6px;
+  border-radius: 14px; background: rgba(8,12,30,.55);
+  box-shadow: inset 0 0 0 2px rgba(255,212,71,.28);
+}
+.towerpop__art::before {
+  content: ''; position: absolute; inset: 0; border-radius: 14px; pointer-events: none;
+  background: radial-gradient(closest-side at 50% 62%, rgba(255,77,77,.32), rgba(255,77,77,0));
+}
+.towerpop__boss { position: relative; filter: drop-shadow(0 6px 7px rgba(6,8,26,.6)); animation: bob 2.6s ease-in-out infinite; }
+.towerpop__line { margin: 4px 0 2px; text-align: center; font-family: var(--f-head); font-size: 17px; color: #ffd447; }
+.towerpop__sub  { margin: 0 0 12px; text-align: center; font-size: 12px; color: var(--tx-sub); }
+.towerpop__foot { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: stretch; }
+.towerpop__later { flex: none; padding-left: 18px; padding-right: 18px; }
+@media (prefers-reduced-motion: reduce) { .towerpop__boss { animation: none; } }
 .newsrow {
   display: flex; align-items: center; gap: 10px;
   min-height: 74px; padding: 8px; border-radius: 14px;

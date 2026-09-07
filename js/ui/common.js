@@ -273,5 +273,92 @@ MQ.ui = MQ.ui || {};
     MQ.ui.show('screen-map');
     // あたらしい こと！（v8.3）。1回の 起動で 1回だけ・見る ものが なければ 何も しない
     if (MQ.ui.news) MQ.ui.news.maybeShow();
+    // さいごの塔が ひらいた お知らせ（v9.3）。お知らせ画面が 出て いる ときは 出さない
+    if (!MQ.ui.news || !MQ.ui.news.isOpen()) MQ.ui.towerPop();
   };
+
+  /* =======================================================
+     さいごの塔が ひらいた！（v9.3）
+
+     ユーザー「ラスボスと 戦えるように なったら 告知の ポップも 出るように」。
+     かけらが ぜんぶ そろった **その つぎに 地図へ 行った とき 1回だけ** 出す。
+
+     出さない とき：
+       ・まだ かけらが そろって いない
+       ・**もう ラスボスを たおして いる**（あとから 入れた 子に「ひらいた！」は へん）
+       ・その 学年で 1回 見た（`p.seenTower` に 学年ごとに おぼえる）
+     学年ごとに 分けるのは、かけらも 塔も 学年ごとだから（v4.5）。
+     ======================================================= */
+  let towerPopEl = null;
+
+  MQ.ui.towerPop = function (force) {
+    if (towerPopEl) return null;
+    const p = MQ.save.current();
+    if (!p || !MQ.content || !MQ.content.towerOpen) return null;
+    const key = 'g' + ((MQ.content.activeWorld() || {}).grade || 3);
+    if (!force) {
+      if (!MQ.content.towerOpen(p)) return null;
+      if ((p.seenTower || {})[key]) return null;
+      const last0 = MQ.content.lastBoss();
+      if (last0 && p.dex && p.dex[last0.id] > 0) {      // もう たおして いる
+        MQ.save.update(function (q) { q.seenTower = q.seenTower || {}; q.seenTower[key] = true; });
+        return null;
+      }
+    }
+
+    const last = MQ.content.lastBoss();
+    const name = MQ.content.towerName();
+    const kid = ((MQ.content.activeWorld() || {}).grade || 3) <= 2;
+
+    function close() {
+      if (!towerPopEl) return;
+      const gone = towerPopEl;
+      towerPopEl = null;
+      if (gone.parentNode) gone.parentNode.removeChild(gone);
+      MQ.save.update(function (q) { q.seenTower = q.seenTower || {}; q.seenTower[key] = true; });
+    }
+
+    towerPopEl = h('div', {
+      class: 'news towerpop', onclick: function (e) { if (e.target === towerPopEl) close(); }
+    }, [
+      // カードの わくは アイテム画面と 同じ `.bagcard`。
+      // **`.newscard` は 借りない**（harness と smoke が「お知らせ画面が 出て いるか」を
+      // `.newscard` で 見て いる ので、同じ 名前を つかうと ここの ポップと 見分けが つかない）
+      h('div', { class: 'bagcard towerpop__card' }, [
+        h('span', { class: 'bagcard__star bagcard__star--l' }),
+        h('span', { class: 'bagcard__star bagcard__star--r' }),
+        h('div', { class: 'bagcard__head' }, [
+          h('h3', { class: 'bagcard__title towerpop__title', text: name + 'が ひらいた！' }),
+          h('div', { class: 'bagcard__subrow' }, [
+            h('span', { class: 'bagcard__sub', text: 'まなびの かけらが ぜんぶ そろった' })
+          ])
+        ]),
+        h('div', { class: 'towerpop__art' }, [
+          MQ.enemies.node(last.id, { size: 104, cls: 'towerpop__boss' })
+        ]),
+        h('p', { class: 'towerpop__line', text: last.name + (kid ? 'が まって いる！' : 'が 待って いる！') }),
+        // 教科の 数は 学年で ちがう（小3は 4・小4と 小5は 5・小1と 小2は 2）ので
+        // 数字を 書かない
+        h('p', { class: 'towerpop__sub', text: kid ? 'ぜんぶの きょうかの もんだいが 出るよ。' : 'ぜんぶの 教科の 問題が じゅんばんに 出るよ。' }),
+        h('div', { class: 'towerpop__foot' }, [
+          h('button', {
+            class: 'btn btn--big', type: 'button',
+            onclick: function () {
+              MQ.sfx.tap();
+              close();
+              MQ.ui.battle.start(MQ.content.towerStageId());
+            }
+          }, [h('span', { text: 'いく！' }), h('span', { class: 'btn__shine' })]),
+          h('button', {
+            class: 'btn btn--stone towerpop__later', type: 'button', text: 'あとで',
+            onclick: function () { MQ.sfx.tap(); close(); }
+          })
+        ])
+      ])
+    ]);
+    (document.getElementById('stage') || document.body).appendChild(towerPopEl);
+    if (MQ.sfx.towerIntro) MQ.sfx.towerIntro();
+    return towerPopEl;
+  };
+  MQ.ui.towerPopOpen = function () { return !!towerPopEl; };
 })();

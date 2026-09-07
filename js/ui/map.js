@@ -327,15 +327,49 @@ MQ.ui.map = (function () {
       h('span', { class: 'tower__aura' }),
       h('span', { class: 'tower__sign', text: MQ.content.towerName().replace(' ', '') }),
       h('span', { class: 'tower__sub', text: open ? (beaten ? (kid ? 'もういちど いどむ' : 'もう一度 いどむ') : last.name + (kid ? 'が まって いる！' : 'が 待つ！')) : 'かけら ' + gotN + ' / ' + need }),
-      h('span', { class: 'tower__art' }, [
-        h('span', { class: 'tower__bat' }, [h('i'), h('i'), h('i'), h('i'), h('i')]),
-        h('span', { class: 'tower__body' }, [
-          h('span', { class: 'tower__eye' }),
-          h('span', { class: 'tower__eye tower__eye--r' }),
-          h('span', { class: 'tower__door' })
-        ])
-      ])
+      towerArt()
     ]);
+  }
+
+  /* さいごの塔の 絵（v9.3「まおうの 城」）
+
+     まえは むらさきの 四角 1つに 赤い 目 2つ だけ だった。
+     ユーザー「塔も もっと カッコ良くして」→ 3案を 見て もらって **B案（まおうの 城）**に 決定。
+
+     まん中の 天守＋左右の 小塔＋ぎざぎざの 城かべ＋大きな もん＋旗。
+     100×116 の 中に 四角を ならべる（monsterart.js と 同じ 書き方）。
+     色と 光は CSS（`.twb--*`）が もつ ので、開いて いない ときは まとめて 暗く できる。 */
+  const TOWER_B = [
+    // [左, 下から, よこ, たて, たね]
+    // 左の 小塔
+    [2, 0, 22, 62, 'stone'], [0, 62, 26, 8, 'stone2'],
+    [0, 70, 7, 7, 'dark'], [9, 70, 7, 7, 'dark'], [18, 70, 7, 7, 'dark'],
+    [8, 34, 8, 11, 'win'],
+    // 右の 小塔
+    [76, 0, 22, 62, 'stone'], [74, 62, 26, 8, 'stone2'],
+    [74, 70, 7, 7, 'dark'], [83, 70, 7, 7, 'dark'], [92, 70, 7, 7, 'dark'],
+    [82, 34, 8, 11, 'win'],
+    // まん中の 天守
+    [26, 0, 48, 78, 'stone2'], [23, 78, 54, 9, 'stone'],
+    [23, 87, 8, 8, 'dark'], [34, 87, 8, 8, 'dark'], [45, 87, 8, 8, 'dark'],
+    [56, 87, 8, 8, 'dark'], [67, 87, 8, 8, 'dark'],
+    // 大きな もん
+    [40, 0, 20, 30, 'gate'], [43, 24, 14, 5, 'arch'],
+    // もんの 上の 光る 目
+    [35, 46, 10, 12, 'eye'], [55, 46, 10, 12, 'eye'],
+    // はた
+    [48, 95, 4, 10, 'pole'], [52, 99, 16, 9, 'flag']
+  ];
+
+  function towerArt() {
+    const art = h('span', { class: 'tower__art' });
+    TOWER_B.forEach(function (p) {
+      art.appendChild(h('i', {
+        class: 'twb twb--' + p[4],
+        style: { left: p[0] + 'px', bottom: p[1] + 'px', width: p[2] + 'px', height: p[3] + 'px' }
+      }));
+    });
+    return art;
   }
 
   /* =======================================================

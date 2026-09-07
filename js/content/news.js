@@ -123,6 +123,13 @@ MQ.news = (function () {
         { kind: 'item', id: 'tr-chizu', title: 'ちずが きれいに なった',
           text: 'くさや すなが つみきみたいに なって、しまが くっきり 見えるよ。' }
       ]
+    },
+    {
+      v: 'v9.3', date: '2026-09-07', sw: 109,
+      items: [
+        { kind: 'mons', id: 'boss-maou', title: 'さいごの とうが おしろに',
+          text: 'てんしゅと こだかい とう、はたと 大きな もん。あかい 目が 見て いるよ。' }
+      ]
     }
   ];
 

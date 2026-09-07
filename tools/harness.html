@@ -525,6 +525,11 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     return 'done';
   }
 
+  // さいごの塔が ひらいた ポップ（v9.3）は 地図を かくすので、地図を 見る モードでは とじる
+  function dismissTowerPop() {
+    if (MQ.ui.towerPopOpen && MQ.ui.towerPopOpen()) { const b = document.querySelector('.towerpop .btn--stone'); if (b) b.click(); }
+  }
+
   async function run() {
     if (mode === 'measure') {
       fresh(); MQ.ui.start.render(); MQ.ui.show('screen-start');
@@ -807,7 +812,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       fresh();
       MQ.save.update(function (pl) { pl.term = 1; pl.units = {}; });
       if (mode !== 'parent1') {
-        MQ.ui.goMap(); await wait(300); MQ.ui.map.paint();
+        MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint();
         const n = parseInt(mode.slice(6), 10);   // #term1:-1 で いちばん下
         if (!isNaN(n)) { const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = n < 0 ? 99999 : n; }
       }
@@ -2161,7 +2166,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode === 'last5' || mode === 'last5map') {
       fresh({ frags: {} });
       MQ.save.update(function (pl) { pl.grade = 5; pl.playGrade = 5; ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); });
-      if (mode === 'last5map') { MQ.ui.goMap(); await wait(300); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
+      if (mode === 'last5map') { MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
       MQ.ui.battle.start('tower5');
       await wait(3200);
       say('tower5: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none') + ' boss=' + MQ.content.lastBoss().name);
@@ -2175,7 +2180,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         pl.grade = g; pl.playGrade = g;
         ['sansu', 'kokugo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; });
       });
-      if (mode.indexOf('map') > 0) { MQ.ui.goMap(); await wait(300); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; say('tower' + g + ' map: ' + ($('#screen-map .tower__sign') ? $('#screen-map .tower__sign').textContent + ' / ' + $('#screen-map .tower__sub').textContent : 'MISSING')); return; }
+      if (mode.indexOf('map') > 0) { MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; say('tower' + g + ' map: ' + ($('#screen-map .tower__sign') ? $('#screen-map .tower__sign').textContent + ' / ' + $('#screen-map .tower__sub').textContent : 'MISSING')); return; }
       MQ.ui.battle.start('tower' + g);
       await wait(3200);
       say('tower' + g + ': ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none') + ' boss=' + MQ.content.lastBoss().name);
@@ -2188,10 +2193,37 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         pl.grade = 4; pl.playGrade = 4;
         ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; });
       });
-      if (mode === 'last4map') { MQ.ui.goMap(); await wait(300); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
+      if (mode === 'last4map') { MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
       MQ.ui.battle.start('tower4');
       await wait(3200);
       say('tower4: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
+      return;
+    }
+    /* さいごの塔が ひらいた！の ポップ（v9.3）
+       #toweropen  … かけらを ぜんぶ そろえて 地図へ → ポップが 出る
+       #toweropen2 … もう 1回 地図へ → 2回目は 出ない
+       #toweropen3 … もう ラスボスを たおして いる → 出ない（見たことに して とじる） */
+    if (mode.indexOf('toweropen') === 0) {
+      fresh({ frags: {} });
+      MQ.save.update(function (pl) {
+        MQ.content.subjectAreas().forEach(function (a) { pl.frags[MQ.save.areaKey(a.id, pl)] = true; });
+        if (mode === 'toweropen3') {
+          const last = MQ.content.lastBoss();
+          pl.dex = pl.dex || {}; pl.dex[last.id] = 1;
+        }
+      });
+      MQ.ui.goMap();
+      await wait(320);
+      say('toweropen: かけら ' + MQ.content.fragCount(MQ.save.current()) + ' / ' + MQ.content.subjectAreas().length
+        + '・ポップ ' + (MQ.ui.towerPopOpen() ? 'でた' : 'なし'));
+      if (mode === 'toweropen2') {
+        const x = $('.towerpop .btn--stone'); if (x) x.click();
+        await wait(200);
+        MQ.ui.goMap();
+        await wait(320);
+        say('2回目: ポップ ' + (MQ.ui.towerPopOpen() ? 'でた（NG）' : 'なし（OK）'));
+      }
+      if (mode === 'toweropen3') say('たおしずみ: ポップ ' + (MQ.ui.towerPopOpen() ? 'でた（NG）' : 'なし（OK）'));
       return;
     }
     /* よみあげ（v5.3）
