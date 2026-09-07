@@ -155,7 +155,7 @@ MQ.hero = (function () {
     const eye = colorOf(F.eyeColors, look.eyeColor);
     const cloth = colorOf(F.clothColors, look.clothColor);
     const pants = colorOf(F.pantsColors, look.pants);
-    const skinDark = F.darker(skin, 0.22);
+    const skinDark = F.mix(skin, '#8a4a30', 0.30);          // v10.1 かげは 黒でなく あたたかい 茶（灰色に くすまない）
     let hair;
     if (hc.rainbow) {
       // レインボーは 行ごとに 色が かわる（palette を 関数に する）
@@ -1025,13 +1025,21 @@ MQ.hero = (function () {
     ]).join(':');
   }
 
+  /* v10.1 … 主人公の 絵の しあげ（ユーザーが 見本の 3D画像を 出して「グラフィックは 上げたい。
+     でも マイクラ風の 角は 残したい」→ 3案から **B ゆうやけ** を 選択・2026-09-07）。
+       lit: 'sunset' … 面ごとの 光＋うしろから 夕日（pixel.js の LIGHTS）
+       sat: 0.2      … 色を はっきり（「色彩をもっとはっきり」）
+     タイトルの 勇者（poster）には かけない（専用の 一枚絵・claude-65 の 担当）。 */
+  const HD = { hd: 2, rim: 0.45, lit: 'sunset', sat: 0.2 };
+  function HD_OPTS() { return Object.assign({}, HD); }
+
   // 主人公の画像。art.js に 絵があれば そちら
   function sprite(player, opts) {
     if (MQ.art && MQ.art.hero && (!opts || !opts.noGear)) return MQ.art.hero;
     // HD（v9.4）… 2倍の こまかさ＋素材の 質感。かたち（マス目）は 変えて いない。
     // rim … モンスターと 同じ「同じ 色みの こい ふち」（v9.1）。
     // タイトルの 勇者（poster）には どちらも つけない（モックに ふち取りが ない ため）。
-    return MQ.pixel.url(keyFor(player, opts) + ':hd2', layersFor(player, opts), { hd: 2, rim: 0.45 });
+    return MQ.pixel.url(keyFor(player, opts) + ':hd3', layersFor(player, opts), HD_OPTS());
   }
 
   /* =======================================================
@@ -1047,21 +1055,21 @@ MQ.hero = (function () {
      ======================================================= */
   const posterRows = [
     '............................S.....',
-    '...........................SSS....',
-    '...........................SSC....',
-    '...........................SCC....',
-    '...........kkkkkkkkkkkkkk..SSC....',
-    '...........KKkKKKKkKKKkKK..SCC....',
-    '...........KKKKkKKKKkKKKK..SSC....',
-    '...........KKKKKKKKKKKKKK..SCC....',
-    '...........KKKssKKssKKKeK..SSC....',
-    '...........KsssssssssseeKMMMMMMM..',
-    '...........KsssssssssseeKmmmmmmm..',
-    '...........KssWBBssWBBeeK..mmm....',
-    '...........KssBBBssBBBeeK..mmm....',
-    '...........KssBBBssBBBeeK..mmm....',
-    '...........KsssssssssseeK.MMMMM...',
-    '...........KsssssssssseeK.aaaaD...',
+    '.............k....k....k...SSS....',
+    '............KK...KK...KK...SSC....',
+    '............KK...KK...KK...SCC....',
+    '...........KkkkkkkkkkkkkK..SSC....',
+    '...........KKKkKKKKkKKKkK..SCC....',
+    '...........KKkKKKKkKKKkKK..SSC....',
+    '...........KKKKKkKKKKkKKK..SCC....',
+    '...........KKKsKKKsKKsKKK..SSC....',
+    '...........KKsssKssssseeKMMMMMMM..',
+    '...........KsWBBBssBBBWeKmmmmmmm..',
+    '...........KsWBBBssBBBWeK..mmm....',
+    '...........KsWBBBssBBBWeK..mmm....',
+    '...........KsWBBBssBBBWeK..mmm....',
+    '...........KsssNssssNseeK.MMMMM...',
+    '...........KssssNNNNsseeK.aaaaD...',
     '............ssssssssssee..AAAAD...',
     '............ssssssssssee..AAAAD...',
     '.......gggggaaggggggggaDDvAAAAD...',
@@ -1088,6 +1096,7 @@ MQ.hero = (function () {
     K: '#3b2a16', k: '#5c421f',                              // かみの毛
     s: '#ffdca8', e: '#e0b986',                              // はだ
     W: '#ffffff', B: '#2e6fe0',                              // 青い 目
+    N: '#6f4234',                                            // 口（こい 茶・v10.1）
     A: '#4a76dd', a: '#7098f2', D: '#2b4a97',                // 青い よろい（v9.8。明るい面は **a**＝下の メモ）
     g: '#ffd447', G: '#d9a418',                              // 金
     p: '#2c3d6b', q: '#1d2a4c',                              // あし・くつ
@@ -1103,7 +1112,7 @@ MQ.hero = (function () {
   const POSTER_MAT = {
     K: 'hair',  k: 'hair',                  // かみの毛
     s: 'skin',  e: 'skin',                  // はだ
-    W: 'white', B: 'iris',                  // 目（平ら。マイクラの 顔）
+    W: 'white', B: 'iris', N: 'mouth',      // 目・口（平ら。マイクラの 顔）
     A: 'metal', a: 'metal', D: 'metal',     // 青い よろい
     g: 'gold',  G: 'gold',                  // 金の かざり
     p: 'cloth', q: 'cloth',                 // ズボン・くつ
@@ -1117,8 +1126,10 @@ MQ.hero = (function () {
      **rim（まわりの こい ふち）は つけません** … タイトルの モックに
      ふち取りは ない ので（v5.0 の きまり）。かたちは 1マスも 変えて いません。 */
   function poster() {
-    return MQ.pixel.url('poster', [{ rows: posterRows, palette: POSTER_PALETTE, mat: POSTER_MAT }],
-      { hd: 2, rim: false });
+    /* v10.1 … ユーザー「タイトル画面の 勇者も この顔で」→ アバターと 同じ しあげ
+       （lit: 'sunset'＝B案 ゆうやけ・sat: 0.2）。rim は つけない（v5.0 の きまり）。 */
+    return MQ.pixel.url('poster:v101', [{ rows: posterRows, palette: POSTER_PALETTE, mat: POSTER_MAT }],
+      { hd: 2, rim: false, lit: 'sunset', sat: 0.2 });
   }
 
   // 顔だけの 小さい絵（ヘッダーの アイコンと 見た目えらびの ボタン）
@@ -1127,14 +1138,14 @@ MQ.hero = (function () {
   const BODY_CROP = { w: 32, h: 26, dx: -8, dy: -21 };
   // 顔だけ・体だけの 小さい絵も HD で（切りぬきの 数字は もとの マス目の まま。
   // pixel.js が 中で 2倍に する）
-  function hdCrop(crop) { return Object.assign({ hd: 2, rim: 0.45 }, crop); }
+  function hdCrop(crop) { return Object.assign(HD_OPTS(), crop); }
   function faceSprite(look) {
     const p = { look: look, equipped: {} };
-    return MQ.pixel.url('face:hd2:' + keyFor(p, { noGear: true }), layersFor(p, { noGear: true }), hdCrop(FACE_CROP));
+    return MQ.pixel.url('face:hd3:' + keyFor(p, { noGear: true }), layersFor(p, { noGear: true }), hdCrop(FACE_CROP));
   }
   function bodySprite(look) {
     const p = { look: look, equipped: {} };
-    return MQ.pixel.url('bodyc:hd2:' + keyFor(p, { noGear: true }), layersFor(p, { noGear: true }), hdCrop(BODY_CROP));
+    return MQ.pixel.url('bodyc:hd3:' + keyFor(p, { noGear: true }), layersFor(p, { noGear: true }), hdCrop(BODY_CROP));
   }
   function partSprite(look, preview) {
     return preview === 'body' ? bodySprite(look) : faceSprite(look);
@@ -1149,7 +1160,7 @@ MQ.hero = (function () {
       Object.assign(MQ.pixel.silhouette(F.bodyRows, '#E7E2F0'), { mat: 'white' }),
       Object.assign(MQ.pixel.silhouette(F.headRows, '#E7E2F0'), { mat: 'white' }),
       { rows: g.rows, palette: g.palette, mat: gearMat(g.slot, g.gradeNo) }
-    ], { hd: 2, rim: 0.45 });
+    ], HD_OPTS());
   }
 
   function gearShadow(id) {
