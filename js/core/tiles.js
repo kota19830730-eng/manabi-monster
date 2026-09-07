@@ -374,7 +374,20 @@ MQ.tiles = (function () {
 
      **マス目・道・島の 形は 1マスも 変えて いない。**
      ------------------------------------------------------- */
-  const SUB = 4;                       // 1マスを 何点で 描くか
+  /* 1マスを 何点で 描くか。
+
+     v9.6（HD）：**4 → 12**。canvas は よこ 32×12 ＝ **384点**に なり、
+     画面の 400px と ほぼ 1:1。前は 1点が 3.1px の 四角に 見えて いた
+     （地図が いちばん 粗い ところ だった）。
+     たて長の 地図でも 384 ×（行数×12）なので 1回 描くだけなら 軽い。
+
+     **マス目・道・島の 形は 1マスも 変えて いない。**
+     ふえた こまかさは ぜんぶ「その 場所が 何で できて いるか」に つかう。 */
+  const SUB = 12;
+  // つみきの ふちの あつさ。SUB に 合わせて 太くし、v9.2 の 見た目を たもつ
+  const EDGE = Math.max(1, Math.round(SUB / 4));
+  // 波の すじの あいだ（マス 2つ分ちょっと。SUB を 変えても 同じ 幅に 見える）
+  const WAVE = SUB * 2 + 3;
 
   function rgbOf(hex) {
     const n = parseInt(hex.slice(1), 16);
@@ -385,6 +398,51 @@ MQ.tiles = (function () {
     let h = x * 73856093 ^ y * 19349663;
     h = (h ^ (h >>> 13)) * 1274126177;
     return (((h ^ (h >>> 16)) >>> 0) % 1000) / 1000 - 0.5;   // -0.5 〜 0.5
+  }
+
+  /* 地面の きめ（v9.6・HD）
+
+     SUB を 上げた ぶんを、**その 場所が 何で できて いるか**に つかう。
+       草  … たての 葉すじ（4点ごとに ちぎれる）
+       森  … もっと こい 葉すじ
+       岩  … かくばった まだら ＋ ななめの ひび
+       砂  … こまかい つぶ
+       道  … じゃりの つぶ ＋ ときどき 小石
+       橋  … よこの 板の 線
+     ぜんぶ grain()（同じ 場所は いつも 同じ）なので、描き直しても ちらつかない。
+     数字を 大きく しすぎると「ざらざらの 紙」に 見えるので、
+     いちばん 強い 森でも 0.1 まで。 */
+  function texture(v, gx, gy) {
+    // 葉すじは **長く・まばら**に する。短くて 多いと「ざらざらの ノイズ」に 見える
+    if (v === GRASS || v === DGRASS) {
+      const b = grain(gx, (gy / 8) | 0);                 // たてに 8点（マスの 2/3）のびる 葉すじ
+      return b > 0.36 ? 0.07 : (b < -0.37 ? -0.05 : 0);
+    }
+    if (v === FOREST) {
+      const b = grain(gx, (gy / 6) | 0);
+      return b > 0.30 ? 0.09 : (b < -0.32 ? -0.07 : 0);
+    }
+    if (v === ROCK || v === DSAND) {
+      const b = grain((gx / 2) | 0, (gy / 2) | 0);       // 2×2 の かくばった まだら
+      let k = b > 0.28 ? 0.10 : (b < -0.26 ? -0.085 : 0);
+      if ((gx + gy) % 9 === 0 && grain(gx, gy) > 0.18) k -= 0.06;   // ななめの ひび
+      return k;
+    }
+    if (v === SAND) {
+      const b = grain(gx, gy);
+      return b > 0.36 ? 0.06 : (b < -0.36 ? -0.05 : 0);
+    }
+    if (v === ROAD) {
+      const b = grain(gx, gy);
+      let k = b > 0.32 ? 0.07 : (b < -0.32 ? -0.06 : 0);
+      if (grain((gx / 2) | 0, (gy / 2) | 0) > 0.42) k += 0.05;      // 小石
+      return k;
+    }
+    if (v === BRIDGE) {
+      const step = Math.max(3, Math.round(SUB / 3));
+      return (gy % step === 0 ? -0.10 : 0) + grain(gx, gy) * 0.05;  // よこの 板の 線
+    }
+    return 0;
   }
 
   function paint(canvas, grid) {
@@ -414,26 +472,32 @@ MQ.tiles = (function () {
         const upL = isLand(typeAt(x, y - 1));
         const lfL = isLand(typeAt(x - 1, y));
 
+        const shore = EDGE * 2;                            // 岸の かげの ふかさ
         for (let sy = 0; sy < SUB; sy++) {
           for (let sx = 0; sx < SUB; sx++) {
+            const gx = x * SUB + sx, gy = y * SUB + sy;
             let k = 0;
             if (land) {
               // マスの ふち。上と 左が 明るく、下と 右が 暗い（つみきの 3面）。
               // **よこ と たての 強さを そろえる**のが だいじ。
               // 上下だけ 強くすると、地面が マス目では なく「よこじま」に 見える。
-              if (sy === 0) k += upW ? 0.22 : 0.11;          // 水ぎわは がけに 見せる
-              if (sy === SUB - 1) k -= dnW ? 0.20 : 0.10;
-              if (sx === 0) k += 0.08;
-              if (sx === SUB - 1) k -= 0.08;
+              // あつさは EDGE（SUB の 1/4）。SUB を 変えても 同じ 見た目に なる。
+              if (sy < EDGE) k += upW ? 0.22 : 0.11;         // 水ぎわは がけに 見せる
+              if (sy >= SUB - EDGE) k -= dnW ? 0.20 : 0.10;
+              if (sx < EDGE) k += 0.08;
+              if (sx >= SUB - EDGE) k -= 0.08;
+              k += texture(v, gx, gy);                       // 材質の きめ（v9.6）
             } else {
               // 水。波の すじ と 岸の かげ
-              if (((y * SUB + sy) + ((x * SUB + sx) >> 1)) % 9 === 0) k += 0.08;
-              if (upL && sy < 2) k -= 0.16 - sy * 0.06;      // 陸の 下は 暗い
-              if (lfL && sx < 2) k -= 0.07 - sx * 0.03;
+              const wv = (gy + (gx >> 1)) % WAVE;
+              if (wv === 0) k += 0.10;
+              else if (wv === 1) k += 0.05;                  // すじを 2点ぶん の 厚みに
+              if (upL && sy < shore) k -= 0.16 * (1 - sy / shore);   // 陸の 下は 暗い
+              if (lfL && sx < shore) k -= 0.07 * (1 - sx / shore);
             }
-            k += grain(x * SUB + sx, y * SUB + sy) * (land ? 0.06 : 0.045);
+            k += grain(gx, gy) * (land ? 0.05 : 0.04);
 
-            const i = ((y * SUB + sy) * W + (x * SUB + sx)) * 4;
+            const i = (gy * W + gx) * 4;
             for (let c = 0; c < 3; c++) {
               const b = base[c];
               data[i + c] = k >= 0 ? b + (255 - b) * k : b * (1 + k);

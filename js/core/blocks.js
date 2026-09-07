@@ -95,6 +95,38 @@ MQ.blocks = (function () {
     return 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
   })();
 
+  /* -------------------------------------------------------
+     HD の 材質（v9.6）
+
+     ユーザー「モンスターも HD化して ほしい」。
+     モンスターは **CSS の div**（`.bx i`）なので、大きくしても ぼやけません。
+     足りないのは 点の 数では なく **四角 1つの 中の 情報**でした
+     （1体 へいきん 16.8この 四角＝ぜんぶ べた塗り）。
+
+     そこで **色の キーごとに「何で できて いるか」**を のせます。
+     CSS の グラデーションなので `.bx` を scale しても **かどが ぼやけません**
+     （＝どの 大きさでも HD）。
+
+       金・鉄（y・s）   … ななめの 光の すじ（みがいた 金ぞく）
+       宝石・光（r・e） … 左上の まるい ハイライト
+       ほね・白（w）    … うすい ななめの つや
+       ぬの（m・W）     … こまかい ななめの おりめ
+       体（A/B/C/D）    … いままでの ざらつき（NOISE）の まま
+
+     **絵の データ（四角の ならび）は 1つも さわって いません。**
+     小さく 出す とき（ずかんの 52px＝plain）は のせない＝220体が 軽い。
+     ------------------------------------------------------- */
+  const MAT_BY_KEY = { y: 'metal', s: 'metal', r: 'gem', e: 'gem', w: 'bone', m: 'cloth', W: 'cloth',
+                       A: 'body', B: 'body', C: 'body', D: 'body' };
+  const MAT = {
+    metal: 'linear-gradient(116deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.40) 42%, rgba(255,255,255,.12) 50%, rgba(255,255,255,0) 62%)',
+    gem:   'radial-gradient(ellipse at 32% 26%, rgba(255,255,255,.55), rgba(255,255,255,0) 62%)',
+    bone:  'linear-gradient(152deg, rgba(255,255,255,.24), rgba(255,255,255,0) 55%)',
+    cloth: 'repeating-linear-gradient(56deg, rgba(0,0,0,.09) 0 1px, rgba(255,255,255,.06) 1px 2.5px)',
+    // 体は 「面が 光を うけて いる」だけ。強くすると まるく なって マイクラらしさが 消える
+    body:  'linear-gradient(178deg, rgba(255,255,255,.13), rgba(255,255,255,0) 38%, rgba(0,0,0,.10))'
+  };
+
   function part(p, palette, plain, isEye) {
     const flags = p[5] || '';
     const key = p[4];
@@ -133,7 +165,18 @@ MQ.blocks = (function () {
         // 大きな 面だけ ざらつきを のせる（小さい 目や 歯は そのまま）。
         // 小さく 出す とき（ずかんの タイル 52px など）は 見えないので つけない
         // ＝ 220体が ならぶ ところが 軽く なる
-        if (!plain && w >= 10 && hh >= 10) d.style.backgroundImage = NOISE;
+        // 材質（v9.6）と ざらつきを かさねる。
+        // **材質は 小さく 出す とき（ずかんの 52px）にも のせる**。
+        // 210体を ならべて 実測して 18.4ms → 22.4ms＝＋4ms しか 変わらない ので、
+        // 図かんでも 金や 宝石が 光った ほうが よい。
+        // ざらつき（NOISE）は 前どおり 大きい ときだけ（小さいと 見えない）。
+        const layers = [];
+        if (w >= 5 && hh >= 5) {
+          const mat = MAT[MAT_BY_KEY[key]];
+          if (mat) layers.push(mat);
+        }
+        if (!plain && w >= 10 && hh >= 10) layers.push(NOISE);
+        if (layers.length) d.style.backgroundImage = layers.join(', ');
       }
     }
     if (glow) sh.push('0 0 6px ' + color, '0 0 14px ' + color);

@@ -924,6 +924,41 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       dump();
       return;
     }
+    /* 地図と モンスターの HD（v9.6）
+       #hd … 地図の こまかさ・描く 時間・モンスターの 材質が ついた 四角の 数 */
+    if (mode === 'hd') {
+      fresh();
+      MQ.ui.goMap();
+      await wait(400);
+      const cv = $('#screen-map .map__bg');
+      const box = $('#screen-map .map__sheet');
+      if (!cv || !box) { say('hd: 地図が 出ない MISSING'); dump(); return; }
+      const t0 = performance.now();
+      MQ.ui.map.paint();
+      const ms = performance.now() - t0;
+      const wide = box.getBoundingClientRect().width;
+      say('hd: 地図の canvas ' + cv.width + '×' + cv.height + ' ／ 画面の はば ' + Math.round(wide) +
+          'px ／ 1点＝' + (wide / cv.width).toFixed(2) + 'px ／ 描く 時間 ' + ms.toFixed(1) + 'ms');
+      say('hd: 1点が 2px より 大きいと 粗い → ' + (wide / cv.width <= 2 ? 'OK' : 'NG'));
+      // モンスター：材質（金・宝石・ほね・ぬの）が ついた 四角を 数える
+      const wrap = MQ.blocks.box(MQ.enemies.shapes['slimeKing'] || MQ.enemies.shapes['golem'],
+                                 MQ.blocks.fill({ A: '#e8443a', y: '#ffd447' }), { size: 96 });
+      document.body.appendChild(wrap);
+      const all = wrap.querySelectorAll('.bx i');
+      let mat = 0;
+      all.forEach(function (n) { if (n.style.backgroundImage && n.style.backgroundImage !== 'none') mat++; });
+      say('hd: 王さまスライム 96px … 四角 ' + all.length + 'こ ／ 材質つき ' + mat + 'こ');
+      wrap.remove();
+      // ずかんの 大きさ（52px）でも 材質が つくか
+      const small = MQ.blocks.box(MQ.enemies.shapes['golem'], MQ.blocks.fill({ A: '#8892a8', y: '#ffd447' }), { size: 52 });
+      document.body.appendChild(small);
+      let mat2 = 0;
+      small.querySelectorAll('.bx i').forEach(function (n) { if (n.style.backgroundImage && n.style.backgroundImage !== 'none') mat2++; });
+      say('hd: ずかんの 52px でも 材質つき ' + mat2 + 'こ（0 だと ずかんだけ のっぺり）');
+      small.remove();
+      dump();
+      return;
+    }
     /* 地図の 上下（v8.0・A＋B）
        #mapui        … 帯を 押して パネルが 出る／地図を さわると とじる／学年えらび／下の 段
        #mapui:open   … パネルを ひらいた ところ（撮る 用）
