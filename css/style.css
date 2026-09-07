@@ -1277,8 +1277,13 @@ body {
 .arena__msg {
   position: absolute; top: 70px; left: 100px; max-width: 184px;   /* バーの 下・勇者の 右・モンスターの 左 */
   padding: 5px 10px; border-radius: 12px; background: #fff; color: #1c2647;
-  font-size: 13px; box-shadow: 0 5px 0 rgba(0,0,0,.22); z-index: 3;
+  font-size: 13px; box-shadow: 0 5px 0 rgba(0,0,0,.22); z-index: 4;   /* v10.5：相棒（3）より 上。ふきだしは いつも 読める */
 }
+/* v10.5：カットインの あいだ（0.62秒）は ふきだしと 相棒を 消す。
+   帯は 半透明なので、下に ふきだしと 相棒が いると すけて 見えて ごちゃごちゃ した（息子さん「相棒が 前に かぶる」）。
+   相棒は カットインの 中（.cutin__pal）に 出て いる ので、ここで 消えても「とびこんだ」ように 見える。 */
+.arena__msg, .pal { transition: opacity .12s ease-out; }
+.arena.is-cutin .arena__msg, .arena.is-cutin .pal { opacity: 0; }
 .foes { position: absolute; right: 16px; bottom: 62px; display: flex; align-items: flex-end; gap: 8px; z-index: 2; }
 /* 主人公は 76 → 88px（v9.4）。HD で 点の 数が 2倍に なった ので、
    大きく しても ぼやけない。てきは もともと 72〜112px で 大きかった ので そのまま。
@@ -1288,16 +1293,19 @@ body {
 .hero__img, .enemy__img { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)); }
 .hero__img { width: 84px; height: 84px; animation: bob 2.4s ease-in-out infinite; }
 .enemy__img { animation: bob 1.8s ease-in-out infinite; }
-/* ---- なかま（相棒・v4.3）：主人公の 足もとに 小さく いる ---- */
-.pal { position: absolute; left: 134px; bottom: 20px; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+/* ---- なかま（相棒・v4.3）：主人公と てきの あいだ・手まえに 小さく いる ----
+   v10.5：left 134 / bottom 20 → **left 190 / bottom 12**。前の 場所は ふきだし（top 70・2〜3行で y 130 まで）の
+   まっ下で、頭が ふきだしに かぶり（あとに 描く 相棒が 勝つ）、名前と ゲージは 左下の ためゲージ（x 12〜170）と
+   コンボの 字に かくれて いた。まん中（x 190〜230）なら ふきだし・ためゲージ・アイテムボタン（x 240〜）の どれとも ぶつからない。 */
+.pal { position: absolute; left: 190px; bottom: 12px; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .pal .mons { filter: drop-shadow(0 3px 3px rgba(10,10,40,.45)); animation: bob 2s ease-in-out infinite; }
 .pal__name { font-family: var(--f-head); font-size: 9px; color: #ffe9a8; text-shadow: 0 1px 0 rgba(0,0,0,.6); white-space: nowrap; }
 .pal.is-hit { animation: palJump .55s ease-out; }
 .pal.is-hit .pal__name { opacity: .4; }
 @keyframes palJump {
   0% { transform: translate(0, 0); }
-  35% { transform: translate(120px, -26px); }
-  55% { transform: translate(146px, -10px); }
+  35% { transform: translate(84px, -26px); }    /* v10.5：相棒が 右に よった ぶん とぶ きょりを 短く（てきの 中に めりこまない） */
+  55% { transform: translate(104px, -10px); }
   100% { transform: translate(0, 0); }
 }
 .pal__slash { position: absolute; right: 54px; top: 96px; width: 40px; height: 6px; background: #fff2b0; box-shadow: 0 0 12px 4px rgba(255,214,90,.85); animation: palSlash .5s ease-out forwards; z-index: 4; }

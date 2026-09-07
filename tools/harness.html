@@ -2806,8 +2806,23 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         if (document.querySelector('.cutin--pal')) { hit = true; break; }
         await wait(1500);
       }
+      // v10.5：カットインの あいだは .arena に is-cutin が ついて、ふきだしと 相棒が 消える。
+      //        headless の virtual-time では script が まって いる あいだ アニメの 時計が 進まない（transition が currentTime 0 の まま）ので、
+      //        transition を いったん 切って「行き先の 値」を はかる（本物の 端末では .12秒で そこに つく）
+      const arenaEl = document.querySelector('#screen-battle .arena');
+      const quiet = !!(arenaEl && arenaEl.classList.contains('is-cutin'));
+      const goal = ['.arena__msg', '.pal'].map(function (s) {
+        const e = document.querySelector('#screen-battle ' + s); if (!e) return s + '=なし';
+        e.style.transition = 'none'; void e.offsetWidth;
+        const v = getComputedStyle(e).opacity; e.style.transition = '';
+        return s + '=' + v;
+      });
+      say('palfx: is-cutin=' + (quiet ? 'ok' : 'MISSING') + ' 消える先 ' + goal.join(' ') + '（どちらも 0 が 正）');
       // カットインは 0.62秒で 消える タイマーが ある → 写しを のこして 撮る
       const cut = document.querySelector('.cutin');
+      // 写しを 撮る ときも 消した ままに する（本物の 0.62秒の タイマーは もう 予約ずみで freeze では 止まらず
+      // is-cutin を 外して しまう ので、写真用に inline で 消す。しくみの 検査は 上の ログ）
+      ['.arena__msg', '.pal'].forEach(function (s) { const e = document.querySelector(s); if (e) e.style.opacity = '0'; });
       // 写しは .fxscreen の 外へ（.fxscreen は わざの おわりに 空に される）
       if (cut) { const c = cut.cloneNode(true); c.setAttribute('data-copy','1'); c.style.animation='none'; c.style.zIndex='99'; document.getElementById('screen-battle').appendChild(c); }
       say('palfx: 合体=' + (hit ? 'ok' : 'MISSING') +

@@ -1962,7 +1962,12 @@ MQ.ui.battle = (function () {
     box.appendChild(h('span', { class: 'cutin__tx',
       text: withPal && palNow ? palNow.name + 'と いっしょに！' : 'いくぞ！' }));
     d.fxs.appendChild(box);
-    setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 620);
+    // v10.5：カットインの あいだは ふきだしと 相棒を 消す（帯が 半透明で すけて ごちゃごちゃ する）
+    if (d.arena) d.arena.classList.add('is-cutin');
+    setTimeout(function () {
+      if (box.parentNode) box.parentNode.removeChild(box);
+      if (d.arena) d.arena.classList.remove('is-cutin');
+    }, 620);
   }
 
   function playSpecial(sp, withPal) {
