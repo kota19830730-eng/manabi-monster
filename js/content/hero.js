@@ -1061,13 +1061,13 @@ MQ.hero = (function () {
     '...........KssBBBssBBBeeK..mmm....',
     '...........KssBBBssBBBeeK..mmm....',
     '...........KsssssssssseeK.MMMMM...',
-    '...........KsssssssssseeK.LLLLD...',
+    '...........KsssssssssseeK.aaaaD...',
     '............ssssssssssee..AAAAD...',
     '............ssssssssssee..AAAAD...',
-    '.......gggggLLggggggggLDDvAAAAD...',
+    '.......gggggaaggggggggaDDvAAAAD...',
     '.......gggggAAGGGGGGGGADggggggg...',
     '.yyyyyyyyyGGAAAAAAAAAAADggggggg...',
-    '.ybbbbbbbyLLAAAAggggggADGGGGGGG...',
+    '.ybbbbbbbyaaAAAAggggggADGGGGGGG...',
     '.ybbbybbbyAAAAAAAggggAADDvAAAAD...',
     '.ybbyyybbyAAAAAAAAGGAAADDvv.......',
     '.ybyyyyybyAAAAAAAAAAAAADDVvv......',
@@ -1088,7 +1088,7 @@ MQ.hero = (function () {
     K: '#3b2a16', k: '#5c421f',                              // かみの毛
     s: '#ffdca8', e: '#e0b986',                              // はだ
     W: '#ffffff', B: '#2e6fe0',                              // 青い 目
-    A: '#4a76dd', L: '#7098f2', D: '#2b4a97',                // 青い よろい（v9.8）
+    A: '#4a76dd', a: '#7098f2', D: '#2b4a97',                // 青い よろい（v9.8。明るい面は **a**＝下の メモ）
     g: '#ffd447', G: '#d9a418',                              // 金
     p: '#2c3d6b', q: '#1d2a4c',                              // あし・くつ
     V: '#e8443a', v: '#a82424',                              // 赤い マント（v9.8）
@@ -1097,9 +1097,28 @@ MQ.hero = (function () {
     y: '#ffd447', b: '#3f66c9'                               // たて
   };
 
+  /* この 一枚絵の「どの 文字は 何の 素材か」（v10.0）。
+     pixel.js の HD が これを 見て、かみの すじ・ぬのの おり・
+     金ぞくの きらり を 入れます。目（W・B）は 何も しません（平らな まま）。 */
+  const POSTER_MAT = {
+    K: 'hair',  k: 'hair',                  // かみの毛
+    s: 'skin',  e: 'skin',                  // はだ
+    W: 'white', B: 'iris',                  // 目（平ら。マイクラの 顔）
+    A: 'metal', a: 'metal', D: 'metal',     // 青い よろい
+    g: 'gold',  G: 'gold',                  // 金の かざり
+    p: 'cloth', q: 'cloth',                 // ズボン・くつ
+    V: 'cloth', v: 'cloth',                 // 赤い マント
+    M: 'metal', m: 'cloth',                 // けんの つば／にぎり
+    S: 'metal', C: 'metal',                 // ダイヤの 刃
+    y: 'gold',  b: 'metal'                  // たて
+  };
+
+  /* v10.0（2026-09-07）から HD（1マスを 2×2 で 描く）。
+     **rim（まわりの こい ふち）は つけません** … タイトルの モックに
+     ふち取りは ない ので（v5.0 の きまり）。かたちは 1マスも 変えて いません。 */
   function poster() {
-    return MQ.pixel.url('poster', [{ rows: posterRows, palette: POSTER_PALETTE }],
-      { bevel: true });
+    return MQ.pixel.url('poster', [{ rows: posterRows, palette: POSTER_PALETTE, mat: POSTER_MAT }],
+      { hd: 2, rim: false });
   }
 
   // 顔だけの 小さい絵（ヘッダーの アイコンと 見た目えらびの ボタン）
