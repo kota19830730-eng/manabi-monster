@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/guard.js', 'js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
 load('js/core/capsule.js');
@@ -3717,6 +3717,130 @@ function stripComments(src) {
   const swf = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
   check(swf.indexOf("'./js/core/capsule.js'") >= 0 && swf.indexOf("'./js/ui/capsule.js'") >= 0, 'sw.js の FILES に capsule 2つ');
   console.log('カプセルマシン: 景品 48・天井・かぶり・お店・読みこみ順 OK');
+})();
+
+/* ===== ふくしゅう（v11.1）：まちがえた 問題が また 出る ===== */
+(function () {
+  const B = MQ.battle, C = MQ.content, R = MQ.review;
+  const prevId = MQ.save.get().currentId;
+  const p = MQ.save.createPlayer('ふくしゅう', null, 3);
+  const st = C.findStage('sansu3-1').stage;
+  function ans(q) { return q.type === 'choice' || q.type === 'number' || q.type === 'roma' ? q.answer : q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : { q: q.answer.q, r: q.answer.r }; }
+  function wrong(q) { return q.type === 'choice' ? (q.answer + 1) % q.choices.length : -1; }
+
+  /* ---- ① ためる・えらぶ・消す ---- */
+  check(R.count(p, 'sansu') === 0, 'review: はじめは 0問');
+  R.add(p, 'sansu', { key: 'q1', q: { type: 'number', prompt: 'a', answer: 1 }, enemyId: 'slime-green', stageId: 'sansu3-1' });
+  R.add(p, 'sansu', { key: 'q2', q: { type: 'number', prompt: 'b', answer: 2 }, enemyId: 'slime-green', stageId: 'sansu3-1' });
+  R.add(p, 'sansu', { key: 'q2', q: { type: 'number', prompt: 'b', answer: 2 }, enemyId: 'slime-green', stageId: 'sansu3-1' });
+  check(R.count(p, 'sansu') === 2, 'review: 同じ 問題は 1つに まとまる ' + R.count(p, 'sansu'));
+  check(R.listIn(p, 'sansu').filter(function (e) { return e.key === 'q2'; })[0].miss === 2, 'review: まちがえた 回数を 数える');
+  check(R.pick(p, 'sansu', 1)[0].key === 'q2', 'review: まちがいの 多い 問題から 先に 出す');
+  R.done(p, 'q2');
+  check(R.count(p, 'sansu') === 1, 'review: おぼえたら 消える');
+  // 学年ごとの キー（にげた敵と 同じ）
+  check(Object.keys(p.review)[0] === 'g3:sansu', 'review: キーは 学年ごと ' + Object.keys(p.review)[0]);
+  // 上限
+  for (let i = 0; i < 40; i++) R.add(p, 'sansu', { key: 'x' + i, q: { type: 'number', prompt: 'x', answer: 1 } });
+  check(R.count(p, 'sansu') <= R.MAX_PER_AREA, 'review: エリアごと ' + R.MAX_PER_AREA + '問まで ' + R.count(p, 'sansu'));
+  p.review = {};
+
+  /* ---- ② 2回めで 正解した 問題は summary.review に 入る ---- */
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 4, chest: false });
+  let firstKey = null;
+  let i2 = 0;
+  while (B.phase() === 'mob') {
+    const q = B.current();
+    if (i2 === 0) { firstKey = q.id; B.answer(wrong(q)); }        // 1回めは わざと まちがえる
+    B.answer(ans(q));
+    B.next(); i2++;
+  }
+  while (!B.isOver()) { const q = B.current(); B.answer(ans(q)); B.next(); }
+  const sum1 = B.summary();
+  check(sum1.review.length === 1 && sum1.review[0].key === firstKey, 'review: 2回めで 合った 問題が 1つ ' + sum1.review.length);
+  check(sum1.review[0].q && sum1.review[0].q.prompt, 'review: 問題まるごと もどる');
+  check(sum1.reviewHits === 0 && sum1.reviewBonus === 0, 'review: この たたかいでは ボーナスなし');
+
+  /* ---- ③ もどした 問題が つぎの たたかいに 出る → 1回めで 正解 → 消える ---- */
+  const entry = sum1.review[0];
+  B.start({
+    stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 4, chest: false,
+    review: [{ key: entry.key, q: entry.q, enemyId: entry.enemyId, stageId: entry.stageId, miss: 1 }]
+  });
+  let saw = 0, bonusOk = false, mobN = 0;
+  while (B.phase() === 'mob') {
+    const q = B.current();
+    mobN++;
+    if (q.review) {
+      saw++;
+      check(q.id === entry.key, 'review: 同じ 問題が もどって きた');
+      const r = B.answer(ans(q));
+      // ふくしゅうの ボーナス（+10）が のる。2体同時の ボーナスが つく ことも ある ので いじょう で 見る
+      bonusOk = r.reviewOk === true && r.xp >= B.XP.mob + B.XP_REVIEW;
+    } else {
+      B.answer(ans(q));
+    }
+    B.next();
+  }
+  while (!B.isOver()) { const q = B.current(); B.answer(ans(q)); B.next(); }
+  const sum2 = B.summary();
+  check(saw === 1, 'review: 1回の たたかいに 1問 まざる ' + saw);
+  check(mobN === 4, 'review: ザコの 数は ふえない（新しい 問題と 入れかえ）' + mobN);
+  check(bonusOk, 'review: 1回めで 正解 → けいけんち ボーナス');
+  check(sum2.reviewDone.indexOf(entry.key) >= 0 && sum2.reviewHits === 1, 'review: おぼえた ものが reviewDone に');
+  check(sum2.reviewBonus === B.XP_REVIEW, 'review: ボーナスの ごうけい ' + sum2.reviewBonus);
+
+  /* ---- ④ ふくしゅう問題を また まちがえたら のこる（reviewDone に 入らない） ---- */
+  B.start({
+    stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 4, chest: false,
+    review: [{ key: entry.key, q: entry.q, enemyId: entry.enemyId, stageId: entry.stageId, miss: 2 }]
+  });
+  while (B.phase() === 'mob') {
+    const q = B.current();
+    if (q.review) B.answer(wrong(q));
+    B.answer(ans(q));
+    B.next();
+  }
+  while (!B.isOver()) { const q = B.current(); B.answer(ans(q)); B.next(); }
+  const sum3 = B.summary();
+  check(sum3.reviewDone.length === 0, 'review: また まちがえたら おぼえた ことに しない');
+  check(sum3.review.filter(function (e) { return e.key === entry.key; }).length === 1, 'review: のこる');
+
+  /* ---- ⑤ 読みこみ順・登録 ---- */
+  const idx = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
+  const swf = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  const hx = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  check(idx.indexOf('js/core/review.js') >= 0, 'index.html に review.js');
+  check(swf.indexOf("'./js/core/review.js'") >= 0, 'sw.js の FILES に review.js');
+  check(hx.indexOf('../js/core/review.js') >= 0, 'harness.html に review.js');
+  check(idx.indexOf('js/core/review.js') < idx.indexOf('js/ui/battle.js'), 'index: review.js は ui/battle.js より 前');
+
+  /* ---- ⑥ 子どもの 画面に「にがて」と 書かない ---- */
+  const ub = stripComments(fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8'));
+  check(ub.indexOf('もういちど') >= 0 && ub.indexOf('にがて') === -1, 'review: リボンは「もういちど」・「にがて」と 書かない');
+
+  MQ.save.get().currentId = prevId;
+  console.log('ふくしゅう: ためる・もどる・おぼえたら 消える OK');
+})();
+
+/* ===== はじめての 子（v11.1）===== */
+(function () {
+  const prevId = MQ.save.get().currentId;
+  const p = MQ.save.createPlayer('はじめて', null, 3);
+  check((p.battles || 0) === 0 && p.seenUnlock === false, 'はじめて: battles 0・seenUnlock false');
+
+  const um = stripComments(fs.readFileSync(path.join(base, 'js/ui/map.js'), 'utf8'));
+  check(um.indexOf('isFirstTime') >= 0 && um.indexOf('unlockPop') >= 0, 'はじめて: 地図に isFirstTime と unlockPop');
+  check(um.indexOf("class: 'news unlockpop'") >= 0, 'はじめて: できる ことが ふえた の わく');
+  check(um.indexOf('newscard') === -1, 'はじめて: .newscard は 借りない（お知らせの 検査と ぶつかる）');
+  const ub2 = stripComments(fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8'));
+  check(ub2.indexOf('FIRST_MOBS = 6') >= 0, 'はじめて: さいしょの たたかいは ザコ 6体');
+  check(/REPEAT_MAX = 3/.test(ub2), 'はじめて: くりかえしは あわせて 3問まで');
+  const sv = fs.readFileSync(path.join(base, 'js/core/save.js'), 'utf8');
+  check(sv.indexOf('p.seenUnlock = (p.battles || 0) > 0') >= 0, 'はじめて: 古い セーブには 出さない');
+
+  MQ.save.get().currentId = prevId;
+  console.log('はじめての 子: 地図を だんだん ひらく・さいしょは 6体 OK');
 })();
 
 // 非同期の 検査（AI の generate など）が おわってから まとめる

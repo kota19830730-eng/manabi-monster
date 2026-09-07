@@ -208,6 +208,10 @@ MQ.ui.result = (function () {
     if (!tokkun && sum.revengeBeaten && sum.revengeBeaten.length) {
       cards.push(itemCard(null, 'リベンジ ' + sum.revengeBeaten.length + '体', { text: '+' + sum.revengeBonus + ' EXP', cls: 'rs__badge--new' }, 'rs__item--text'));
     }
+    // ふくしゅう（v11.1）：まえに まちがえた 問題に 1回めで 正解した
+    if (!tokkun && sum.reviewHits) {
+      cards.push(itemCard(null, 'ふくしゅう ' + sum.reviewHits + 'もん おぼえた', { text: '+' + sum.reviewBonus + ' EXP', cls: 'rs__badge--new' }, 'rs__item--text'));
+    }
     if (sum.multiKO.length) {
       cards.push(itemCard(null, sum.multiKO.map(function (n) { return n + '体'; }).join('・') + ' まとめて', { text: 'KO', cls: 'rs__badge--new' }, 'rs__item--text'));
     }

@@ -85,6 +85,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/pals.js"></script>
 <script src="../js/core/streak.js"></script>
 <script src="../js/core/letter.js"></script>
+<script src="../js/core/review.js"></script>
 <script src="../js/core/speech.js"></script>
 <script src="../js/core/battle.js"></script>
 <!-- 教科の ファイルは **index.html と 同じ じゅんばん**（tools/smoke.js が 検査する）。
@@ -213,6 +214,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       ['skullhorse', 'zukan', 'boss-dragon'].forEach(function (id) { pl.dex[id] = 1; });
       pl.dexNew = { 'slime-green': true, 'robot-gray': true };
       pl.battles = 12; pl.defeated = 96;
+      pl.seenUnlock = true;   // v11.1：もう あそんで いる 子（はじめての 案内は 出さない）
       MQ.hero.checkTitles(pl);
       pl.title = 't-ryu';
       MQ.save.addLog(pl, 'あまりのあるわり算：8/12　★2　4:20');
@@ -2602,6 +2604,143 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
          #streak:7     7日め（コイン +3）
          #streak:0     切れた あと（0日・ばつは ない）
          #streak:none  きのうまで 4日・きょうは まだ */
+    /* #firstplay … はじめての 子の さいしょの 5分（v11.1）
+         地図は からっぽ（帯・ごちゃまぜ・タイムアタックなし）＋「ここを おしてね」
+         1回 たたかう（ザコ 6体）→ 地図に もどると「できる ことが ふえた！」
+       #firstplay:map   さいしょの 地図を 撮る
+       #firstplay:pop   できる ことが ふえた の カードを 撮る
+       #firstplay:after 2回目の 地図（ぜんぶ 出て いる） */
+    if (mode.indexOf('firstplay') === 0) {
+      const arg = mode.split(':')[1] || '';
+      try { localStorage.clear(); } catch (e) {}
+      MQ.save.load();
+      MQ.save.setSetting('sfx', false);
+      MQ.save.setSetting('bgm', false);
+      MQ.save.createPlayer('はじめて', { hair: 'gold', skin: 'mid', style: 'short' }, 3);
+      MQ.save.update(function (pl) { pl.seenNews = MQ.news.latest(); });
+      MQ.ui.news.reset();
+      MQ.ui.goMap();
+      await wait(360);
+      say('firstplay: battles ' + (MQ.save.current().battles || 0) + '／seenUnlock ' + MQ.save.current().seenUnlock);
+      say('firstplay: 帯 ' + ($('.mapobi') ? 'あり MISSING' : 'なし OK') +
+          '／ごちゃまぜ ' + ($('.mixbtn') ? 'あり MISSING' : 'なし OK') +
+          '／タイムアタック ' + ($$('.maptab').some(function (b) { return b.textContent.indexOf('タイム') >= 0; }) ? 'あり MISSING' : 'なし OK') +
+          '／メニュー ' + ($$('.maptab').some(function (b) { return b.textContent.indexOf('メニュー') >= 0; }) ? 'あり OK' : 'なし MISSING'));
+      const g = $('.mapguide');
+      say('firstplay: ふきだし ' + (g ? '「' + g.textContent + '」OK' : 'なし MISSING') +
+          '／ノード ' + $$('.node').length + '／いま ここ ' + ($('.node--now') ? 'ok' : 'MISSING'));
+      // 上の 高さ（v8.0 の 113px より 短く なって いる はず）
+      const topEl = $('.maptop');
+      if (topEl) say('firstplay: 上の 高さ ' + Math.round(topEl.getBoundingClientRect().height / MQ.stage.size().scale) + 'px');
+      if (arg === 'measure') {
+        const sc = MQ.stage.size().scale;
+        function box(sel, lbl) { const e = document.querySelector(sel); if (!e) { say(lbl + ": なし"); return; } const r = e.getBoundingClientRect(); const p = document.querySelector(".map__layer").getBoundingClientRect(); say(lbl + ": x " + Math.round((r.left-p.left)/sc) + "〜" + Math.round((r.right-p.left)/sc) + " y " + Math.round((r.top-p.top)/sc) + "〜" + Math.round((r.bottom-p.top)/sc)); }
+        box(".node--now", "いま ここ ノード");
+        box(".node--now .node__name", "ステージ名");
+        box(".biome", "ゾーン見出し");
+        box(".mapguide", "ふきだし");
+        const ns = Array.prototype.slice.call(document.querySelectorAll(".node"));
+        if (ns[1]) { const r = ns[1].getBoundingClientRect(); const p = document.querySelector(".map__layer").getBoundingClientRect(); say("2つめの ノード: x " + Math.round((r.left-p.left)/sc) + "〜" + Math.round((r.right-p.left)/sc) + " y " + Math.round((r.top-p.top)/sc) + "〜" + Math.round((r.bottom-p.top)/sc)); }
+        if (ns[3]) { const r = ns[3].getBoundingClientRect(); const p = document.querySelector(".map__layer").getBoundingClientRect(); say("つぎの 行: y " + Math.round((r.top-p.top)/sc)); }
+        dump(); freeze(); return;
+      }
+      if (arg === 'map') { dump(); freeze(); return; }
+
+      // さいしょの たたかい（本物の 画面を 通す）
+      const now = $('.node--now'); if (now) now.click();
+      await wait(320);
+      say('firstplay: ザコ ' + MQ.battle.mobTotal() + '体（ふつうは 12）／てきの ため ' + (MQ.battle.chargeInfo() ? 'あり MISSING' : 'なし OK'));
+      const gd = $('.qguide');
+      say('firstplay: こたえ方の 案内 ' + (gd && !gd.hidden ? '「' + gd.textContent + '」OK' : 'なし MISSING'));
+      // 案内の ふきだし＋サポートの ヒントで つまって いないか（たて700の 端末が いちばん きつい）
+      (function () {
+        const card = $('.card'), body = $('.battle__body');
+        const oc = card ? card.scrollHeight - card.clientHeight : 0;
+        const ob = body ? body.scrollHeight - body.clientHeight : 0;
+        say('firstplay: はみ出し カード ' + oc + 'px／ぜんたい ' + ob + 'px' + (Math.max(oc, ob) > 1 ? ' MISSING' : ' OK') +
+            '／ヒント ' + ($('.hintbox') && !$('.hintbox').hidden ? '先に 出て いる（サポート）' : 'なし'));
+      })();
+      if (arg === 'q1') { dump(); freeze(); return; }
+      await playBattle('firstplay');
+      await wait(800);
+      say('firstplay: 答えた 数 ' + MQ.battle.summary().total + '問（ふつうは 17〜19問）／battles ' + (MQ.save.current().battles || 0));
+      MQ.ui.goMap();
+      await wait(480);
+      const pop = $('.unlockpop');
+      say('firstplay: できる ことが ふえた ' + (pop ? 'あり OK・' + $$('.unlockpop__t').map(function (e) { return e.textContent; }).join('／') : 'なし MISSING'));
+      if (arg === 'pop') { dump(); freeze(); return; }
+      const okb = pop ? pop.querySelector('.btn') : null;
+      if (okb) okb.click();
+      await wait(220);
+      MQ.ui.goMap();
+      await wait(420);
+      dismissTowerPop();
+      say('firstplay: 2回目の 地図 → 帯 ' + ($('.mapobi') ? 'あり OK' : 'なし MISSING') +
+          '／ごちゃまぜ ' + ($('.mixbtn') ? 'あり OK' : 'なし MISSING') +
+          '／タイムアタック ' + ($$('.maptab').some(function (bb) { return bb.textContent.indexOf('タイム') >= 0; }) ? 'あり OK' : 'なし MISSING') +
+          '／ふきだし ' + ($('.mapguide') ? 'あり MISSING' : 'なし OK') +
+          '／カード ' + ($('.unlockpop') ? 'また 出た MISSING' : '2回目は 出ない OK'));
+            dump(); freeze(); return;
+    }
+
+    /* #review … ふくしゅう（v11.1）
+         まえに 1回めで まちがえた 問題が つぎの たたかいで もどって くる
+       #review    1問 わざと まちがえる → ためられる → つぎの たたかいに 出る（リボンを 撮る）
+       #review2   その 問題に 1回めで 正解 → 消える（けっか画面に「ふくしゅう」）
+       ※ 本物の 画面を 通して たたかう（applyRewards が 走らないと p.review に たまらない） */
+    if (mode.indexOf('review') === 0) {
+      const two = mode === 'review2';
+      fresh();
+      MQ.save.update(function (pl) { pl.seenNews = MQ.news.latest(); pl.review = {}; pl.escaped = {}; });
+      MQ.ui.news.reset();
+
+      // ① 1問めを わざと まちがえる（2回めで 正解）→ ふくしゅうに たまる
+      MQ.ui.battle.start('sansu3-1');
+      await wait(600);
+      const firstId = MQ.battle.current() ? MQ.battle.current().id : null;
+      say('review: 1問めは ' + (MQ.battle.current() ? MQ.battle.current().type : '-') + '（わざと まちがえる）');
+      await playBattle('review①', { missFirst: true });
+      await wait(600);
+      const p1 = MQ.save.current();
+      const list1 = MQ.review.listIn(p1, 'sansu');
+      say('review: ためて いる ' + list1.length + '問' + (list1.length ? '（' + (list1[0].key === firstId ? '1問めが 入って いる OK' : 'べつの 問題 MISSING') + '）' : ' MISSING'));
+
+      // ② つぎの たたかい：もどって くる
+      MQ.ui.battle.start('sansu3-1');
+      await wait(280);
+      const total = MQ.battle.mobTotal();
+      let seen = 0, guard = 0, shot = false;
+      while (!MQ.battle.isOver() && guard < 120) {
+        guard++;
+        const q = MQ.battle.current();
+        if (!q) break;
+        if (q.review) {
+          seen++;
+          const rb = $('.enemy__ribbon--review');
+          say('review: リボン「' + (rb ? rb.textContent : 'なし MISSING') + '」／オーラ ' + ($('.enemy--review') ? 'あり OK' : 'なし MISSING') +
+              '／ふきだし ' + ($('.arena__msg') ? $('.arena__msg').textContent : '-'));
+          if (!two && !shot) { dump(); freeze(); return; }
+          const r = MQ.battle.answer(correctValue(q));
+          say('review: 1回めで 正解 → reviewOk ' + r.reviewOk + '／けいけんち ' + r.xp + '（ふつうの ザコは 10・ふくしゅうで +10）');
+          MQ.battle.next();
+          await wait(60);
+          continue;
+        }
+        answerViaUI(true);
+        await wait(60);
+        if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+        await wait(3300);
+      }
+      const sum2 = MQ.battle.summary();
+      say('review: 出た ' + seen + '問／この たたかいの 問題 ' + total + '（ふくしゅうを 入れても ふえない＝smoke が 検査）／おぼえた ' + sum2.reviewHits + '問・ボーナス +' + sum2.reviewBonus);
+      await wait(900);
+      const p2 = MQ.save.current();
+      say('review: たたかいの あと ためて いる ' + MQ.review.listIn(p2, 'sansu').length + '問（おぼえた ぶんは 消える）');
+      const texts = $$('.rs__item, .rs__item--text').map(function (e) { return e.textContent; });
+      say('review: けっか画面 ' + (texts.filter(function (t) { return t.indexOf('ふくしゅう') >= 0; })[0] || 'カードは 3まいまで なので 出て いない ことも ある'));
+      dump(); freeze(); return;
+    }
+
     if (mode.indexOf('streak') === 0) {
       const arg = mode.split(':')[1] || '3';
       fresh();

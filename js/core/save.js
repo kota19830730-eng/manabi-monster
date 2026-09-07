@@ -85,6 +85,8 @@ MQ.save = (function () {
     if (!p.dex) p.dex = {};
     if (!p.dexNew) p.dexNew = {};   // まだ 見ていない「NEW」の しるし
     if (!p.escaped) p.escaped = {};
+    // ふくしゅう（v11.1）：1回めで まちがえた 問題を エリアごとに ためる（ルールは js/core/review.js）
+    if (!p.review || typeof p.review !== 'object' || Array.isArray(p.review)) p.review = {};
     /* v4.5：学年を いつでも 変えられる ように なった ので、
        かけら と にげた敵は 学年ごとに 分ける（'g3:sansu' の ような キー）。
        古い セーブは その子の 学年の ぶん として つけかえる */
@@ -98,6 +100,9 @@ MQ.save = (function () {
     if (!Array.isArray(p.custom)) p.custom = [];
     if (!Array.isArray(p.log)) p.log = [];
     if (typeof p.battles !== 'number') p.battles = 0;
+    /* できる ことが ふえた！の カード（v11.1）は はじめての 子だけ。
+       もう たたかった ことの ある 子（息子さん）には 出さない */
+    if (typeof p.seenUnlock !== 'boolean') p.seenUnlock = (p.battles || 0) > 0;
     if (typeof p.defeated !== 'number') p.defeated = 0;
     // しょうごうの ための カウンター（v2.0）
     if (typeof p.itemUses !== 'number') p.itemUses = 0;     // アイテムを 使った 回数

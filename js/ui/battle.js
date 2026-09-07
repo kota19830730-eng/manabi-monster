@@ -13,6 +13,9 @@ MQ.ui.battle = (function () {
   const h = MQ.util.h;
   const MOBS = 12;              // ザコの数（やさしい4 → ふつう4 → むずかしい4）
   const REVENGE_MAX = 2;
+  const REPEAT_MAX = 3;         // リベンジ＋ふくしゅう を あわせて 1回の たたかいに 3問まで（v11.1）
+  const REVIEW_MAX = 2;         // そのうち ふくしゅうは 2問まで（v11.1）
+  const FIRST_MOBS = 6;         // はじめての たたかいは ザコ 6体（ふつうは 12体・v11.1）
   const RARE_CHANCE = 0.4;
   const RARE_CHANCE_FEVER = 0.8;   // フィーバー教科（v7.2）では レア（じぶんの モンスターも）が 出やすい
   const TRIO_CHANCE = 0.35;
@@ -113,6 +116,8 @@ MQ.ui.battle = (function () {
           d.memoHint = h('span', { class: 'memo__hint', text: 'ここに ゆびで 書けるよ' })
         ]),
         d.spacer = h('div', { class: 'panelspacer', hidden: true }),
+        // はじめての たたかいの 1問めだけ、こたえ方を 教える（v11.1）
+        d.guide = h('p', { class: 'qguide', hidden: true }),
         d.displays = h('div', { class: 'displays' }),
         d.keys = h('div', { class: 'keys' }),
         d.hint = h('div', { class: 'hintbox', hidden: true }),
@@ -220,7 +225,14 @@ MQ.ui.battle = (function () {
       // 開いている ステージの 中で 何番目か → むずかしさ（0=最初 1=最後）
       const opened = ctx.area.stages.filter(function (st) { return MQ.content.isAvailable(st); });
       const hard = opened.length > 1 ? Math.max(0, opened.indexOf(found.stage)) / (opened.length - 1) : 0.5;
-      const enemies = MQ.enemies.pickIds(ctx.area.id, MOBS, hard);
+      /* はじめての たたかい（v11.1）：ザコ 6体・中ボスなし・てきの こうげきなし。
+         16〜18問 → 10〜12問。2回目からは ふつう（はじめて でも たからばこと ボスは 出る） */
+      const first = (player.battles || 0) === 0 && !ctx.timeAttack;
+      const mobCount = first ? FIRST_MOBS : MOBS;
+      /* ふくしゅう（v11.1）：まえに 1回めで まちがえた 問題が そのまま もどって くる。
+         リベンジ（にげた敵）と あわせて 3問まで。はじめての たたかいでは 出ない */
+      const reviewList = (!first && MQ.review) ? MQ.review.pick(player, ctx.area.id, Math.min(REVIEW_MAX, Math.max(0, REPEAT_MAX - escaped.length))) : [];
+      const enemies = MQ.enemies.pickIds(ctx.area.id, mobCount, hard);
       // きょうの フィーバー教科 と サポート（v7.2）。タイムアタックでは なし
       const fs = (MQ.fever && !ctx.timeAttack) ? MQ.fever.battleOpts(player, ctx.area.id) : { fever: null, support: null };
       ctx.fever = fs.fever; ctx.support = fs.support;
@@ -232,14 +244,15 @@ MQ.ui.battle = (function () {
       const trio = MQ.enemies.trioFor(ctx.area.id);
       if (trio && Math.random() < TRIO_CHANCE) { trioIds = trio; rareId = null; }
       const boss = MQ.enemies.bossFor(ctx.area.id);
+      ctx.first = first;
       MQ.battle.start({
         stage: found.stage, mode: 'normal',
-        escaped: escaped, enemies: enemies, bossId: boss.id,
-        rareId: rareId, trioIds: trioIds, chest: true, mobs: MOBS,
+        escaped: escaped, review: reviewList, enemies: enemies, bossId: boss.id,
+        rareId: rareId, trioIds: trioIds, chest: true, mobs: mobCount,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
         gear: MQ.hero.gearPower(player),
-        fever: fs.fever, support: fs.support, attacks: atk,
-        elite: true, summon: true, areaId: ctx.area.id       // 中ボス・なかまを よぶ（v8.1）
+        fever: fs.fever, support: fs.support, attacks: first ? false : atk,
+        elite: !first, summon: !first, areaId: ctx.area.id   // 中ボス・なかまを よぶ（v8.1）
       });
     }
 
@@ -249,6 +262,24 @@ MQ.ui.battle = (function () {
     MQ.bgm.play(isTower ? 'maou' : 'battle');
     MQ.ui.show('screen-battle');
     if (isTower) towerIntro(); else { renderQuestion(); modeBanner(); }
+  }
+
+  /* はじめての たたかい（v11.1）：1問めだけ、こたえ方を 短く 教える。
+       2問めからは 消える（じゃまに ならない ように）。
+       文は ひらがな＋小1の かん字だけ（小1の 子も 見る） */
+  const GUIDE = {
+    number: 'したの すうじを おして 「こたえる」だよ',
+    divrem: 'わりざんの こたえと あまりを 入れてね',
+    frac:   'ぶんしと ぶんぼを 入れてね',
+    choice: 'こたえだと おもう ものを えらんでね',
+    roma:   'ローマじで うってね',
+    write:  'ゆびで かいてから 「かけた！」を おしてね'
+  };
+  function renderGuide(q) {
+    if (!d.guide) return;
+    const on = !!(ctx && ctx.first) && MQ.battle.mobIndex() === 0 && MQ.battle.phase() !== 'boss' && !q.chest;
+    d.guide.hidden = !on;
+    d.guide.textContent = on ? (GUIDE[q.type] || GUIDE.number) : '';
   }
 
   /* きょうの フィーバー教科 と サポート（v7.2）：
@@ -397,6 +428,7 @@ MQ.ui.battle = (function () {
       if (e.by === 'photo' && !boss && ids.length === 1) size = 96;          // じぶんの 絵の モンスターは 大きく（64マスの ドットが つぶれない・v3.2）
       if (q.rare && i === pos) cls += ' enemy--rare';
       if (q.revenge && i === pos) cls += ' enemy--revenge';   // リベンジ：赤い オーラ＋リボン（v3.1）
+      if (q.review && !q.revenge && i === pos) cls += ' enemy--review';   // ふくしゅう：水色の オーラ＋リボン（v11.1）
       if (q.summon && i === 1 && pos === 1) cls += ' is-summoned';   // よばれて とんできた（v8.1）
       if (i < pos) cls += ' enemy--done';
       else if (i > pos) cls += ' enemy--waiting';
@@ -415,6 +447,7 @@ MQ.ui.battle = (function () {
         // ラスボスは 名前が 長い（かいぞくキャプテン）ので「ラスボス」は 左上の ピルに まかせて 名前だけ（v6.4）
         h('span', { class: 'enemy__name', text: sk && sk.kind === 'clone' && boss && i !== pos ? 'ぶんしん' : (boss && !last ? 'ボス ' : '') + e.name }),
         q.revenge && i === pos && !boss ? h('span', { class: 'enemy__ribbon', text: 'リベンジ' }) : null,
+        q.review && !q.revenge && i === pos && !boss ? h('span', { class: 'enemy__ribbon enemy__ribbon--review', text: 'もういちど' }) : null,
         q.elite && i === pos ? h('span', { class: 'enemy__ribbon enemy__ribbon--elite', text: '中ボス' }) : null,
         skillLabel ? h('span', { class: 'enemy__skill' + (sk.open && !sk.kind ? ' enemy__skill--open' : ''), text: skillLabel }) : null,
         wk ? h('span', { class: 'enemy__weak' + (q.weak === wk ? ' is-now' : ''), text: weakText(wk) }) : null,
@@ -633,6 +666,7 @@ MQ.ui.battle = (function () {
     d.fx.className = 'fx';
     d.hint.hidden = true;
     d.hint.innerHTML = '';
+    renderGuide(q);
     if (d.charge && MQ.battle.combo() < 2) d.charge.hidden = true;
     d.panel.classList.remove('has-hint');
     d.unit.textContent = q.unit || '';
@@ -691,6 +725,7 @@ MQ.ui.battle = (function () {
       d.msg.textContent = q.groupSize + '体 まとめて あらわれた！';
     } else {
       d.msg.textContent = q.revenge ? 'リベンジ！ にげた ' + e.name + ' が もどってきた！ たおせば ボーナス！'
+        : q.review ? 'まえの もんだいが もどってきた！ こんどは いけるぞ！'
         : q.rare ? e.name + ' が あらわれた！ けいけんち 3ばい！'
         : e.name + ' が あらわれた！';
     }
@@ -1339,8 +1374,8 @@ MQ.ui.battle = (function () {
         // ボスが 呼んだ ザコ（v8.1）
         d.msg.textContent = (res.palHit && palNow ? palNow.name + 'の こうげき！ ' : res.crit ? 'クリティカル！ ' : '') + 'よばれた ' + e.name + ' を たおした！ つぎは ボスだ！';
       } else {
-        d.msg.textContent = (res.counter ? 'カウンター！ ' : '') + (res.weakHit ? 'こうかは ばつぐん！ ' : '') + (res.palHit && palNow ? palNow.name + 'の こうげき！ ' : '') + (res.revenge ? 'リベンジ せいこう！ ' : res.burst ? 'ばくれつ！ ' : res.crit ? 'クリティカル！ ' : '') + e.name + ' を たおした！'
-          + (res.revenge ? '　ボーナス ＋' + MQ.battle.XP.revenge : res.burst ? '　けいけんち ' + res.burst + 'ばい！' : res.counter || res.weakHit ? '　けいけんち 1.5ばい！' : res.rare ? '　3ばいだ！' : '')
+        d.msg.textContent = (res.counter ? 'カウンター！ ' : '') + (res.weakHit ? 'こうかは ばつぐん！ ' : '') + (res.palHit && palNow ? palNow.name + 'の こうげき！ ' : '') + (res.revenge ? 'リベンジ せいこう！ ' : res.reviewOk ? 'おぼえたね！ ' : res.burst ? 'ばくれつ！ ' : res.crit ? 'クリティカル！ ' : '') + e.name + ' を たおした！'
+          + (res.reviewOk ? '　ボーナス ＋' + MQ.battle.XP_REVIEW : res.revenge ? '　ボーナス ＋' + MQ.battle.XP.revenge : res.burst ? '　けいけんち ' + res.burst + 'ばい！' : res.counter || res.weakHit ? '　けいけんち 1.5ばい！' : res.rare ? '　3ばいだ！' : '')
           + (res.coins ? '　コイン ＋' + res.coins : '');
       }
       ok(res.note);
@@ -2285,6 +2320,24 @@ MQ.ui.battle = (function () {
       sum.revengeBeaten.forEach(function (key) {
         MQ.content.subjectAreas().forEach(function (a) { MQ.save.removeEscaped(p, a.id, key); });
       });
+      /* ふくしゅう（v11.1）
+           ・1回めで 正解した ふくしゅう問題 → おぼえた ので 消す
+           ・この たたかいで 1回めに まちがえた 問題 → つぎの たたかいに もどす
+           ・2回 まちがえて にげられた ぶんは リベンジに ひっこす ので ここから 消す */
+      if (MQ.review) {
+        (sum.reviewDone || []).forEach(function (key) { MQ.review.done(p, key); });
+        (sum.escaped || []).forEach(function (en) { MQ.review.done(p, en.key); });
+        if (!ctx.tokkun && !ctx.stage.tower) {
+          const gone = {};
+          (sum.escaped || []).forEach(function (en) { gone[en.key] = true; });
+          (sum.review || []).forEach(function (en) {
+            if (gone[en.key]) return;
+            MQ.review.add(p, en.areaId || ctx.area.id, en);
+          });
+        }
+      }
+      p.reviewWins = (p.reviewWins || 0) + (sum.reviewHits || 0);
+
       sum.escaped.forEach(function (en) {
         const areaId = en.areaId || ctx.area.id;
         // ボスの問題は、つぎは ザコの姿で もどってくる

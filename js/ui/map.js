@@ -375,14 +375,22 @@ MQ.ui.map = (function () {
   /* =======================================================
      画面を つくる
      ======================================================= */
+  /* はじめての 子（v11.1）
+       1回も たたかって いない あいだは、地図の 上下を からっぽに して
+       「ステージを おす」ことだけに する。フィーバー・ミッション・スタンプ・
+       ごちゃまぜ・タイムアタックは 1回 たたかうと 出る（unlockPop で 知らせる）。
+     ※ 息子さんは もう ぜんぶ 知って いる ので、この 道は 新しく 作った 子だけ 通る */
+  function isFirstTime(player) { return (player.battles || 0) === 0; }
+
   function render() {
     const player = MQ.save.current();
     if (!player) { MQ.ui.start.render(); MQ.ui.show('screen-start'); return; }
+    const firstTime = isFirstTime(player);
     MQ.ui.syncCustom();
     /* スタンプの ごほうび（v8.4）：3日・5日・7日で コイン。
        もらえる 日は 下で パネルを ひらいて 見せる（1日 1回だけ） */
     gotStamp = null;
-    if (MQ.streak) MQ.save.update(function (p) {
+    if (MQ.streak && !firstTime) MQ.save.update(function (p) {
       gotStamp = MQ.streak.claim(p);
       if (gotStamp) MQ.save.addLog(p, 'れんぞく ' + gotStamp.days + '日！ コイン +' + gotStamp.coins);
     });
@@ -424,7 +432,7 @@ MQ.ui.map = (function () {
 
     // きょうの フィーバー教科（v7.2）。日づけが 変わって いれば ここで 決め直す
     let feverNow = null;
-    if (MQ.fever) MQ.save.update(function (p) { feverNow = MQ.fever.today(p); });
+    if (MQ.fever && !firstTime) MQ.save.update(function (p) { feverNow = MQ.fever.today(p); });
 
     bands.forEach(function (b) {
       /* ---- かざり（ノードより 下の そう） ---- */
@@ -470,6 +478,22 @@ MQ.ui.map = (function () {
         const dot = h('span', { class: 'node__dot', text: unlocked ? String(n.idx || st.no) : '?' });
         if (isNow) dot.appendChild(h('span', { class: 'node__here', text: 'いま ここ' }));
 
+        /* はじめての 子には 指さしの ふきだし（v11.1）
+           **ノードの 下**に 出す。実測（harness #firstplay:measure）で
+             いま ここ ノード（ステージ名 こみ） y 76〜170 ／ ゾーン見出し y 43〜75 ／ つぎの 行 y 212
+           ＝ あいて いるのは y 170〜212 の 42px だけ。ふきだしは 31px。
+           上や よこに おくと 見出し・となりの ステージに かさなる（2回 ふんだ）。
+           はじめての 子の「いま ここ」は かならず 1行めの 1つめ なので 下は 空いて いる */
+        if (firstTime && isNow) {
+          layer.appendChild(h('div', {
+            class: 'mapguide', style: { left: n.xPct + '%', top: (n.y + 64) + 'px' }
+          }, [
+            h('div', { class: 'mapguide__in' }, [
+              h('i', { class: 'mapguide__tail' }),
+              h('div', { class: 'mapguide__box', text: 'ここを おしてね！' })
+            ])
+          ]));
+        }
         layer.appendChild(h('button', {
           class: cls, type: 'button', disabled: !unlocked,
           style: { left: n.xPct + '%', top: n.y + 'px' },
@@ -542,8 +566,9 @@ MQ.ui.map = (function () {
 
     const top = h('div', { class: 'maptop' }, [
       MQ.ui.hud(player, { slim: true }),
-      obiBar(player, feverNow),
-      panelEl
+      // はじめての 子には 帯を 出さない（1回 たたかうと 出る・v11.1）
+      firstTime ? null : obiBar(player, feverNow),
+      firstTime ? null : panelEl
     ]);
 
     /* ---- 下の バー：ごちゃまぜ バトル（v7.3・むらさき）と にげた敵（ピンク） ---- */
@@ -551,7 +576,7 @@ MQ.ui.map = (function () {
     const kid = (MQ.content.activeWorld().grade || 3) <= 2;
     const bottom = h('div', { class: 'mapbottom' }, [
       /* おうちの人からの てがみ（v8.5）。読んだら 消える */
-      (MQ.letter && MQ.letter.pending(player)) ? h('button', {
+      (!firstTime && MQ.letter && MQ.letter.pending(player)) ? h('button', {
         class: 'tegamibtn', type: 'button',
         onclick: function () { MQ.sfx.tap(); openLetter(); }
       }, [
@@ -562,7 +587,7 @@ MQ.ui.map = (function () {
         ]),
         h('span', { class: 'tegamibtn__go', text: '▶' })
       ]) : null,
-      MQ.content.mixOpen(player) ? h('button', {
+      (!firstTime && MQ.content.mixOpen(player)) ? h('button', {
         class: 'mixbtn', type: 'button',
         onclick: function () { MQ.sfx.tap(); MQ.ui.battle.start(MQ.content.mixStage().id); }
       }, [
@@ -573,7 +598,7 @@ MQ.ui.map = (function () {
         ]),
         h('span', { class: 'mixbtn__go', text: '▶' })
       ]) : null,
-      escapedCount ? h('button', {
+      (!firstTime && escapedCount) ? h('button', {
         class: 'revenge', type: 'button',
         onclick: function () { MQ.sfx.tap(); MQ.ui.battle.startTokkun(); }
       }, [
@@ -591,7 +616,8 @@ MQ.ui.map = (function () {
       /* ボタンの 段（v8.0）：上に あった 3つと 学年を ここへ */
       h('div', { class: 'maptabs' }, [
         h('button', { class: 'maptab', type: 'button', text: 'メニュー', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
-        h('button', { class: 'maptab', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
+        // タイムアタックは 1回 たたかってから（v11.1）
+        firstTime ? null : h('button', { class: 'maptab', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
         // 「おうちの人」は タイトル画面の 右上に ひっこした（v7.8）
         h('button', { class: 'maptab', type: 'button', text: 'プレイヤー', onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); } }),
         h('button', {
@@ -612,6 +638,12 @@ MQ.ui.map = (function () {
       bottom
     ]));
 
+    /* さいしょの たたかいが おわった あと 1回だけ：できる ことが ふえた（v11.1） */
+    if (!firstTime && !player.seenUnlock) {
+      MQ.save.update(function (p) { p.seenUnlock = true; });
+      setTimeout(function () { unlockPop(player); }, 260);
+    }
+
     /* ごほうびを もらった 日は スタンプの 帯を ひらいて 見せる（v8.4） */
     if (gotStamp) {
       togglePanel();
@@ -625,6 +657,67 @@ MQ.ui.map = (function () {
       const sc = document.querySelector('#screen-map .map__scroll');
       if (el && sc) sc.scrollTop = Math.max(0, el.offsetTop - sc.clientHeight * 0.45);
     }, 0);
+  }
+
+  /* =======================================================
+     できる ことが ふえた！（v11.1）
+
+     はじめての たたかいが おわって 地図に もどった とき 1回だけ。
+     さいしょの 地図は わざと からっぽに して ある ので、
+     ここで「ふえた もの」を 見せて から 出す。
+       ・きょうの フィーバー教科（オレンジの 帯）
+       ・きょうの ミッション（3つ・コイン）
+       ・ごちゃまぜ バトル と タイムアタック
+     わくは アイテム画面と 同じ .bagcard（.newscard は 借りない＝お知らせ画面と
+     見分けが つかなく なる。v9.3 で 1回 ふんだ）。
+     文は ひらがな＋小1の かん字だけ（小1の 子も 見る）。
+     ======================================================= */
+  let unlockEl = null;
+  function unlockPop(player) {
+    if (unlockEl) return null;
+    /* アイコンは 地図で つかって いる ものを そのまま 借りる
+       （ただの 四角に すると ゲームの ほかの 画面と 見た目が そろわない） */
+    const rows = [
+      [h('i', { class: 'mapobi__star unlockpop__star' }), 'きょうの フィーバー', 'その きょうかが けいけんち 2ばい！'],
+      [MQ.ui.coinNode(30), 'きょうの ミッション', '3つ できたら コインが もらえる'],
+      [h('span', { class: 'mixbtn__ico' }, [h('i'), h('i'), h('i'), h('i')]), 'あそび方が ふえた', 'ごちゃまぜ バトル・タイムアタック']
+    ];
+    function close() {
+      if (!unlockEl) return;
+      const gone = unlockEl;
+      unlockEl = null;
+      if (gone.parentNode) gone.parentNode.removeChild(gone);
+    }
+    unlockEl = h('div', {
+      class: 'news unlockpop', onclick: function (e) { if (e.target === unlockEl) close(); }
+    }, [
+      h('div', { class: 'bagcard unlockpop__card' }, [
+        h('span', { class: 'bagcard__star bagcard__star--l' }),
+        h('span', { class: 'bagcard__star bagcard__star--r' }),
+        h('div', { class: 'bagcard__head' }, [
+          h('h3', { class: 'bagcard__title', text: 'できる ことが ふえた！' }),
+          h('div', { class: 'bagcard__subrow' }, [
+            h('span', { class: 'bagcard__sub', text: 'はじめての たたかい おつかれさま' })
+          ])
+        ]),
+        h('div', { class: 'unlockpop__list' }, rows.map(function (r) {
+          return h('div', { class: 'unlockpop__row' }, [
+            h('span', { class: 'unlockpop__ico' }, [r[0]]),
+            h('span', { class: 'unlockpop__body' }, [
+              h('b', { class: 'unlockpop__t', text: r[1] }),
+              h('span', { class: 'unlockpop__s', text: r[2] })
+            ])
+          ]);
+        })),
+        h('button', {
+          class: 'btn btn--big', type: 'button',
+          onclick: function () { MQ.sfx.tap(); close(); }
+        }, [h('span', { text: 'つぎへ！' }), h('span', { class: 'btn__shine' })])
+      ])
+    ]);
+    (document.getElementById('stage') || document.body).appendChild(unlockEl);
+    if (MQ.sfx.coin) MQ.sfx.coin();
+    return unlockEl;
   }
 
   /* =======================================================
@@ -818,5 +911,6 @@ MQ.ui.map = (function () {
     if (canvas && grid) MQ.tiles.paint(canvas, grid);
   }
 
-  return { render: render, paint: paint };
+  // unlockPop は harness の 検査用にも 出す（v11.1）
+  return { render: render, paint: paint, unlockPop: unlockPop, isFirstTime: isFirstTime };
 })();

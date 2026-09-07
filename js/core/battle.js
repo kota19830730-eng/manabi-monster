@@ -67,7 +67,8 @@ MQ.battle = (function () {
     fast: 30,                      // はやとき ボーナス
     eliteBonus: 20,                // 中ボスを たおした（v8.1）
     cloneBonus: 20,                // ぶんしんを 2問 つづけて 見やぶった（v8.1）
-    kamaeBreak: 10                 // たての かまえを やぶった（v8.1）
+    kamaeBreak: 10,                // たての かまえを やぶった（v8.1）
+    review: 10                     // ふくしゅう（前に まちがえた 問題を 1回めで 正解・v11.1）
   };
   const SEC_PER_Q = 20;            // これより 早ければ はやとき ボーナス
 
@@ -121,7 +122,7 @@ MQ.battle = (function () {
   function plain(q) {
     const copy = Object.assign({}, q);
     ['boss', 'revenge', 'enemyId', 'rare', 'chest', 'groupId', 'groupSize', 'groupPos', 'groupIds', 'golden', 'coins',
-     'elite', 'eliteHp', 'elitePos', 'weak', 'summon', 'called'].forEach(function (k) {
+     'elite', 'eliteHp', 'elitePos', 'weak', 'summon', 'called', 'review', 'reviewMiss'].forEach(function (k) {
       delete copy[k];
     });
     if (q.type === 'choice') {
@@ -244,6 +245,7 @@ MQ.battle = (function () {
        stage    … ステージ
        mode     … 'normal'（ふつう）/ 'tokkun'（にげた敵だけ）/ 'tower'（ラスボス）
        escaped  … にげた敵（save.js の entry）
+       review   … ふくしゅう問題（v11.1・MQ.review.pick の ならび）。にげた敵と 同じ 形
        enemies  … ザコの id
        bossId   … ボスの id
        rareId   … レア敵の id（入れないときは null）
@@ -303,6 +305,22 @@ MQ.battle = (function () {
         q.revenge = true;
         q.enemyId = entry.enemyId;
         q.stageId = entry.stageId || null;        // とくい・にがて（v7.1）は もとの ステージに ためる
+        mobs.splice(MQ.util.randInt(0, mobs.length), 0, q);
+      });
+
+      /* ふくしゅう（v11.1）：まえに 1回めで まちがえた 問題が そのまま もどって くる。
+         ザコの わくを 1つ つかう（そのぶん 新しい 問題を 1つ 減らす）。
+         1回めで 正解すると 消える（おぼえた）＝ ごほうびは けいけんち +10 */
+      (opts.review || []).forEach(function (entry) {
+        if (!entry || !entry.q) return;
+        const q = prepare(entry.q);
+        q.id = entry.key;
+        q.review = true;
+        q.reviewMiss = entry.miss || 1;
+        q.enemyId = entry.enemyId || (mobs.length ? mobs[0].enemyId : 'slime-green');
+        q.stageId = entry.stageId || null;
+        q.areaId = entry.areaId || null;
+        if (mobs.length > 1) mobs.splice(MQ.util.randInt(1, mobs.length - 1), 1);   // 新しい 問題と 入れかえ
         mobs.splice(MQ.util.randInt(0, mobs.length), 0, q);
       });
 
@@ -455,6 +473,9 @@ MQ.battle = (function () {
       coins: 0,
       defeated: [],
       escapedNow: [],
+      reviewNow: [],               // この たたかいで 1回めに まちがえた 問題（ふくしゅう行き・v11.1）
+      reviewDone: [],              // ふくしゅう問題を 1回めで 正解した（＝おぼえた）
+      reviewHits: 0,
       results: [],                 // 1問ごとの 結果（とくい・にがて 用・v7.1）
       retryGiven: null,            // 1回目に まちがえた ときの 答え（文字）
       revengeBeaten: [],
@@ -581,6 +602,16 @@ MQ.battle = (function () {
     s.retryGiven = null;
   }
 
+  /* ふくしゅう（v11.1）：正解した ときに 1回 だけ 呼ぶ。
+       1回めで まちがえた（2回めで 合った） → つぎの たたかいに もどす（reviewNow）
+       ふくしゅう問題に 1回めで 正解      → おぼえた（reviewDone・リストから 消える）
+     たからばこは 数えない。タイムアタックは 1回で にげられる ので ここには 来ない */
+  function noteReview(q, wasRetry) {
+    if (!q || q.chest) return;
+    if (q.review && !wasRetry) { s.reviewDone.push(q.id); s.reviewHits++; return; }
+    if (wasRetry) s.reviewNow.push(q);
+  }
+
   // opts.max … えらぶ問題で 消す まちがいの 数（みちしるべは 1つだけ）
   function makeHint(q, opts) {
     const maxRemove = (opts && opts.max) || 2;
@@ -672,6 +703,7 @@ MQ.battle = (function () {
         xp = gain(xp);
         s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
         s.defeated.push(q.enemyId);
+        noteReview(q, wasRetry);
         return { outcome: 'correct', called: true, xp: xp, crit: crit, combo: s.combo, palHit: palHit, note: q.note, rare: false };
       }
 
@@ -724,6 +756,7 @@ MQ.battle = (function () {
           s.enraged = true;
         }
         xp = gain(xp);
+        noteReview(q, wasRetry);
         if (!defeated && s.bossAsked >= s.bossMax) { s.phase = 'done'; s.bossFled = true; s.endedAt = now(); }
         return {
           outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note, palHit: palHit,
@@ -753,6 +786,8 @@ MQ.battle = (function () {
 
       // リベンジ（にげた敵が もどってきた）を たおしたら ボーナス（v3.1）
       if (q.revenge) xp += XP.revenge;
+      // ふくしゅう（v11.1）：まえに まちがえた 問題に **1回めで** 正解 → ボーナス（おぼえた）
+      if (q.review && !wasRetry) xp += XP.review;
       // ばくれつ こうげき：この 1体ぶんの けいけんちが ばいに
       let burst = 0;
       if (s.buff.dmg > 1) { burst = s.buff.dmg; xp *= burst; s.buff.dmg = 1; }
@@ -785,6 +820,7 @@ MQ.battle = (function () {
         xp = gain(xp);
         s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
         s.defeated.push(q.enemyId);
+        noteReview(q, wasRetry);
         return {
           outcome: 'correct', elite: true, xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit,
           multi: null, note: q.note, burst: burst, coins: 1, revenge: false, counter: counter, weakHit: weakHit, dmg: dmg
@@ -798,10 +834,11 @@ MQ.battle = (function () {
       if (q.enemyId === goldenId()) { coins = 1; s.coins += 1; }
       s.defeated.push(q.enemyId);
       if (q.revenge) s.revengeBeaten.push(q.id);
+      noteReview(q, wasRetry);
       return {
         outcome: 'correct', xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit,
         multi: multi, note: q.note, burst: burst, coins: coins, revenge: !!q.revenge, counter: counter,
-        weakHit: weakHit, summon: !!q.summon
+        weakHit: weakHit, summon: !!q.summon, review: !!q.review, reviewOk: !!q.review && !wasRetry
       };
     }
 
@@ -1156,6 +1193,17 @@ MQ.battle = (function () {
       }),
       revengeBeaten: s.revengeBeaten,
       revengeBonus: s.revengeBeaten.length * XP.revenge,
+      /* ふくしゅう（v11.1）。にげた敵と 同じ 形で かえす（画面が MQ.review に わたす） */
+      review: s.reviewNow.map(function (q) {
+        return {
+          key: q.id, q: plain(q), enemyId: q.enemyId,
+          stageId: q.stageId || s.stage.id, areaId: q.areaId || null,
+          at: new Date().toISOString()
+        };
+      }),
+      reviewDone: s.reviewDone.slice(),
+      reviewHits: s.reviewHits,
+      reviewBonus: s.reviewHits * XP.review,
       results: s.results.slice(),      // とくい・にがて（v7.1）
       typeOk: Object.assign({}, s.typeOk),
       itemsUsed: s.itemsUsed.slice(),
@@ -1174,6 +1222,7 @@ MQ.battle = (function () {
     CHARGE_MOB: CHARGE_MOB, CHARGE_BOSS: CHARGE_BOSS, COUNTER_MUL: COUNTER_MUL, COUNTER_DMG: COUNTER_DMG,
     // 敵がわの 攻防（v8.1）
     ELITE_HP: ELITE_HP, WEAK_MUL: WEAK_MUL, WEAK_DMG: WEAK_DMG, BOSS_SKILLS: BOSS_SKILLS,
+    XP_REVIEW: XP.review,                            // ふくしゅう（v11.1）
     bossSkill: bossSkill, foeCount: foeCount,
     eliteLeft: function () { return s ? s.eliteLeft : 0; },
     weakArea: function () { return s ? s.weakArea : null; },
