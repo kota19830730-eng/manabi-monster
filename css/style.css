@@ -537,6 +537,19 @@ body {
 .tmob--gold   { left: 146px; bottom: 2px;   z-index: 5; animation: bob 2.1s ease-in-out .9s infinite; }
 .tmob--magma  { left: 316px; bottom: 4px;   z-index: 5; animation: bob 3.4s ease-in-out .4s infinite; }
 
+/* ---- タイトルだけ 夕やけの 光（v10.3・ユーザー「B で お願いします」）----
+   v10.1 で 勇者（`poster()`）に `lit: 'sunset'` が ついた ので、
+   **勇者だけ 夕日に 照らされて いる** ちぐはぐが 出た。
+   ここは **タイトルの 中だけ**（`.title` の 下の `.tmob`）。
+   地図・バトル・ずかん・お知らせの モンスターは いままでの まま。
+   数字は `docs/v10.1ひかりメモ.md` の sunset に そろえた：
+     ・ふちの 光（リム）＝ **そとがわの 右と 上**に 夕日の 色 #ffcc7c
+     ・すこし あたたかく・すこし はっきり（勇者の sat 0.2 と 同じ 向き）
+   **`box-shadow` は さわらない**（ブロックの 3面の 光が 消える）。 */
+.title .tmob .bx {
+  filter: drop-shadow(1.5px -1.5px 0 rgba(255, 204, 124, .5)) saturate(1.1) brightness(1.03);
+}
+
 /* 勇者（決まった 一枚絵。その子の アバターでは ない） */
 .title__hero {
   position: absolute; left: 104px; bottom: 62px; z-index: 4;   /* bob が transform を 使うので translateX は 使わない */
