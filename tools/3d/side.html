@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>よこから 見る（飛び出しの けんさ）</title>
+<style>
+  body { margin: 0; background: #101a33; color: #eaf0ff; font-family: sans-serif; font-size: 12px; }
+  .row { display: flex; gap: 14px; padding: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .cell { background: #16224a; border: 2px solid #2b3a6b; border-radius: 10px; padding: 8px; text-align: center; }
+  .cell h2 { font-size: 11px; margin: 0 0 6px; color: #9fb2dd; font-weight: normal; }
+  .scene { perspective: none; display: flex; align-items: flex-end; justify-content: center; }
+  .fig { transform-style: preserve-3d; }
+  .v3 { position: relative; transform-style: preserve-3d; }
+  .v3 .b { position: absolute; transform-style: preserve-3d; }
+  .v3 .f { position: absolute; left: 0; top: 0; }
+  pre { color: #ffd447; padding: 0 12px; font-size: 11px; }
+</style></head>
+<body><div id="out"></div><pre id="log"></pre>
+<script src="../../js/core/util.js"></script>
+<script src="../../js/core/pixel.js"></script>
+<script src="../../js/core/blocks.js"></script>
+<script src="../../js/content/monsterart.js"></script>
+<script src="../../js/content/monstergen.js"></script>
+<script src="../../js/content/face.js"></script>
+<script src="../../js/content/enemies.js"></script>
+<script src="../../js/content/hero.js"></script>
+<script src="../../js/content/art.js"></script>
+<script src="vox.js"></script>
+<script>
+const out = document.getElementById('out');
+const log = [];
+// 箱の 前後（z）を しらべる
+function measure(v, name) {
+  let maxFront = -999, minBack = 999, worst = null;
+  Array.prototype.slice.call(v.children).forEach(function (b) {
+    const m = (b.style.transform || '').match(/translateZ\((-?[\d.]+)px\)/);
+    if (!m) return;
+    const front = parseFloat(m[1]);
+    const d = b.querySelector('.f:nth-child(3)') ? parseFloat(b.children[2].style.width) : 0;
+    if (front > maxFront) { maxFront = front; worst = b; }
+    if (front - d < minBack) minBack = front - d;
+  });
+  log.push(name + ': いちばん 手まえ z=' + maxFront.toFixed(1) + ' / いちばん おく z=' + minBack.toFixed(1));
+  return { maxFront: maxFront, worst: worst };
+}
+function cell(title, node, size, ry) {
+  const c = document.createElement('div'); c.className = 'cell';
+  const h = document.createElement('h2'); h.textContent = title; c.appendChild(h);
+  const s = document.createElement('div'); s.className = 'scene';
+  s.style.width = (size + 60) + 'px'; s.style.height = (size + 20) + 'px';
+  const f = document.createElement('div'); f.className = 'fig';
+  f.style.transform = 'rotateY(' + ry + 'deg)';
+  const hold = document.createElement('div');
+  hold.style.cssText = 'width:' + size + 'px;height:' + size + 'px;display:flex;align-items:flex-end;transform-style:preserve-3d';
+  node.style.transform = 'scale3d(' + [(size / 48),(size / 48),(size / 48)].join(',') + ')';
+  node.style.transformOrigin = 'center bottom';
+  hold.appendChild(node); f.appendChild(hold); s.appendChild(f); c.appendChild(s);
+  return c;
+}
+const MONS = ['skullhorse', 'cap-knight', 'boss-dragon', 'zukan'];
+const row = document.createElement('div'); row.className = 'row';
+MONS.forEach(function (id) {
+  const bx = MQ.enemies.node(id, { size: 48 }).querySelector('.bx');
+  const v = VOX.fromBx(bx);
+  measure(v, id);
+  row.appendChild(cell(id + '（よこから）', v, 150, -90));
+});
+out.appendChild(row);
+const row2 = document.createElement('div'); row2.className = 'row';
+MONS.forEach(function (id) {
+  const bx = MQ.enemies.node(id, { size: 48 }).querySelector('.bx');
+  const v = VOX.fromBx(bx);
+  row2.appendChild(cell(id + '（ななめ）', v, 150, -32));
+});
+out.appendChild(row2);
+
+const player = { level: 30, look: {}, equipped: {} };
+const src = MQ.hero.sprite(player);
+const img = new Image();
+img.onload = function () {
+  const row3 = document.createElement('div'); row3.className = 'row';
+  [[-90, 'よこから'], [-32, 'ななめ']].forEach(function (a) {
+    const v = VOX.fromHero(img, src);
+    v.style.width = '96px'; v.style.height = '96px';
+    const c = document.createElement('div'); c.className = 'cell';
+    const h = document.createElement('h2'); h.textContent = '主人公（' + a[1] + '）'; c.appendChild(h);
+    const s = document.createElement('div'); s.className = 'scene';
+    s.style.width = '210px'; s.style.height = '170px';
+    const f = document.createElement('div'); f.className = 'fig';
+    f.style.transform = 'rotateY(' + a[0] + 'deg)';
+    const hold = document.createElement('div');
+    hold.style.cssText = 'width:150px;height:150px;display:flex;align-items:flex-end;transform-style:preserve-3d';
+    v.style.transform = 'scale3d(' + [(150 / 96),(150 / 96),(150 / 96)].join(',') + ')';
+    v.style.transformOrigin = 'center bottom';
+    hold.appendChild(v); f.appendChild(hold); s.appendChild(f); c.appendChild(s);
+    row3.appendChild(c);
+  });
+  out.appendChild(row3);
+  document.getElementById('log').textContent = log.join('\n');
+};
+img.src = src;
+</script></body></html>

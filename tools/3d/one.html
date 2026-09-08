@@ -1,0 +1,37 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>1体を 大きく</title>
+<style>
+ body{margin:0;background:#101a33;color:#eaf0ff;font-family:sans-serif}
+ .row{display:flex;gap:14px;padding:12px;align-items:flex-end;flex-wrap:wrap}
+ .cell{background:#16224a;border:2px solid #2b3a6b;border-radius:10px;padding:8px;text-align:center}
+ h2{font-size:11px;margin:0 0 6px;color:#9fb2dd;font-weight:normal}
+ .scene{perspective:1100px;display:flex;align-items:flex-end;justify-content:center}
+ .fig{transform-style:preserve-3d}
+ .v3{position:relative;transform-style:preserve-3d}
+ .v3 .b{position:absolute;transform-style:preserve-3d}
+ .v3 .f{position:absolute;left:0;top:0}
+</style></head><body><div id="out"></div>
+<script src="../../js/core/util.js"></script><script src="../../js/core/pixel.js"></script>
+<script src="../../js/core/blocks.js"></script><script src="../../js/content/monsterart.js"></script>
+<script src="../../js/content/monstergen.js"></script><script src="../../js/content/face.js"></script>
+<script src="../../js/content/enemies.js"></script><script src="../../js/content/hero.js"></script>
+<script src="../../js/content/art.js"></script><script src="vox.js"></script>
+<script>
+const q=new URLSearchParams(location.hash.slice(1));
+const ID=q.get('id')||'sameoni';
+const out=document.getElementById('out');
+const row=document.createElement('div');row.className='row';
+[-34,-18,0,18].forEach(function(ry){
+  const v=VOX.fromBx(MQ.enemies.node(ID,{size:48}).querySelector('.bx'));
+  const c=document.createElement('div');c.className='cell';
+  const h=document.createElement('h2');h.textContent=ry+'度';c.appendChild(h);
+  const s=document.createElement('div');s.className='scene';
+  s.style.width='330px';s.style.height='330px';
+  const f=document.createElement('div');f.className='fig';
+  f.style.transform='rotateX(8deg) rotateY('+ry+'deg)';
+  const hold=document.createElement('div');
+  hold.style.cssText='width:280px;height:280px;display:flex;align-items:flex-end;transform-style:preserve-3d';
+  v.style.transform='scale3d(5.8,5.8,5.8)';v.style.transformOrigin='center bottom';
+  hold.appendChild(v);f.appendChild(hold);s.appendChild(f);c.appendChild(s);row.appendChild(c);
+});
+out.appendChild(row);
+</script></body></html>

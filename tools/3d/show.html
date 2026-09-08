@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>まなびモンスター 3Dの 試作</title>
+<link rel="stylesheet" href="../../css/style.css">
+<style>
+  body { margin: 0; background: #0d1220; color: #eaf0ff;
+         font-family: "Zen Maru Gothic", system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 14px 14px 40px; }
+  h1 { font-size: 19px; margin: 6px 0 2px; color: #ffd447; }
+  h2 { font-size: 14px; margin: 22px 0 2px; color: #ffd447; }
+  p { font-size: 12.5px; line-height: 1.7; margin: 4px 0 10px; color: #b9c7ea; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .cell { background: #16224a; border: 2px solid #2b3a6b; border-radius: 12px;
+          padding: 10px 10px 8px; text-align: center; }
+  .cell .t { font-size: 11px; color: #9fb2dd; margin-bottom: 6px; }
+  .cell .n { font-size: 10px; color: #6f80ad; margin-top: 6px; }
+  .scene { perspective: 1100px; display: flex; align-items: flex-end; justify-content: center; }
+  .fig { transform-style: preserve-3d; transform: rotateX(8deg) rotateY(var(--ry, -28deg)); }
+  .fig.spin { animation: spin3d 7s ease-in-out infinite alternate; }
+  @keyframes spin3d {
+    from { transform: rotateX(8deg) rotateY(-34deg); }
+    to   { transform: rotateX(8deg) rotateY(34deg); }
+  }
+  .v3 { position: relative; transform-style: preserve-3d; }
+  .v3 .b { position: absolute; transform-style: preserve-3d; }
+  .v3 .f { position: absolute; left: 0; top: 0; }
+  .flat { image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<div class="wrap" id="out"></div>
+
+<script src="../../js/core/util.js"></script>
+<script src="../../js/core/pixel.js"></script>
+<script src="../../js/core/blocks.js"></script>
+<script src="../../js/content/monsterart.js"></script>
+<script src="../../js/content/monstergen.js"></script>
+<script src="../../js/content/face.js"></script>
+<script src="../../js/content/enemies.js"></script>
+<script src="../../js/content/hero.js"></script>
+<script src="../../js/content/art.js"></script>
+<script src="vox.js"></script>
+<script>
+const q = new URLSearchParams(location.hash.slice(1));
+const STATIC = q.has('static');            // 撮る とき（動かさない）
+const RY = q.get('ry') == null ? -28 : +q.get('ry');
+
+const out = document.getElementById('out');
+function el(tag, cls, text) {
+  const d = document.createElement(tag);
+  if (cls) d.className = cls;
+  if (text) d.textContent = text;
+  return d;
+}
+function head(tag, text, note) {
+  out.appendChild(el(tag, null, text));
+  if (note) out.appendChild(el('p', null, note));
+  const r = el('div', 'row');
+  out.appendChild(r);
+  return r;
+}
+function cell(title, node, size, note) {
+  const c = el('div', 'cell');
+  c.appendChild(el('div', 't', title));
+  const s = el('div', 'scene');
+  s.style.width = (size + 96) + 'px';
+  s.style.height = (size + 52) + 'px';
+  const f = el('div', 'fig' + (STATIC ? '' : ' spin'));
+  f.style.setProperty('--ry', RY + 'deg');
+  f.appendChild(node);
+  s.appendChild(f);
+  c.appendChild(s);
+  if (note) c.appendChild(el('div', 'n', note));
+  return c;
+}
+// いまの 2Dの 絵（くらべる ため。回さない）
+function flatCell(title, node, size, note) {
+  const c = el('div', 'cell');
+  c.appendChild(el('div', 't', title));
+  const s = el('div', 'scene');
+  s.style.width = (size + 96) + 'px';
+  s.style.height = (size + 52) + 'px';
+  s.appendChild(node);
+  c.appendChild(s);
+  if (note) c.appendChild(el('div', 'n', note));
+  return c;
+}
+function scale(node, from, to) {
+  node.style.transform = 'scale3d(' + [(to / from),(to / from),(to / from)].join(',') + ')';
+  node.style.transformOrigin = 'center bottom';
+  const hold = el('div');
+  hold.style.width = to + 'px';
+  hold.style.height = to + 'px';
+  hold.style.display = 'flex';
+  hold.style.alignItems = 'flex-end';
+  hold.style.transformStyle = 'preserve-3d';
+  hold.appendChild(node);
+  return hold;
+}
+function mon3d(id, size) {
+  const holder = MQ.enemies.node(id, { size: 48 });
+  const bx = holder.querySelector('.bx');
+  const v = VOX.fromBx(bx);
+  const n = v.dataset.boxes;
+  return { node: scale(v, 48, size), boxes: n };
+}
+
+let t0 = performance.now(), boxes = 0;
+
+/* ---------------- 1. 息子さんの モンスター ---------------- */
+const SON = [['skullhorse', 'スカルホース'], ['sameoni', 'サメオニ'], ['zukan', 'ずかんの あくま']];
+let r = head('h1', 'まなびモンスター 3Dの 試作（キャラと モンスターだけ）',
+  '絵は 1つも 描き直して いません。いまの ドット絵（四角の ならび）に 厚みを つけて 箱に した だけです。');
+r = head('h2', '① 息子さんの モンスター',
+  '左が いま（2D）、右が 3D。ゆっくり 左右に 回ります。');
+SON.forEach(function (m) {
+  r.appendChild(flatCell(m[1] + '（いま）', MQ.enemies.node(m[0], { size: 120 }), 120));
+  const v = mon3d(m[0], 120);
+  boxes += +v.boxes;
+  r.appendChild(cell(m[1] + '（3D）', v.node, 120, v.boxes + 'この 箱'));
+});
+
+/* ---------------- 2. ゲームの モンスター ---------------- */
+r = head('h2', '② ゲームの モンスター', 'ボス・ザコ・カプセルの なかま。どれも 同じ しくみで 立体に なります。');
+[['boss-dragon', 'ナンバードラゴン'], ['slime-green', 'みどりスライム'],
+ ['golem-gray', 'ゴーレム'], ['cap-knight', 'ちいさな きし']].forEach(function (m) {
+  const v = mon3d(m[0], 120);
+  boxes += +v.boxes;
+  r.appendChild(cell(m[1], v.node, 120, v.boxes + 'この 箱'));
+});
+
+/* ---------------- 3. 主人公 ---------------- */
+r = head('h2', '③ 主人公（きみの キャラ）',
+  '96マスの 顔を そのまま 前の 面に して、頭は 立方体・体と 足は うすい 箱に して います＝マイクラの キャラと 同じ 作り。');
+
+const player = { level: 30, look: {}, equipped: {} };
+const src = MQ.hero.sprite(player);
+const img = new Image();
+img.onload = function () {
+  // いま（2D）
+  const f = document.createElement('img');
+  f.src = src; f.className = 'flat';
+  f.style.width = '150px'; f.style.height = '150px';
+  r.appendChild(flatCell('いま（2D）', f, 150));
+  // 3D
+  const v = VOX.fromHero(img, src);
+  boxes += +v.dataset.boxes;
+  r.appendChild(cell('3D', scale(v, 96, 150), 150, v.dataset.boxes + 'この 箱'));
+
+  /* ------------- 4. 実さいの 大きさ ------------- */
+  const r2 = head('h2', '④ たたかいの 画面と 同じ 大きさで',
+    'ゲームの 中では 主人公は 84px、てきは 96〜112px です。小さくても 立体に 見えるか。');
+  const f2 = document.createElement('img');
+  f2.src = src; f2.className = 'flat';
+  f2.style.width = '84px'; f2.style.height = '84px';
+  r2.appendChild(flatCell('主人公 いま', f2, 84));
+  const v2 = VOX.fromHero(img, src);
+  r2.appendChild(cell('主人公 3D', scale(v2, 96, 84), 84));
+  r2.appendChild(flatCell('てき いま', MQ.enemies.node('boss-dragon', { size: 96 }), 96));
+  const v3 = mon3d('boss-dragon', 96);
+  r2.appendChild(cell('てき 3D', v3.node, 96));
+
+  const p = el('p', null, 'log: 箱 ' + boxes + 'こ／面 ' +
+    document.querySelectorAll('.v3 .f').length + 'まい／作るのに ' +
+    Math.round(performance.now() - t0) + 'ms');
+  p.id = 'log';
+  out.appendChild(p);
+};
+img.src = src;
+</script>
+</body>
+</html>
