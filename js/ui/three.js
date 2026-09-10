@@ -146,7 +146,7 @@
     setMo(sc.v3, mo);
     const hero = sc.v3.classList.contains('v3--hero');
     const sceneMo = opts && ('scene' in opts) ? opts.scene : (mo === 'mo-attack' && hero ? 'mo-dash' : null);
-    if (hero) {
+    if (hero || (opts && ('scene' in opts))) {   /* v12.2.1：相棒も opts.scene で 器を 走らせる */
       clearSceneMo(sc);
       if (opts && opts.ms) sc.style.setProperty('--dms', opts.ms + 'ms');
       if (sceneMo) { void sc.offsetWidth; sc.classList.add(sceneMo); }

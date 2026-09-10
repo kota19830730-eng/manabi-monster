@@ -1715,8 +1715,13 @@ MQ.ui.battle = (function () {
     bolt:      { scene: 'mo-dash-jump', hit: 600,  down: 1000 },
     star:      { scene: null,           hit: 620,  down: 1000 },
     nova:      { scene: 'mo-rise',      hit: 550,  down: 1150 },
-    starburst: { scene: 'mo-dash-sp',   hit: 500,  down: 1600 }
+    starburst: { scene: 'mo-dash-sp',   hit: 500,  down: 1600, palHit: 1300 }   // 相棒は さいごの 一閃に 合わせる
   };
+  /* v12.2.1 ③：相棒も わざに 合わせる（ユーザー「③お願いします」2026-09-11）。
+     5〜11コンボ＝主人公の うしろを ついて 走り、当たる ころに いっしょに とび出す（mo-pal-follow）。
+     12コンボ〜＝てきの 右がわに とんで はさみうち（mo-pal-flank）。ルールは 変えない（見た目だけ）。
+     その あいだ 追い打ち（palAttack）の 2D の ジャンプと mo-attack は 出さない（二重に 動く） */
+  let palJoinUntil = 0;
   // 主人公の オーラと コンボの 色
   const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff', starburst: '#b8ffe6' };
   const NOVA_COLORS = ['#ff5e7a', '#ffd447', '#7cf9c4', '#4fd3ff', '#c48bff', '#ffffff'];
@@ -2128,10 +2133,13 @@ MQ.ui.battle = (function () {
   function palAttack() {
     if (!palNow || d.pal.hidden) return;
     palBanner(palNow.name);
-    d.pal.classList.remove('is-hit');
-    void d.pal.offsetWidth;
-    d.pal.classList.add('is-hit');
-    if (V3()) MQ.ui.v3.play(d.pal, 'mo-attack', 600);
+    const joining = V3() && Date.now() < palJoinUntil;   // ③ わざに 合わせて 走って いる さいちゅうは そちらに まかせる
+    if (!joining) {
+      d.pal.classList.remove('is-hit');
+      void d.pal.offsetWidth;
+      d.pal.classList.add('is-hit');
+      if (V3()) MQ.ui.v3.play(d.pal, 'mo-attack', 600);
+    }
     MQ.sfx.palHit();
     const s = h('span', { class: 'pal__slash' });
     d.fx.appendChild(s);
@@ -2269,6 +2277,30 @@ MQ.ui.battle = (function () {
     if (m.scene) MQ.ui.v3.dashTo(d.hero, foe);
     MQ.ui.v3.play(d.hero, 'mo-sp-' + sp.id, sp.ms, { scene: m.scene, ms: sp.ms });
     if (foe) MQ.ui.v3.play(foe, 'mo-hit-' + sp.id, sp.ms);
+    palJoin(sp, foe, m);
+  }
+
+  /* ③ 相棒の きょりと 時間を CSS に わたして 走らせる。
+     --pdash＝行き先（follow＝主人公の 走った 先の 48px 左／flank＝てきの 右はしより 22px 左）
+     --pdelay＝器の 動きの はじまり（follow は 0.35秒で つく・flank は 0.58秒で 着地 → 当たる 時間から 引く）
+     --phit＝とび出し（0.5秒・山は 0.275秒）の はじまり */
+  function palJoin(sp, foe, m) {
+    if (!palNow || !d.pal || d.pal.hidden || !foe) return;
+    const ps = MQ.ui.v3.sceneOf(d.pal), hs = MQ.ui.v3.sceneOf(d.hero);
+    if (!ps || !hs) return;
+    const k = (MQ.stage && MQ.stage.size) ? (MQ.stage.size().scale || 1) : 1;
+    const img = foe.querySelector('.enemy__img, .enemy__img3d') || foe;
+    const pr = ps.getBoundingClientRect(), hr = hs.getBoundingClientRect(), fr = img.getBoundingClientRect();
+    const flank = sp.tier >= 3;
+    const palHit = m.palHit || m.hit;
+    let px;
+    if (flank) px = (fr.right - pr.left) / k - 22;
+    else px = (hr.left - pr.left) / k + (parseFloat(hs.style.getPropertyValue('--dash')) || 0) - 48;
+    ps.style.setProperty('--pdash', Math.max(20, Math.round(px)) + 'px');
+    ps.style.setProperty('--pdelay', (palHit - (flank ? 600 : 500)) + 'ms');
+    ps.style.setProperty('--phit', (palHit - 200) + 'ms');
+    MQ.ui.v3.play(d.pal, 'mo-pal-sp', sp.ms, { scene: flank ? 'mo-pal-flank' : 'mo-pal-follow' });
+    palJoinUntil = Date.now() + sp.ms;
   }
 
   /* ⑤ とどめ か（さいごの ザコ／ボスを たおした 一発）*/

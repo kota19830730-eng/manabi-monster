@@ -661,3 +661,32 @@
 /* v12.2：3D の ときは 2D の「大きく とびこむ」（specialbigfx＝.hero を 36px 右へ・1.3倍）を 止める。
    走る・とぶ は 器（mo-dash-*）と 部品の 動きで 見せる。うしろの オーラ（::before）は のこす */
 .is-3d .hero.is-special { animation: none !important; }
+
+/* ---------- v12.2.1 ③ 相棒も わざに 合わせる（2026-09-11） ----------
+   器（.pal の .v3scene）：mo-pal-follow＝主人公の うしろを ついて 走る（1秒・35% で つく・70% まで いて もどる）
+                          mo-pal-flank ＝てきの 右がわに とんで はさみうち（1.2秒・48% で 着地）
+   体（.v3）：mo-pal-sp＝走る あいだ はね・あしを ばたばた、--phit の 時間に 手まえへ とび出す（モンスターの こうげきと 同じ moPounce）
+   --pdash／--pdelay／--phit は battle.js の palJoin() が 入れる */
+.mo-pal-follow { animation: palFollow 1s cubic-bezier(.2, .8, .3, 1) var(--pdelay, 0ms) both; }
+@keyframes palFollow {
+  0%   { transform: translateX(0); }
+  35%  { transform: translateX(var(--pdash, 120px)); animation-timing-function: linear; }
+  70%  { transform: translateX(var(--pdash, 120px)); animation-timing-function: ease-in-out; }
+  100% { transform: translateX(0); }
+}
+.mo-pal-flank { animation: palFlank 1.2s ease-in-out var(--pdelay, 0ms) both; }
+@keyframes palFlank {
+  0%   { transform: translate(0, 0); animation-timing-function: ease-out; }
+  20%  { transform: translate(calc(var(--pdash, 200px) * .5), -56px); animation-timing-function: ease-in-out; }
+  42%  { transform: translate(var(--pdash, 200px), -30px); animation-timing-function: ease-in; }
+  48%  { transform: translate(var(--pdash, 200px), 0); }
+  52%  { transform: translate(var(--pdash, 200px), -3px); }
+  56%, 72% { transform: translate(var(--pdash, 200px), 0); animation-timing-function: ease-in-out; }
+  100% { transform: translate(0, 0); }
+}
+.mo-pal-sp { animation: moPounce .5s ease-in-out var(--phit, .4s) both; }
+.mo-pal-sp .p--body { animation: moBodyPounce .5s ease-in-out var(--phit, .4s) both; }
+.mo-pal-sp .p--wingL { animation: moFlapL .22s ease-in-out 6; }
+.mo-pal-sp .p--wingR { animation: moFlapR .22s ease-in-out 6; }
+.mo-pal-sp .p--legA { animation: moShift .2s ease-in-out 6; }
+.mo-pal-sp .p--legB { animation: moShift .2s ease-in-out .1s 6; }

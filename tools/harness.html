@@ -1781,7 +1781,10 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode.indexOf('fx') === 0) {
       const want = mode.split(':')[1] || 'fire';
       const at = parseFloat(mode.split(':')[2] || '0.3');
-      fresh(); MQ.ui.battle.start('rikashakai3-1'); await wait(400);
+      const withPal = mode.indexOf('fxpal') === 0;   // v12.2.1：#fxpal＝相棒つき（③ 相棒も わざに 合わせる）
+      fresh();
+      if (withPal) MQ.save.update(function (pl) { MQ.pals.add(pl, 'drago-1'); MQ.pals.setActive(pl, 'drago-1'); });
+      MQ.ui.battle.start('rikashakai3-1'); await wait(400);
       freeze();
       const sp = MQ.ui.battle.demoSpecial(want);
       // アニメを at 秒めで 止めて 撮る（delay も ふくめた 本当の 時間）
@@ -1792,6 +1795,10 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const hv = $('.hero .v3'), hs = $('.hero .v3scene'), fv = $('.foes .enemy .v3'), band = $('.fxband'), ar = $('.arena');
       say('fx3d: hero=' + moOf(hv) + ' scene=' + (hs ? moOf(hs) + ' dash=' + hs.style.getPropertyValue('--dash') + ' dms=' + hs.style.getPropertyValue('--dms') : 'なし') + ' foe=' + moOf(fv) + '（hero=mo-sp-<わざ>・foe=mo-hit-<わざ> が 正）');
       if (band && ar) { const b = band.getBoundingClientRect(), a = ar.getBoundingClientRect(); say('fxband: y ' + Math.round(b.top - a.top) + '〜' + Math.round(b.bottom - a.top) + ' / arena h ' + Math.round(a.height) + '（帯の 下が アリーナの 下 いない が 正）'); }
+      if (withPal) {
+        const pv = $('.pal .v3'), pscn = $('.pal .v3scene');
+        say('fxpal: pal=' + moOf(pv) + ' scene=' + (pscn ? moOf(pscn) + ' pdash=' + pscn.style.getPropertyValue('--pdash') + ' pdelay=' + pscn.style.getPropertyValue('--pdelay') + ' phit=' + pscn.style.getPropertyValue('--phit') : 'なし') + '（pal=mo-pal-sp・scene=mo-pal-follow（5〜11）／mo-pal-flank（12〜）が 正）');
+      }
       return;
     }
     // どうぐ（v2.0）：#bag＝シートを 開いた ところ／#bagfx:<power>＝使った ときの 演出
@@ -3145,18 +3152,20 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       //        transition を いったん 切って「行き先の 値」を はかる（本物の 端末では .12秒で そこに つく）
       const arenaEl = document.querySelector('#screen-battle .arena');
       const quiet = !!(arenaEl && arenaEl.classList.contains('is-cutin'));
-      const goal = ['.arena__msg', '.pal'].map(function (s) {
+      const goal = ['.arena__msg'].map(function (s) {   // v12.2.1：相棒は 消えない（③で 走る）ので ふきだしだけ
         const e = document.querySelector('#screen-battle ' + s); if (!e) return s + '=なし';
         e.style.transition = 'none'; void e.offsetWidth;
         const v = getComputedStyle(e).opacity; e.style.transition = '';
         return s + '=' + v;
       });
-      say('palfx: is-cutin=' + (quiet ? 'ok' : 'MISSING') + ' 消える先 ' + goal.join(' ') + '（どちらも 0 が 正）');
+      say('palfx: is-cutin=' + (quiet ? 'ok' : 'MISSING') + ' 消える先 ' + goal.join(' ') + '（0 が 正）');
+      const palScn = document.querySelector('#screen-battle .pal .v3scene');
+      say('palfx: 相棒の 器=' + moOf(palScn) + ' 体=' + moOf(document.querySelector('#screen-battle .pal .v3')) + ' 2D の is-hit=' + (document.querySelector('#screen-battle .pal.is-hit') ? 'あり' : 'なし') + '（③：器=mo-pal-follow/flank・体=mo-pal-sp・is-hit なし が 正）');
       // カットインは 0.62秒で 消える タイマーが ある → 写しを のこして 撮る
       const cut = document.querySelector('.cutin');
       // 写しを 撮る ときも 消した ままに する（本物の 0.62秒の タイマーは もう 予約ずみで freeze では 止まらず
       // is-cutin を 外して しまう ので、写真用に inline で 消す。しくみの 検査は 上の ログ）
-      ['.arena__msg', '.pal'].forEach(function (s) { const e = document.querySelector(s); if (e) e.style.opacity = '0'; });
+      ['.arena__msg'].forEach(function (s) { const e = document.querySelector(s); if (e) e.style.opacity = '0'; });
       // 写しは .fxscreen の 外へ（.fxscreen は わざの おわりに 空に される）
       if (cut) { const c = cut.cloneNode(true); c.setAttribute('data-copy','1'); c.style.animation='none'; c.style.zIndex='99'; document.getElementById('screen-battle').appendChild(c); }
       say('palfx: 合体=' + (hit ? 'ok' : 'MISSING') +

@@ -1296,7 +1296,7 @@ body {
    帯は 半透明なので、下に ふきだしと 相棒が いると すけて 見えて ごちゃごちゃ した（息子さん「相棒が 前に かぶる」）。
    相棒は カットインの 中（.cutin__pal）に 出て いる ので、ここで 消えても「とびこんだ」ように 見える。 */
 .arena__msg, .pal { transition: opacity .12s ease-out; }
-.arena.is-cutin .arena__msg, .arena.is-cutin .pal { opacity: 0; }
+.arena.is-cutin .arena__msg { opacity: 0; }   /* v12.2.1：相棒は 消さない（カットインは 上・相棒は 下の 草。③で 走って いる） */
 .foes { position: absolute; right: 16px; bottom: 62px; display: flex; align-items: flex-end; gap: 8px; z-index: 2; }
 /* 主人公は 76 → 88px（v9.4）。HD で 点の 数が 2倍に なった ので、
    大きく しても ぼやけない。てきは もともと 72〜112px で 大きかった ので そのまま。
