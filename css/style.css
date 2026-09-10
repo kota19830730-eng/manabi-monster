@@ -2270,6 +2270,14 @@ body {
 /* 学校で ならった ところ（v2.6・おうちの人ページ） */
 .terms { margin-bottom: 18px; }
 .termrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+/* 教科書（出版社）（v12.4） */
+.books { margin: 6px 0 14px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+.books .ulist__name { margin-bottom: 4px; }
+.bookrow { margin-top: 8px; }
+.bookrow__name { font-size: 13px; font-weight: 700; color: #ffe89a; margin: 0 0 2px; }
+.bookrow__chips { margin: 4px 0 2px; }
+.chip--book { min-height: 34px; padding: 0 10px; font-size: 13px; }
+.bookrow__note { margin: 2px 0 0; font-size: 12px; }
 .termrow .chip { min-height: 40px; padding: 0 12px; font-size: 14px; }
 .ulist { margin: 10px 0 4px; }
 .ulist__name { margin: 0 0 6px; font-family: var(--f-head); font-size: 15px; color: var(--gold-lt); }
@@ -3124,6 +3132,10 @@ body {
 .pp-legacy .unit__name { color: var(--pp-ink); }
 .pp-legacy .unit__term { color: var(--pp-mut); }
 .pp-legacy .unit--soon { opacity: .5; }
+.pp-legacy .books { background: #f6f3ec; box-shadow: none; border: 1px solid var(--pp-line); }
+.pp-legacy .bookrow__name { color: var(--pp-ink); font-family: var(--pp-fh); }
+.pp-legacy .chip--book { min-height: 34px; padding: 0 10px; font-size: 13px; }
+.pp-legacy .bookrow__chips { margin: 4px 0 2px; }
 .pp-legacy .input, .pp-legacy textarea.input { background: #fff; color: var(--pp-ink); border: 1px solid #d9d3c6; box-shadow: none; border-radius: 10px; font-family: inherit; }
 .pp-legacy .input:focus { box-shadow: 0 0 0 3px #fbf1d6; }
 .pp-legacy .ai__status { color: var(--pp-mut); }

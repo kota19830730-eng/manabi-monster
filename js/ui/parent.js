@@ -547,7 +547,7 @@ MQ.ui.parent = (function () {
     try {
       const st = MQ.save.getSetting ? { sfx: MQ.save.getSetting('sfx', true), bgm: MQ.save.getSetting('bgm', true), speech: MQ.save.getSetting('speech', true) } : {};
       lines.push('せってい: おと ' + (st.sfx ? 'オン' : 'オフ') + '・きょく ' + (st.bgm ? 'オン' : 'オフ') + '・よみあげ ' + (st.speech ? 'オン' : 'オフ') +
-        '・学期 ' + (p.term ? p.term + '学期まで' : 'ぜんぶ') + '・AIのかぎ ' + (MQ.ai && MQ.ai.ready && MQ.ai.ready() ? 'あり' : 'なし'));
+        '・学期 ' + (p.term ? p.term + '学期まで' : 'ぜんぶ') + '・教科書 ' + (MQ.textbooks ? MQ.textbooks.summary(p) : '－') + '・AIのかぎ ' + (MQ.ai && MQ.ai.ready && MQ.ai.ready() ? 'あり' : 'なし'));
     } catch (e) {}
     lines.push(G ? G.text() : 'さいきんの エラー: （きろく なし）');
     lines.push('---');

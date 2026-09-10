@@ -2482,7 +2482,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     [rs[0], rs[2], ks[2], es[0], es[1]].forEach(function (st) {
       st.make(12, {}).concat(st.make(3, { boss: true })).forEach(function (q) {
         const e = T.unitEntryOf(q.unit, 3);
-        check(!e || e.term <= 1, '1学期に 先の 単元が 出た: ' + st.id + ' ' + q.unit);
+        check(!e || T.unitTerm(T.current(), e) <= 1, '1学期に 先の 単元が 出た: ' + st.id + ' ' + q.unit);
       });
     });
   }
@@ -3610,6 +3610,98 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
       'zu.js を ' + f + '.js より 先に 読む');
   });
   console.log('読みこみ じゅんばん: index/harness/smoke そろい・教科 ' + CONTENT_ORDER.length + ' ファイル');
+})();
+/* ===== 教科書（出版社）えらび（v12.4）===== */
+(function () {
+  const TB = MQ.textbooks;
+  const T = MQ.terms;
+  check(!!TB, 'MQ.textbooks が 読めて いる');
+  if (!TB) return;
+  // 読みこみ順：textbooks.js は terms.js より 前（index・harness・sw）
+  check(CONTENT_ORDER.indexOf('js/content/textbooks.js') >= 0 && CONTENT_ORDER.indexOf('js/content/textbooks.js') < CONTENT_ORDER.indexOf('js/content/terms.js'), 'textbooks.js は terms.js より 先');
+  const sw = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  check(sw.indexOf("'./js/content/textbooks.js'") >= 0, 'sw.js の FILES に textbooks.js');
+  // 表の 中身：出版社 id は かぶらない・いちばん 上が きほん（表を もたない）・ほかは 表の ステージ番号が ちゃんと ある・学期は 1〜4
+  const stageCount = {};
+  [1, 2, 3, 4, 5, 6].forEach(function (g) {
+    const w = MQ.content.worldForGrade(g);
+    (w.areas || []).forEach(function (a) { a.stages.forEach(function (st) { const m = /^([a-z]+\d)-(\d+)$/.exec(st.id); if (m) stageCount[m[1]] = Math.max(stageCount[m[1]] || 0, parseInt(m[2], 10)); }); });
+  });
+  const unit0 = {};
+  T.UNITS3.forEach(function (u) { unit0[u.units[0]] = u; });
+  TB.SUBJECTS.forEach(function (s) {
+    const pubs = TB.list(s.id);
+    check(pubs.length >= 3, s.id + ': 出版社 3社 いじょう（' + pubs.length + '）');
+    const ids = {};
+    pubs.forEach(function (p) { check(!ids[p.id], s.id + ': 出版社 id が かぶる ' + p.id); ids[p.id] = 1; check(!!p.name && !!p.book, s.id + ' ' + p.id + ': name と book'); });
+    const def = TB.defaultId(s.id);
+    check(!(TB.STAGE[s.id] && TB.STAGE[s.id][def]) && !(TB.UNIT[s.id] && TB.UNIT[s.id][def]), s.id + ': きほん（' + def + '）は 表を もたない');
+    Object.keys(TB.STAGE[s.id] || {}).forEach(function (pid) {
+      check(!!ids[pid], s.id + ': STAGE の 出版社 ' + pid + ' が 一覧に ない');
+      Object.keys(TB.STAGE[s.id][pid]).forEach(function (prefix) {
+        check(TB.subjectOfPrefix(prefix) === s.id, s.id + ' ' + pid + ': prefix ' + prefix + ' は この 教科の もの');
+        Object.keys(TB.STAGE[s.id][pid][prefix]).forEach(function (no) {
+          const t = TB.STAGE[s.id][pid][prefix][no];
+          check(parseInt(no, 10) >= 1 && parseInt(no, 10) <= (stageCount[prefix] || 0), s.id + ' ' + pid + ' ' + prefix + ': ステージ ' + no + ' は ない（' + stageCount[prefix] + 'まで）');
+          check(t >= 1 && t <= 4, s.id + ' ' + pid + ' ' + prefix + '-' + no + ': 学期 ' + t);
+          check(t !== T.stageTerm(prefix.replace(/(\d)$/, '$1-') + no, { grade: 9, term: 0, units: {}, books: {} }), s.id + ' ' + pid + ' ' + prefix + '-' + no + ': きほんと 同じ 学期を 書いて いる（消して よい）');
+        });
+      });
+    });
+    Object.keys(TB.UNIT[s.id] || {}).forEach(function (pid) {
+      check(!!ids[pid], s.id + ': UNIT の 出版社 ' + pid + ' が 一覧に ない');
+      Object.keys(TB.UNIT[s.id][pid]).forEach(function (u) {
+        check(!!unit0[u], s.id + ' ' + pid + ': 単元 ' + u + ' は UNITS3 の 先頭に ない');
+        if (unit0[u]) check(TB.UNIT[s.id][pid][u] !== unit0[u].term, s.id + ' ' + pid + ' ' + u + ': きほんと 同じ 学期');
+      });
+    });
+  });
+  // えらぶと 学期が 変わる：小3 算数 東京書籍は ぼうグラフ（5）が 3学期・長さ（8）が 1学期
+  const g3 = MQ.content.world('g3');
+  MQ.content.setActive(g3);
+  const ss = MQ.content.areaOf('sansu').stages;
+  const base0 = { grade: 3, term: 1, units: {}, books: {} };
+  const tokyo = { grade: 3, term: 1, units: {}, books: { sansu: 'tokyo' } };
+  check(T.stageTerm('sansu3-5', base0) === 1 && T.stageTerm('sansu3-5', tokyo) === 3, '東京書籍: ぼうグラフは 3学期');
+  check(T.stageTerm('sansu3-8', base0) === 2 && T.stageTerm('sansu3-8', tokyo) === 1, '東京書籍: 長さは 1学期');
+  T.forcePlayer(tokyo);
+  check(!MQ.content.isAvailable(ss[4]) && MQ.content.isAvailable(ss[7]) && MQ.content.isAvailable(ss[0]), '東京書籍・1学期: ぼうグラフ 閉じる・長さ 開く');
+  check(T.entries(3).filter(function (e) { return e.key === 'sansu3-5'; })[0].term === 3, 'おうちの人ページの 一覧も 東京書籍の 学期');
+  T.forcePlayer(base0);
+  check(MQ.content.isAvailable(ss[4]) && !MQ.content.isAvailable(ss[7]), 'きほん・1学期: ぼうグラフ 開く・長さ 閉じる');
+  // 小3 国語（光村）：ローマ字が 1学期
+  const mitsu = { grade: 3, term: 1, units: {}, books: { kokugo: 'mitsumura' } };
+  check(T.unitLearned(base0, 'ローマ字', 3) === false && T.unitLearned(mitsu, 'ローマ字', 3) === true, '光村: ローマ字は 1学期');
+  T.forcePlayer(mitsu);
+  check(MQ.content.isAvailable(MQ.content.areaOf('kokugo').stages[4]), '光村・1学期: ローマ字の ステージが 開く');
+  // 小3 理科（大日本）：風とゴムが 2学期＝rikashakai の 単元は 出版社 rika を 見る
+  const dai = { grade: 3, term: 1, units: {}, books: { rika: 'dainippon', shakai: 'kyoiku' } };
+  check(T.unitLearned(base0, '理科／風とゴム', 3) === true && T.unitLearned(dai, '理科／風とゴム', 3) === false, '大日本図書: 風とゴムは 2学期');
+  check(T.unitLearned(dai, '社会／消防', 3) === false && T.unitLearned({ grade: 3, term: 2, units: {}, books: { shakai: 'kyoiku' } }, '社会／消防', 3) === true, '教育出版（社会）: 消防は 2学期');
+  // しらない 出版社は きほん
+  check(TB.pick({ books: { sansu: 'nazo' } }, 'sansu') === 'nichibun', 'しらない 出版社 id は きほん');
+  // setBook：その 教科の ✓だけ 消える
+  const pl = { grade: 3, term: 1, units: { 'sansu3-7': true, 'unit:理科／電気': true, 'unit:ローマ字': true, 'kokugo3-5': false }, books: {} };
+  check(TB.setBook(pl, 'sansu', 'keirin') === true && pl.books.sansu === 'keirin', 'setBook で 入る');
+  check(!('sansu3-7' in pl.units) && pl.units['unit:理科／電気'] === true && pl.units['unit:ローマ字'] === true, 'setBook: 算数の ✓だけ 消える');
+  TB.setBook(pl, 'kokugo', 'mitsumura');
+  check(!('unit:ローマ字' in pl.units) && !('kokugo3-5' in pl.units) && pl.units['unit:理科／電気'] === true, 'setBook: 国語の ✓（単元と ローマ字の ステージ）だけ 消える');
+  TB.setBook(pl, 'rika', 'keirin');
+  check(!('unit:理科／電気' in pl.units), 'setBook: 理科の 単元も 消える');
+  check(TB.setBook(pl, 'sansu', 'nazo') === false && TB.setBook(pl, 'nazo', 'tokyo') === false, 'setBook: しらない ものは 入らない');
+  // 学年ごとの 教科：小1・小2は 算数と 国語だけ・小3は 5教科（理科社会は rikashakai から）・英語は 小5から
+  check(TB.subjectsFor(1).map(function (s) { return s.id; }).join(',') === 'sansu,kokugo', '小1の 教科: ' + TB.subjectsFor(1).map(function (s) { return s.id; }).join(','));
+  check(TB.subjectsFor(3).length === 5 && TB.subjectsFor(4).length === 5, '小3・小4の 教科は 5つ');
+  check(TB.subject('eigo').fromGrade === 5, '英語の 出版社は 小5から');
+  check(TB.summary({ books: {} }) === 'きほんの まま' && TB.summary({ books: { sansu: 'tokyo' } }) === '算数 東京書籍', 'summary の 文: ' + TB.summary({ books: { sansu: 'tokyo' } }));
+  // 古い セーブ：books が なくても 動く（migrate が {} を 入れる）
+  const old = { grade: 3, term: 1, units: {} };
+  check(T.stageTerm('sansu3-5', old) === 1, '古い セーブ（books なし）は きほん');
+  T.forcePlayer(null);
+  MQ.content.setActive(null);
+  let n = 0;
+  TB.SUBJECTS.forEach(function (s) { n += TB.list(s.id).length; });
+  console.log('教科書（出版社）: 5教科 ' + n + '社・表 OK');
 })();
 /* ===== エラーの 保険（v7.6）===== */
 (function () {

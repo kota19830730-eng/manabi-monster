@@ -13,6 +13,8 @@
    ・時期は 教科書の 一般的な じゅん（算数は 日本文教出版の 年間計画）。
      学校で 前後するので、単元ごとの チェックで 直せる。
    ・表に ない unit は「ならった」あつかい（出す）。
+   ・v12.4：教科書（出版社）を えらぶと、その 出版社の 表（textbooks.js）が ここの 表より 先に 見られる。
+     ここの 表＝各教科の「きほん」の 出版社（算数 日文・国語 東書 など）。
    --------------------------------------------------------- */
 window.MQ = window.MQ || {};
 
@@ -131,10 +133,23 @@ MQ.terms = (function () {
     if (!m) return null;
     return { prefix: m[1] + m[2], no: parseInt(m[3], 10), grade: parseInt(m[2], 10) };
   }
-  function stageTerm(stageId) {
+  /* v12.4：教科書（出版社）を えらんで いれば その 表が 先（textbooks.js）。player を はぶくと いまの 子 */
+  function stageTerm(stageId, player) {
     const p = parseStageId(stageId);
     if (!p || !STAGE_TERM[p.prefix]) return 0;
+    if (MQ.textbooks) {
+      const t = MQ.textbooks.stageTerm(player === undefined ? current() : player, p.prefix, p.no);
+      if (typeof t === 'number') return t;
+    }
     return STAGE_TERM[p.prefix][p.no] || 0;
+  }
+  // 小3 リスト教科の 単元の 学期（出版社の 表 → きほん）
+  function unitTerm(player, e) {
+    if (MQ.textbooks) {
+      const t = MQ.textbooks.unitTerm(player, e);
+      if (typeof t === 'number') return t;
+    }
+    return e.term;
   }
 
   /* ---- だれの 設定を 見るか ---- */
@@ -170,14 +185,14 @@ MQ.terms = (function () {
     return !!term && term <= t;         // term 4（小4）は ぜんぶ の ときだけ
   }
   function stageLearned(player, stageId) {
-    const term = stageTerm(stageId);
+    const term = stageTerm(stageId, player);
     if (!term) return true;             // 表に ない ステージ（塔など）
     return learnedTerm(player, term, stageId);
   }
   function unitLearned(player, unitStr, grade) {
     const e = unitEntryOf(unitStr, grade);
     if (!e) return true;
-    return learnedTerm(player, e.term, e.key);
+    return learnedTerm(player, unitTerm(player, e), e.key);
   }
   // 問題を 出して よいか（単元の チェック）
   function allowQ(player, q, grade) {
@@ -187,7 +202,7 @@ MQ.terms = (function () {
   function learned(player, key) {
     if (String(key).indexOf('unit:') === 0) {
       const e = UNITS3.filter(function (u) { return u.key === key; })[0];
-      return e ? learnedTerm(player, e.term, e.key) : true;
+      return e ? learnedTerm(player, unitTerm(player, e), e.key) : true;
     }
     return stageLearned(player, key);
   }
@@ -203,15 +218,16 @@ MQ.terms = (function () {
     return m >= 9 ? 2 : m <= 3 ? 3 : 1;
   }
 
-  function entries(grade) {
+  function entries(grade, player) {
     const g = grade || 3;
+    const pl = player === undefined ? current() : player;
     const out = [];
     const w = MQ.content && MQ.content.worldForGrade ? MQ.content.worldForGrade(g) : null;
     if (w) {
       w.areas.forEach(function (a) {
         if (a.id === 'tower') return;
         a.stages.forEach(function (st) {
-          const term = stageTerm(st.id);
+          const term = stageTerm(st.id, pl);
           if (!term) return;
           if (g === 3 && a.id === 'kokugo' && st.no !== 5) return;   // 小3 国語は 単元で（ローマ字だけ ステージ）
           out.push({ key: st.id, name: st.name, area: a.id, term: term, kind: 'stage', ready: st.available !== false });
@@ -221,7 +237,7 @@ MQ.terms = (function () {
     if (g === 3) {
       UNITS3.forEach(function (u) {
         if (u.units[0] === 'ローマ字') return;   // ローマ字は ステージ kokugo3-5 の 行で
-        out.push({ key: u.key, name: u.name, area: u.area, term: u.term, kind: 'unit', ready: true });
+        out.push({ key: u.key, name: u.name, area: u.area, term: unitTerm(pl, u), kind: 'unit', ready: true });
       });
     }
     return out;
@@ -234,7 +250,7 @@ MQ.terms = (function () {
 
   return {
     TERM_NAMES: TERM_NAMES, UNITS3: UNITS3,
-    unitEntryOf: unitEntryOf, stageTerm: stageTerm, termOf: termOf, reviewing: reviewing, settingTerm: settingTerm,
+    unitEntryOf: unitEntryOf, stageTerm: stageTerm, unitTerm: unitTerm, termOf: termOf, reviewing: reviewing, settingTerm: settingTerm,
     stageLearned: stageLearned, unitLearned: unitLearned, allowQ: allowQ, learned: learned,
     entries: entries, whenText: whenText,
     suggested: suggested, now: now, setNow: function (d) { NOW = d || null; },

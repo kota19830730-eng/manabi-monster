@@ -127,6 +127,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/rikashakai3.js"></script>
 <script src="../js/content/eigo3.js"></script>
 <script src="../js/content/romaji3.js"></script>
+<script src="../js/content/textbooks.js"></script>
 <script src="../js/content/terms.js"></script>
 <script src="../js/content/world3.js"></script>
 <script src="../js/content/news.js"></script>
@@ -1063,6 +1064,26 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const open = [];
       MQ.content.subjectAreas().forEach(function (a) { a.stages.forEach(function (st) { if (MQ.content.isAvailable(st)) open.push(st.id); }); });
       say('term1 open: ' + open.join(' '));
+      return;
+    }
+    /* 教科書（出版社）（v12.4）：#books おうちの人ページ（算数＝東京書籍・1学期）／#books:map その 地図 */
+    if (mode === 'books' || mode.indexOf('books:') === 0) {
+      fresh();
+      MQ.save.update(function (pl) { pl.term = 1; pl.units = {}; MQ.textbooks.setBook(pl, 'sansu', 'tokyo'); MQ.textbooks.setBook(pl, 'kokugo', 'mitsumura'); });
+      const open = [];
+      MQ.content.subjectAreas().forEach(function (a) { a.stages.forEach(function (st) { if (MQ.content.isAvailable(st)) open.push(st.id); }); });
+      say('books open: ' + open.join(' '));
+      say('books term(sansu3-5)=' + MQ.terms.stageTerm('sansu3-5') + ' term(kokugo3-5)=' + MQ.terms.stageTerm('kokugo3-5') + ' roma=' + MQ.terms.unitLearned(MQ.save.current(), 'ローマ字', 3));
+      if (mode === 'books:map') { MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint(); }
+      else {
+        MQ.ui.parent.open('settings');
+        await wait(200);
+        const on = $$('.chip--book.is-on').map(function (b) { return b.textContent; });
+        say('books chips on: ' + on.join(' / ') + ' rows=' + $$('.bookrow').length);
+        // クリックで 変わるか（ボタンを click() する きまり）
+        const kb = $$('.chip--book').filter(function (b) { return b.textContent === '啓林館'; })[0];
+        if (kb) { kb.click(); await wait(200); say('books after click: sansu=' + MQ.textbooks.pick(MQ.save.current(), 'sansu') + ' term(sansu3-5)=' + MQ.terms.stageTerm('sansu3-5')); }
+      }
       return;
     }
     if (mode === 'parent') { fresh(); MQ.ui.parent.open('settings'); return; }

@@ -61,6 +61,8 @@ MQ.save = (function () {
     // 学期（v2.6）：0 = ぜんぶ／1〜3 = その学期まで。units は 単元ごとの 上書き
     if ([0, 1, 2, 3].indexOf(p.term) === -1) p.term = 0;
     if (!p.units || typeof p.units !== 'object' || Array.isArray(p.units)) p.units = {};
+    // 教科書（出版社）（v12.4）：{ sansu: 'tokyo', ... }。ない 教科は きほん。転校しても 学年を 変えても のこる
+    if (!p.books || typeof p.books !== 'object' || Array.isArray(p.books)) p.books = {};
     if (!Array.isArray(p.gear)) p.gear = [];
     if (!Array.isArray(p.titles)) p.titles = ['t-minarai'];
     if (!p.title) p.title = 't-minarai';

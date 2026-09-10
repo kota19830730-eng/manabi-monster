@@ -530,6 +530,39 @@ MQ.ui.dex = (function () {
      学校で ならった ところ（v2.6・おうちの人が 決める）
        学期ボタン（1〜3・ぜんぶ）＋ 単元ごとの チェック。表は js/content/terms.js
      ======================================================= */
+  /* 教科書（出版社）（v12.4）：教科ごとに チップ。えらぶと 学期の 表が その 出版社の じゅんばんに なる。
+     表は 目安（textbooks.js）。ちがう ところは 下の 単元の ✓ で 直す */
+  function booksBlock(player, grade) {
+    const TB = MQ.textbooks;
+    if (!TB) return null;
+    const rows = TB.subjectsFor(grade).map(function (s) {
+      const cur = TB.pick(player, s.id);
+      const chips = TB.list(s.id).map(function (pb) {
+        return h('button', {
+          class: 'chip chip--book' + (cur === pb.id ? ' is-on' : ''), type: 'button', text: pb.name,
+          title: pb.book,
+          onclick: function () {
+            if (cur === pb.id) return;
+            MQ.sfx.tap();
+            MQ.save.update(function (pl) { TB.setBook(pl, s.id, pb.id); });
+            MQ.ui.toast(s.name + 'の 教科書を ' + pb.name + ' に しました');
+            render('parent');
+          }
+        });
+      });
+      const soon = s.fromGrade && grade < s.fromGrade;
+      return h('div', { class: 'bookrow' }, [
+        h('div', { class: 'bookrow__name', text: s.name + (soon ? '（小' + s.fromGrade + 'から）' : '') }),
+        soon ? h('p', { class: 'note bookrow__note', text: s.sameNote }) : h('div', { class: 'termrow bookrow__chips' }, chips),
+        !soon && s.sameNote ? h('p', { class: 'note bookrow__note', text: s.sameNote }) : null
+      ]);
+    });
+    return h('div', { class: 'books' }, [
+      h('h3', { class: 'ulist__name', text: '教科書（出版社）' }),
+      h('p', { class: 'note', text: '学校で 使って いる 教科書を えらぶと、下の 学期の 表が その 教科書の じゅんばんに なります。転校した ときも ここで 変えられます。表は 各社の 年間指導計画を もとに した 目安です。学校と ちがう ところは 下の 単元を 押して 直してください。' })
+    ].concat(rows));
+  }
+
   function termsSection(player) {
     const grade = player.grade || 3;
     const term = MQ.terms.settingTerm(player);
@@ -591,6 +624,8 @@ MQ.ui.dex = (function () {
     return h('div', { class: 'terms' }, [
       h('h2', { class: 'label', text: '学校で ならった ところ' }),
       h('p', { class: 'note', text: 'チェックの ある 単元の 問題だけ 出ます。学期を えらぶと 教科書の じゅんに そろい、単元を 押すと 1つずつ 変えられます（学校の 進み方に 合わせて）。' }),
+      booksBlock(player, grade),
+      h('h3', { class: 'ulist__name', text: '学期' }),
       btns,
       h('p', { class: 'note' }, [
         h('span', { text: 'この 子の 学年は 小' + grade + 'です。上の せっていは 小' + grade + 'の 問題にだけ かかります。' }),
