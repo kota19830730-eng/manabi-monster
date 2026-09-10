@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D モーションの 見本</title>
+<link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="motion.css">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0d1220; color: #eaf0ff; font-family: "Zen Maru Gothic", system-ui, sans-serif; font-weight: 500; }
+  h1, h2, .cell .t, .btn { font-family: "Mochiy Pop One", "Zen Maru Gothic", system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 14px 14px 60px; }
+  h1 { font-size: 19px; margin: 6px 0 2px; color: #ffd447; }
+  h2 { font-size: 15px; margin: 22px 0 2px; color: #ffd447; }
+  p { font-size: 13px; line-height: 1.75; margin: 4px 0 10px; color: #b9c7ea; }
+  .bar { position: sticky; top: 0; z-index: 9; display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 0; background: rgba(13,18,32,.96); }
+  .btn { font-size: 13px; padding: 8px 14px; border-radius: 10px; border: 2px solid #ffd447; background: #2a3a7a; color: #fff; cursor: pointer; box-shadow: 0 3px 0 #16224a; }
+  .btn:active { transform: translateY(2px); box-shadow: none; }
+  .btn.is-on { background: #ffd447; color: #1a2340; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .cell { background: #16224a; border: 2px solid #2b3a6b; border-radius: 12px; padding: 10px 10px 8px; text-align: center; }
+  .cell .t { font-size: 11px; color: #ffd447; margin-bottom: 6px; }
+  .cell .n { font-size: 10px; color: #8fa2cf; margin-top: 6px; }
+  .scene { perspective: 1100px; display: flex; align-items: flex-end; justify-content: center; }
+  .fig { transform-style: preserve-3d; transform: rotateX(8deg) rotateY(var(--ry, -22deg)); }
+  .hold { display: flex; align-items: flex-end; transform-style: preserve-3d; }
+  .duel { background: linear-gradient(#1a2a5c, #16224a 70%, #0f1a3d); border: 2px solid #ffd447; border-radius: 14px; }
+  .duel .scene { height: 360px; width: 100%; justify-content: space-around; }
+  .duel .fig { --ry: -22deg; }
+  .duel .fig.hero { --ry: 22deg; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>3D モーションの 見本（主人公 と 息子さんの モンスター）</h1>
+  <p>ボタンを おすと ぜんぶが その 動きを します。おわると 待機（主人公＝うでが ゆれる／モンスター＝いまにも おそって きそうに 前かがみで ゆすり、ときどき ぐっと ふみこむ）に もどります。部品は 形から 自動で 見つけて います（下の 小さい 字）。</p>
+  <div class="bar" id="bar"></div>
+  <h2>① たいけつ（実さいの バトルの 向き・大きめ）</h2>
+  <div class="duel"><div class="scene" id="duel"></div></div>
+  <h2>② ぜんいん（190px）</h2>
+  <div class="row" id="all"></div>
+</div>
+
+<script src="../../js/core/util.js"></script>
+<script src="../../js/core/pixel.js"></script>
+<script src="../../js/core/blocks.js"></script>
+<script src="../../js/content/monsterart.js"></script>
+<script src="../../js/content/monstergen.js"></script>
+<script src="../../js/content/face.js"></script>
+<script src="../../js/content/enemies.js"></script>
+<script src="../../js/content/hero.js"></script>
+<script src="../../js/content/art.js"></script>
+<script src="vox2.js"></script>
+<script>
+const q = new URLSearchParams(location.hash.slice(1));
+const MO = [
+  ['walk', '登場（歩く）', 600], ['attack', 'こうげき', 500], ['hurt', 'くらう', 500],
+  ['lunge', 'ため→とび出す', 700], ['fall', 'たおれる', 1000], ['win', 'かち', 900]
+];
+const figs = [];   // { v3, hero }
+
+function el(tag, cls, text) { const d = document.createElement(tag); if (cls) d.className = cls; if (text) d.textContent = text; return d; }
+function hold(node, from, to) {
+  const h = el('div', 'hold');
+  h.style.width = to + 'px'; h.style.height = to + 'px';
+  h.style.transform = 'scale3d(' + [(to / from), (to / from), (to / from)].join(',') + ')';
+  h.style.transformOrigin = 'center bottom';
+  h.appendChild(node);
+  const w = el('div'); w.style.width = to + 'px'; w.style.height = to + 'px'; w.style.transformStyle = 'preserve-3d';
+  w.style.display = 'flex'; w.style.alignItems = 'flex-end';
+  w.appendChild(h);
+  return w;
+}
+function idle(v3) { v3.classList.add(v3.classList.contains('v3--hero') ? 'mo-idle' : 'mo-menace'); }
+function monster(id, size) {
+  const bx = MQ.enemies.node(id, { size: 48 }).querySelector('.bx');
+  const U = Math.max(1, Math.floor(size / 48));
+  const v = VOX2.fromBx(bx, { unit: U });
+  idle(v);
+  figs.push(v);
+  return { node: hold(v, 48 * U, size), parts: v.dataset.parts };
+}
+function hero(img, src, size) {
+  const U = Math.max(2, Math.floor(size / 48));
+  const v = VOX2.fromHero(img, src, { unit: U });
+  v.classList.add('v3--hero');
+  idle(v);
+  figs.push(v);
+  return { node: hold(v, 48 * U, size), parts: v.dataset.parts };
+}
+function cell(title, made, size, ry) {
+  const c = el('div', 'cell');
+  c.appendChild(el('div', 't', title));
+  const s = el('div', 'scene');
+  s.style.width = (size + 150) + 'px'; s.style.height = (size + 40) + 'px';
+  const f = el('div', 'fig');
+  f.style.setProperty('--ry', ry + 'deg');
+  f.appendChild(made.node); s.appendChild(f); c.appendChild(s);
+  c.appendChild(el('div', 'n', partsText(made.parts)));
+  return c;
+}
+function partsText(p) {
+  const m = {}; (p || '').split(' ').forEach(function (s) { const a = s.split(':'); m[a[0]] = (m[a[0]] || 0) + +a[1]; });
+  const legs = (m.legA || 0) + (m.legB || 0), wings = (m.wingL || 0) + (m.wingR || 0);
+  return '体 ' + (m.body || 0) + '・頭 ' + (m.head || 0) + '・うで ' + ((m.armL || 0) + (m.armR || 0)) + '・あし ' + legs + '・はね ' + wings;
+}
+
+let timer = null;
+function play(mo) {
+  clearTimeout(timer);
+  const ms = (MO.find(function (m) { return m[0] === mo; }) || [0, 0, 600])[2];
+  figs.forEach(function (v) {
+    v.className = v.className.replace(/\bmo-\S+/g, '').trim();
+    void v.offsetWidth;                                   // アニメを 頭から
+    v.classList.add('mo-' + mo);
+  });
+  document.querySelectorAll('.btn').forEach(function (b) { b.classList.toggle('is-on', b.dataset.mo === mo); });
+  timer = setTimeout(function () {
+    figs.forEach(function (v) { v.className = v.className.replace(/\bmo-\S+/g, '').trim(); idle(v); });
+    document.querySelectorAll('.btn').forEach(function (b) { b.classList.remove('is-on'); });
+  }, ms + (mo === 'fall' ? 900 : 120));
+}
+function playAll() {
+  let i = 0;
+  const next = function () {
+    if (i >= MO.length) return;
+    const m = MO[i++];
+    play(m[0]);
+    setTimeout(next, m[2] + (m[0] === 'fall' ? 1100 : 700));
+  };
+  next();
+}
+
+const bar = document.getElementById('bar');
+MO.forEach(function (m) {
+  const b = el('button', 'btn', m[1]); b.dataset.mo = m[0];
+  b.onclick = function () { play(m[0]); };
+  bar.appendChild(b);
+});
+const all = el('button', 'btn', 'つづけて ぜんぶ'); all.onclick = playAll; bar.appendChild(all);
+
+const player = { level: 30, look: {}, equipped: {} };
+const weapons = MQ.hero.gear.filter(function (g) { return g.slot === 'weapon'; });
+if (weapons[1]) player.equipped.weapon = weapons[1].id;      // てつの けん
+const src = MQ.hero.sprite(player);
+const img = new Image();
+img.onload = function () {
+  if (q.has('hero')) {                                   // 主人公だけ 大きく 3方向＋部品の 数字
+    document.querySelector('.wrap').style.maxWidth = '1900px'; document.querySelector('.duel').remove(); document.querySelectorAll('h2, .bar, p').forEach(function (x) { x.remove(); });
+    const row = document.getElementById('all');
+    [22, 0, -30].forEach(function (ry) { row.appendChild(cell('主人公 ' + ry + '°', hero(img, src, 420), 420, ry)); });
+    const v = figs[0]; const L = [];
+    v.querySelectorAll('.p').forEach(function (p) { p.querySelectorAll(':scope > .b').forEach(function (b) { L.push(p.className.replace('p p--', '') + ':' + [b.style.left, b.style.top, b.style.width, b.style.height].map(parseFloat).join(',') + ',' + b.style.transform.replace(/[^0-9.]/g, '')); }); });
+    document.body.appendChild(el('pre', 'dbg', L.join(' | ')));
+    const shot = q.get('shot');
+    if (shot) { const a = shot.split(':'); play(a[0]); clearTimeout(timer); }
+    requestAnimationFrame(function () { document.getAnimations().forEach(function (an) { an.pause(); an.currentTime = shot ? (+shot.split(':')[1] || 0) * 1000 : 0; }); document.body.dataset.ready = '1'; });
+    return;
+  }
+  // ① たいけつ
+  const duel = document.getElementById('duel');
+  const fh = el('div', 'fig hero'); fh.appendChild(hero(img, src, 300).node); duel.appendChild(fh);
+  const fm = el('div', 'fig'); fm.appendChild(monster('sameoni', 300).node); duel.appendChild(fm);
+  // ② ぜんいん
+  const row = document.getElementById('all');
+  row.appendChild(cell('主人公', hero(img, src, 190), 190, 22));
+  [['skullhorse', 'スカルホース'], ['sameoni', 'サメオニ'], ['zukan', 'ずかんの あくま'], ['abc-a', 'エー'], ['boss-hades', 'メイオウハデス']].forEach(function (m) {
+    row.appendChild(cell(m[1], monster(m[0], 190), 190, -22));
+  });
+  // 撮る 用：#shot=<動き>:<秒>
+  const shot = q.get('shot');
+  if (shot) {
+    const a = shot.split(':');
+    play(a[0]); clearTimeout(timer);
+    requestAnimationFrame(function () {
+      document.getAnimations().forEach(function (an) { an.pause(); an.currentTime = (+a[1] || 0) * 1000; });
+      document.body.dataset.ready = '1';
+    });
+  } else if (q.has('static')) {
+    requestAnimationFrame(function () { document.getAnimations().forEach(function (an) { an.pause(); an.currentTime = 0; }); document.body.dataset.ready = '1'; });
+  } else document.body.dataset.ready = '1';
+};
+img.src = src;
+</script>
+</body>
+</html>

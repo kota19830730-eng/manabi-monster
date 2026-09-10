@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3Dの 試作 v3（前の 試作と くらべる）</title>
+<link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0d1220; color: #eaf0ff; font-family: "Zen Maru Gothic", system-ui, sans-serif; font-weight: 500; }
+  h1, h2, .cell .t, .tag { font-family: "Mochiy Pop One", "Zen Maru Gothic", system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 14px 14px 40px; }
+  h1 { font-size: 19px; margin: 6px 0 2px; color: #ffd447; }
+  h2 { font-size: 15px; margin: 24px 0 2px; color: #ffd447; }
+  p { font-size: 13px; line-height: 1.75; margin: 4px 0 10px; color: #b9c7ea; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .cell { background: #16224a; border: 2px solid #2b3a6b; border-radius: 12px; padding: 10px 10px 8px; text-align: center; }
+  .cell.new { border-color: #ffd447; }
+  .cell .t { font-size: 11px; color: #9fb2dd; margin-bottom: 6px; }
+  .cell.new .t { color: #ffd447; }
+  .cell .n { font-size: 10px; color: #6f80ad; margin-top: 6px; }
+  .scene { perspective: 1100px; display: flex; align-items: flex-end; justify-content: center; }
+  .fig { transform-style: preserve-3d; transform: rotateX(8deg) rotateY(var(--ry, -28deg)); }
+  .fig.spin { animation: spin3d 7s ease-in-out infinite alternate; }
+  @keyframes spin3d { from { transform: rotateX(8deg) rotateY(-34deg); } to { transform: rotateX(8deg) rotateY(34deg); } }
+  .v3 { position: relative; transform-style: preserve-3d; }
+  .v3 .b { position: absolute; transform-style: preserve-3d; }
+  .v3 .f { position: absolute; left: 0; top: 0; }
+  .bx { position: relative; }
+  .bx i { position: absolute; display: block; image-rendering: pixelated; }
+  .bxbox { position: relative; flex: none; }
+  .bxbox > .bx { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .bxbox__png { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
+  .tbl { font-size: 12px; border-collapse: collapse; margin: 6px 0 14px; }
+  .tbl td, .tbl th { border: 1px solid #2b3a6b; padding: 4px 10px; text-align: left; }
+  .tbl th { color: #ffd447; }
+  .hint { position: fixed; left: 0; right: 0; bottom: 0; padding: 7px 10px; background: rgba(13,18,32,.94); border-top: 2px solid #2b3a6b; font-size: 12px; color: #ffd447; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { .fig.spin { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="out"></div>
+<div class="hint" id="hint"></div>
+
+<script src="../../js/core/util.js"></script>
+<script src="../../js/core/pixel.js"></script>
+<script src="../../js/core/blocks.js"></script>
+<script src="../../js/content/monsterart.js"></script>
+<script src="../../js/content/monstergen.js"></script>
+<script src="../../js/content/face.js"></script>
+<script src="../../js/content/enemies.js"></script>
+<script src="../../js/content/hero.js"></script>
+<script src="../../js/content/art.js"></script>
+<script src="vox.js"></script>
+<script src="vox2.js"></script>
+<script>
+const q = new URLSearchParams(location.hash.slice(1));
+const STATIC = q.has('static');
+const BIG = q.has('big');
+const HERO = q.has('hero');
+const RY = q.get('ry') == null ? -28 : +q.get('ry');
+const out = document.getElementById('out');
+
+function el(tag, cls, text) { const d = document.createElement(tag); if (cls) d.className = cls; if (text) d.textContent = text; return d; }
+function head(tag, text, note) {
+  out.appendChild(el(tag, null, text));
+  if (note) out.appendChild(el('p', null, note));
+  const r = el('div', 'row'); out.appendChild(r); return r;
+}
+function cell(title, node, size, note, isNew, ry) {
+  const c = el('div', 'cell' + (isNew ? ' new' : ''));
+  c.appendChild(el('div', 't', title));
+  const s = el('div', 'scene');
+  s.style.width = (size + 96) + 'px'; s.style.height = (size + 52) + 'px';
+  const f = el('div', 'fig' + (STATIC || ry != null ? '' : ' spin'));
+  f.style.setProperty('--ry', (ry == null ? RY : ry) + 'deg');
+  f.appendChild(node); s.appendChild(f); c.appendChild(s);
+  if (note) c.appendChild(el('div', 'n', note));
+  return c;
+}
+function flatCell(title, node, size, note) {
+  const c = el('div', 'cell');
+  c.appendChild(el('div', 't', title));
+  const s = el('div', 'scene');
+  s.style.width = (size + 96) + 'px'; s.style.height = (size + 52) + 'px';
+  s.appendChild(node); c.appendChild(s);
+  if (note) c.appendChild(el('div', 'n', note));
+  return c;
+}
+function scale(node, from, to) {
+  node.style.transform = 'scale3d(' + [(to / from), (to / from), (to / from)].join(',') + ')';
+  node.style.transformOrigin = 'center bottom';
+  const hold = el('div');
+  hold.style.width = to + 'px'; hold.style.height = to + 'px';
+  hold.style.display = 'flex'; hold.style.alignItems = 'flex-end'; hold.style.transformStyle = 'preserve-3d';
+  hold.appendChild(node);
+  return hold;
+}
+let stat = { old: { boxes: 0, el: 0, ms: 0 }, neu: { boxes: 0, el: 0, ms: 0 } };
+function mon(id, size, neu) {
+  const holder = MQ.enemies.node(id, { size: 48 });
+  const bx = holder.querySelector('.bx');
+  const t0 = performance.now();
+  const U = neu ? Math.max(1, Math.floor(size / 48)) : 1;           // あたらしい 版は 表示の 大きさで 作る
+  const v = neu ? VOX2.fromBx(bx, { unit: U }) : VOX.fromBx(bx);
+  const ms = performance.now() - t0;
+  const s = neu ? stat.neu : stat.old;
+  s.boxes += +v.dataset.boxes; s.el += v.querySelectorAll('*').length; s.ms += ms;
+  return { node: scale(v, 48 * U, size), boxes: v.dataset.boxes, els: v.querySelectorAll('*').length, ms: ms };
+}
+
+/* ---------------- 1. 息子さんの モンスター ---------------- */
+let r = head('h1', '3Dの 試作 v3 ＝「もっと よく」した 版（前の 試作と ならべて）',
+  '左＝いまの 2D／まん中＝前の 試作（イイ感じ と 言って もらった もの）／右（金わく）＝あたらしい 版。絵は 1つも 描き直して いません。');
+const T = document.createElement('table'); T.className = 'tbl';
+T.innerHTML = '<tr><th>変えた ところ</th><th>前の 試作</th><th>あたらしい 版</th></tr>' +
+  '<tr><td>前の 面</td><td>色だけの 絵（質感・光る 目が 消える）</td><td><b>本物の 2Dの 部品を そのまま 貼る</b>（金・宝石・ほねの 質感、光る 目が のこる）</td></tr>' +
+  '<tr><td>よこ・上の 面</td><td>1色の べた塗り（のばした 板に 見える）</td><td><b>ふちの 色を 1行ずつ＋おくほど 暗く＋ざらつき</b>（つみ木の 面）</td></tr>' +
+  '<tr><td>光</td><td>上を 白く・右を 黒く</td><td><b>左上の 手まえから あたたかい 光、かげは すこし 青</b>（主人公の v10.1 と 同じ 考え方）</td></tr>' +
+  '<tr><td>上の ふた</td><td>手まえに 4px 出て いた（実測）。だから 小さく して いた</td><td><b>うしろへ のびる 本物の 奥ゆき</b>。下の 面も つく</td></tr>' +
+  '<tr><td>足もと</td><td>なし</td><td><b>ゆかに おちる 影</b></td></tr>';
+out.appendChild(T);
+
+if (!BIG && !HERO) {
+r = head('h2', '① 息子さんの モンスター', '');
+[['skullhorse', 'スカルホース'], ['sameoni', 'サメオニ'], ['zukan', 'ずかんの あくま']].forEach(function (m) {
+  r.appendChild(flatCell(m[1] + '（いま）', MQ.enemies.node(m[0], { size: 120 }), 120));
+  const a = mon(m[0], 120, false);
+  r.appendChild(cell('前の 試作', a.node, 120, a.boxes + 'この 箱'));
+  const b = mon(m[0], 120, true);
+  r.appendChild(cell('あたらしい 版', b.node, 120, b.boxes + 'この 箱', true));
+});
+
+/* ---------------- 2. ゲームの モンスター ---------------- */
+r = head('h2', '② ゲームの モンスター', 'ボス・ザコ・カプセルの なかま。金や 宝石の 質感が のこる ものを えらんで います。');
+[['boss-dragon', 'ナンバードラゴン'], ['boss-hades', 'メイオウハデス'], ['slime-green', 'みどりスライム'],
+ ['golem-gray', 'ゴーレム'], ['cap-knight', 'ちいさな きし'], ['boss-dark', 'ダークロード']].forEach(function (m) {
+  r.appendChild(flatCell(m[1] + '（いま）', MQ.enemies.node(m[0], { size: 100 }), 100));
+  const a = mon(m[0], 100, false);
+  r.appendChild(cell('前の 試作', a.node, 100, a.boxes + 'この 箱'));
+  const b = mon(m[0], 100, true);
+  r.appendChild(cell('あたらしい 版', b.node, 100, b.boxes + 'この 箱', true));
+});
+
+}
+/* ---------------- 3. 大きく・4つの 角度 ---------------- */
+if (!HERO) {
+r = head('h2', '③ あたらしい 版を 大きく（4つの 角度）', '真横に 近い 角度でも 飛び出す ものが ない ことを 見る ため。');
+[['skullhorse', 'スカルホース'], ['sameoni', 'サメオニ'], ['zukan', 'ずかんの あくま'], ['boss-hades', 'メイオウハデス']].forEach(function (m) {
+  [-30, 0].forEach(function (ry) {
+    const b = mon(m[0], BIG ? 330 : 260, true);
+    r.appendChild(cell(m[1] + ' ' + ry + '°', b.node, BIG ? 330 : 260, null, true, ry));
+  });
+});
+
+}
+/* ---------------- 4. 主人公 ---------------- */
+r = head('h2', '④ 主人公（きみの キャラ）', '前の 面は もとから 96マスの HD なので 同じ。よこ・上の 面と 光・影が 変わります。');
+const player = { level: 30, look: {}, equipped: {} };
+const src = MQ.hero.sprite(player);
+const img = new Image();
+img.onload = function () {
+  const a = VOX.fromHero(img, src);
+  r.appendChild(cell('前の 試作', scale(a, 96, 150), 150, a.dataset.boxes + 'この 箱'));
+  const b = VOX2.fromHero(img, src, { unit: 3 });
+  r.appendChild(cell('あたらしい 版', scale(b, 144, 150), 150, b.dataset.boxes + 'この 箱', true));
+  const HB = HERO ? 420 : (BIG ? 330 : 230);
+  (HERO ? [-30, 0] : [-40, -20, 25]).forEach(function (ry) {
+    const c = VOX2.fromHero(img, src, { unit: Math.floor(HB / 48) });
+    r.appendChild(cell('あたらしい 版 ' + ry + '°', scale(c, 48 * Math.floor(HB / 48), HB), HB, null, true, ry));
+  });
+  document.getElementById('hint').textContent =
+    '前の 試作：箱 ' + stat.old.boxes + '・部品 ' + stat.old.el + '・作るのに ' + stat.old.ms.toFixed(0) + 'ms　｜　' +
+    'あたらしい 版：箱 ' + stat.neu.boxes + '・部品 ' + stat.neu.el + '・作るのに ' + stat.neu.ms.toFixed(0) + 'ms（この ページ ぜんぶ）';
+  if (HERO) { const dbg = []; VOX2.fromHero(img, src).querySelectorAll('.b').forEach(function (b) { dbg.push([b.style.left, b.style.top, b.style.width, b.style.height, b.style.transform].join(' ')); }); document.getElementById('hint').textContent = dbg.join(' | '); }
+  if (q.get('dbg')) { const bx = MQ.enemies.node(q.get('dbg'), { size: 48 }).querySelector('.bx'); const v = VOX2.fromBx(bx); const L = []; v.querySelectorAll('.b').forEach(function (b) { L.push([parseInt(b.style.left), parseInt(b.style.top), parseInt(b.style.width), parseInt(b.style.height), 'z' + b.style.transform.replace(/[^0-9.]/g, '')].join(',')); }); document.getElementById('hint').textContent = 'DBG ' + L.join(' | '); }
+  document.body.dataset.ready = '1';
+};
+img.src = src;
+</script>
+</body>
+</html>

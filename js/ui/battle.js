@@ -398,6 +398,19 @@ MQ.ui.battle = (function () {
     return (g <= 2 ? 'よわい：' : '弱点：') + (a ? (a.short || a.name) : '');
   }
 
+  /* りったい（v12.0）：せっていが つけて あれば 主人公・てき・たからばこ・相棒を 3D に。絵も ルールも 同じ */
+  function V3() { return !!(MQ.ui.v3 && MQ.ui.v3.on()); }
+  function foeArt(id, size, o) {
+    o = o || {};
+    if (V3()) {
+      const n = id === 'chest'
+        ? MQ.ui.v3.chest(size, { cls: 'enemy__img3d', mo: 'mo-chest' })
+        : MQ.ui.v3.monster(id, size, { cls: 'enemy__img3d', enrage: !!o.enrage, mo: 'mo-menace' });
+      if (n) return n;
+    }
+    return MQ.enemies.node(id, { size: size, cls: 'enemy__img', enrage: !!o.enrage });
+  }
+
   function renderFoes(q) {
     d.foes.innerHTML = '';
     const last = MQ.battle.mode() === 'tower';
@@ -441,7 +454,7 @@ MQ.ui.battle = (function () {
       const wk = (q.weak && i === pos) ? q.weak : (boss && bossWeak && (i === pos || q.called) ? bossWeak : null);
 
       const box = h('div', { class: cls }, [
-        MQ.enemies.node(id, { size: size, cls: 'enemy__img', enrage: boss && enraged }),
+        foeArt(id, size, { enrage: boss && enraged }),
         h('div', { class: 'shadow shadow--foe' }),
         boss && sk && sk.kind === 'kamae' && !q.called ? h('span', { class: 'enemy__kamae' }) : null,
         // ラスボスは 名前が 長い（かいぞくキャプテン）ので「ラスボス」は 左上の ピルに まかせて 名前だけ（v6.4）
@@ -522,12 +535,14 @@ MQ.ui.battle = (function () {
       d.cur.classList.remove('is-appear', 'is-enrage', 'is-lunge');
       void d.cur.offsetWidth;
       d.cur.classList.add('is-lunge');
+      if (V3()) MQ.ui.v3.play(d.cur, 'mo-attack', 600);
       setTimeout(function () { if (d.cur) d.cur.classList.remove('is-lunge'); }, 600);
     }
     setTimeout(function () {
       d.hero.classList.remove('is-struck');
       void d.hero.offsetWidth;
       d.hero.classList.add('is-struck');
+      if (V3()) MQ.ui.v3.play(d.hero, 'mo-hurt', 550);
       shake(false);
       setTimeout(function () { d.hero.classList.remove('is-struck'); }, 650);
     }, 220);
@@ -684,6 +699,7 @@ MQ.ui.battle = (function () {
     if (!bossPhase || !bossOnScreen || q.called || (sk && sk.kind === 'clone' && sk.pos === 0)) {
       void d.cur.offsetWidth;
       d.cur.classList.add('is-appear');
+      if (V3()) MQ.ui.v3.enter(d.cur, q.chest ? 'chest' : (bossPhase || (MQ.battle.mobIndex() === 0 && !q.called)) ? 'walk' : 'hop');
       if (q.chest) MQ.sfx.chestAppear();
       else if (q.elite && q.elitePos === 0) MQ.sfx.elite();
       else { MQ.sfx.appear(); if (q.rare) MQ.sfx.rare(); }
@@ -892,6 +908,7 @@ MQ.ui.battle = (function () {
         renderFoes(MQ.battle.current());
         void d.cur.offsetWidth;
         d.cur.classList.add('is-appear');
+        if (V3()) MQ.ui.v3.enter(d.cur, 'hop');
         MQ.sfx.rare();
         d.msg.textContent = 'ゴールデンスライムが あらわれた！ けいけんち 3ばい！';
       } else {
@@ -1311,6 +1328,7 @@ MQ.ui.battle = (function () {
     if (res.outcome === 'chest') {
       markChoices(q, value);
       MQ.sfx.chestOpen();
+      if (V3() && d.cur) MQ.ui.v3.play(d.cur, 'mo-chest-open');
       flash(true);
       popDamage('+' + res.xp, true);
       comboShow(res.combo);
@@ -1363,7 +1381,7 @@ MQ.ui.battle = (function () {
         flash(true);
         shake(true);
         d.msg.textContent = res.multi >= 3 ? 'トリプル KO！！ ぜんぶ 一発で たおした！' : 'ダブル KO！ 2体 まとめて たおした！';
-        d.foes.querySelectorAll('.enemy').forEach(function (el) { el.classList.add('is-down'); });
+        d.foes.querySelectorAll('.enemy').forEach(function (el) { el.classList.add('is-down'); if (V3()) MQ.ui.v3.play(el, 'mo-fall'); });
       } else if (res.elite) {
         // 中ボス（v8.1）を たおした：大きく 光って ゆれる
         flash(true);
@@ -1452,6 +1470,7 @@ MQ.ui.battle = (function () {
         // ドーン の あとに ファンファーレ → けっか画面で しょうりの 曲へ つながる
         setTimeout(function () { MQ.bgm.play('fanfare', { then: res.last ? 'ending' : 'victory' }); }, 450);
         d.cur.classList.add('is-bossdown');
+        if (V3()) { MQ.ui.v3.play(d.cur, 'mo-crumble'); MQ.ui.v3.play(d.hero, 'mo-win', 1000); }
         if (res.last) flash(true);
         wait(res.last ? 3200 : 2600, finish);
         return;
@@ -1469,11 +1488,12 @@ MQ.ui.battle = (function () {
         shake(true);
         if (last) flash(true);
         setTimeout(function () {
-          const img = d.cur.querySelector('.enemy__img');
+          const img = d.cur.querySelector('.enemy__img, .enemy__img3d');
           if (img) {
             const size = img.offsetWidth || 96;
-            const hot = MQ.enemies.node(q.enemyId, { size: size, cls: 'enemy__img', enrage: true });
+            const hot = foeArt(q.enemyId, size, { enrage: true });
             img.parentNode.replaceChild(hot, img);
+            if (V3()) MQ.ui.v3.play(d.cur, 'mo-lunge', 800);
           }
           d.cur.classList.add('is-enrage');
         }, 400);
@@ -2032,6 +2052,13 @@ MQ.ui.battle = (function () {
     d.heroImg.src = MQ.hero.sprite(player);
     const on = !!(MQ.hero.hasAuroraSet && MQ.hero.hasAuroraSet(player));
     d.hero.classList.toggle('is-gearaura', on);
+    /* りったい（v12.0）：2D の 絵は かくして、同じ 場所に 3D の 器を おく。せっていを 切れば 2D に もどる */
+    const v3 = V3();
+    if (d.root) d.root.classList.toggle('is-3d', v3);
+    const old = d.hero.querySelector('.v3scene');
+    if (old) old.remove();
+    d.heroImg.hidden = v3;
+    if (v3) d.hero.insertBefore(MQ.ui.v3.hero(player, 84, { ry: 22, mo: 'mo-idle', cls: 'hero__img3d' }), d.heroImg);
   }
 
   function syncPal(player) {
@@ -2040,7 +2067,7 @@ MQ.ui.battle = (function () {
     d.pal.hidden = !cur;
     d.palBox.innerHTML = '';
     if (!cur) return;
-    d.palBox.appendChild(MQ.enemies.node(cur.id, { size: 40, cls: 'pal__img' }));
+    d.palBox.appendChild((V3() && MQ.ui.v3.monster(cur.id, 40, { ry: 22, mo: 'mo-title', cls: 'pal__img3d' })) || MQ.enemies.node(cur.id, { size: 40, cls: 'pal__img' }));
     d.palName.textContent = cur.name + ' Lv.' + cur.lv;
     d.palGauge.innerHTML = '';
     const need = MQ.battle.palGaugeNeed ? MQ.battle.palGaugeNeed() : 3;
@@ -2075,6 +2102,7 @@ MQ.ui.battle = (function () {
     d.pal.classList.remove('is-hit');
     void d.pal.offsetWidth;
     d.pal.classList.add('is-hit');
+    if (V3()) MQ.ui.v3.play(d.pal, 'mo-attack', 600);
     MQ.sfx.palHit();
     const s = h('span', { class: 'pal__slash' });
     d.fx.appendChild(s);
@@ -2167,6 +2195,12 @@ MQ.ui.battle = (function () {
     if (!d.cur) return;
     d.cur.classList.remove('is-appear', 'is-enrage');
     d.cur.classList.add('is-hit');
+    if (V3()) {
+      MQ.ui.v3.dashTo(d.hero, d.cur);
+      MQ.ui.v3.play(d.hero, 'mo-attack', 480);
+      const foe = d.cur;
+      setTimeout(function () { MQ.ui.v3.play(foe, 'mo-hurt', 520); }, sp ? 320 : 200);
+    }
     if (sp) blast(sp);
 
     // ①④ 斬撃の 弧（ひっさつの ときは 大きな 演出が あるので 出さない）
@@ -2189,6 +2223,7 @@ MQ.ui.battle = (function () {
       d.cur.classList.remove('is-hit');
       if (!boss && !d.cur.classList.contains('is-down')) {
         d.cur.classList.add('is-down');
+        if (V3()) MQ.ui.v3.play(d.cur, 'mo-fall');
         MQ.sfx.defeat();
       }
     }, sp ? (sp.tier >= 4 ? 750 : sp.tier === 3 ? 600 : 420) : 420);   // 大きな わざは 当たるのが おそい
@@ -2223,6 +2258,7 @@ MQ.ui.battle = (function () {
     d.hero.classList.remove('is-hurt');
     void d.hero.offsetWidth;
     d.hero.classList.add('is-hurt');
+    if (V3()) MQ.ui.v3.play(d.hero, 'mo-hurt', 550);
     shake(false);
   }
 

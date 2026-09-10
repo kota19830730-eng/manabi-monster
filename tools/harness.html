@@ -6,6 +6,7 @@
 <title>harness — まなびモンスター</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=BIZ+UDPGothic:wght@400;700&display=swap">
 <link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/motion3d.css">
 </head>
 <body>
 <!--
@@ -73,6 +74,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/stage.js"></script>
 <script src="../js/core/pixel.js"></script>
 <script src="../js/core/blocks.js"></script>
+<script src="../js/core/vox.js"></script>
 <script src="../js/core/tiles.js"></script>
 <script src="../js/core/sfx.js"></script>
 <script src="../js/core/bgm.js"></script>
@@ -97,6 +99,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/hero.js"></script>
 <script src="../js/content/art.js"></script>
 <script src="../js/content/treasure.js"></script>
+<script src="../js/content/chest3d.js"></script>
 <script src="../js/content/zu.js"></script>
 <script src="../js/content/sansu3.js"></script>
 <script src="../js/content/kokugo3.js"></script>
@@ -128,7 +131,10 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/world3.js"></script>
 <script src="../js/content/news.js"></script>
 <script src="../js/core/capsule.js"></script>
+<!-- 3D の 試作（デモ用・v12 で ゲームに 入る まで tools/3d に おく） -->
+<script src="3d/demo3d.js"></script>   <!-- 3D の デモ（vox・chest3d・motion3d.css は ゲームの ファイルを 読む） -->
 <script src="../js/ui/common.js"></script>
+<script src="../js/ui/three.js"></script>
 <script src="../js/ui/news.js"></script>
 <script src="../js/ui/look.js"></script>
 <script src="../js/ui/start.js"></script>
@@ -554,6 +560,43 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say(L.join(' | ')); dump(); return;
     }
     if (mode === 'start') { fresh(); MQ.ui.start.render(); MQ.ui.show('screen-start'); return; }
+    /* 3D の デモ（2026-09-10）：#demo3d＝タイトル／#demo3dbattle[:<動き>:<秒>]＝バトル（動き＝attack hurt lunge fall walk） */
+    if (mode.indexOf('demo3d:open') === 0) {
+      /* オープニング（v10.4）の とちゅうで 止める：3D に した すぐ あとに is-opening を つけ直す */
+      const at = +(mode.split(':')[2] || 0.6);
+      fresh(); MQ.save.setSetting('v3', false);   /* デモは 2D の 画面に 3D を かぶせる（ゲーム本体は v12.0 から 3D なので 切る） */ MQ.ui.start.render(); MQ.ui.show('screen-start'); await wait(100); DEMO3D.title(); await wait(300);
+      /* render() が 予約した「1.75秒後に is-opening を 外す」タイマーは freeze() では 止まらない（予約ずみ）→ 番号で ぜんぶ 消す */
+      const last = setTimeout(function () {}, 0); for (let i = 0; i <= last; i++) clearTimeout(i);
+      freeze();                                              // opening() の 1.75秒後の 「is-opening を 外す」を 止める（外れると さいごの 形に なる）
+      /* freeze() の あとは wait() が もどって こない（setTimeout が 死ぬ）ので、同じ tick で 止める */
+      DEMO3D.opening(); void document.body.offsetWidth;
+      document.getAnimations().forEach(function (an) { an.pause(); an.currentTime = at * 1000; });
+      say('title 3d opening ' + at + 's figs=' + DEMO3D.figs.length + ' is-opening=' + $('.title').classList.contains('is-opening'));
+      return;
+    }
+    if (mode === 'demo3d') {
+      fresh(); MQ.save.setSetting('v3', false);   /* デモは 2D の 画面に 3D を かぶせる（ゲーム本体は v12.0 から 3D なので 切る） */ MQ.ui.start.render(); MQ.ui.show('screen-start'); await wait(200); DEMO3D.title(); await wait(400);
+      const chest = $('.title__chest .v3--chest');
+      say('title 3d figs=' + DEMO3D.figs.length + (chest ? ' chest parts=' + chest.dataset.parts + ' boxes=' + chest.dataset.boxes : ' chest なし'));
+      return;
+    }
+    if (mode.indexOf('demo3dbattle') === 0) {
+      const a = mode.split(':');
+      fresh(); MQ.save.setSetting('v3', false);   /* デモは 2D の 画面に 3D を かぶせる（ゲーム本体は v12.0 から 3D なので 切る） */ MQ.ui.battle.start('sansu3-6'); await wait(600);
+      if (a[1] === 'chest') {
+        /* たからばこの 問題まで 正解で 送る（3D に するのは たからばこが 出て から） */
+        let g = 0;
+        while (MQ.battle.current() && !MQ.battle.current().chest && g++ < 20) { answerViaUI(true); await wait(1700); }
+        say('chest: ' + (MQ.battle.current() && MQ.battle.current().chest ? 'たからばこの 問題' : 'たどりつけず') + ' / ' + $('.arena__msg').textContent);
+        a.shift();                                             // のこりは [ 'chest', 'open', 秒 ] → [ 'open', 秒 ] の 形に
+      }
+      DEMO3D.battle(); await wait(400);
+      if (a[1]) { DEMO3D.pose(a[1]); await wait(20); document.getAnimations().forEach(function (an) { an.pause(); an.currentTime = (+a[2] || 0.3) * 1000; }); }
+      const chest = $('.v3--chest');
+      if (chest) say('chest3d: parts=' + chest.dataset.parts + ' boxes=' + chest.dataset.boxes);
+      const hs = $('.hero__img3d'); if (hs) say('dash=' + hs.dataset.dash + 'px');
+      say('battle 3d figs=' + DEMO3D.figs.length); return;
+    }
     // オープニング（v10.4）：#open[:<秒>]＝<秒>めで 止めて 撮る（0.3）／#open:skip＝タップで とばす（ボタンの pointerdown が バブリング）／
     //                     #open:again＝2回めの render では 出ない／#open:mid＝とちゅう（0.3秒）で 描き直しても つづきから
     if (mode === 'open' || mode.indexOf('open:') === 0) {
@@ -3439,7 +3482,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await wait(300);
     say('あたらしい こと: モーダル ' + ($('.newscard') ? 'ok' : 'MISSING') + ' / お知らせ ' + $$('.newsrow').length + 'こ / ページ ' + MQ.news.pages(MQ.save.current()).length);
     let ng = 0;
-    while ($('.news__next') && ng++ < 12) { $('.news__next').click(); await wait(120); }
+    while ($('.news__next') && ng++ < 24) { $('.news__next').click(); await wait(120); }   // 版が ふえる たびに ページも ふえる（v12.0 で 13ページ）
     MQ.ui.news.reset();
     MQ.ui.goMap();
     await wait(200);

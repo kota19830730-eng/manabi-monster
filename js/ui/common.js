@@ -196,6 +196,11 @@ MQ.ui = MQ.ui || {};
       mk('きょく', function () { return MQ.bgm.isEnabled(); }, function (on) {
         MQ.bgm.setEnabled(on); MQ.save.setSetting('bgm', on);
       }),
+      // りったい（v12.0）：主人公・モンスター・たからばこを 3D に。重い 端末や 好みで 2D に もどせる（つぎの 画面から）
+      MQ.vox ? mk('りったい',
+        function () { return MQ.save.getSetting('v3', true) !== false; },
+        function (on) { MQ.save.setSetting('v3', on); MQ.ui.toast(on ? 'りったいに するよ（つぎの 画面から）' : '2D に もどすよ（つぎの 画面から）'); })
+        : null,
       // よみあげ（v5.3）。声が 入って いない 端末では 出さない
       (MQ.speech && (MQ.speech.ready('en') || MQ.speech.ready('ja')))
         ? mk('よみあげ',

@@ -1,0 +1,311 @@
+/* ---------------------------------------------------------
+   3D（りったい・v12.0）の 見た目と モーション。もとは tools/3d/motion.css（試作 v3）。ここが 正本。
+   前半＝箱の 器（.v3scene > .v3fig > .v3hold > .v3）と 部品の 動き、さいご＝ゲームの 画面に 入れる ための きまり。
+
+   3D の キャラ・モンスターの モーション（試作 v3）
+   部品（.p）を かんせつで 回すだけ＝マイクラと 同じ。曲げない・のばさない。
+
+   ならび： .fig（向き＝rotateY ±22deg） > .hold（大きさ scale3d） > .v3（体ごとの 動き） > .p（部品）
+   部品：   .p--body > .p--head .p--armL .p--armR .p--wingL .p--wingR ／ .p--legA .p--legB（root の 直下）
+   うで・あしは 上（かた・こし）が かんせつ。rotateX(+) で 下の 先が 手まえ（前）に 出る。
+   体は 足もとが かんせつ。rotateX(−) で 前かがみ。
+
+   クラス（.v3 に つける）
+     mo-idle    … 主人公の 待機（うでが 小さく ゆれ、頭が ときどき かたむく）
+     mo-menace  … モンスターの 待機（前かがみで 体を ゆすり、ときどき ぐっと ふみこむ フェイント）
+     mo-walk    … 登場（歩いて 出て くる・0.6秒）
+     mo-attack  … こうげき（主人公＝右うでを ふり下ろす／モンスター＝手まえに とびかかる・0.5秒）
+     mo-hurt    … くらう（のけぞる・0.5秒）
+     mo-fall    … たおれる（うしろに ばたん・1秒・そのまま）
+     mo-win     … かち（ジャンプ＋両うでを 上げる・0.9秒）
+     mo-lunge   … ため → 手まえに とび出す（モンスター・0.7秒）
+   --------------------------------------------------------- */
+.v3 { position: relative; transform-style: preserve-3d; }
+.v3 .b { position: absolute; transform-style: preserve-3d; }
+.v3 .f { position: absolute; left: 0; top: 0; }
+.v3 .p { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; }
+.v3 .bx { position: relative; }
+.v3 .bx i { position: absolute; display: block; image-rendering: pixelated; }
+
+/* ---------- 待機（主人公） ---------- */
+.mo-idle .p--armL { animation: moArmSwayL 3.2s ease-in-out infinite; }
+.mo-idle .p--armR { animation: moArmSwayR 3.2s ease-in-out infinite; }
+.mo-idle .p--head { animation: moHeadTilt 5.4s ease-in-out infinite; }
+.mo-idle { animation: moBob 2.4s ease-in-out infinite; }
+@keyframes moArmSwayL { 0%, 100% { transform: rotateX(5deg); } 50% { transform: rotateX(-5deg); } }
+@keyframes moArmSwayR { 0%, 100% { transform: rotateX(-5deg); } 50% { transform: rotateX(5deg); } }
+@keyframes moHeadTilt { 0%, 30%, 70%, 100% { transform: rotateZ(0); } 40% { transform: rotateZ(3deg) rotateX(-4deg); } 60% { transform: rotateZ(-2deg); } }
+@keyframes moBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* ---------- 待機（モンスター＝いまにも おそって きそう） ---------- */
+.mo-menace { animation: moMenace 3.4s ease-in-out infinite; }
+.mo-menace .p--body { animation: moRock 2.3s ease-in-out infinite; }
+.mo-menace .p--wingL { animation: moFlapL 1.1s ease-in-out infinite; }
+.mo-menace .p--wingR { animation: moFlapR 1.1s ease-in-out infinite; }
+.mo-menace .p--legA { animation: moShift 1.7s ease-in-out infinite; }
+.mo-menace .p--legB { animation: moShift 1.7s ease-in-out .85s infinite; }
+@keyframes moMenace {
+  0%   { transform: translateY(0) rotateX(-6deg); }
+  35%  { transform: translateY(-3px) rotateX(-9deg); }
+  70%  { transform: translateY(0) rotateX(-6deg); }
+  78%  { transform: translateY(-5px) translateZ(18px) rotateX(-15deg); }   /* フェイント：ぐっと ふみこむ */
+  86%  { transform: translateY(0) translateZ(3px) rotateX(-7deg); }
+  100% { transform: translateY(0) rotateX(-6deg); }
+}
+@keyframes moRock { 0%, 100% { transform: rotateZ(-1.5deg); } 50% { transform: rotateZ(1.5deg); } }
+@keyframes moFlapL { 0%, 100% { transform: rotateY(22deg); } 50% { transform: rotateY(-22deg); } }
+@keyframes moFlapR { 0%, 100% { transform: rotateY(-22deg); } 50% { transform: rotateY(22deg); } }
+@keyframes moShift { 0%, 100% { transform: rotateX(0); } 50% { transform: rotateX(10deg); } }
+
+/* ---------- 登場（歩いて 出て くる） ---------- */
+.mo-walk { animation: moWalkIn .6s ease-out both; }
+.mo-walk.v3--hero { animation-name: moWalkInHero; }
+.mo-walk .p--legA { animation: moStepA .6s linear both; }
+.mo-walk .p--legB { animation: moStepB .6s linear both; }
+.mo-walk .p--armL { animation: moStepB .6s linear both; }
+.mo-walk .p--armR { animation: moStepA .6s linear both; }
+.mo-walk .p--wingL { animation: moFlapL .3s ease-in-out 2; }
+.mo-walk .p--wingR { animation: moFlapR .3s ease-in-out 2; }
+@keyframes moWalkIn {
+  0%   { transform: translateX(120px) translateY(0); }
+  25%  { transform: translateX(90px) translateY(-4px); }
+  50%  { transform: translateX(60px) translateY(0); }
+  75%  { transform: translateX(30px) translateY(-4px); }
+  100% { transform: translateX(0) translateY(0); }
+}
+@keyframes moWalkInHero {
+  0%   { transform: translateX(-120px) translateY(0); }
+  25%  { transform: translateX(-90px) translateY(-4px); }
+  50%  { transform: translateX(-60px) translateY(0); }
+  75%  { transform: translateX(-30px) translateY(-4px); }
+  100% { transform: translateX(0) translateY(0); }
+}
+@keyframes moStepA { 0%, 50%, 100% { transform: rotateX(0); } 25% { transform: rotateX(38deg); } 75% { transform: rotateX(-38deg); } }
+@keyframes moStepB { 0%, 50%, 100% { transform: rotateX(0); } 25% { transform: rotateX(-38deg); } 75% { transform: rotateX(38deg); } }
+
+/* ---------- こうげき ---------- */
+/* 主人公：ふりかぶって けんを ふり下ろす */
+.mo-attack.v3--hero .p--armR { animation: moSwing .5s ease-in-out both; }
+.mo-attack.v3--hero .p--armL { animation: moCounterArm .5s ease-in-out both; }
+.mo-attack.v3--hero .p--body { animation: moLeanAtk .5s ease-in-out both; }
+.mo-attack.v3--hero .p--head { animation: moHeadAtk .5s ease-in-out both; }
+.mo-attack.v3--hero .p--sword { animation: moSwordSwing .5s ease-in-out both; }   /* 手首：ふりかぶりで 刃を 上に（うでの 150° を 打ち消す）、ふり下ろしで 前へ */
+@keyframes moSwordSwing { 0% { transform: rotateX(0); } 30% { transform: rotateX(-150deg); } 55% { transform: rotateX(-110deg); } 100% { transform: rotateX(0); } }
+@keyframes moSwing { 0% { transform: rotateX(0); } 30% { transform: rotateX(150deg); } 55% { transform: rotateX(-25deg); } 100% { transform: rotateX(0); } }
+@keyframes moCounterArm { 0%, 100% { transform: rotateX(0); } 30% { transform: rotateX(-40deg); } 55% { transform: rotateX(20deg); } }
+@keyframes moLeanAtk { 0%, 100% { transform: rotateX(0); } 30% { transform: rotateX(7deg); } 55% { transform: rotateX(-14deg); } }
+@keyframes moHeadAtk { 0%, 100% { transform: rotateX(0); } 55% { transform: rotateX(-10deg); } }
+/* モンスター：しゃがんで → 手まえに とびかかる */
+.mo-attack:not(.v3--hero) { animation: moPounce .5s ease-in-out both; }
+.mo-attack:not(.v3--hero) .p--body { animation: moBodyPounce .5s ease-in-out both; }
+.mo-attack:not(.v3--hero) .p--wingL { animation: moFlapBigL .5s ease-in-out both; }
+.mo-attack:not(.v3--hero) .p--wingR { animation: moFlapBigR .5s ease-in-out both; }
+.mo-attack:not(.v3--hero) .p--legA, .mo-attack:not(.v3--hero) .p--legB { animation: moCrouch .5s ease-in-out both; }
+@keyframes moPounce { 0%, 100% { transform: translateZ(0) rotateX(-6deg); } 25% { transform: translateZ(-10px) translateY(3px) rotateX(4deg); } 55% { transform: translateZ(32px) translateY(-6px) rotateX(-18deg); } }
+@keyframes moBodyPounce { 0%, 100% { transform: rotateX(0); } 55% { transform: rotateX(-6deg); } }
+@keyframes moFlapBigL { 0%, 100% { transform: rotateY(0); } 25% { transform: rotateY(45deg); } 55% { transform: rotateY(-40deg); } }
+@keyframes moFlapBigR { 0%, 100% { transform: rotateY(0); } 25% { transform: rotateY(-45deg); } 55% { transform: rotateY(40deg); } }
+@keyframes moCrouch { 0%, 100% { transform: rotateX(0); } 25% { transform: rotateX(16deg); } 55% { transform: rotateX(-12deg); } }
+
+/* ---------- くらう（のけぞる） ---------- */
+.mo-hurt { animation: moKnock .5s ease-out both; }
+.mo-hurt .p--body { animation: moBodyBack .5s ease-out both; }
+.mo-hurt .p--head { animation: moHeadBack .5s ease-out both; }
+.mo-hurt .p--armL, .mo-hurt .p--armR { animation: moArmFling .5s ease-out both; }
+.mo-hurt .p--wingL { animation: moFlapBigL .5s ease-out both; }
+.mo-hurt .p--wingR { animation: moFlapBigR .5s ease-out both; }
+@keyframes moKnock { 0%, 100% { transform: translateZ(0) rotateX(0); } 30% { transform: translateZ(-16px) rotateX(12deg); } }
+@keyframes moBodyBack { 0%, 100% { transform: rotateX(0); } 30% { transform: rotateX(14deg); } }
+@keyframes moHeadBack { 0%, 100% { transform: rotateX(0); } 30% { transform: rotateX(28deg); } }
+@keyframes moArmFling { 0%, 100% { transform: rotateX(0); } 30% { transform: rotateX(35deg); } }
+
+/* ---------- たおれる（うしろに ばたん） ---------- */
+/* モンスターは 主人公の ほう（左）へ ばたん。左下の かどを じくに すると 画面の 外へ 出ない。主人公は 右へ（ゲームでは 使わない） */
+.mo-fall { animation: moFall 1s ease-in both; transform-origin: 0% 100%; }
+.mo-fall.v3--hero { animation-name: moFallR; transform-origin: 100% 100%; }
+.mo-fall .p--legA, .mo-fall .p--legB { animation: moLegFold 1s ease-in both; }
+.mo-fall .p--armL, .mo-fall .p--armR { animation: moArmFling 1s ease-in both; }
+.mo-fall .p--head { animation: moHeadBack 1s ease-in both; }
+@keyframes moFall {
+  0%   { transform: rotateZ(0) translateY(0); opacity: 1; }
+  20%  { transform: rotateZ(6deg) translateY(-3px); opacity: 1; }         /* いちど 反対に かたむいて から */
+  60%  { transform: rotateZ(-84deg) translateY(2px); opacity: 1; }        /* 左に ばたん */
+  68%  { transform: rotateZ(-78deg) translateY(-3px); opacity: 1; }       /* はねる */
+  76%  { transform: rotateZ(-86deg) translateY(2px); opacity: 1; }
+  100% { transform: rotateZ(-86deg) translateY(6px); opacity: 0; }
+}
+@keyframes moFallR {
+  0%   { transform: rotateZ(0) translateY(0); opacity: 1; }
+  20%  { transform: rotateZ(-6deg) translateY(-3px); opacity: 1; }
+  60%  { transform: rotateZ(84deg) translateY(2px); opacity: 1; }
+  68%  { transform: rotateZ(78deg) translateY(-3px); opacity: 1; }
+  76%  { transform: rotateZ(86deg) translateY(2px); opacity: 1; }
+  100% { transform: rotateZ(86deg) translateY(6px); opacity: 0; }
+}
+@keyframes moLegFold { 0% { transform: rotateX(0); } 100% { transform: rotateX(-40deg); } }
+
+/* ---------- かち（ジャンプ＋両うでを 上げる） ---------- */
+.mo-win { animation: moJump .9s ease-out both; }
+.mo-win .p--armL, .mo-win .p--armR { animation: moArmsUp .9s ease-out both; }
+.mo-win .p--head { animation: moHeadUp .9s ease-out both; }
+.mo-win .p--sword { animation: moSwordUp .9s ease-out both; }   /* けんを 高く かかげる（刃を 上に） */
+@keyframes moSwordUp { 0% { transform: rotateX(0); } 30%, 80% { transform: rotateX(-170deg); } 100% { transform: rotateX(0); } }
+.mo-win .p--legA, .mo-win .p--legB { animation: moLegTuck .9s ease-out both; }
+@keyframes moJump { 0% { transform: translateY(0); } 35% { transform: translateY(-28px); } 60% { transform: translateY(0); } 75% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
+@keyframes moArmsUp { 0% { transform: rotateX(0); } 30%, 80% { transform: rotateX(170deg); } 100% { transform: rotateX(0); } }
+@keyframes moHeadUp { 0%, 100% { transform: rotateX(0); } 30%, 80% { transform: rotateX(-12deg); } }
+@keyframes moLegTuck { 0%, 60%, 100% { transform: rotateX(0); } 35% { transform: rotateX(30deg); } }
+
+/* ---------- ため → 手まえに とび出す（モンスター） ---------- */
+.mo-lunge { animation: moLunge .7s ease-in-out both; }
+.mo-lunge .p--wingL { animation: moFlapBigL .7s ease-in-out both; }
+.mo-lunge .p--wingR { animation: moFlapBigR .7s ease-in-out both; }
+.mo-lunge .p--legA, .mo-lunge .p--legB { animation: moCrouch .7s ease-in-out both; }
+@keyframes moLunge {
+  0%   { transform: translateZ(0) rotateX(-6deg); }
+  20%  { transform: translateZ(-8px) translateY(3px) rotateX(2deg); }
+  45%  { transform: translateZ(40px) translateY(-8px) rotateX(-20deg); }
+  62%  { transform: translateZ(34px) translateY(-6px) rotateX(-18deg); }
+  100% { transform: translateZ(0) rotateX(-6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v3, .v3 .p { animation: none !important; }
+}
+
+/* ---------- タイトルの 待機（おそわない・やさしく ゆれる） ---------- */
+.mo-title { animation: moBob 2.8s ease-in-out infinite; }
+.mo-title .p--body { animation: moRock 3.1s ease-in-out infinite; }
+.mo-title .p--wingL { animation: moFlapL 1.6s ease-in-out infinite; }
+.mo-title .p--wingR { animation: moFlapR 1.6s ease-in-out infinite; }
+.mo-title .p--legA { animation: moShift 2.4s ease-in-out infinite; }
+.mo-title .p--legB { animation: moShift 2.4s ease-in-out 1.2s infinite; }
+
+/* ---------- たからばこ（chest3d.js・2026-09-10） ----------
+   部品： .p--base > .p--lid（ちょうつがい＝うしろの 上の へり・rotateX(+) で 前が 上がる） .p--coins（ふたの 中の 金貨）
+   クラス（.v3--chest に つける）
+     is-open        … ひらいた まま（タイトル）
+     mo-chest       … バトルの 待機（ふわふわ＋ときどき ふたが ガタガタ＝「何か 入って いる！」）
+     mo-chest-open  … ひらく（ため → ばっと ひらく → 少し もどる。金貨が とび出す・0.9秒）
+     mo-chest-title … タイトルの 待機（ふわふわ・金貨が きらっと） */
+.v3--chest .p--coins { opacity: 0; }
+.v3--chest.is-open .p--lid { transform: rotateX(108deg); }
+.v3--chest.is-open .p--coins { opacity: 1; }
+.mo-chest { animation: moBob 2.6s ease-in-out infinite; }
+.mo-chest .p--lid { animation: moLidRattle 3.2s ease-in-out infinite; }
+@keyframes moLidRattle {
+  0%, 68%, 100% { transform: rotateX(0); }
+  72% { transform: rotateX(8deg); }
+  76% { transform: rotateX(1deg); }
+  80% { transform: rotateX(7deg); }
+  84% { transform: rotateX(0); }
+  88% { transform: rotateX(5deg); }
+  92% { transform: rotateX(0); }
+}
+.mo-chest-open { animation: moChestHop .9s ease-out both; }
+.mo-chest-open .p--lid { animation: moLidOpen .9s cubic-bezier(.3, 1.25, .5, 1) both; }
+.mo-chest-open .p--coins { animation: moCoinsUp .9s ease-out both; }
+@keyframes moChestHop { 0%, 30%, 100% { transform: translateY(0); } 45% { transform: translateY(-9px); } 62% { transform: translateY(0); } 72% { transform: translateY(-3px); } }
+@keyframes moLidOpen { 0% { transform: rotateX(0); } 18% { transform: rotateX(6deg); } 30% { transform: rotateX(2deg); } 62% { transform: rotateX(124deg); } 82% { transform: rotateX(100deg); } 100% { transform: rotateX(108deg); } }
+@keyframes moCoinsUp { 0%, 34% { opacity: 0; transform: translateY(10px); } 66% { opacity: 1; transform: translateY(-7px); } 100% { opacity: 1; transform: translateY(0); } }
+.mo-chest-title { animation: moBob 3s ease-in-out infinite; }
+/* 金貨に filter を かけない（filter は 3D を 平らに する）。きらめきは 2D の spark に まかせる */
+
+/* ---------- v12 で 決めた 動き（2026-09-10・ユーザー「全部 おすすめで OK」） ----------
+   ③登場＝1体めと ボスだけ 歩く（mo-walk）。2体めからは はねて 出る（mo-hop）
+   ④こうげき＝0.42秒。主人公は **てきの 手まえまで 走って 斬って もどる**（ユーザー要望・mo-dash は 器の .v3scene に）
+   ⑤ボスは くずれ落ちる（mo-crumble） */
+
+/* 登場（はねて 出る・0.6秒）：右から 2回 はねて 着地。あしは ちぢめ・はねは ばたばた */
+.mo-hop { animation: moHopIn .6s ease-out both; }
+.mo-hop .p--legA, .mo-hop .p--legB { animation: moLegTuck .3s ease-out 2; }
+.mo-hop .p--wingL { animation: moFlapL .3s ease-in-out 2; }
+.mo-hop .p--wingR { animation: moFlapR .3s ease-in-out 2; }
+@keyframes moHopIn {
+  0%   { transform: translateX(120px) translateY(0) scale(1); }
+  20%  { transform: translateX(90px) translateY(-26px) scale(1); }
+  40%  { transform: translateX(60px) translateY(0) scale(1.08, .9); }
+  48%  { transform: translateX(54px) translateY(0) scale(1); }
+  72%  { transform: translateX(18px) translateY(-18px) scale(1); }
+  92%  { transform: translateX(0) translateY(0) scale(1.08, .9); }
+  100% { transform: translateX(0) translateY(0) scale(1); }
+}
+
+/* ダッシュ こうげき（主人公・0.42秒）：器（.v3scene）が てきの 手まえまで 走り（22%）、そこで 斬って（55%）、もどる。
+   --dash＝きょり（demo3d.js が 画面から 測って 入れる。ゲームでは 主人公の 右はしから てきの 左はしまで） */
+.mo-dash { animation: moDash .42s both; }
+@keyframes moDash {
+  0%   { transform: translateX(0); animation-timing-function: cubic-bezier(.2, .8, .3, 1); }
+  22%  { transform: translateX(var(--dash, 160px)); animation-timing-function: linear; }
+  66%  { transform: translateX(var(--dash, 160px)); animation-timing-function: ease-in-out; }
+  100% { transform: translateX(0); }
+}
+/* 部品の 動きも 0.42秒に そろえる（ふりかぶりは 走って いる あいだ・斬るのは ついた あと） */
+.mo-attack.v3--hero .p--armR, .mo-attack.v3--hero .p--armL, .mo-attack.v3--hero .p--body,
+.mo-attack.v3--hero .p--head, .mo-attack.v3--hero .p--sword { animation-duration: .42s; }
+.mo-attack.v3--hero .p--legA { animation: moDashLegA .42s ease-in-out both; }
+.mo-attack.v3--hero .p--legB { animation: moDashLegB .42s ease-in-out both; }
+@keyframes moDashLegA { 0%, 30%, 100% { transform: rotateX(0); } 10% { transform: rotateX(40deg); } 20% { transform: rotateX(-30deg); } 80% { transform: rotateX(25deg); } }
+@keyframes moDashLegB { 0%, 30%, 100% { transform: rotateX(0); } 10% { transform: rotateX(-30deg); } 20% { transform: rotateX(40deg); } 80% { transform: rotateX(-25deg); } }
+
+/* ボスが くずれ落ちる（1.1秒）：ぐらっと ゆれて → 前に ひざを つき → しずんで 消える。
+   横に ばたん（mo-fall）は ザコ用。ボスは 大きい ので 横だと 画面から はみ出す */
+.mo-crumble { animation: moCrumble 1.1s ease-in both; transform-origin: 50% 100%; }
+.mo-crumble .p--body { animation: moCrumbleBody 1.1s ease-in both; }
+.mo-crumble .p--legA { animation: moCrumbleLegA 1.1s ease-in both; }
+.mo-crumble .p--legB { animation: moCrumbleLegB 1.1s ease-in both; }
+.mo-crumble .p--wingL { animation: moCrumbleWingL 1.1s ease-in both; }
+.mo-crumble .p--wingR { animation: moCrumbleWingR 1.1s ease-in both; }
+@keyframes moCrumble {
+  0%   { transform: translate(0, 0) scaleY(1); opacity: 1; }
+  10%  { transform: translate(-3px, 0) scaleY(1); }
+  20%  { transform: translate(3px, 0) scaleY(1); }
+  30%  { transform: translate(-2px, -3px) scaleY(1); }
+  50%  { transform: translate(0, 6px) scaleY(.9); opacity: 1; }
+  75%  { transform: translate(0, 16px) scaleY(.7); opacity: 1; }
+  100% { transform: translate(0, 32px) scaleY(.35) scaleX(1.12); opacity: 0; }
+}
+@keyframes moCrumbleBody { 0%, 30% { transform: rotateX(0); } 55% { transform: rotateX(-14deg); } 100% { transform: rotateX(-48deg); } }
+@keyframes moCrumbleLegA { 0%, 30% { transform: rotateZ(0); } 100% { transform: rotateZ(-28deg); } }
+@keyframes moCrumbleLegB { 0%, 30% { transform: rotateZ(0); } 100% { transform: rotateZ(28deg); } }
+@keyframes moCrumbleWingL { 0%, 30% { transform: rotateZ(0); } 100% { transform: rotateZ(35deg); } }
+@keyframes moCrumbleWingR { 0%, 30% { transform: rotateZ(0); } 100% { transform: rotateZ(-35deg); } }
+
+/* ---------- タイトルの オープニング（v10.4）の あいだの 3D の 動き ----------
+   とびこんで くるのは 外の 箱（.tmob・.title__hero・.title__chest）が 動く（style.css）。中の 3D は その あいだ
+   はねを ばたばた・あしを ちぢめ、勇者は 両うでを 上げて 落ちて くる。たからばこは 着地の あと ふたが ひらく。 */
+.title.is-opening .mo-title { animation: none; }
+.title.is-opening .mo-title .p--wingL { animation: moFlapL .28s ease-in-out 5; }
+.title.is-opening .mo-title .p--wingR { animation: moFlapR .28s ease-in-out 5; }
+.title.is-opening .mo-title .p--legA, .title.is-opening .mo-title .p--legB { animation: moLegTuck .5s ease-out 2; }
+.title.is-opening .v3--hero { animation: none; }
+.title.is-opening .v3--hero .p--armL, .title.is-opening .v3--hero .p--armR { animation: moArmsUp 1.35s ease-out both; }
+.title.is-opening .v3--hero .p--legA, .title.is-opening .v3--hero .p--legB { animation: moLegTuck 1.35s ease-out both; }
+.title.is-opening .v3--chest .p--lid { animation: moLidOpen .7s cubic-bezier(.3, 1.25, .5, 1) 1s both; }
+.title.is-opening .v3--chest .p--coins { animation: moCoinsUp .7s ease-out 1s both; }
+
+
+/* =========================================================
+   ゲームの 画面に 入れる ための きまり（v12.0）
+   ========================================================= */
+/* 器：.v3scene（perspective）> .v3fig（向き ±22°・カメラ 8°）> .v3hold（大きさ scale3d）> .v3 */
+.v3scene { position: relative; }
+.v3fig { position: absolute; left: 0; top: 0; transform-style: preserve-3d; }
+.v3hold { position: absolute; transform-style: preserve-3d; transform-origin: center bottom; }
+.hero__img3d, .enemy__img3d, .pal__img3d { pointer-events: none; }
+
+/* 2D の 器を うごかす 動きは 3D では 止める（部品の 動き＝mo-* に おきかえる）。
+   のこす もの：ひっさつの ふっとび（is-blast）・よける（is-dodge）・ガード（is-guard）・にげる（is-flee）・ぶんしん・よばれて とぶ */
+.is-3d .hero.is-attack, .is-3d .hero.is-struck, .is-3d .hero.is-counter { animation: none !important; }
+.is-3d .enemy.is-appear, .is-3d .enemy.is-lunge, .is-3d .enemy.is-hit { animation: none !important; }
+/* たおれる：3D の 動き（横に ばたん／くずれ落ちる）の あとに 名前ごと 消える */
+.is-3d .enemy.is-down { animation: v3Gone 1s ease-in forwards !important; }
+.is-3d .enemy.is-bossdown { animation: v3Gone 1.3s ease-in forwards !important; }
+@keyframes v3Gone { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+/* 2D の 影は 3D の 足もとの だ円に かわる */
+.is-3d .shadow--hero, .is-3d .shadow--foe { display: none; }
+
+/* タイトル：たからばこ（3D は 48マス×2＝96px の わく。箱の 左と 下が 2D の ときと 同じ 場所に なる ように） */
+.title__chest.is-3d { left: 224px; bottom: -10px; width: 96px; filter: none; }
+.v3scene--title { margin-left: -4px; }
+.title__hero.is-3d .shadow--poster { display: none; }

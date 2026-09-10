@@ -36,8 +36,26 @@ MQ.ui.start = (function () {
   ];
 
   /* ゲームの 本物の モンスターを 1体 おく（場所と 大きさは CSS の .tmob--*） */
+  /* りったい（v12.0）：左がわの 子は 右むき（+22°）・右がわの 子は 左むき（−22°）。やさしく ゆれる mo-title */
+  const TITLE_RY = { dragon: -22, bat: 22, robo: 22, slime: 22, lizard: 22, ghost: -22, golem: -22, ninja: 22, gold: 22, magma: -22 };
+  function v3on() { return !!(MQ.ui.v3 && MQ.ui.v3.on()); }
   function mob(id, size, cls) {
-    return h('div', { class: 'tmob tmob--' + cls }, [MQ.enemies.node(id, { size: size })]);
+    const art = v3on() ? MQ.ui.v3.monster(id, size, { ry: TITLE_RY[cls] == null ? -22 : TITLE_RY[cls], mo: 'mo-title' }) : null;
+    return h('div', { class: 'tmob tmob--' + cls }, [art || MQ.enemies.node(id, { size: size })]);
+  }
+  /* タイトルの 勇者（3D）＝ 見本の この キャラ（青い かみ・ひかる けん・Lv30）。その子の アバターでは ない（v5.0 の きまりは そのまま） */
+  const TITLE_HERO = { level: 30, look: {}, equipped: { weapon: 'tetsu-weapon' } };
+  function heroFig() {
+    if (v3on()) {
+      return h('div', { class: 'title__hero is-3d' }, [
+        MQ.ui.v3.hero(TITLE_HERO, 138, { ry: 22, mo: 'mo-idle', cls: 'v3scene--title' }),
+        h('div', { class: 'shadow shadow--poster' })
+      ]);
+    }
+    return h('div', { class: 'title__hero' }, [
+      h('img', { class: 'sprite title__heroimg', src: MQ.hero.poster(), alt: '勇者' }),
+      h('div', { class: 'shadow shadow--poster' })
+    ]);
   }
 
   function begin(name, look, grade) {
@@ -68,6 +86,15 @@ MQ.ui.start = (function () {
      ゴージャスな たからばこ（ふたが ひらいて 金貨が 見える）
      ======================================================= */
   function chest() {
+    if (v3on()) {
+      // 3D（v12.0）：ひらいた まま・金貨が 見える。光と きらめきは 2D の まま
+      return h('div', { class: 'title__chest is-3d' }, [
+        h('div', { class: 'glow' }),
+        MQ.ui.v3.chest(96, { ry: -22, mo: 'mo-chest-title', cls: 'v3scene--chest', open: true }),
+        h('span', { class: 'spark spark--a' }),
+        h('span', { class: 'spark spark--b' })
+      ]);
+    }
     return h('div', { class: 'title__chest' }, [
       h('div', { class: 'glow' }),
       h('div', { class: 'lid' }, [h('i', { class: 'gem' })]),
@@ -124,11 +151,8 @@ MQ.ui.start = (function () {
       mob('ghost-white', 58, 'ghost'),
       mob('golem-gray', 58, 'golem'),
 
-      // 勇者（その子の アバターでは なく、決まった 一枚絵）
-      h('div', { class: 'title__hero' }, [
-        h('img', { class: 'sprite title__heroimg', src: MQ.hero.poster(), alt: '勇者' }),
-        h('div', { class: 'shadow shadow--poster' })
-      ]),
+      // 勇者（その子の アバターでは なく、決まった キャラ。3D なら 見本の キャラ・2D なら 一枚絵）
+      heroFig(),
 
       // 手まえ：にんじゃ・ゴールデンスライム・たからばこ・マグマゴン
       mob('ninja-2', 62, 'ninja'),

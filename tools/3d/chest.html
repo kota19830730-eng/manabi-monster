@@ -1,0 +1,65 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>たからばこ 3D の 検査</title>
+<link rel="stylesheet" href="../../css/style.css">
+<link rel="stylesheet" href="motion.css">
+<style>
+ body{margin:0;background:#101a33;color:#eaf0ff;font-family:sans-serif;min-height:0}
+ .row{display:flex;gap:12px;padding:10px;align-items:flex-end;flex-wrap:wrap}
+ .cell{background:#16224a;border:2px solid #2b3a6b;border-radius:10px;padding:6px;text-align:center}
+ h2{font-size:11px;margin:0 0 4px;color:#9fb2dd;font-weight:normal}
+ .scene{perspective:1100px;display:flex;align-items:flex-end;justify-content:center}
+ .fig{transform-style:preserve-3d}
+ .dbg{font:10px/1.4 monospace;color:#9fb2dd;text-align:left;padding:6px 12px;white-space:pre}
+</style></head><body><div id="out"></div>
+<script src="../../js/core/util.js"></script><script src="../../js/core/blocks.js"></script>
+<script src="vox2.js"></script><script src="chest3d.js"></script>
+<script>
+/* #big＝1体を 300px で 4角度（とじた／ひらいた）＋ 真横（飛び出しの 検査）
+   #mid[:秒]＝ひらく とちゅうで 止める（0.45） */
+const q = (location.hash || '#big').slice(1).split(':');
+const out = document.getElementById('out');
+function show(title, ry, open, px, mo, at) {
+  const c = document.createElement('div'); c.className = 'cell';
+  const h = document.createElement('h2'); h.textContent = title; c.appendChild(h);
+  const s = document.createElement('div'); s.className = 'scene';
+  s.style.width = (px + 60) + 'px'; s.style.height = (px + 30) + 'px';
+  const f = document.createElement('div'); f.className = 'fig';
+  f.style.transform = 'rotateX(8deg) rotateY(' + ry + 'deg)';
+  const hold = document.createElement('div');
+  hold.style.cssText = 'width:96px;height:96px;margin-top:' + (px - 96) + 'px;transform-style:preserve-3d';
+  const v = VOX2.chest({ unit: 2, open: open });
+  if (mo) v.classList.add(mo);
+  /* 大きさは hold に（.v3 の transform は 動きの クラスが 上書きする＝1回 ふんだ） */
+  const k = px / 96;
+  const sc = document.createElement('div');
+  sc.style.cssText = 'width:96px;height:96px;transform-style:preserve-3d;transform-origin:center bottom;transform:scale3d(' + k + ',' + k + ',' + k + ')';
+  sc.appendChild(v); hold.appendChild(sc); f.appendChild(hold); s.appendChild(f); c.appendChild(s);
+  return { cell: c, v: v };
+}
+let row = document.createElement('div'); row.className = 'row';
+if (q[0] === 'big') {
+  [[-22, false], [0, false], [22, false], [90, false], [-22, true], [0, true], [22, true], [90, true]].forEach(function (a) {
+    const r = show((a[1] ? 'ひらいた ' : 'とじた ') + a[0] + '度', a[0], a[1], 300);
+    row.appendChild(r.cell);
+    if (a[0] === 0 && !a[1]) {
+      const d = document.createElement('div'); d.className = 'dbg';
+      const lines = [];
+      r.v.querySelectorAll('.p').forEach(function (p) {
+        lines.push(p.className + ' origin=' + p.style.transformOrigin);
+        p.querySelectorAll(':scope > .b').forEach(function (b) {
+          lines.push('  箱 x' + b.style.left + ' y' + b.style.top + ' w' + b.style.width + ' h' + b.style.height + ' ' + b.style.transform);
+        });
+      });
+      d.textContent = lines.join('\n');
+      out.appendChild(d);
+    }
+  });
+} else {
+  const at = +(q[1] || 0.45);
+  [-22, 0, 22, 90].forEach(function (ry) {
+    const r = show('ひらく とちゅう ' + at + '秒 ' + ry + '度', ry, false, 300, 'mo-chest-open');
+    row.appendChild(r.cell);
+  });
+  setTimeout(function () { document.getAnimations().forEach(function (an) { an.pause(); an.currentTime = at * 1000; }); }, 50);
+}
+out.appendChild(row);
+</script></body></html>

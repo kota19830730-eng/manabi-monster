@@ -53,7 +53,7 @@ const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/guard.js', 'js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
  'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
- 'js/core/blocks.js'].concat(CONTENT_ORDER).forEach(load);
+ 'js/core/blocks.js', 'js/core/vox.js'].concat(CONTENT_ORDER).forEach(load);   // vox.js（りったい・v12.0）は chest3d.js より 前
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
 load('js/core/capsule.js');
 
@@ -3634,6 +3634,14 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(sw.indexOf("'./js/core/guard.js'") >= 0, 'sw.js の FILES に guard.js');
   const dev = G.device();
   check(typeof dev.text === 'string' && dev.text.indexOf('ホーム画面から') >= 0, 'guard: device の 文');
+  // りったい（v12.0）：vox.js は blocks.js の あと・three.js は common.js の あと。css/sw/harness にも ある
+  check(INDEX_HTML.indexOf('js/core/vox.js') > INDEX_HTML.indexOf('js/core/blocks.js'), 'index: vox.js は blocks.js の あと');
+  check(INDEX_HTML.indexOf('js/content/chest3d.js') > INDEX_HTML.indexOf('js/content/treasure.js'), 'index: chest3d.js は treasure.js の あと');
+  check(INDEX_HTML.indexOf('js/ui/three.js') > INDEX_HTML.indexOf('js/ui/common.js') && INDEX_HTML.indexOf('js/ui/three.js') < INDEX_HTML.indexOf('js/ui/start.js'), 'index: three.js は common.js の あと・start.js の 前');
+  check(INDEX_HTML.indexOf('css/motion3d.css') >= 0, 'index: motion3d.css');
+  ['./css/motion3d.css', './js/core/vox.js', './js/content/chest3d.js', './js/ui/three.js'].forEach(function (f) { check(sw.indexOf("'" + f + "'") >= 0, 'sw.js の FILES に ' + f); });
+  ['../css/motion3d.css', '../js/core/vox.js', '../js/content/chest3d.js', '../js/ui/three.js'].forEach(function (f) { check(harness.indexOf(f) >= 0, 'harness.html に ' + f); });
+  check(harness.indexOf('3d/vox2.js') < 0 && harness.indexOf('3d/motion.css') < 0, 'harness.html は tools/3d の 写し（vox2.js・motion.css）を 読まない');
   G.clear();
   // 保存された ものを 読み直せる
   global.localStorage.setItem(G.KEY, JSON.stringify([{ at: '2026-09-05T01:02:03.000Z', v: 'v90', msg: 'saved', src: 'b.js:3', screen: 'battle', phase: '', n: 3 }]));

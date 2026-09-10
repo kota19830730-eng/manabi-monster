@@ -37,7 +37,7 @@ MQ.ui.capsule = (function () {
 
   /* ---- 景品の 絵。しゅるいで 出し方が ちがう ---- */
   function artOf(item, size) {
-    if (item.kind === 'mon') return MQ.enemies.node(item.id, { size: size });
+    if (item.kind === 'mon') return (MQ.ui.v3 && MQ.ui.v3.on() && MQ.ui.v3.monster(item.id, size, { ry: -16, mo: 'mo-title' })) || MQ.enemies.node(item.id, { size: size });
     if (item.kind === 'gear') {
       return h('img', { class: 'sprite capart__img', src: MQ.hero.gearSprite(item.id), alt: '' });
     }
