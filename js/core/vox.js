@@ -12,11 +12,27 @@
      ② よこ・上・下の 面に **模様**（ふちの 色を 1行ずつ・おくほど 暗く・ざらつき）
         → v2 は 1色の べた塗り＝「のばした 板」に 見えた。
      ③ 光の むき（左上 手まえ）。上＝あたたかく 明るく／右・下＝すこし 青い かげ（v10.1 と 同じ 考え方）
-     ④ **上の ふたは rotateX(-90deg)**（うしろへ）。v2 の rotateX(90deg) は **手まえに 出て いた**
-        （scratchpad/axis.html で 実測）。だから ふたを 4px に 削って ごまかして いた。
+     ④ **上の ふたは うしろへ のばす**（手まえに 出すと v2 の「刃」に なる。scratchpad/axis.html で 実測）。
         こんどは ふちの ふた 全部に 本物の 奥ゆきを つけても 飛び出さない。下の 面も つける。
      ⑤ うすい 行（高さ 1〜2）は となりの 行の 厚みを もらう（みぞに ならない）。
      ⑥ 足もとの 影（ゆかに おちる だ円）。
+
+   v12.1（2026-09-10・ユーザー「3Dやと ちょっと 重い。もう少し 軽く サクサク」）＝ **見た目は 変えずに 軽く**
+     まず 数えた：バトル 1画面＝箱 65・面 393まい・小さな PNG 362まい、作るのに 430ms（2D は 130ms）。
+     主人公だけで 箱 47・面 283。タイトルは 面 767まい。面は 1まいずつ GPU の 層に なる ので、面の 数が そのまま 重さ。
+     ⑦ **見えない 面を 作らない**
+        ・となりの 箱（同じ 部品）に ぴったり かくれる 上・下・よこの 面（つみ重ねた 箱の あいだ）
+        ・カメラの 向き（rotateY ±22°）で ぜったいに 見えない がわの よこの 面（opts.hide＝'L'／'R'。
+          はねは rotateY で ばたばた するので はぶかない）
+        ・うしろの 面は **うでと けん（170° ふり上げる）と ふた（108° ひらく）だけ**（part.back／keep）
+     ⑧ **面の 置き方は v12.0 の まま**（左・上・うしろは 内むき＝両面で 描かれる）。
+        ためした こと：面を ぜんぶ 外むきに して `backface-visibility: hidden` で うらがわを GPU に すてさせる
+        → 主人公が のけぞった とき **あごの 下に 空色の 細い すきま**が 出た（12ばいの 拡大で 実測。うしろの 面を
+        ぜんぶ つけても 出る・向きを もどすと 消える）。原因は 追えなかった ので 置き方は さわらない。
+     ⑨ **模様は 1体 1まいの アトラス（Atlas）**：面ごとに canvas → toDataURL（PNG 362まい）を やめ、
+        1体ぶんを 1まいの canvas に つめて 1回だけ toDataURL。面は background-position で 切り出す。
+        同じ 色の ならびは 同じ 場所を 使いまわす（key）。
+     ⑩ 同じ モンスター・主人公は 作らずに cloneNode（js/ui/three.js の cache）。
 
    絵は 1つも 描き直さない。ライブラリなし。
    --------------------------------------------------------- */
@@ -59,36 +75,140 @@ MQ.vox = (function () {
     back:   ['#000000', 0.55]
   };
   function lit(c, side) { const l = LIT[side]; return mix(c, l[0], l[1]); }
+  /* 面の 色は 同じ 色を 何百回も まぜる ので おぼえて おく（1点ごとに 文字の 計算を しない） */
+  const LITC = {};
+  function litRgb(c, side) {
+    const k = side + c;
+    if (!LITC[k]) LITC[k] = rgb(lit(c, side));
+    return LITC[k];
+  }
+  /* 作る 時間の 内わけ（さいごの 1体・ms）。harness #perf3d が 見る */
+  const timing = { grid: 0, boxes: 0, make: 0, atlas: 0, total: 0 };
+  const now = function () { return (window.performance && performance.now) ? performance.now() : Date.now(); };
   function hash(x, y) { const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return n - Math.floor(n); }
 
-  /* 面の 模様を Canvas で 作る（1マス＝1点。CSS で のばして pixelated）。
+  /* 面の 模様（1マス＝1点。CSS で のばして pixelated）を 点の ならび（RGBA）に 書く 関数を かえす。
      cols … 手まえの ふちの 色の ならび（行 or 列 ごと）
      along … 奥ゆき（点の 数）、across … cols の 数
-     dir … 'x'＝奥ゆきが よこ（左右の 面）／'y'＝奥ゆきが たて（上下の 面） */
-  function texture(cols, along, side, dir) {
+     dir … 'x'＝奥ゆきが よこ（左右の 面）／'y'＝奥ゆきが たて（上下の 面）
+     flip … 奥ゆきの 向きを 反転（面を 外むきに した ぶん。見た目は 同じに なる） */
+  function texDraw(cols, along, side, dir, flip) {
     const across = cols.length;
     const w = dir === 'x' ? along : across, h = dir === 'x' ? across : along;
+    return {
+      w: w, h: h,
+      draw: function (data, W, x0, y0) {
+        for (let j = 0; j < h; j++) {
+          for (let i = 0; i < w; i++) {
+            let k = dir === 'x' ? i : j;             // 奥ゆきの 位置 0..along-1（0＝手まえ）
+            if (flip) k = along - 1 - k;
+            const c = dir === 'x' ? cols[j] : cols[i];
+            const col = litRgb(c, side);
+            // おくほど 暗く（AO）。手まえ 35% は そのまま
+            const t = along > 1 ? k / (along - 1) : 0;
+            const ao = t < 0.35 ? 0 : (t - 0.35) / 0.65 * 0.30;
+            // ざらつき（とびとび・±6%）。反転しても 同じ 点に 同じ ざらつき
+            const hi = flip && dir === 'x' ? w - 1 - i : i, hj = flip && dir === 'y' ? h - 1 - j : j;
+            const g = (Math.floor(hash(hi + w * 7, hj + h * 13) * 3) - 1) * 0.06;
+            const f = (1 - ao) * (1 + g);
+            const o = ((y0 + j) * W + x0 + i) * 4;
+            data[o] = Math.max(0, Math.min(255, Math.round(col[0] * f)));
+            data[o + 1] = Math.max(0, Math.min(255, Math.round(col[1] * f)));
+            data[o + 2] = Math.max(0, Math.min(255, Math.round(col[2] * f)));
+            data[o + 3] = 255;
+          }
+        }
+      }
+    };
+  }
+  /* 下じき（前の 面の うしろ）：左半分は 左の ふちの 色・右半分は 右の ふちの 色（行ごと） */
+  function underDraw(L, R, w, h) {
+    return {
+      w: w, h: h,
+      draw: function (data, W, x0, y0) {
+        for (let j = 0; j < h; j++) {
+          const cl = rgb(L[j] || L[0]), cr = rgb(R[j] || R[0]);
+          for (let i = 0; i < w; i++) {
+            const c = i * 2 < w ? cl : cr;
+            const o = ((y0 + j) * W + x0 + i) * 4;
+            data[o] = c[0]; data[o + 1] = c[1]; data[o + 2] = c[2]; data[o + 3] = 255;
+          }
+        }
+      }
+    };
+  }
+  /* 点の ならび → 1まいの canvas → data URL */
+  function paintUrl(W, H, fill) {
     const cv = document.createElement('canvas');
-    cv.width = w; cv.height = h;
+    cv.width = W; cv.height = H;
     const cx = cv.getContext('2d');
-    for (let j = 0; j < h; j++) {
-      for (let i = 0; i < w; i++) {
-        const k = dir === 'x' ? i : j;           // 奥ゆきの 位置 0..along-1
-        const c = dir === 'x' ? cols[j] : cols[i];
-        let col = rgb(lit(c, side));
-        // おくほど 暗く（AO）。手まえ 35% は そのまま
-        const t = along > 1 ? k / (along - 1) : 0;
-        const ao = t < 0.35 ? 0 : (t - 0.35) / 0.65 * 0.30;
-        // ざらつき（とびとび・±6%）
-        const g = (Math.floor(hash(i + w * 7, j + h * 13) * 3) - 1) * 0.06;
-        const f = (1 - ao) * (1 + g);
-        cx.fillStyle = hex([col[0] * f, col[1] * f, col[2] * f]);
-        cx.fillRect(i, j, 1, 1);
+    if (cx.createImageData) {
+      const img = cx.createImageData(W, H);
+      fill(img.data);
+      cx.putImageData(img, 0, 0);
+    } else {
+      /* node の にせ Canvas（createImageData が ない）→ 1点ずつ */
+      const data = new Uint8ClampedArray(W * H * 4);
+      fill(data);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const o = (y * W + x) * 4;
+        cx.fillStyle = hex([data[o], data[o + 1], data[o + 2]]);
+        cx.fillRect(x, y, 1, 1);
       }
     }
     return cv.toDataURL('image/png');
   }
+  /* いままで どおり 1まいの 模様を data URL で かえす（chest3d や tools/3d 用） */
+  function texture(cols, along, side, dir) {
+    const t = texDraw(cols, along, side, dir, false);
+    return paintUrl(t.w, t.h, function (data) { t.draw(data, t.w, 0, 0); });
+  }
 
+  /* ---------- アトラス（1体 1まい・v12.1） ----------
+     面の 模様を ぜんぶ 1まいの canvas に つめて、おわりに 1回だけ toDataURL。
+     面は background-size で U倍に のばし、background-position で 自分の ところを 見る。
+     同じ 色の ならび（key）は 同じ 場所を 使いまわす。 */
+  const ATLAS_W = 256;
+  function Atlas() {
+    this.slots = []; this.map = {}; this.x = 0; this.y = 0; this.rowH = 0; this.pending = [];
+  }
+  Atlas.prototype.slot = function (key, t) {
+    if (key && this.map[key]) return this.map[key];
+    const w = Math.min(t.w, ATLAS_W), h = t.h;
+    if (this.x + w > ATLAS_W) { this.x = 0; this.y += this.rowH; this.rowH = 0; }
+    const s = { x: this.x, y: this.y, w: w, h: h, t: t };
+    this.x += w; if (h > this.rowH) this.rowH = h;
+    this.slots.push(s);
+    if (key) this.map[key] = s;
+    return s;
+  };
+  /* over … アトラスの 上に かさねる 1まいめ（主人公の 絵）{ image, size, pos } */
+  Atlas.prototype.use = function (face, s, over, off) { this.pending.push([face, s, over, off || 0]); };
+  Atlas.prototype.finish = function (U) {
+    const H = this.y + this.rowH;
+    if (!H || !this.pending.length) return;
+    const W = ATLAS_W, slots = this.slots;
+    const url = paintUrl(W, H, function (data) { slots.forEach(function (s) { s.t.draw(data, W, s.x, s.y); }); });
+    this.pending.forEach(function (p) {
+      const f = p[0], s = p[1], over = p[2], off = p[3] || 0;
+      f.style.backgroundImage = (over ? 'url(' + over.image + '), ' : '') + 'url(' + url + ')';
+      f.style.backgroundSize = (over ? over.size + ', ' : '') + (W * U) + 'px ' + (H * U) + 'px';
+      f.style.backgroundPosition = (over ? over.pos + ', ' : '') + (-s.x * U + off) + 'px ' + (-s.y * U + off) + 'px';
+      f.style.imageRendering = 'pixelated';
+    });
+    this.pending = [];
+  };
+
+  /* 前の 面（v12.1）：四方に LIP だけ 大きく 作る。前の 面と よこ・上下の 面は 同じ へりを 共有する ので、
+     GPU の アンチエイリアスで 1点ぶん すきまが 出る。うしろの 面が あった ころは 暗い 色が 見えて「ふち」に 見えて いたが、
+     うしろを はぶくと 空が すける（ドラゴンの はね・主人公の あごで 実測）。大きく した ぶんは 下じき（ふちの 色）が 見える */
+  const LIP = 0.5;
+  function frontFace(w, h) {
+    const f = face(w + LIP * 2, h + LIP * 2, null, null);
+    f.style.left = (-LIP) + 'px';
+    f.style.top = (-LIP) + 'px';
+    return f;
+  }
   function face(w, h, tf, origin) {
     const f = document.createElement('div');
     f.className = 'f';
@@ -96,13 +216,6 @@ MQ.vox = (function () {
     f.style.height = h + 'px';
     if (tf) f.style.transform = tf;
     if (origin) f.style.transformOrigin = origin;
-    return f;
-  }
-  function texFace(w, h, tf, origin, png) {
-    const f = face(w, h, tf, origin);
-    f.style.backgroundImage = 'url(' + png + ')';
-    f.style.backgroundSize = '100% 100%';
-    f.style.imageRendering = 'pixelated';
     return f;
   }
 
@@ -313,7 +426,8 @@ MQ.vox = (function () {
   }
 
   /* 部品（かんせつで 回す グループ）。
-     parts … [{ cls, joint: [x, y]（かんせつ・48マスの 座標）, boxes: [], parent: 'body' }]
+     parts … [{ cls, joint: [x, y]（かんせつ・48マスの 座標）, boxes: [], parent: 'body',
+                back: うしろの 面を つける（170° ふり上げる うで・けん）, keep: 面を 1つも はぶかない（ひらく ふた） }]
      箱は 部品の 中に 入り、部品は transform-origin が かんせつ に なる。 */
   function partNode(p, U) {
     const d = document.createElement('div');
@@ -321,7 +435,69 @@ MQ.vox = (function () {
     d.style.transformOrigin = (p.joint[0] * U) + 'px ' + (p.joint[1] * U) + 'px ' + ((p.jz || 0) * U) + 'px';   // jz＝奥ゆき（たからばこの ふたは うしろの へり）
     return d;
   }
-  function assemble(wrap, parts, U, makeBox) {
+  /* ⑦ 見えない 面に しるしを つける（r.face＝{ back, L, R, T, B }）。
+     ・同じ 部品の となりの 箱に すっぽり かくれる 面（つみ重ねの あいだ・よこならびの あいだ）
+     ・hide … カメラの 向きで ぜったい 見えない がわ（'L'／'R'）。はね（rotateY で 動く）と keep の 部品は はぶかない
+     箱は 奥ゆきの まん中ぞろえ（z −d/2〜+d/2）なので、「かくれる」＝ x・y の はんいが 中に 入って 奥ゆきも 同じ か 大きい */
+  /* 検査用の スイッチ（harness が 切りかえて 見くらべる）：noCull＝かくれる 面も 作る／noMerge＝つながない／allBack＝うしろも ぜんぶ */
+  const FLAGS = { noCull: false, noMerge: false, allBack: false };
+  function cull(parts, hide) {
+    hide = FLAGS.noCull ? '' : (hide || '');
+    parts.forEach(function (p) {
+      const rotY = p.cls.indexOf('wing') === 0;
+      p.boxes.forEach(function (r) {
+        const f = { back: !!p.back || !!p.keep || FLAGS.allBack, L: true, R: true, T: true, B: true };
+        r.m = null;
+        if (!p.keep) {
+          if (!rotY && hide.indexOf('L') >= 0) f.L = false;
+          if (!rotY && hide.indexOf('R') >= 0) f.R = false;
+          if (hide.indexOf('T') >= 0) f.T = false;                 // カメラは 8° 下から＝上の 面は 動かない 画面（タイトル）では 見えない
+        }
+        if (!p.keep && !FLAGS.noCull) {
+          p.boxes.forEach(function (q) {
+            if (q === r || q.d < r.d) return;
+            const xin = q.x <= r.x && q.x + q.w >= r.x + r.w;
+            const yin = q.y <= r.y && q.y + q.h >= r.y + r.h;
+            if (xin && q.y + q.h === r.y) f.T = false;
+            if (xin && r.y + r.h === q.y) f.B = false;
+            if (yin && q.x + q.w === r.x) f.L = false;
+            if (yin && r.x + r.w === q.x) f.R = false;
+          });
+        }
+        r.face = f;
+      });
+      if (!p.keep && !FLAGS.noMerge) mergeFaces(p.boxes);
+    });
+  }
+  /* ⑪ 同じ 平面に ぴったり ならぶ 面（同じ 部品・同じ 奥ゆき・はしが そろって いて となりあう）を 1まいに つなぐ。
+     右の 面＝右はしが 同じ x で 上下に となりあう／上の 面＝同じ y で 左右に となりあう。
+     見た目は 同じ（同じ 場所に 同じ 模様）で、GPU の 層が へる。つないだ 先頭の 箱に r.m[side]＝{ n（長さ）, cols } を おく */
+  function mergeFaces(boxes) {
+    const merge = function (side, keyOf, posOf, lenOf, colsOf) {
+      const groups = {};
+      boxes.forEach(function (r) { if (!r.face[side]) return; const k = keyOf(r); (groups[k] = groups[k] || []).push(r); });
+      Object.keys(groups).forEach(function (k) {
+        const g = groups[k].sort(function (a, b) { return posOf(a) - posOf(b); });
+        let head = null;
+        g.forEach(function (r) {
+          if (head && posOf(head) + head.m[side].n === posOf(r)) {
+            head.m[side].n += lenOf(r);
+            head.m[side].cols = head.m[side].cols.concat(colsOf(r));
+            r.face[side] = false;
+          } else {
+            head = r; r.m = r.m || {};
+            r.m[side] = { n: lenOf(r), cols: colsOf(r).slice() };
+          }
+        });
+      });
+    };
+    merge('R', function (r) { return (r.x + r.w) + '|' + r.d; }, function (r) { return r.y; }, function (r) { return r.h; }, function (r) { return r.R; });
+    merge('L', function (r) { return r.x + '|' + r.d; },         function (r) { return r.y; }, function (r) { return r.h; }, function (r) { return r.L; });
+    merge('T', function (r) { return r.y + '|' + r.d; },         function (r) { return r.x; }, function (r) { return r.w; }, function (r) { return r.T; });
+    merge('B', function (r) { return (r.y + r.h) + '|' + r.d; }, function (r) { return r.x; }, function (r) { return r.w; }, function (r) { return r.B; });
+  }
+  function assemble(wrap, parts, U, makeBox, hide) {
+    cull(parts, hide);
     /* 同じ 名前の 部品（あし 4本＝legA×2・legB×2）は それぞれ 別の かんせつ。親は その 名前の さいしょの 部品 */
     const first = {};
     parts.forEach(function (p) { p.node = partNode(p, U); if (!first[p.cls]) first[p.cls] = p.node; });
@@ -330,6 +506,7 @@ MQ.vox = (function () {
       (p.parent && first[p.parent] ? first[p.parent] : wrap).appendChild(p.node);
     });
     wrap.dataset.parts = parts.map(function (p) { return p.cls + ':' + p.boxes.length; }).join(' ');
+    wrap.dataset.faces = wrap.querySelectorAll('.f').length;
   }
 
   /* モンスターの 部品を 形から 自動で 見つける：
@@ -361,9 +538,14 @@ MQ.vox = (function () {
     return parts;
   }
 
-  /* 箱 1つ。front … 前の 面（DOM）。 */
-  function buildBox(r, U, front) {
-    const w = r.w * U, h = r.h * U, d = r.d * U;
+  /* 箱 1つ。front … 前の 面（DOM）。atlas … 模様を つめる 先。
+     面は ぜんぶ **外むき**（⑧）。box.faces に 面の DOM（front/back/L/R/T/B・ない ものは null）。 */
+  /* つぎめ：前の 面と よこ・上下の 面は 同じ へりを 共有する ので、GPU の アンチエイリアスで 1点ぶん すきまが 出る。
+     うしろの 面が あった ころは そこに 暗い 色が 見えて「ふち」に 見えて いたが、うしろを はぶくと 空が すける（v12.1 で 実測）。
+     → よこ・上下の 面を 手まえに EPS だけ 長く して すきまを ふさぐ */
+  const EPS = 0.6;   // 右と 下の 面を 0.6px 手まえに 出す（前の 面との つぎめに 空が すけない・ドラゴンの はねで 実測）
+  function buildBox(r, U, front, atlas) {
+    const w = r.w * U, h = r.h * U, d = r.d * U, dd = d + EPS;
     const box = document.createElement('div');
     box.className = 'b';
     box.style.left = (r.x * U) + 'px';
@@ -372,27 +554,45 @@ MQ.vox = (function () {
     box.style.height = h + 'px';
     box.style.transform = 'translateZ(' + (d / 2) + 'px)';          // まん中ぞろえ（手まえと おくに 半分ずつ）
     box.appendChild(front);
+    box.faces = { front: front, back: null, L: null, R: null, T: null, B: null };
     if (r.w <= 1 && r.h <= 1) return box;
+    const fl = r.face || { back: true, L: true, R: true, T: true, B: true };
     const dp = Math.max(2, Math.round(r.d));                          // 模様の 点の 数（奥ゆき）
-    // うしろ
-    const back = face(w, h, 'translateZ(' + (-d) + 'px)', null);
-    back.style.background = lit(mixCols(r.L.concat(r.R)), 'back');
-    box.appendChild(back);
-    // 右・左（rotateY(90deg) は うしろへ のびる）
-    box.appendChild(texFace(d, h, 'translateX(' + w + 'px) rotateY(90deg)', 'left center', texture(r.R, dp, 'right', 'x')));
-    box.appendChild(texFace(d, h, 'rotateY(90deg)', 'left center', texture(r.L, dp, 'left', 'x')));
-    /* 上・下の 面は **はば いっぱい**に つける（rotateX(-90deg) ＝ うしろへ。+90 だと 手まえに 出る）。
-       となりの 箱に かくれる ぶんは 見えないので むだは ない。ふちだけに すると 箱の 中が あいて いて、
-       かんせつで 回した とき（たおれる・歩く）に 中＝前の 面の うら（顔）が 見えた（ユーザー「首に 顔が ある」）。 */
-    box.appendChild(texFace(w, d, 'rotateX(-90deg)', 'center top', texture(r.T, dp, 'top', 'y')));
-    box.appendChild(texFace(w, d, 'translateY(' + h + 'px) rotateX(-90deg)', 'center top', texture(r.B, dp, 'bottom', 'y')));
+    const tex = function (f, cols, side, dir, flip) {
+      const t = texDraw(cols, dp, side, dir, flip);
+      atlas.use(f, atlas.slot('T|' + side + dir + dp + (flip ? 'f' : '') + '|' + cols.join(','), t));
+      return f;
+    };
+    // うしろ（色は 左右の ふちの 平均を 暗く）
+    if (fl.back) {
+      const back = face(w, h, 'translateZ(' + (-d) + 'px)', null);
+      back.style.background = lit(mixCols(r.L.concat(r.R)), 'back');
+      box.faces.back = back;
+      box.appendChild(back);
+    }
+    /* つないだ 面（⑪）は となりの 箱の ぶんまで 長い（m[side].n＝マスの 数・cols＝色の ならび） */
+    const m = r.m || {};
+    const RC = m.R ? m.R.cols : r.R, RH = (m.R ? m.R.n : r.h) * U;
+    const LC = m.L ? m.L.cols : r.L, LH = (m.L ? m.L.n : r.h) * U;
+    const TC = m.T ? m.T.cols : r.T, TW = (m.T ? m.T.n : r.w) * U;
+    const BC = m.B ? m.B.cols : r.B, BW = (m.B ? m.B.n : r.w) * U;
+    // 右（rotateY(90deg) は うしろへ のびる・法線 +x＝外むき）
+    if (fl.R) box.faces.R = box.appendChild(tex(face(dd, RH, 'translateX(' + w + 'px) translateZ(' + EPS + 'px) rotateY(90deg)', 'left center'), RC, 'right', 'x', false));
+    // 左（rotateY(90deg) を 左はしに・v12.0 と 同じ）
+    if (fl.L) box.faces.L = box.appendChild(tex(face(d, LH, 'rotateY(90deg)', 'left center'), LC, 'left', 'x', false));
+    /* 上・下の 面は **はば いっぱい**に つける。となりの 箱に かくれる ぶんは ⑦ で はぶく。
+       ふちだけに すると 箱の 中が あいて いて、かんせつで 回した とき（たおれる・歩く）に
+       中＝前の 面の うら（顔）が 見えた（ユーザー「首に 顔が ある」）。 */
+    if (fl.T) box.faces.T = box.appendChild(tex(face(TW, d, 'rotateX(-90deg)', 'left top'), TC, 'top', 'y', false));
+    if (fl.B) box.faces.B = box.appendChild(tex(face(BW, dd, 'translateY(' + h + 'px) translateZ(' + EPS + 'px) rotateX(-90deg)', 'left top'), BC, r.litB || 'bottom', 'y', false));
+    box.dataset.f = (fl.back ? 'k' : '') + (fl.L ? 'L' : '') + (fl.R ? 'R' : '') + (fl.T ? 'T' : '') + (fl.B ? 'B' : '') + (r.m ? '+' : '');   // 検査用：どの 面が あるか
     return box;
   }
 
-  /* 足もとの 影（ゆかに ねかせた だ円） */
+  /* 足もとの 影（ゆかに ねかせた だ円・外むき＝上を 向く） */
   function floorShadow(size, thick, x0, x1, y1) {
     const w = (x1 - x0) * 1.15, dz = thick * 2.4;
-    const f = face(w, dz, 'translateZ(' + (dz / 2) + 'px) rotateX(-90deg)', 'center top');
+    const f = face(w, dz, 'translateZ(' + (-dz / 2) + 'px) rotateX(90deg)', 'center top');
     f.className = 'f v3__shadow';
     f.style.left = (x0 - (w - (x1 - x0)) / 2) + 'px';
     f.style.top = (y1 + 0.5) + 'px';
@@ -420,7 +620,7 @@ MQ.vox = (function () {
   /* ---------------- モンスター（.bx）----------------
      前の 面は **もとの <i> の 写し**（その 箱に かかる ものだけ）を 切りぬいて 貼る。 */
   /* 1つの .bx から「箱の ならび」と「箱を 作る 関数」を 出す（fromBx と fromGroups の 共通部分） */
-  function builder(bx, U, cap, bandOf) {
+  function builder(bx, U, cap, bandOf, atlas) {
     const size = Math.round(parseFloat(bx.style.width) || 48);
     const g = gridOf(bx, size);
     const b = bounds(g);
@@ -437,24 +637,15 @@ MQ.vox = (function () {
        箱に すっぽり 入る 光る 部品（目・コア）は **切りぬかない 層**に 置く
        （切りぬくと グローが 四角い 帯に 見える）。それ いがいは 箱の 形に 切りぬく。 */
     const inner = function (r, clip) {
-      const f = face(r.w * U, r.h * U, null, null);
+      const f = clip ? frontFace(r.w * U, r.h * U) : face(r.w * U, r.h * U, null, null);
       f.className = 'f fr' + (clip ? ' fr--clip' : ' fr--free');
       if (clip) {
         f.style.overflow = 'hidden';
-        const cv = document.createElement('canvas');
-        cv.width = 2; cv.height = r.h;
-        const cx = cv.getContext('2d');
-        for (let k = 0; k < r.h; k++) {
-          cx.fillStyle = r.L[k] || r.L[0]; cx.fillRect(0, k, 1, 1);
-          cx.fillStyle = r.R[k] || r.R[0]; cx.fillRect(1, k, 1, 1);
-        }
-        f.style.backgroundImage = 'url(' + cv.toDataURL('image/png') + ')';
-        f.style.backgroundSize = '100% 100%';
-        f.style.imageRendering = 'pixelated';
+        atlas.use(f, atlas.slot('U|' + r.w + 'x' + r.h + '|' + r.L.join(',') + '|' + r.R.join(','), underDraw(r.L, r.R, r.w, r.h)), null, LIP);
       }
       const lay = document.createElement('div');
       lay.className = 'bx';
-      lay.style.cssText = 'position:absolute;left:0;top:0;width:' + r.w + 'px;height:' + r.h + 'px;transform:scale(' + U + ');transform-origin:0 0;';
+      lay.style.cssText = 'position:absolute;left:' + (clip ? LIP : 0) + 'px;top:' + (clip ? LIP : 0) + 'px;width:' + r.w + 'px;height:' + r.h + 'px;transform:scale(' + U + ');transform-origin:0 0;';
       f.appendChild(lay);
       return { f: f, lay: lay, n: 0 };
     };
@@ -472,7 +663,7 @@ MQ.vox = (function () {
         to.lay.appendChild(c);
         to.n++;
       });
-      const box = buildBox(r, U, clip.f);
+      const box = buildBox(r, U, clip.f, atlas);
       if (free.n) box.insertBefore(free.f, clip.f.nextSibling);
       return box;
     };
@@ -482,31 +673,44 @@ MQ.vox = (function () {
   function fromBx(bx, opts) {
     opts = opts || {};
     const U = opts.unit || 1;                                          // 1マス＝何px で 作るか（表示の 大きさで 作る＝ぼやけない）
-    const bd = builder(bx, U, opts.max);
+    const atlas = new Atlas();
+    const t0 = now();
+    const bd = builder(bx, U, opts.max, null, atlas);
+    timing.boxes = now() - t0;
     const wrap = wrapOf(bd.size * U);
     if (opts.shadow !== false) wrap.appendChild(floorShadow(bd.size * U, bd.thick * U, bd.b.x0 * U, bd.b.x1 * U, bd.b.y1 * U));
-    assemble(wrap, rigMonster(bd.boxes, bd.b), U, bd.makeBox);
+    const t1 = now();
+    assemble(wrap, rigMonster(bd.boxes, bd.b), U, bd.makeBox, opts.hide);
+    timing.make = now() - t1;
+    const t2 = now();
+    atlas.finish(U);
+    timing.atlas = now() - t2; timing.grid = 0; timing.total = now() - t0;
     wrap.dataset.boxes = bd.boxes.length;
     return wrap;
   }
 
   /* ---------------- 部品ごとに 別の 絵から 組む（たからばこ など）----------------
-     groups … [{ cls, bx（その 部品だけの .bx）, joint: [x, y], jz, parent, thick }]
+     groups … [{ cls, bx（その 部品だけの .bx）, joint: [x, y], jz, parent, thick,
+                 keep（面を はぶかない・ひらく ふた）, bottom（下の 面を この 色に＝ふたの 内がわ） }]
      同じ 行に ちがう 部品（ふたの 中の 金貨 など）が ある ときは、1つの 絵から 切り分けられない ので
      部品ごとに 絵を 分けて わたす。箱の 作り方（面の 模様・前の 面の 写し）は fromBx と 同じ。 */
   function fromGroups(groups, opts) {
     opts = opts || {};
     const U = opts.unit || 1;
+    const atlas = new Atlas();
     let size = 48, x0 = 999, x1 = 0, y1 = 0, thick = 0;
     const parts = groups.map(function (gr) {
-      const bd = builder(gr.bx, U, gr.thick || opts.max);
+      const bd = builder(gr.bx, U, gr.thick || opts.max, null, atlas);
       size = bd.size;
       if (gr.floor !== false) { x0 = Math.min(x0, bd.b.x0); x1 = Math.max(x1, bd.b.x1); y1 = Math.max(y1, bd.b.y1); thick = Math.max(thick, gr.thick || bd.thick); }
-      return { cls: gr.cls, joint: gr.joint, jz: gr.jz, parent: gr.parent, boxes: bd.boxes, make: bd.makeBox };
+      /* bottom … 下の 面を この 色（ふたの 内がわ＝明るい 木）に。ひらくと 上を 向く ので 光も「上」の もの */
+      if (gr.bottom) bd.boxes.forEach(function (r) { r.B = r.B.map(function () { return gr.bottom; }); r.litB = 'top'; });
+      return { cls: gr.cls, joint: gr.joint, jz: gr.jz, parent: gr.parent, keep: !!gr.keep, back: !!gr.back, boxes: bd.boxes, make: bd.makeBox };
     });
     const wrap = wrapOf(size * U);
     if (opts.shadow !== false && x1 > x0) wrap.appendChild(floorShadow(size * U, thick * U, x0 * U, x1 * U, y1 * U));
-    assemble(wrap, parts, U, null);
+    assemble(wrap, parts, U, null, opts.hide);
+    atlas.finish(U);
     wrap.dataset.boxes = parts.reduce(function (n, p) { return n + p.boxes.length; }, 0);
     return wrap;
   }
@@ -516,16 +720,21 @@ MQ.vox = (function () {
   function fromHero(img, src, opts) {
     opts = opts || {};
     const U = opts.unit || 2;
+    const atlas = new Atlas();
     /* 帯：頭 20／体 13／足 13（マイクラの キャラも 体と 足は 同じ 厚み。足だけ うすいと 帯の さかいめに 線が 出る）
        体（22〜35）と 足（36〜）は 部品を 分ける ために 帯も 分ける */
     const BANDS = opts.bands || [[22, 20], [36, 13], [48, 13]];
     /* face.js の きまり：からだ x15〜32／左うで x9〜14／右うで x33〜38／あし 16〜23・24〜31 */
     const CUT = { armL: 15, armR: 33, leg: 24, neck: 22, hip: 36, headL: 11, headR: 36, shoeR: 34, sword: 36 };
     const SWORD_W = 5, SWORD_D = 4;   // 刃＝はば 5マス いかの 箱を 厚み 4 に（13 → 4・2026-09-10）   // 右の くつは x24〜33 なので 足の 行の 右うでは 34 から   // 頭の 行で 顔（かみ 12〜35）の 外＝けん・たて
+    const t0 = now();
     const g = gridOfImage(img, 48);
+    timing.grid = now() - t0;
     const b = bounds(g);
     const bandOf = function (y) { for (let i = 0; i < BANDS.length; i++) if (y < BANDS[i][0]) return i; return BANDS.length - 1; };
+    const t1 = now();
     const boxes = solidBoxes(g, function (band) { return BANDS[band][1]; }, bandOf, true);
+    timing.boxes = now() - t1;
     const wrap = wrapOf(48 * U);
     if (opts.shadow !== false) {
       const sh = floorShadow(48 * U, 14 * U, b.x0 * U, b.x1 * U, b.y1 * U);
@@ -568,35 +777,28 @@ MQ.vox = (function () {
       });
     });
     P.armR = armR;
+    /* うでと けんは 170° ふり上げる（かち・オープニング）ので うしろの 面が いる。体・頭・あしは 見えない（back なし） */
     const parts = [
       { cls: 'body', joint: [24, CUT.hip], boxes: P.body },
       { cls: 'head', joint: [23.5, CUT.neck], boxes: P.head, parent: 'body' },
-      { cls: 'armL', joint: [12, CUT.neck], boxes: P.armL, parent: 'body' },
-      { cls: 'armR', joint: [35.5, CUT.neck], boxes: P.armR, parent: 'body' },
-      { cls: 'sword', joint: [37, 33], boxes: P.sword, parent: 'armR' },
+      { cls: 'armL', joint: [12, CUT.neck], boxes: P.armL, parent: 'body', back: true },
+      { cls: 'armR', joint: [35.5, CUT.neck], boxes: P.armR, parent: 'body', back: true },
+      { cls: 'sword', joint: [37, 33], boxes: P.sword, parent: 'armR', back: true },
       { cls: 'legA', joint: [19.5, CUT.hip], boxes: P.legL },
       { cls: 'legB', joint: [28, CUT.hip], boxes: P.legR }
     ];
     const makeBox = function (r, cls) {
-      const front = face(r.w * U, r.h * U, null, null);
-      // 下じき：左半分は 左の ふちの 色・右半分は 右の ふちの 色（行ごと）
-      const cv = document.createElement('canvas');
-      cv.width = 2; cv.height = r.h;
-      const cx = cv.getContext('2d');
-      for (let k = 0; k < r.h; k++) {
-        cx.fillStyle = r.L[k] || r.L[0]; cx.fillRect(0, k, 1, 1);
-        cx.fillStyle = r.R[k] || r.R[0]; cx.fillRect(1, k, 1, 1);
-      }
-      front.style.backgroundImage = 'url(' + src + '), url(' + cv.toDataURL('image/png') + ')';
-      front.style.backgroundSize = (48 * U) + 'px ' + (48 * U) + 'px, 100% 100%';
-      front.style.backgroundPosition = (-r.x * U) + 'px ' + (-r.y * U) + 'px, 0 0';
+      const front = frontFace(r.w * U, r.h * U);
+      /* 前の 面＝絵（1まいめ）＋下じき（2まいめ・アトラス）。下じきは 左半分が 左の ふちの 色・右半分が 右の ふちの 色（行ごと） */
       front.style.imageRendering = 'pixelated';
-      const box = buildBox(r, U, front);
-      const back = box.children[1];
-      const isBack = back && /translateZ\(-/.test(back.style.transform);
-      if (isBack && cls === 'head') {
+      atlas.use(front, atlas.slot('U|' + r.w + 'x' + r.h + '|' + r.L.join(',') + '|' + r.R.join(','), underDraw(r.L, r.R, r.w, r.h)),
+                { image: src, size: (48 * U) + 'px ' + (48 * U) + 'px', pos: (-r.x * U + LIP) + 'px ' + (-r.y * U + LIP) + 'px' }, LIP);
+      const box = buildBox(r, U, front, atlas);
+      const back = box.faces.back;
+      if (back && cls === 'head') {
         back.style.background = lit(mixCols(r.T), 'back');             // 頭の うしろ＝かみの 色（顔を うつさない）
-      } else if (isBack && cls !== 'body') {
+      } else if (back && cls !== 'body') {
+        /* うでの うしろ＝絵を 暗く して 貼る */
         back.style.backgroundImage = 'linear-gradient(rgba(10,14,40,.38), rgba(10,14,40,.38)), url(' + src + ')';
         back.style.backgroundSize = 'auto, ' + (48 * U) + 'px ' + (48 * U) + 'px';
         back.style.backgroundPosition = '0 0, ' + (-r.x * U) + 'px ' + (-r.y * U) + 'px';
@@ -604,7 +806,12 @@ MQ.vox = (function () {
       }
       return box;
     };
-    assemble(wrap, parts, U, makeBox);
+    const t2 = now();
+    assemble(wrap, parts, U, makeBox, opts.hide);
+    timing.make = now() - t2;
+    const t3 = now();
+    atlas.finish(U);
+    timing.atlas = now() - t3; timing.total = now() - t0;
     wrap.dataset.boxes = boxes.length;
     return wrap;
   }
@@ -619,24 +826,26 @@ MQ.vox = (function () {
     const g = gridOfImage(img, size);
     const b = bounds(g);
     if (b.x1 <= b.x0 || b.y1 <= b.y0) return null;
+    const atlas = new Atlas();
     const thick = Math.max(6, Math.min(18, Math.round(Math.min(b.x1 - b.x0, b.y1 - b.y0) * 0.42)));
     const boxes = solidBoxes(g, opts.max || thick, null, true);
     const wrap = wrapOf(size * U);
     if (opts.shadow !== false) wrap.appendChild(floorShadow(size * U, thick * U, b.x0 * U, b.x1 * U, b.y1 * U));
     const makeBox = function (r) {
-      const front = face(r.w * U, r.h * U, null, null);
+      const front = frontFace(r.w * U, r.h * U);
       front.style.backgroundImage = 'url(' + src + ')';
       front.style.backgroundSize = (size * U) + 'px ' + (size * U) + 'px';
-      front.style.backgroundPosition = (-r.x * U) + 'px ' + (-r.y * U) + 'px';
+      front.style.backgroundPosition = (-r.x * U + LIP) + 'px ' + (-r.y * U + LIP) + 'px';
       front.style.imageRendering = 'pixelated';
-      return buildBox(r, U, front);
+      return buildBox(r, U, front, atlas);
     };
-    assemble(wrap, rigMonster(boxes, b), U, makeBox);
+    assemble(wrap, rigMonster(boxes, b), U, makeBox, opts.hide);
+    atlas.finish(U);
     wrap.dataset.boxes = boxes.length;
     wrap.dataset.grid = size;
     return wrap;
   }
 
-  return { fromBx: fromBx, fromHero: fromHero, fromImage: fromImage, fromGroups: fromGroups, depthOf: depthOf, texture: texture, lit: lit, rigMonster: rigMonster };
+  return { fromBx: fromBx, fromHero: fromHero, fromImage: fromImage, fromGroups: fromGroups, depthOf: depthOf, texture: texture, lit: lit, rigMonster: rigMonster, cull: cull, timing: timing, flags: FLAGS };
 })();
 window.VOX2 = MQ.vox;   // tools/3d の 検査ページ・デモ用の べつ名

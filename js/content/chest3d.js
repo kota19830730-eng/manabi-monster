@@ -61,20 +61,13 @@
     const groups = [
       { cls: 'base',  bx: bxOf(BASE, plain),  joint: [24, 41], thick: DEPTH },
       /* ふた：ちょうつがいは 土台の うしろの 上の へり（y 20・z −12）。rotateX(+) で 前が 上に あがる */
-      { cls: 'lid',   bx: bxOf(LID, plain),   joint: [24, 20], jz: -DEPTH / 2, parent: 'base', thick: DEPTH },
+      /* v12.1：ふたは ひらくと うしろ・上・下が ぜんぶ 見える ので 面を 1つも はぶかない（keep）。内がわ（下の 面）は 明るい 木 */
+      { cls: 'lid',   bx: bxOf(LID, plain),   joint: [24, 20], jz: -DEPTH / 2, parent: 'base', thick: DEPTH, keep: true, bottom: INNER },
       { cls: 'coins', bx: bxOf(COINS, plain), joint: [24, 20], parent: 'base', thick: 16, floor: false }
     ];
-    const v = MQ.vox.fromGroups(groups, { unit: opts.unit || 2, shadow: opts.shadow });
-    /* ひらいた ふたの 裏（下の 面）は 上を 向く ので、明るい 木の 内がわに（自動だと 金の ふちを 暗くした 色＝どろっと 見えた） */
-    const U = opts.unit || 2;
-    v.querySelectorAll('.p--lid > .b').forEach(function (b) {
-      const faces = b.querySelectorAll(':scope > .f');
-      const under = faces[faces.length - 1];                              // buildBox の さいご＝下の 面
-      if (!under || !/translateY/.test(under.style.transform)) return;
-      const cols = [];
-      for (let i = 0; i < Math.round(parseFloat(b.style.width) / U); i++) cols.push(INNER);
-      under.style.backgroundImage = 'url(' + MQ.vox.texture(cols, Math.max(2, DEPTH), 'top', 'y') + ')';
-    });
+    /* ひらいた ふたの 裏（下の 面）は 上を 向く ので、明るい 木の 内がわに（自動だと 金の ふちを 暗くした 色＝どろっと 見えた）
+       → v12.1 から groups の bottom（上の lid）で わたす。hide＝カメラの 向きで 見えない がわ（three.js が 決める） */
+    const v = MQ.vox.fromGroups(groups, { unit: opts.unit || 2, shadow: opts.shadow, hide: opts.hide });
     v.classList.add('v3--chest');
     if (opts.open) v.classList.add('is-open');
     return v;

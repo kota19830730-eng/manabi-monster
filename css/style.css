@@ -557,6 +557,10 @@ body {
   filter: drop-shadow(0 8px 7px rgba(10,10,40,.45));
 }
 .title__heroimg { display: block; width: 130px; height: 138px; }
+/* v12.1：2D の 勇者も 3D と 同じ 見本キャラ（48マスの 絵を 138px の わくに・3D の .v3scene と 同じ 大きさ） */
+.title__heroimg--avatar { width: 138px; height: 138px; image-rendering: pixelated; }
+.title__hero.is-2d { filter: drop-shadow(0 6px 5px rgba(10,10,40,.4)); }
+.title__hero.is-2d .shadow--poster { left: 36px; width: 66px; }
 .shadow--poster { position: absolute; left: 31px; bottom: -3px; width: 71px; height: 11px; }
 .shadow { border-radius: 50%; background: rgba(10,20,50,.28); }
 
@@ -1284,7 +1288,7 @@ body {
 .arena__top { position: absolute; top: 10px; left: 10px; width: 256px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; z-index: 3; }   /* 右がわは あけて モンスターと かぶらない */
 .arena__msg.is-quiet { opacity: 0; }
 .arena__msg {
-  position: absolute; top: 70px; left: 100px; max-width: 184px;   /* バーの 下・勇者の 右・モンスターの 左 */
+  position: absolute; top: 70px; left: 132px; max-width: 152px;   /* バーの 下・勇者の 右・モンスターの 左（v12.1：主人公が 32px 右へ → 右はしは 284 の まま） */
   padding: 5px 10px; border-radius: 12px; background: #fff; color: #1c2647;
   font-size: 13px; box-shadow: 0 5px 0 rgba(0,0,0,.22); z-index: 4;   /* v10.5：相棒（3）より 上。ふきだしは いつも 読める */
 }
@@ -1297,7 +1301,8 @@ body {
 /* 主人公は 76 → 88px（v9.4）。HD で 点の 数が 2倍に なった ので、
    大きく しても ぼやけない。てきは もともと 72〜112px で 大きかった ので そのまま。
    ふきだし（.arena__msg）の 左はしと ぶつかる ので、少し 左に よせて ある。 */
-.hero { position: absolute; left: 14px; bottom: 62px; z-index: 2; }
+/* v12.1：主人公を 32px 右へ。左はしの 同じ 地面に 相棒が 立つ（ユーザー「相棒の 位置に 違和感」→ まん中の 暗い ゆかから、主人公の うしろの 草の 上へ） */
+.hero { position: absolute; left: 46px; bottom: 62px; z-index: 2; }
 .hero__img { image-rendering: pixelated; }
 .hero__img, .enemy__img { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)); }
 .hero__img { width: 84px; height: 84px; animation: bob 2.4s ease-in-out infinite; }
@@ -1306,15 +1311,19 @@ body {
    v10.5：left 134 / bottom 20 → **left 190 / bottom 12**。前の 場所は ふきだし（top 70・2〜3行で y 130 まで）の
    まっ下で、頭が ふきだしに かぶり（あとに 描く 相棒が 勝つ）、名前と ゲージは 左下の ためゲージ（x 12〜170）と
    コンボの 字に かくれて いた。まん中（x 190〜230）なら ふきだし・ためゲージ・アイテムボタン（x 240〜）の どれとも ぶつからない。 */
-.pal { position: absolute; left: 190px; bottom: 12px; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+/* v12.1：相棒は 主人公の うしろ（左はし）・同じ 草の 上（bottom 62）・主人公より うしろ（z 1）。
+   なまえと ゲージは 足もとの 下（暗い ゆか）に 出す。ためゲージと コンボは 54px 右へ よけた */
+.pal { position: absolute; left: 6px; bottom: 62px; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.pal__name { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px; }
+.pal__gauge { position: absolute; top: calc(100% + 16px); left: 50%; transform: translateX(-50%); }
 .pal .mons { filter: drop-shadow(0 3px 3px rgba(10,10,40,.45)); animation: bob 2s ease-in-out infinite; }
 .pal__name { font-family: var(--f-head); font-size: 9px; color: #ffe9a8; text-shadow: 0 1px 0 rgba(0,0,0,.6); white-space: nowrap; }
 .pal.is-hit { animation: palJump .55s ease-out; }
 .pal.is-hit .pal__name { opacity: .4; }
 @keyframes palJump {
   0% { transform: translate(0, 0); }
-  35% { transform: translate(84px, -26px); }    /* v10.5：相棒が 右に よった ぶん とぶ きょりを 短く（てきの 中に めりこまない） */
-  55% { transform: translate(104px, -10px); }
+  35% { transform: translate(120px, -30px); }    /* v12.1：左はしから 主人公の 前まで とび出す */
+  55% { transform: translate(150px, -12px); }
   100% { transform: translate(0, 0); }
 }
 .pal__slash { position: absolute; right: 54px; top: 96px; width: 40px; height: 6px; background: #fff2b0; box-shadow: 0 0 12px 4px rgba(255,214,90,.85); animation: palSlash .5s ease-out forwards; z-index: 4; }
@@ -1349,7 +1358,7 @@ body {
 .palname__btns .btn, .rename__btns .btn { flex: 1; }
 
 @media (prefers-reduced-motion: reduce) { .pal.is-hit, .pal__slash, .palbanner { animation-duration: .01s; } }
-.combo { position: absolute; bottom: 8px; left: 12px; font-family: var(--f-head); font-size: 26px; color: #fff; text-shadow: 0 3px 0 #d6491f, 0 0 14px rgba(255,150,80,.8); z-index: 3; }
+.combo { position: absolute; bottom: 8px; left: 54px; font-family: var(--f-head); font-size: 26px; color: #fff; text-shadow: 0 3px 0 #d6491f, 0 0 14px rgba(255,150,80,.8); z-index: 3; }
 .dmg { position: absolute; font-family: var(--f-head); font-size: 22px; color: #fff; text-shadow: 0 2px 0 #d6491f; z-index: 4; }
 
 .tag--hp { display: flex; align-items: center; }
@@ -3131,7 +3140,7 @@ body {
 
 /* ⑦ ためゲージ：コンボの すぐ 下。あと 何問で ひっさつか 見える */
 .charge {
-  position: absolute; left: 12px; bottom: 38px; z-index: 4;   /* コンボ（bottom:8）の すぐ 上 */
+  position: absolute; left: 54px; bottom: 38px; z-index: 4;   /* コンボ（bottom:8）の すぐ 上。v12.1：相棒の なまえの 右 */
   display: flex; align-items: center; gap: 6px;
   padding: 3px 9px; border-radius: 10px; background: rgba(10,14,34,.72);
   font-family: var(--f-body); font-size: 10px; color: #ffe9a8;

@@ -14,6 +14,13 @@
    --------------------------------------------------------- */
 (function () {
   const heroCache = {};        // 主人公の 箱（絵の src ＋ unit → .v3）。cloneNode して 使う
+  const monCache = {};         // モンスターの 箱（id ＋ unit ＋ おこり ＋ 向き → .v3）。v12.1：同じ 子は 作らずに cloneNode
+  /* v12.1：カメラの 向き（rotateY）で ぜったいに 見えない がわの 面を 作らない。
+     ry<0（左むき・てき）＝左の 面が 見えない／ry>0（右むき・主人公・相棒）＝右の 面が 見えない */
+  function hideOf(ry) { return ry < 0 ? 'L' : ry > 0 ? 'R' : ''; }
+  /* flat … 上の 面も 作らない。カメラは 8° 下から なので、ゆれる だけの 画面（タイトル・カプセル＝mo-title）では 上の 面は 見えない。
+     バトルは フェイント（rotateX -15°）・とびかかり・歩き で 上が 見える ので つける */
+  function hideFor(ry, opts) { return hideOf(ry) + (opts && opts.flat ? 'T' : ''); }
 
   function on() {
     if (!MQ.vox || !MQ.save || !MQ.save.getSetting) return false;
@@ -51,18 +58,21 @@
   /* ---------- モンスター（enemies.node の .bx → 箱。写真の モンスターは img から） ---------- */
   function monster(id, size, opts) {
     opts = opts || {};
-    const holder = MQ.enemies.node(id, { size: 48, enrage: !!opts.enrage });
     const U = opts.unit || unitFor(size);
-    const sc = scene(size, opts.ry == null ? -22 : opts.ry, 48 * U, opts.cls);
+    const ry = opts.ry == null ? -22 : opts.ry;
+    const sc = scene(size, ry, 48 * U, opts.cls);
+    const key = id + '|' + U + '|' + (opts.enrage ? 1 : 0) + '|' + (hideFor(ry, opts) || '-');
+    if (monCache[key]) return put(sc, monCache[key].cloneNode(true), opts.mo || 'mo-menace');
+    const holder = MQ.enemies.node(id, { size: 48, enrage: !!opts.enrage });
     const bx = holder.querySelector('.bx');
-    if (bx) return put(sc, MQ.vox.fromBx(bx, { unit: U }), opts.mo || 'mo-menace');
+    if (bx) { monCache[key] = MQ.vox.fromBx(bx, { unit: U, hide: hideFor(ry, opts) }); return put(sc, monCache[key].cloneNode(true), opts.mo || 'mo-menace'); }
     const png = holder.querySelector('.bxbox__png');
     if (!png) return null;
     /* 写真の モンスター：絵が 読めてから 箱に する（data URL なので すぐ） */
     const img = new Image();
     img.onload = function () {
       const grid = Math.min(img.naturalWidth || 48, 64);
-      const v = MQ.vox.fromImage(img, png.src, { unit: U, size: grid });
+      const v = MQ.vox.fromImage(img, png.src, { unit: U, size: grid, hide: hideFor(ry, opts) });
       if (!v) return;
       // 器は 48マスの つもりで 作って ある → 大きさを 合わせ直す
       const k = size / (grid * U);
@@ -81,13 +91,14 @@
     opts = opts || {};
     const src = MQ.hero.sprite(player);
     const U = opts.unit || 2;
-    const sc = scene(size, opts.ry == null ? 22 : opts.ry, 48 * U, opts.cls);
-    const key = src.length + ':' + src.slice(-64) + '|' + U;   // data URL は 長い ので 末尾で 見分ける
+    const ry = opts.ry == null ? 22 : opts.ry;
+    const sc = scene(size, ry, 48 * U, opts.cls);
+    const key = src.length + ':' + src.slice(-64) + '|' + U + '|' + (hideFor(ry, opts) || '-');   // data URL は 長い ので 末尾で 見分ける
     const done = function (v) { put(sc, v.cloneNode(true), opts.mo || 'mo-idle'); };
     if (heroCache[key]) { done(heroCache[key]); return sc; }
     const img = new Image();
     img.onload = function () {
-      const v = MQ.vox.fromHero(img, src, { unit: U });
+      const v = MQ.vox.fromHero(img, src, { unit: U, hide: hideFor(ry, opts) });
       v.classList.add('v3--hero');
       heroCache[key] = v;
       done(v);
@@ -100,8 +111,9 @@
   function chest(size, opts) {
     opts = opts || {};
     const U = 2;
-    const sc = scene(size, opts.ry == null ? -22 : opts.ry, 48 * U, opts.cls);
-    return put(sc, MQ.vox.chest({ unit: U, open: !!opts.open }), opts.mo || 'mo-chest');
+    const ry = opts.ry == null ? -22 : opts.ry;
+    const sc = scene(size, ry, 48 * U, opts.cls);
+    return put(sc, MQ.vox.chest({ unit: U, open: !!opts.open, hide: hideFor(ry, opts) }), opts.mo || 'mo-chest');
   }
 
   /* ---------- 動き ---------- */
@@ -156,5 +168,6 @@
   }
 
   MQ.ui = MQ.ui || {};
-  MQ.ui.v3 = { on: on, monster: monster, hero: hero, chest: chest, play: play, idle: idle, dashTo: dashTo, enter: enter, sceneOf: sceneOf };
+  MQ.ui.v3 = { on: on, monster: monster, hero: hero, chest: chest, play: play, idle: idle, dashTo: dashTo, enter: enter, sceneOf: sceneOf, hideOf: hideOf,
+    clearCache: function () { Object.keys(monCache).forEach(function (k) { delete monCache[k]; }); Object.keys(heroCache).forEach(function (k) { delete heroCache[k]; }); } };
 })();

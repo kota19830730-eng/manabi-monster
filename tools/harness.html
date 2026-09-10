@@ -150,7 +150,13 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script>
 (function () {
   const L = window.__log;
-  const mode = (location.hash || '#flow').slice(1);
+  /* #<mode>|css=<encodeURIComponent した CSS> … その CSS を かぶせて 撮る（位置の 案を くらべる 用・v12.1） */
+  const hashAll = (location.hash || '#flow').slice(1);
+  const mode = hashAll.split('|')[0];
+  hashAll.split('|').slice(1).forEach(function (part) {
+    if (part.indexOf('css=') === 0) { const st = document.createElement('style'); st.textContent = decodeURIComponent(part.slice(4)); document.head.appendChild(st); }
+    if (part.indexOf('js=') === 0) { try { (new Function(decodeURIComponent(part.slice(3))))(); } catch (e) { console.error('js=', e); } }   // |js=<code>：モードの 前に 走らせる（検査の スイッチ用）
+  });
   const $ = function (s, root) { return (root || document).querySelector(s); };
   const $$ = function (s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); };
   function say(t) { L.push(t); }
@@ -2038,6 +2044,63 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const b = $('.memo__btn'); b.click(); await wait(200);
       const m = $('.memo');
       say('wide: ' + m.classList.contains('memo--wide') + ' memo=' + Math.round(m.getBoundingClientRect().height) + 'px btn=' + b.textContent);
+      return;
+    }
+    /* 3D の 重さを 数える（v12.1・2026-09-10）：#perf3d[:2d][:title]
+       バトル（相棒つき）か タイトルを 出して、部品の 数（箱・面・DOM）・作る 時間・1コマの 時間（本当の 時計）を 出す。
+       1コマは --virtual-time-budget なしで 動かした ときだけ 本当の 数字（virtual-time では 時計が にせもの） */
+    if (mode.indexOf('perf3d') === 0) {
+      const two = mode.indexOf(':2d') > 0, title = mode.indexOf(':title') > 0;
+      fresh();
+      MQ.save.update(function (pl) { MQ.pals.add(pl, 'drago-1'); MQ.pals.setActive(pl, 'drago-1'); });
+      MQ.save.setSetting('v3', !two);
+      /* 3D の 関数（monster/hero/chest/play/enter）と hero.sprite・enemies.node が start() の 中で つかった 時間 */
+      const spent = {};
+      const wrapFn = function (obj, name, label) {
+        const real = obj[name]; if (!real) return;
+        obj[name] = function () { const t = performance.now(); const r = real.apply(this, arguments); spent[label] = (spent[label] || 0) + (performance.now() - t); return r; };
+      };
+      if (MQ.ui.v3) ['monster', 'hero', 'chest', 'play', 'enter', 'idle', 'dashTo'].forEach(function (k) { wrapFn(MQ.ui.v3, k, 'v3.' + k); });
+      wrapFn(MQ.hero, 'sprite', 'hero.sprite'); wrapFn(MQ.enemies, 'node', 'enemies.node'); wrapFn(MQ.ui, 'hud', 'ui.hud');
+      if (MQ.bgm) wrapFn(MQ.bgm, 'play', 'bgm.play');
+      const t0 = performance.now();
+      if (title) { MQ.ui.start.render(); MQ.ui.show('screen-start'); }
+      else MQ.ui.battle.start('sansu3-6');
+      const t1 = performance.now();
+      await wait(800);
+      say('perf3d: start() の 内わけ ' + Object.keys(spent).map(function (k) { return k + '=' + spent[k].toFixed(1); }).join(' '));
+      const sc = document.getElementById(title ? 'screen-start' : 'screen-battle');
+      const n = function (q) { return sc.querySelectorAll(q).length; };
+      say('perf3d(' + (two ? '2D' : '3D') + (title ? ' title' : ' battle') + '): 作る=' + (t1 - t0).toFixed(1) + 'ms DOM=' + n('*') +
+          ' 箱=' + n('.v3 .b') + ' 面=' + n('.v3 .f') + ' 面の中の i=' + n('.v3 .bx i') + ' data:url=' + n('[style*="data:image"]'));
+      sc.querySelectorAll('.v3').forEach(function (v) {
+        say('  ' + (v.className.replace(/\s+/g, ' ')) + ' 箱=' + v.querySelectorAll('.b').length + ' 面=' + v.querySelectorAll('.f').length + ' parts=' + (v.dataset.parts || ''));
+      });
+      /* 1体ぶんの 作る 時間の 内わけ（2D の 絵 → 箱 → 面 → アトラス） */
+      if (!two) {
+        try {
+          const t2d = performance.now(); const holder = MQ.enemies.node('slime-green', { size: 48 }); const ms2d = performance.now() - t2d;
+          const bx0 = holder.querySelector('.bx');
+          const ta = performance.now(); const vv = MQ.vox.fromBx(bx0, { unit: 2, hide: 'L' }); const tb = performance.now() - ta;
+          say('perf3d: スライム 2D の 絵=' + ms2d.toFixed(1) + 'ms ／ 箱に する fromBx=' + tb.toFixed(1) + 'ms（箱 ' + MQ.vox.timing.boxes.toFixed(1) + ' 面 ' + MQ.vox.timing.make.toFixed(1) + ' アトラス ' + MQ.vox.timing.atlas.toFixed(1) + '） 面=' + vv.querySelectorAll('.f').length);
+          const tc = performance.now(); MQ.ui.v3.monster('robot-gray', 96); const tcc = performance.now() - tc;
+          const td = performance.now(); MQ.ui.v3.monster('robot-gray', 96); const tdd = performance.now() - td;
+          say('perf3d: v3.monster 1回め=' + tcc.toFixed(1) + 'ms ／ 2回め（cloneNode）=' + tdd.toFixed(1) + 'ms');
+          const th = performance.now(); MQ.ui.v3.hero(MQ.save.current(), 84); const thh = performance.now() - th;
+          say('perf3d: v3.hero（同期の ぶん・cache あり）=' + thh.toFixed(1) + 'ms 主人公の 内わけ grid ' + MQ.vox.timing.grid.toFixed(1) + ' 箱 ' + MQ.vox.timing.boxes.toFixed(1) + ' 面 ' + MQ.vox.timing.make.toFixed(1) + ' アトラス ' + MQ.vox.timing.atlas.toFixed(1) + '（さいごに 作った 主人公）');
+        } catch (e) { say('perf3d: 内わけ ERR ' + e.message); }
+      }
+      const frames = [];
+      let last = performance.now();
+      await new Promise(function (res) {
+        function tick() { const t = performance.now(); frames.push(t - last); last = t; if (frames.length < 150) requestAnimationFrame(tick); else res(); }
+        requestAnimationFrame(tick);
+      });
+      frames.shift();
+      const sorted = frames.slice().sort(function (a, b) { return a - b; });
+      const avg = frames.reduce(function (a, b) { return a + b; }, 0) / frames.length;
+      say('perf3d: 1コマ 平均=' + avg.toFixed(1) + 'ms 中央=' + sorted[Math.floor(sorted.length / 2)].toFixed(1) + 'ms 上位5%=' + sorted[Math.floor(sorted.length * 0.95)].toFixed(1) + 'ms（16.7 いかが 60fps）');
+      dump();
       return;
     }
     if (mode === 'battle') { fresh(); MQ.ui.battle.start('sansu3-6'); await wait(600); return; }

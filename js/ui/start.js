@@ -40,7 +40,7 @@ MQ.ui.start = (function () {
   const TITLE_RY = { dragon: -22, bat: 22, robo: 22, slime: 22, lizard: 22, ghost: -22, golem: -22, ninja: 22, gold: 22, magma: -22 };
   function v3on() { return !!(MQ.ui.v3 && MQ.ui.v3.on()); }
   function mob(id, size, cls) {
-    const art = v3on() ? MQ.ui.v3.monster(id, size, { ry: TITLE_RY[cls] == null ? -22 : TITLE_RY[cls], mo: 'mo-title' }) : null;
+    const art = v3on() ? MQ.ui.v3.monster(id, size, { ry: TITLE_RY[cls] == null ? -22 : TITLE_RY[cls], mo: 'mo-title', flat: true }) : null;   // flat＝上の 面なし（v12.1・軽く）
     return h('div', { class: 'tmob tmob--' + cls }, [art || MQ.enemies.node(id, { size: size })]);
   }
   /* タイトルの 勇者（3D）＝ 見本の この キャラ（青い かみ・ひかる けん・Lv30）。その子の アバターでは ない（v5.0 の きまりは そのまま） */
@@ -48,12 +48,13 @@ MQ.ui.start = (function () {
   function heroFig() {
     if (v3on()) {
       return h('div', { class: 'title__hero is-3d' }, [
-        MQ.ui.v3.hero(TITLE_HERO, 138, { ry: 22, mo: 'mo-idle', cls: 'v3scene--title' }),
+        MQ.ui.v3.hero(TITLE_HERO, 138, { ry: 22, mo: 'mo-idle', cls: 'v3scene--title', flat: true }),
         h('div', { class: 'shadow shadow--poster' })
       ]);
     }
-    return h('div', { class: 'title__hero' }, [
-      h('img', { class: 'sprite title__heroimg', src: MQ.hero.poster(), alt: '勇者' }),
+    /* 2D も 同じ キャラ（3D と 同じ 138px の わく・その子の アバターでは ない）。むかしの 一枚絵（poster）は つかわない */
+    return h('div', { class: 'title__hero is-2d' }, [
+      h('img', { class: 'sprite title__heroimg title__heroimg--avatar', src: MQ.hero.sprite(TITLE_HERO), alt: '勇者' }),
       h('div', { class: 'shadow shadow--poster' })
     ]);
   }
@@ -90,7 +91,7 @@ MQ.ui.start = (function () {
       // 3D（v12.0）：ひらいた まま・金貨が 見える。光と きらめきは 2D の まま
       return h('div', { class: 'title__chest is-3d' }, [
         h('div', { class: 'glow' }),
-        MQ.ui.v3.chest(96, { ry: -22, mo: 'mo-chest-title', cls: 'v3scene--chest', open: true }),
+        MQ.ui.v3.chest(96, { ry: -22, mo: 'mo-chest-title', cls: 'v3scene--chest', open: true, flat: true }),
         h('span', { class: 'spark spark--a' }),
         h('span', { class: 'spark spark--b' })
       ]);

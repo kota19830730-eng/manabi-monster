@@ -22,7 +22,7 @@
    --------------------------------------------------------- */
 .v3 { position: relative; transform-style: preserve-3d; }
 .v3 .b { position: absolute; transform-style: preserve-3d; }
-.v3 .f { position: absolute; left: 0; top: 0; }
+.v3 .f { position: absolute; left: 0; top: 0; }   /* backface-visibility: hidden は 使わない（vox.js ⑧・あごの 下に すきまが 出た） */
 .v3 .p { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; }
 .v3 .bx { position: relative; }
 .v3 .bx i { position: absolute; display: block; image-rendering: pixelated; }
