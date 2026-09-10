@@ -132,14 +132,24 @@
     if (v.classList.contains('v3--hero')) return 'mo-idle';
     return 'mo-menace';
   }
-  /* el（.hero／.enemy／.pal か 器）の 中の 箱に 動きを つける。ms の あと 待機に もどす */
-  function play(el, mo, ms) {
+  /* 器（.v3scene）の 動き（走る・とぶ）を 外す。v12.2：mo-dash の ほかに mo-dash-sp／mo-dash-thru／mo-dash-jump／mo-rise */
+  function clearSceneMo(sc) {
+    sc.className = sc.className.replace(/\bmo-\S+/g, '').trim();
+  }
+  /* el（.hero／.enemy／.pal か 器）の 中の 箱に 動きを つける。ms の あと 待機に もどす。
+     opts.scene（v12.2）＝器に つける 動き（'mo-dash-jump' など・null なら 動かさない）。ふつうの こうげきは mo-dash。
+     opts.ms＝器の 動きの 長さ（--dms）。わざの 長さ（sp.ms）に そろえる */
+  function play(el, mo, ms, opts) {
     const sc = sceneOf(el);
     if (!sc) return false;
     if (!sc.v3) { sc.pendingMo = mo; return false; }
     setMo(sc.v3, mo);
-    if (mo === 'mo-attack' && sc.v3.classList.contains('v3--hero')) {
-      sc.classList.remove('mo-dash'); void sc.offsetWidth; sc.classList.add('mo-dash');
+    const hero = sc.v3.classList.contains('v3--hero');
+    const sceneMo = opts && ('scene' in opts) ? opts.scene : (mo === 'mo-attack' && hero ? 'mo-dash' : null);
+    if (hero) {
+      clearSceneMo(sc);
+      if (opts && opts.ms) sc.style.setProperty('--dms', opts.ms + 'ms');
+      if (sceneMo) { void sc.offsetWidth; sc.classList.add(sceneMo); }
     }
     /* ms の あと 待機に もどす。ただし その あいだに 別の 動き（たおれる など）が 入って いたら もどさない */
     const token = (sc.moToken = (sc.moToken || 0) + 1);
@@ -149,7 +159,7 @@
   function idle(el) {
     const sc = sceneOf(el);
     if (!sc || !sc.v3) return;
-    sc.classList.remove('mo-dash');
+    clearSceneMo(sc);
     setMo(sc.v3, idleOf(sc.v3));
   }
   /* ダッシュの きょり：主人公の 器の 右はし → てきの 左はし（−8px＝けんの ぶん）。ステージの 拡大で 割りもどす */

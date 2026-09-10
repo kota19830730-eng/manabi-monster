@@ -1704,6 +1704,19 @@ MQ.ui.battle = (function () {
     ice:  { min: 5, tier: 1, id: 'ice',  name: 'こおりの やいば！', ms: 1000 },
     wind: { min: 5, tier: 1, id: 'wind', name: 'かぜの たつまき！', ms: 1000 }
   };
+  /* v12.2：わざごとの 3D の 動き（css/motion3d.css の mo-sp-<id>／mo-hit-<id>）。
+     scene＝主人公の 器の 走り方（null＝その場）／hit＝てきに 当たる 時間（やられ方は CSS の delay で 同じ 時間に 始まる）／
+     down＝ザコが たおれ始める 時間（3D の ときだけ。当たって から 0.45秒 やられ方を 見せる） */
+  const SP_MOTION = {
+    fire:      { scene: 'mo-dash-sp',   hit: 500,  down: 950 },
+    leaf:      { scene: 'mo-dash-sp',   hit: 340,  down: 800 },
+    ice:       { scene: 'mo-dash-thru', hit: 360,  down: 820 },
+    wind:      { scene: 'mo-dash-sp',   hit: 380,  down: 850 },
+    bolt:      { scene: 'mo-dash-jump', hit: 600,  down: 1000 },
+    star:      { scene: null,           hit: 620,  down: 1000 },
+    nova:      { scene: 'mo-rise',      hit: 550,  down: 1150 },
+    starburst: { scene: 'mo-dash-sp',   hit: 500,  down: 1600 }
+  };
   // 主人公の オーラと コンボの 色
   const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff', starburst: '#b8ffe6' };
   const NOVA_COLORS = ['#ff5e7a', '#ffd447', '#7cf9c4', '#4fd3ff', '#c48bff', '#ffffff'];
@@ -1955,6 +1968,12 @@ MQ.ui.battle = (function () {
     if (!d.fxs) return;
     d.fxs.textContent = '';
     d.fxs.className = 'fxscreen fxscreen--' + sp.id + ' fxscreen--t' + sp.tier + (withPal ? ' fxscreen--pal' : '');
+    /* v12.2 ②：色の 光は アリーナの 中だけ・集中線と わの 中心は てきの 位置・技名の 帯は アリーナの いちばん 下
+       （主人公と てきが 見える 場所に よける）。てきの 中心は 画面の px を ステージの 拡大で 割って 出す */
+    const c = foeCenter();
+    d.fxs.style.setProperty('--arena-h', (d.arena ? d.arena.offsetHeight : 176) + 'px');
+    d.fxs.style.setProperty('--fs-x', c.x + 'px');
+    d.fxs.style.setProperty('--fs-y', c.y + 'px');
     if (sp.tier >= 4) d.fxs.appendChild(h('span', { class: 'fxscreen__dark' }));   // すいこむ あいだは まっくら
     d.fxs.appendChild(h('span', { class: 'fxscreen__tint' }));
     if (sp.tier >= 2) {
@@ -1979,6 +1998,16 @@ MQ.ui.battle = (function () {
     quake(sp.tier);
   }
 
+  /* いまの てきの 中心（.battle の 左上から の px）。てきが いなければ いままでの 場所（右上 348, 112） */
+  function foeCenter() {
+    const fb = { x: 348, y: 112 };
+    if (!d.cur || !d.root || !d.root.getBoundingClientRect) return fb;
+    const img = d.cur.querySelector('.enemy__img, .enemy__img3d') || d.cur;
+    const r = img.getBoundingClientRect(), b = d.root.getBoundingClientRect();
+    if (!r.width) return fb;
+    const k = (MQ.stage && MQ.stage.size) ? (MQ.stage.size().scale || 1) : 1;
+    return { x: Math.round((r.left + r.width / 2 - b.left) / k), y: Math.round((r.top + r.height / 2 - b.top) / k) };
+  }
   // 画面ぜんたいが ゆれる（1〜4。大きいほど はげしく 長く）
   function quake(level) {
     const el = d.root;
@@ -2031,7 +2060,7 @@ MQ.ui.battle = (function () {
     d.fx.className = 'fx fx--' + sp.id + ' fx--t' + sp.tier;
     buildFx(sp).forEach(function (el) { d.fx.appendChild(el); });
     playScreenFx(sp, withPal);
-    cutIn(sp, withPal);
+    if (sp.tier >= 3 || withPal) cutIn(sp, withPal);   // v12.2 ②：5〜8コンボは 動きで 見せる（カットインで 0.62秒 かくさない）
     MQ.sfx.special(sp.tier, sp.id);
     flash(true);
     if (d.msg) d.msg.classList.add('is-quiet');   // 技名と ぶつからないように
@@ -2196,10 +2225,13 @@ MQ.ui.battle = (function () {
     d.cur.classList.remove('is-appear', 'is-enrage');
     d.cur.classList.add('is-hit');
     if (V3()) {
-      MQ.ui.v3.dashTo(d.hero, d.cur);
-      MQ.ui.v3.play(d.hero, 'mo-attack', 480);
-      const foe = d.cur;
-      setTimeout(function () { MQ.ui.v3.play(foe, 'mo-hurt', 520); }, sp ? 320 : 200);
+      if (sp) specialMotion(sp, d.cur);
+      else {
+        MQ.ui.v3.dashTo(d.hero, d.cur);
+        MQ.ui.v3.play(d.hero, 'mo-attack', 480);
+        const foe = d.cur;
+        setTimeout(function () { MQ.ui.v3.play(foe, 'mo-hurt', 520); }, 200);
+      }
     }
     if (sp) blast(sp);
 
@@ -2226,7 +2258,17 @@ MQ.ui.battle = (function () {
         if (V3()) MQ.ui.v3.play(d.cur, 'mo-fall');
         MQ.sfx.defeat();
       }
-    }, sp ? (sp.tier >= 4 ? 750 : sp.tier === 3 ? 600 : 420) : 420);   // 大きな わざは 当たるのが おそい
+    }, sp ? (V3() && SP_MOTION[sp.id] ? SP_MOTION[sp.id].down : (sp.tier >= 4 ? 750 : sp.tier === 3 ? 600 : 420)) : 420);   // 大きな わざは 当たるのが おそい（3D は やられ方を 見せて から）
+  }
+
+  /* v12.2 ①：ひっさつわざ ごとの 3D の 動き。主人公＝mo-sp-<id>（器は SP_MOTION.scene）、てき＝mo-hit-<id>
+     （当たる 前から つけて おく。やられ方は CSS の animation-delay で 当たる 時間に 始まる＝harness で 止めて 撮っても 正しい） */
+  function specialMotion(sp, foe) {
+    const m = SP_MOTION[sp.id];
+    if (!m) { MQ.ui.v3.dashTo(d.hero, foe); MQ.ui.v3.play(d.hero, 'mo-attack', 480); return; }
+    if (m.scene) MQ.ui.v3.dashTo(d.hero, foe);
+    MQ.ui.v3.play(d.hero, 'mo-sp-' + sp.id, sp.ms, { scene: m.scene, ms: sp.ms });
+    if (foe) MQ.ui.v3.play(foe, 'mo-hit-' + sp.id, sp.ms);
   }
 
   /* ⑤ とどめ か（さいごの ザコ／ボスを たおした 一発）*/
@@ -2668,6 +2710,7 @@ MQ.ui.battle = (function () {
     const sp = specialById(id);
     comboShow(sp.min);
     playSpecial(sp);
+    if (V3() && d.cur) specialMotion(sp, d.cur);   // v12.2：3D の 動きも いっしょに
     return sp;
   }
 
@@ -2682,7 +2725,7 @@ MQ.ui.battle = (function () {
   }
 
   return {
-    start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag,
+    start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,
     lastJudge: function () { return lastJudge; },
     // メモ欄の 中を のぞく（tools/harness.html 用・v5.5）
     memoStrokes: function () { return memo && memo.strokes ? memo.strokes() : 0; },

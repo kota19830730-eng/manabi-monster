@@ -1743,6 +1743,40 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('note(' + (el ? el.textContent.length : 0) + '): ' + (el ? el.textContent : 'なし'));
       return;
     }
+    // v12.2：要素の 動きの クラス（mo-*）を 1つ かえす
+    function moOf(el) { if (!el) return 'なし'; const m = el.className.match(/mo-[a-z0-9-]+/); return m ? m[0] : 'なし'; }
+    // v12.2：#spatk[:<わざ>[:<秒>]]＝本物の こうげきの 道（answer → attack）で ひっさつを 出す。わざ＝fire(5) bolt(8) star(12)。
+    //        秒を 書くと その 時間で 止めて 撮る。書かなければ 当たった あと ザコが たおれ始める ところまで 見て ログに 出す
+    if (mode.indexOf('spatk') === 0) {
+      const want = mode.split(':')[1] || 'fire';
+      const at = mode.split(':')[2] ? parseFloat(mode.split(':')[2]) : null;
+      const need = { fire: 5, leaf: 5, ice: 5, wind: 5, bolt: 8, star: 12, nova: 16, starburst: 20 }[want] || 5;
+      fresh();
+      MQ.save.update(function (pl) { pl.equipped.helm = null; });
+      MQ.ui.battle.start(want === 'leaf' ? 'kokugo3-1' : want === 'ice' ? 'rikashakai3-1' : want === 'wind' ? 'eigo3-1' : 'sansu3-2');
+      await wait(400);
+      let guard = 0;
+      while (MQ.battle.combo() < need - 1 && guard++ < 40) { answerViaUI(true); await wait(1700); }
+      guard = 0;
+      while (MQ.battle.current() && MQ.battle.current().chest && guard++ < 5) { answerViaUI(true); await wait(1700); }
+      const foeEl = $('.foes .enemy');
+      const foeName = foeEl ? foeEl.querySelector('.enemy__name') && foeEl.querySelector('.enemy__name').textContent : '';
+      if (at != null) freeze();
+      answerViaUI(true);
+      const hv = $('.hero .v3'), hs = $('.hero .v3scene'), fv = foeEl ? foeEl.querySelector('.v3') : null;
+      say('spatk: ' + want + ' コンボ ' + MQ.battle.combo() + ' てき ' + foeName + ' / hero=' + moOf(hv) + ' scene=' + (hs ? moOf(hs) + ' dms=' + hs.style.getPropertyValue('--dms') : 'なし') + ' foe=' + moOf(fv) + ' cutin=' + ($('.cutin') ? 'あり' : 'なし') + '（5〜8コンボは なし・12〜は あり が 正）');
+      if (at != null) {
+        void document.body.offsetWidth;
+        document.getAnimations().forEach(function (a) { a.pause(); try { a.currentTime = at * 1000; } catch (e) {} });
+        return;
+      }
+      const sp = MQ.ui.battle.SP_MOTION ? MQ.ui.battle.SP_MOTION[want] : null;
+      await wait(sp ? sp.down + 60 : 1000);
+      say('spatk: ' + (sp ? sp.down + 60 : 1000) + 'ms あと foe=' + moOf(fv) + ' is-down=' + (foeEl && foeEl.classList.contains('is-down')) + ' hero=' + moOf(hv) + '（foe=mo-fall・is-down=true が 正）');
+      await wait(2400);
+      say('spatk: つぎの てき ' + ($('.foes .enemy .enemy__name') ? $('.foes .enemy .enemy__name').textContent : 'なし') + ' hero=' + moOf($('.hero .v3')) + ' scene=' + moOf($('.hero .v3scene')) + '（hero=mo-idle・scene=なし が 正）');
+      return;
+    }
     // ひっさつわざの エフェクト（v2.5）：#fx:<わざ>[:<秒>]  わざ＝fire leaf ice wind bolt star nova、秒＝何秒めで 止めて 撮るか（0.3）
     if (mode.indexOf('fx') === 0) {
       const want = mode.split(':')[1] || 'fire';
@@ -1754,6 +1788,10 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       void document.body.offsetWidth;   // スタイルを 確定させてから アニメを 取る（freeze 後は wait が 使えない）
       document.getAnimations().forEach(function (a) { a.pause(); try { a.currentTime = at * 1000; } catch (e) {} });
       say('fx: ' + want + ' → ' + sp.name);
+      // v12.2：3D の 動き（主人公 mo-sp-*・器 mo-dash-*／てき mo-hit-*）と 帯の 場所（アリーナの 下に ある か）
+      const hv = $('.hero .v3'), hs = $('.hero .v3scene'), fv = $('.foes .enemy .v3'), band = $('.fxband'), ar = $('.arena');
+      say('fx3d: hero=' + moOf(hv) + ' scene=' + (hs ? moOf(hs) + ' dash=' + hs.style.getPropertyValue('--dash') + ' dms=' + hs.style.getPropertyValue('--dms') : 'なし') + ' foe=' + moOf(fv) + '（hero=mo-sp-<わざ>・foe=mo-hit-<わざ> が 正）');
+      if (band && ar) { const b = band.getBoundingClientRect(), a = ar.getBoundingClientRect(); say('fxband: y ' + Math.round(b.top - a.top) + '〜' + Math.round(b.bottom - a.top) + ' / arena h ' + Math.round(a.height) + '（帯の 下が アリーナの 下 いない が 正）'); }
       return;
     }
     // どうぐ（v2.0）：#bag＝シートを 開いた ところ／#bagfx:<power>＝使った ときの 演出
