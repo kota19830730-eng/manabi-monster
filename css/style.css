@@ -3964,3 +3964,7 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 .dojo__exq { margin: 2px 0 8px; font-family: var(--f-head); font-size: 22px; line-height: 1.35; text-align: center; color: var(--paper-ink); }
 .dojo__exq .num { white-space: nowrap; }
 .dojo__exnote { font-size: 14px; line-height: 1.45; color: #6a5a3a; }
+
+/* ことばを 学年に 合わせる（v13.2）：小5・小6は 文節の スペースが ない ので、ことばの 途中でも 折り返す
+   （keep-all の ままだと 1行が 長く なって 問題カードから はみ出す） */
+body.is-nospace { word-break: normal; overflow-wrap: anywhere; }

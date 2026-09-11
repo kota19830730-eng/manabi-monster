@@ -73,6 +73,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 
 <script src="../js/core/guard.js"></script>
 <script src="../js/core/util.js"></script>
+<script src="../js/core/text.js"></script>
 <script src="../js/core/stage.js"></script>
 <script src="../js/core/pixel.js"></script>
 <script src="../js/core/blocks.js"></script>
@@ -109,6 +110,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/sansu1.js"></script>
 <script src="../js/content/kanjiq.js"></script>
 <script src="../js/content/kakusu.js"></script>
+<script src="../js/content/kotoba.js"></script>
 <script src="../js/content/kokugo1.js"></script>
 <script src="../js/content/sansu2.js"></script>
 <script src="../js/content/kokugo2.js"></script>
@@ -296,8 +298,10 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     const keys = $$('#screen-battle .key');
     if (!keys.length) { say('NO KEYS for ' + q.type); return false; }
     function press(label) {
-      const b = keys.filter(function (k) { return k.textContent === label; })[0];
+      const want = MQ.text ? MQ.text.fit(label) : label;
+      const b = keys.filter(function (k) { return k.textContent === label || k.textContent === want; })[0];
       if (b) b.click(); else say('NO KEY ' + label);
+      // （ボタンの 字は 学年に 合わせて 変わる（v13.2）ので、さがす ときは MQ.text.fit を 通す）
     }
     if (q.type === 'roma') {
       String(good ? q.answer : 'zzz').split('').forEach(press);
@@ -844,7 +848,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       fresh();
       MQ.ui.start.render(); MQ.ui.show('screen-start');
       await wait(200);
-      const contBtn = $$('#screen-start button').filter(function (b) { return b.textContent.indexOf('ぼうけんの つづき') >= 0; })[0];
+      const contBtn = $$('#screen-start button').filter(function (b) { return b.textContent.indexOf(MQ.text.fit('ぼうけんの つづき')) >= 0; })[0];
       say('つづき ボタン: ' + (contBtn ? 'ok' : 'MISSING'));
       if (contBtn) contBtn.click();
       await wait(500);
@@ -1517,7 +1521,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         // つくった モンスターが ある 状態
         MQ.save.update(function (p) { MQ.save.addCustom(p, { id: 'my-test', name: 'テスト', area: 'sansu', png: fakeAiArt() }); });
         MQ.ui.photo.render();
-        const fix = Array.prototype.filter.call(document.querySelectorAll('.cell .btn'), function (b) { return b.textContent === '直す'; })[0];
+        const fix = Array.prototype.filter.call(document.querySelectorAll('.cell .btn'), function (b) { return b.textContent === MQ.text.fit('直す'); })[0];
         say('pixedit mine: fixbtn=' + !!fix);
         if (fix) fix.click();
         await wait(150);
@@ -1575,7 +1579,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       im.style.cssText = 'position:absolute;left:' + T.canvas.style.left + ';top:' + T.canvas.style.top + ';width:' + T.canvas.style.width + ';height:' + T.canvas.style.height + ';image-rendering:pixelated;pointer-events:none;';
       view.appendChild(im);
       if (kind === 'done') {
-        Array.prototype.filter.call(document.querySelectorAll('.pixed__foot .btn'), function (b) { return b.textContent === 'これで OK'; })[0].click();
+        Array.prototype.filter.call(document.querySelectorAll('.pixed__foot .btn'), function (b) { return b.textContent === MQ.text.fit('これで OK'); })[0].click();
         await wait(100);
         say('pixedit done: open=' + MQ.ui.pixedit.isOpen() + ' state=' + JSON.stringify(MQ.ui.photo.aiState()) + ' edited-class=' + $('.photo__preview').classList.contains('is-edited'));
       }
@@ -1736,7 +1740,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       await wait(100);
       const sec = $('.ai');
       say('aiparent: ' + (sec ? 'ok' : 'MISSING') + ' status=' + ($('.ai__status') ? $('.ai__status').textContent : ''));
-      const chk = Array.prototype.filter.call(document.querySelectorAll('.ai__row .btn'), function (b) { return b.textContent === 'しらべる'; })[0];
+      const chk = Array.prototype.filter.call(document.querySelectorAll('.ai__row .btn'), function (b) { return b.textContent === MQ.text.fit('しらべる'); })[0];
       if (chk) { chk.click(); await wait(100); say('aiparent check: ' + $('.ai__status').textContent); }
       if (sec) { const wrap = $('#screen-dex .wrap'); wrap.scrollTop = sec.offsetTop - 8; }
       dump();
@@ -2259,7 +2263,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         $$('.pfever .chip').filter(function (c) { return c.textContent === '英語'; })[0].click();
         await wait(100);
         say('feverparent: えらぶ → ' + ($('.pfever__now') ? $('.pfever__now').textContent : 'MISSING') + ' pick=' + MQ.save.current().feverPick);
-        $$('.pfever .chip').filter(function (c) { return c.textContent === 'おまかせ'; })[0].click();
+        $$('.pfever .chip').filter(function (c) { return c.textContent === MQ.text.fit('おまかせ'); })[0].click();
         await wait(100);
         say('feverparent: おまかせ → ' + ($('.pfever__now') ? $('.pfever__now').textContent : 'MISSING'));
         dump(); return;
@@ -2894,13 +2898,13 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
           (cr.top >= st.top - 1 && cr.bottom <= st.bottom + 1 ? 'おさまる OK' : 'はみ出し MISSING'));
       const want = parseInt(arg, 10);   // #news:3 で 3ページめ
       if (want >= 2) {
-        for (let i = 1; i < want && $('.news__next') && $('.news__nexttx').textContent.indexOf('つぎ') === 0; i++) { $('.news__next').click(); await wait(150); }
+        for (let i = 1; i < want && $('.news__next') && $('.news__nexttx').textContent.indexOf(MQ.text.fit('つぎ')) === 0; i++) { $('.news__next').click(); await wait(150); }
         say('news ' + want + 'ページめ: ' + rows().join(' / ') + '／ボタン ' + $('.news__nexttx').textContent);
         dump(); freeze(); return;
       }
       // さいごまで めくって とじる → seenNews が つく・2回目は 出ない
       let guard = 0;
-      while ($('.news__next') && $('.news__nexttx').textContent.indexOf('つぎ') === 0 && guard++ < 10) {
+      while ($('.news__next') && $('.news__nexttx').textContent.indexOf(MQ.text.fit('つぎ')) === 0 && guard++ < 10) {
         $('.news__next').click(); await wait(120);
       }
       const last = $('.news__nexttx') ? $('.news__nexttx').textContent : 'MISSING';
@@ -3051,7 +3055,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         while (gd++ < 20 && !/ひとりで/.test(($('.dojo__label') || {}).textContent || '')) {
           const nb = $('.dojo__next'); if (!nb) break; nb.click(); await wait(25);
         }
-        say('dojo:' + sub + ' ' + (/ひとりで/.test(($('.dojo__label') || {}).textContent || '') ? 'ひとりで まで 通った OK' : 'とちゅうで 止まった MISSING') + '／こたえの 入れ方 ' + ($('.choice') ? 'えらぶ' : $('.keys') ? 'テンキー' : 'MISSING'));
+        say('dojo:' + sub + ' ' + (new RegExp(MQ.text.fit('ひとりで')).test(($('.dojo__label') || {}).textContent || '') ? 'ひとりで まで 通った OK' : 'とちゅうで 止まった MISSING') + '／こたえの 入れ方 ' + ($('.choice') ? 'えらぶ' : $('.keys') ? 'テンキー' : 'MISSING'));
         dump(); freeze(); return;
       }
       const c0 = MQ.dojo.candidates(MQ.save.current());
@@ -3111,7 +3115,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         } else {
           type(String(good ? q.answer : (Number(q.answer) === 0 ? 1 : Number(q.answer) * 10)));
         }
-        $$('.key').filter(function (k) { return k.textContent === 'こたえる'; })[0].click(); await wait(30);
+        $$('.key').filter(function (k) { return k.textContent === MQ.text.fit('こたえる'); })[0].click(); await wait(30);
       }
       await answer(false);
       say('dojo: わざと まちがえた →「' + $('.dojo__say').textContent + '」（もう 1回 ' + ($('.keys') || $('.choice') ? 'できる OK' : 'できない MISSING') + '）');
@@ -3758,7 +3762,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     MQ.ui.goMap();
     await wait(400);
     say('小4の ゾーン: ' + $$('#screen-map .biome__name').length + ($$('#screen-map .biome__name').length === 5 ? ' ok' : ' MISSING'));
-    say('理科の 湖: ' + ($$('#screen-map .biome__name').filter(function (e) { return e.textContent.indexOf('理科の 湖') >= 0; }).length ? 'ok' : 'MISSING'));
+    say('理科の 湖: ' + ($$('#screen-map .biome__name').filter(function (e) { return e.textContent.indexOf(MQ.text.fit('理科の 湖')) >= 0; }).length ? 'ok' : 'MISSING'));
 
     say('--- 小4の さいごの塔（v4.8） ---');
     MQ.save.update(function (pl) {
@@ -3924,7 +3928,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (okb) { okb.click(); await wait(20); continue; }
       const nb = $('.dojo__next'); if (!nb) break; nb.click(); await wait(20);
     }
-    say('しゅぎょうば: ' + (/ひとりで/.test(($('.dojo__label') || {}).textContent || '') ? 'ひとりで まで 通った OK' : 'とちゅうで 止まった MISSING'));
+    say('しゅぎょうば: ' + (new RegExp(MQ.text.fit('ひとりで')).test(($('.dojo__label') || {}).textContent || '') ? 'ひとりで まで 通った OK' : 'とちゅうで 止まった MISSING'));
     // 小2でも バーが 出て、自動の 指導が 開く（v13.1）
     MQ.save.setPlayGrade(2);
     MQ.ui.goMap();

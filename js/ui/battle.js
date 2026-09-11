@@ -92,14 +92,14 @@ MQ.ui.battle = (function () {
         ])
       ]),
       d.panel = h('section', { class: 'battle__body' }, [
-        d.card = h('div', { class: 'card' }, [
+        d.card = h('div', { class: 'card', raw: true }, [
           d.unit = h('p', { class: 'card__unit' }),
           d.prompt = h('div', { class: 'card__q' }),
           d.listen = h('div', { class: 'card__listen', hidden: true })   // よみあげ（v5.3）
         ]),
-        d.choices = h('div', { class: 'choices' }),
+        d.choices = h('div', { class: 'choices', raw: true }),
         d.memo = h('div', { class: 'memo' }, [
-          d.memoQ = h('div', { class: 'memo__q' }),
+          d.memoQ = h('div', { class: 'memo__q', raw: true }),
           d.hissan = h('div', { class: 'hissan', hidden: true }),
           d.canvas = h('canvas', { class: 'memo__canvas' }),
           h('div', { class: 'memo__btns' }, [
@@ -113,7 +113,7 @@ MQ.ui.battle = (function () {
         d.guide = h('p', { class: 'qguide', hidden: true }),
         d.displays = h('div', { class: 'displays' }),
         d.keys = h('div', { class: 'keys' }),
-        d.hint = h('div', { class: 'hintbox', hidden: true }),
+        d.hint = h('div', { class: 'hintbox', hidden: true, raw: true }),
         d.feedback = h('p', { class: 'feedback', role: 'status' })
       ]),
       d.fxs = h('div', { class: 'fxscreen' }),   // ひっさつの 画面ぜんたいの 演出（v2.5）
@@ -1124,7 +1124,7 @@ MQ.ui.battle = (function () {
       d.choices.innerHTML = '';
       q.choices.forEach(function (text, i) {
         d.choices.appendChild(h('button', {
-          class: 'choice', type: 'button', text: text, 'data-i': String(i),
+          class: 'choice', type: 'button', text: text, 'data-i': String(i), raw: true,
           onclick: function () { if (locked) return; MQ.sfx.tap(); submit(i); }
         }));
       });
@@ -1611,7 +1611,7 @@ MQ.ui.battle = (function () {
   function feedback(head, note, cls) {
     d.feedback.textContent = '';
     d.feedback.appendChild(h('b', { class: 'feedback__head', text: head }));
-    if (note) d.feedback.appendChild(h('span', { class: 'feedback__note', text: note }));
+    if (note) d.feedback.appendChild(h('span', { class: 'feedback__note', text: note, raw: true }));
     // よみあげ（v5.3）：ふきだしの 中の 英語も 聞ける
     if (note && MQ.speech && MQ.ui.listenButton) {
       const areaId = (ctx && ctx.area) ? ctx.area.id : '';

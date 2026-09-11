@@ -109,6 +109,8 @@ MQ.save = (function () {
     if (!p.dojo || typeof p.dojo !== 'object' || Array.isArray(p.dojo)) p.dojo = {};
     if (typeof p.dojoDone !== 'number') p.dojoDone = Object.keys(p.dojo).filter(function (k) { return (p.dojo[k] && p.dojo[k].done) > 0; }).length;
     if (typeof p.previewOk !== 'boolean') p.previewOk = true;
+    // ことばの 表示（v13.1）：auto ＝ 学年に 合わせる／easy ＝ やさしく（小2）／high ＝ 高学年（小6）
+    if (p.textLevel !== 'easy' && p.textLevel !== 'high') p.textLevel = 'auto';
     if (typeof p.defeated !== 'number') p.defeated = 0;
     // しょうごうの ための カウンター（v2.0）
     if (typeof p.itemUses !== 'number') p.itemUses = 0;     // アイテムを 使った 回数

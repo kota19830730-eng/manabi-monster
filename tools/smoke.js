@@ -51,7 +51,7 @@ function load(rel) {
      本物の アプリでは 小4の 理科・社会が 読みこみ時に 落ちて いた） */
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
-['js/core/guard.js', 'js/core/util.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
+['js/core/guard.js', 'js/core/util.js', 'js/core/text.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
  'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/core/vox.js'].concat(CONTENT_ORDER).forEach(load);   // vox.js（りったい・v12.0）は chest3d.js より 前
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
@@ -3592,6 +3592,107 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   console.log('あたらしい こと！: ' + N.list.length + '版 ' + itemN + 'こ・出し分け OK');
 })();
 
+/* ===== ことばを 学年に 合わせる（v13.2）=====
+   画面の 文は「小3の 書き方」で 1つだけ 書き、出す ときに js/core/text.js が 辞書（kotoba.js）で
+   その子の 学年に 合わせる。辞書に ない ことばは さわらない。問題の 中身（raw）は 辞書を 当てない。 */
+(function () {
+  const T = MQ.text, KB = MQ.kotoba;
+  check(!!T && !!KB && KB.entries.length > 300, 'text.js と kotoba.js が 読めて いる（辞書 ' + (KB ? KB.entries.length : 0) + '行）');
+  const entries = T.entries();
+  // 学校で ならわない 字を つかう 行は「何年生から」を 書いて ある
+  const noMin = entries.filter(function (e) { return e.need === 99; });
+  check(noMin.length === 0, '辞書：ならわない 字の 行には 何年生からが ある' + (noMin.length ? '（' + noMin.map(function (e) { return e.k; }).join('・') + '）' : ''));
+  // 同じ ひらがな・同じ 送りがな の 行が 2つ ない（1つめしか 効かない）
+  const seen = {}, dup = [];
+  KB.entries.forEach(function (r) { const k = r[0] + '|' + r[1] + '|' + (r[3] || ''); if (seen[k]) dup.push(r[0]); seen[k] = true; });
+  check(dup.length === 0, '辞書：同じ ひらがなの 行が かぶって いない' + (dup.length ? '（' + dup.slice(0, 5).join('・') + '）' : ''));
+  // 学年ごとの 形（小1＝ひらがな・小3＝小3の 字・小5＝ゲームの 字・小6＝スペースなし）
+  const ex = [
+    [1, '正解で カウンター！', 'せいかいで カウンター！'],
+    [1, '問題', 'もんだい'],
+    [1, '王さま', 'おうさま'],
+    [1, 'ぜんぶの 教科が まざる', 'ぜんぶの きょうかが まざる'],
+    [2, '教科', 'きょうか'],
+    [2, '王さま', '王さま'],
+    [2, '問題', 'もんだい'],
+    [3, 'こたえる', '答える'],
+    [3, 'けす', '消す'],
+    [3, 'てき', 'てき'],
+    [3, 'まおう', 'まおう'],
+    [3, 'たおした', 'たおした'],
+    [3, 'ぜんぶの 教科が まざる', '全部の 教科が まざる'],
+    [3, 'いろいろ', 'いろいろ'],
+    [3, 'です', 'です'],
+    [3, 'まなびモンスター', 'まなびモンスター'],
+    [4, 'たたかう', '戦う'],
+    [4, 'てき', 'てき'],
+    [5, 'たおした', '倒した'],
+    [5, 'てき', '敵'],
+    [5, 'ほのお ギリ！', '炎斬り！'],
+    [5, 'なったよ！', 'なった！'],
+    [6, 'スカルホース が あらわれた！ けいけんち 3ばい！', 'スカルホースが現れた！ 経験値3倍！'],
+    [6, 'ぎんがの ビッグバン！', '銀河のビッグバン！'],
+    [6, 'ここに ゆびで ひっさんが かけるよ', 'ここに指で筆算がかける'],
+    [6, 'りゅうを たおす者', '竜を倒す者'],
+    [6, 'ボスを 1回 たおす', 'ボスを1回 倒す'],
+    [6, 'コイン +1', 'コイン +1'],
+    [6, 'すがたを かえる', '姿を変える'],
+    [6, 'しました', 'しました'],
+    [6, 'まだ 本気では なかった…！', 'まだ本気ではなかった…！']
+  ];
+  ex.forEach(function (x) {
+    const got = T.fit(x[1], { level: x[0] });
+    check(got === x[2], '小' + x[0] + '：' + x[1] + ' → ' + x[2] + (got === x[2] ? '' : '（じっさい: ' + got + '）'));
+  });
+  // 問題の 中身（raw）は 辞書を 当てない：スペースだけ
+  check(T.fit('けいけん を かん字で 書こう', { level: 6, raw: true }) === 'けいけんをかん字で書こう', 'raw：小6は スペースだけ 外す');
+  check(T.fit('けいけんち', { level: 6, raw: true }) === 'けいけんち', 'raw：辞書を 当てない');
+  check(T.fit('正解', { level: 1, raw: true }) === '正解', 'raw：小1でも かん字を ひらがなに しない');
+  // HTML：タグと ふりがなは さわらない
+  check(T.fitHtml('<b>ぼうけんの つづき</b>', { level: 6 }) === '<b>冒険の続き</b>', 'html：タグの 中は さわらず 文だけ 直す');
+  check(T.fitHtml('<ruby>漢<rt>かん</rt></ruby>を かく', { level: 6 }) === '<ruby>漢<rt>かん</rt></ruby>を書く', 'html：<rt>（ふりがな）は さわらない');
+  // 2回 かけても 同じ（しょうごう・たからもの・ステージ名・お知らせ・ミッション）
+  const texts = [];
+  MQ.hero.titles.forEach(function (t) { texts.push(t.name); if (t.desc) texts.push(t.desc); });
+  MQ.treasure.list.forEach(function (t) { texts.push(t.name); });
+  MQ.content.worlds.forEach(function (w) { (w.areas || []).forEach(function (a) { texts.push(a.name); (a.stages || []).forEach(function (s) { texts.push(s.name); }); }); });
+  MQ.news.list.forEach(function (v) { v.items.forEach(function (it) { texts.push(it.title); texts.push(it.text); }); });
+  let notIdem = 0, sample = '';
+  [1, 2, 3, 4, 5, 6].forEach(function (lv) {
+    texts.forEach(function (s) {
+      if (!s) return;
+      const a = T.fit(s, { level: lv }), b = T.fit(a, { level: lv });
+      if (a !== b) { notIdem++; if (!sample) sample = 'lv' + lv + ' ' + s + ' → ' + a + ' → ' + b; }
+    });
+  });
+  check(notIdem === 0, '2回 かけても 同じ（' + texts.length + '本 × 6学年）' + (sample ? '：' + sample : ''));
+  // 小1の 形に かん字が のこって いない（ひらがなに できる ものだけ 見る）
+  const st1 = MQ.content.worlds.filter(function (w) { return w.grade === 1; })[0];
+  let kanjiLeft = 0;
+  (st1 ? st1.areas : []).forEach(function (a) { (a.stages || []).forEach(function (s) { if (/[一-鿿]/.test(T.fit(s.name, { level: 1 }))) kanjiLeft++; }); });
+  check(kanjiLeft === 0, '小1の ステージ名は 小1では ひらがな');
+  // 学年の 決め方：textLevel の 上書き
+  const p0 = MQ.save.current();
+  if (p0) {
+    const g0 = p0.grade, t0 = p0.textLevel;
+    p0.grade = 4; p0.textLevel = 'auto'; check(T.level() === 4, 'level()：学年 4');
+    p0.textLevel = 'easy'; check(T.level() === 2, 'level()：やさしく ＝ 2');
+    p0.textLevel = 'high'; check(T.level() === 6, 'level()：高学年 ＝ 6');
+    p0.grade = g0; p0.textLevel = t0; T.reset();
+  }
+  check(T.limitOf(1) === 0 && T.limitOf(2) === 1 && T.limitOf(3) === 3 && T.limitOf(6) === 6, 'かん字の 上限：小1＝0・小2＝1・小3〜＝その 学年');
+  // 読みこみ：index / harness / sw に 入って いる・kotoba は kakusu の あと
+  const swSrc = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  const hSrc = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  check(INDEX_HTML.indexOf('js/core/text.js') >= 0 && INDEX_HTML.indexOf('js/content/kotoba.js') >= 0, 'index.html に text.js と kotoba.js');
+  check(swSrc.indexOf('js/core/text.js') >= 0 && swSrc.indexOf('js/content/kotoba.js') >= 0, 'sw.js に text.js と kotoba.js');
+  check(hSrc.indexOf('js/core/text.js') >= 0 && hSrc.indexOf('js/content/kotoba.js') >= 0, 'harness.html に text.js と kotoba.js');
+  check(CONTENT_ORDER.indexOf('js/content/kakusu.js') < CONTENT_ORDER.indexOf('js/content/kotoba.js'), 'kotoba.js は kakusu.js の あと');
+  // 小6の 算数の 単元名に 交ぜ書きの「文しょうだい」が のこって いない
+  check(fs.readFileSync(path.join(base, 'js/content/sansu6.js'), 'utf8').indexOf('文しょうだい') < 0, '小6：文しょうだい → 文章題');
+  console.log('ことばの 学年: 辞書 ' + entries.length + '行・' + ex.length + '例・2回かけ ' + texts.length + '本 OK');
+})();
+
 /* ===== 読みこみの じゅんばん（v5.0.1）=====
    本物の index.html・harness.html・この smoke が 同じ じゅんばんで 教科の
    ファイルを 読むか 見る。ずれると「テストは 通るのに アプリだけ 落ちる」に なる。
@@ -3607,7 +3708,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   const need = { zu: MQ.zu, sansu3: MQ.sansu3, kokugo3: MQ.kokugo3, rikashakai3: MQ.rikashakai3,
     eigo3: MQ.eigo3, romaji3: MQ.romaji3, sansu1: MQ.sansu1, kokugo1: MQ.kokugo1, sansu2: MQ.sansu2,
     kokugo2: MQ.kokugo2, sansu4: MQ.sansu4, kokugo4: MQ.kokugo4, rika4: MQ.rika4, shakai4: MQ.shakai4,
-    eigo4: MQ.eigo4, kanjiQ: MQ.kanjiQ, kakusu: MQ.kakusu, terms: MQ.terms, content: MQ.content };
+    eigo4: MQ.eigo4, kanjiQ: MQ.kanjiQ, kakusu: MQ.kakusu, terms: MQ.terms, content: MQ.content, text: MQ.text, kotoba: MQ.kotoba };
   Object.keys(need).forEach(function (k) { check(!!need[k], 'MQ.' + k + ' が 読めて いる'); });
   // 図を つかう 教科は zu より 後に 読む こと
   const zuAt = CONTENT_ORDER.indexOf('js/content/zu.js');

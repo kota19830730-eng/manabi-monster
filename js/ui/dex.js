@@ -564,6 +564,28 @@ MQ.ui.dex = (function () {
   }
 
   /* しゅぎょうばの 予習（v13.0）：学期で 閉じて いる つぎの ステージを、なかまが 教えた あとに 開いて よいか */
+  /* ことばの 表示（v13.1）：画面の ことばを 学年に 合わせる／やさしく／高学年 */
+  function wordsSection(player) {
+    const cur = player.textLevel === 'easy' || player.textLevel === 'high' ? player.textLevel : 'auto';
+    const g = player.grade || 3;
+    return h('div', { class: 'wordsblk' }, [
+      h('h3', { class: 'ulist__name', text: 'ことばの 表示' }),
+      h('p', { class: 'note', text: '画面の ことば（ボタン・ふきだし・わざの 名前・お知らせ）は、この 子の 学年に 合わせて かん字と 書き方が 変わります。小1・小2は ひらがな中心、小3・小4は その 学年までの かん字、小5・小6は かん字が 多く なり、文の スペースが なくなります。問題文は 変わりません。' }),
+      h('div', { class: 'termrow' }, [['auto', '自動（小' + g + 'に 合わせる）'], ['easy', 'やさしく（ひらがな中心）'], ['high', '高学年（かん字 多め）']].map(function (t) {
+        return h('button', {
+          class: 'chip' + (cur === t[0] ? ' is-on' : ''), type: 'button', text: t[1],
+          onclick: function () {
+            MQ.sfx.tap();
+            MQ.save.update(function (pl) { pl.textLevel = t[0]; });
+            if (MQ.text) MQ.text.reset();
+            MQ.ui.toast(t[0] === 'easy' ? 'ことばを やさしく しました' : t[0] === 'high' ? 'ことばを 高学年の 書き方に しました' : 'ことばを 学年に 合わせます');
+            render('parent');
+          }
+        });
+      }))
+    ]);
+  }
+
   function previewBlock(player) {
     const on = player.previewOk !== false;
     return h('div', { class: 'previewblk' }, [
@@ -985,6 +1007,6 @@ MQ.ui.dex = (function () {
   return {
     render: render, pick: pick,
     // おうちの人ページ（js/ui/parent.js）が つかう 設定の 部品（v7.3）
-    sections: { terms: termsSection, fever: feverSection, judge: judgeSection, ai: aiSection, records: recordsSection, capsule: capsuleSection }
+    sections: { terms: termsSection, fever: feverSection, judge: judgeSection, ai: aiSection, records: recordsSection, capsule: capsuleSection, words: wordsSection }
   };
 })();

@@ -96,14 +96,14 @@ MQ.ui.dojo = (function () {
   function card(q) {
     const t = strip(q.prompt);
     const size = t.length > 44 ? ' card__q--xs' : t.length > 26 ? ' card__q--s' : ' card__q--m';
-    return h('div', { class: 'card dojo__card' }, [
-      h('p', { class: 'card__unit', text: q.unit || '' }),
-      h('div', { class: 'card__q' + size, html: q.prompt })
+    return h('div', { class: 'card dojo__card', raw: true }, [
+      h('p', { class: 'card__unit', text: q.unit || '', raw: true }),
+      h('div', { class: 'card__q' + size, html: q.prompt, raw: true })
     ]);
   }
   function hintBox(q) {
     if (!q.hint) return null;
-    return h('div', { class: 'hintbox dojo__hint' }, [h('span', { class: 'hintbox__label', text: 'ヒント' }), h('span', { text: strip(q.hint) })]);
+    return h('div', { class: 'hintbox dojo__hint' }, [h('span', { class: 'hintbox__label', text: 'ヒント' }), h('span', { text: strip(q.hint), raw: true })]);
   }
   function nextBtn(text, fn, cls) {
     return h('button', { class: 'btn ' + (cls || '') + ' dojo__next', type: 'button', text: text, onclick: function () { MQ.sfx.tap(); fn(); } });
@@ -238,7 +238,7 @@ MQ.ui.dojo = (function () {
     if (phase === 'ask' || phase === 'retry') {
       kids.push(inputArea(q, function (value) { submit(i, value); }));
     } else {
-      kids.push(h('div', { class: 'dojo__answer' + (phase === 'ok' ? ' is-ok' : '') }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: MQ.dojo.answerText(q) })]));
+      kids.push(h('div', { class: 'dojo__answer' + (phase === 'ok' ? ' is-ok' : '') }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: MQ.dojo.answerText(q), raw: true })]));
       kids.push(nextBtn(i + 1 < qs.length ? T.nextQ : T.seeResult, function () { practice(i + 1, 'ask'); }));
     }
     paint(h('div', { class: 'dojo__pane' }, [h('p', { class: 'dojo__label', text: T.practiceLabel + ' ' + (i + 1) + ' / ' + qs.length })].concat(kids)));
@@ -261,7 +261,7 @@ MQ.ui.dojo = (function () {
   function inputArea(q, onSubmit) {
     if (q.type === 'choice') {
       return h('div', { class: 'choices dojo__choices' }, q.choices.map(function (t, k) {
-        return h('button', { class: 'choice', type: 'button', text: t, onclick: function () { MQ.sfx.tap(); onSubmit(k); } });
+        return h('button', { class: 'choice', type: 'button', text: t, raw: true, onclick: function () { MQ.sfx.tap(); onSubmit(k); } });
       }));
     }
     const two = q.type === 'divrem' || q.type === 'frac';

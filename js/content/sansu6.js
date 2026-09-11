@@ -329,7 +329,7 @@ MQ.sansu6 = (function () {
   function fracWorkQ() {
     const d = pf([3, 4, 5, 6]), n = U.randInt(1, d - 1), k = U.randInt(2, 8);
     if (n * k % d === 0) return fracWorkQ();
-    return fracQ('文しょうだい', '1m の 重さが ' + fr(n, d) + ' kg の ぼうが あります。この ぼう ' + k + 'm の 重さは 何kg？', n * k, d, {
+    return fracQ('文章題', '1m の 重さが ' + fr(n, d) + ' kg の ぼうが あります。この ぼう ' + k + 'm の 重さは 何kg？', n * k, d, {
       key: 'fw:' + n + ':' + d + ':' + k, hint: '1m ぶんの 重さ × 長さ。',
       note: ft(n, d) + ' × ' + k + ' = ' + frt(n * k, d) + ' kg'
     });
@@ -394,7 +394,7 @@ MQ.sansu6 = (function () {
   }
   function fracDivWorkQ() {
     const d = pf([3, 4, 5]), n = U.randInt(1, d - 1), k = U.randInt(2, 5);
-    return fracQ('文しょうだい', fr(n, d) + ' L の ジュースを ' + k + '人で 同じ 量ずつ 分けます。1人ぶんは 何L？', n, d * k, {
+    return fracQ('文章題', fr(n, d) + ' L の ジュースを ' + k + '人で 同じ 量ずつ 分けます。1人ぶんは 何L？', n, d * k, {
       key: 'fdw:' + n + ':' + d + ':' + k, hint: '全体 ÷ 人数。',
       note: ft(n, d) + ' ÷ ' + k + ' = ' + frt(n, d * k) + ' L'
     });
@@ -403,7 +403,7 @@ MQ.sansu6 = (function () {
     const d1 = pf([2, 3, 4, 5]), n1 = U.randInt(1, d1 - 1);
     const d2 = pf([2, 3, 4, 5]), n2 = U.randInt(1, d2 - 1);
     if (n2 * d1 % (d2 * n1) === 0) return fracDivLenQ();
-    return fracQ('文しょうだい', fr(n1, d1) + ' m の ぼうの 重さが ' + fr(n2, d2) + ' kg です。この ぼう 1m の 重さは 何kg？',
+    return fracQ('文章題', fr(n1, d1) + ' m の ぼうの 重さが ' + fr(n2, d2) + ' kg です。この ぼう 1m の 重さは 何kg？',
       n2 * d1, d2 * n1, {
         key: 'fdl:' + n1 + ':' + d1 + ':' + n2 + ':' + d2,
         hint: '重さ ÷ 長さ で 1m ぶんが 出る。',
@@ -928,14 +928,14 @@ MQ.sansu6 = (function () {
   }
   function propWordQ() {
     const k = U.randInt(2, 15), x = U.randInt(2, 12);
-    return num('比例の 文しょうだい', '1m の 重さが ' + k + 'g の はりがねが あります。' + x + 'm の 重さは 何g？', k * x, {
+    return num('比例の 文章題', '1m の 重さが ' + k + 'g の はりがねが あります。' + x + 'm の 重さは 何g？', k * x, {
       key: 'pw:' + k + ':' + x, hint: '重さは 長さに 比例する。' + k + ' × ' + x + '。',
       note: k + ' × ' + x + ' = ' + k * x + ' g'
     });
   }
   function propBackQ() {
     const k = U.randInt(2, 12), x = U.randInt(2, 12);
-    return num('比例の 文しょうだい', '1m の 重さが ' + k + 'g の はりがねが あります。' + k * x + 'g では 長さは 何m？', x, {
+    return num('比例の 文章題', '1m の 重さが ' + k + 'g の はりがねが あります。' + k * x + 'g では 長さは 何m？', x, {
       key: 'pb:' + k + ':' + x, hint: k * x + ' ÷ ' + k + ' で 長さが 出る。',
       note: k * x + ' ÷ ' + k + ' = ' + x + ' m'
     });
@@ -1005,7 +1005,7 @@ MQ.sansu6 = (function () {
     const total = pf([24, 36, 48, 60, 72]);
     const ds = [2, 3, 4, 6, 8, 12].filter(function (d) { return total % d === 0; });
     const x = pf(ds);
-    return num('反比例の 文しょうだい', total + ' このを あめを 何人かで 同じ 数ずつ 分けます。' + x + '人で 分けると 1人 何こ？', total / x, {
+    return num('反比例の 文章題', total + ' このを あめを 何人かで 同じ 数ずつ 分けます。' + x + '人で 分けると 1人 何こ？', total / x, {
       key: 'iw:' + total + ':' + x, hint: '人数が ふえると 1人ぶんは へる（反比例）。' + total + ' ÷ ' + x + '。',
       note: total + ' ÷ ' + x + ' = ' + total / x + ' こ'
     });
@@ -1014,7 +1014,7 @@ MQ.sansu6 = (function () {
     const area = pf([24, 36, 48, 60]);
     const ds = [2, 3, 4, 6, 8, 12].filter(function (d) { return area % d === 0; });
     const x = pf(ds);
-    return num('反比例の 文しょうだい', '面積が ' + area + 'cm² の 長方形が あります。たてが ' + x + 'cm の とき、よこは 何cm？', area / x, {
+    return num('反比例の 文章題', '面積が ' + area + 'cm² の 長方形が あります。たてが ' + x + 'cm の とき、よこは 何cm？', area / x, {
       key: 'ia:' + area + ':' + x, hint: 'たて × よこ ＝ ' + area + ' なので、たてが ふえると よこは へる。',
       note: area + ' ÷ ' + x + ' = ' + area / x + ' cm'
     });
