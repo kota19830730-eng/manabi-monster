@@ -117,6 +117,8 @@ MQ.ui.start = (function () {
     // かみふぶきは ここ（ロゴと 地面の あいだ）に 出す。
     // 画面が 高い ほど ここが 広がるので、空が さびしく ならない。
     return h('div', { class: 'title__scene' }, [
+      // 背景（v12.6）：遠くの 山なみ・まおうの 城・ブロックの 木・時計で 変わる 空の もの（z 0＝地面の みんなより うしろ）
+      MQ.ui.scenery ? MQ.ui.scenery.title() : null,
       h('div', { class: 'title__bits' }, BITS.map(function (b) {
         return h('i', {
           style: {
@@ -266,12 +268,13 @@ MQ.ui.start = (function () {
       })
     ]));
 
-    const wrap = h('div', { class: 'title' }, sky().concat([
+    const tod = MQ.ui.scenery ? MQ.ui.scenery.timeOfDay() : 'day';   // 背景（v12.6）：本当の 時計で 空が 変わる
+    const wrap = h('div', { class: 'title tod-' + tod }, sky().concat([
       h('div', { class: 'title__sound' }, MQ.ui.soundButtons()),
       // 右上：おうちの人ページ（大人むけ。子どもの ボタンとは 分けて 小さく おく）
       h('button', { class: 'sw sw--parent', type: 'button', text: 'おうちの人', onclick: openParent }),
       // 上の あき（ロゴを 下げる ため。画面が 高い ほど 大きく なる）
-      h('div', { class: 'title__top' }),
+      h('div', { class: 'title__top' }, [MQ.ui.scenery ? MQ.ui.scenery.titleTop() : null]),   // 背景（v12.6）：太陽・月
       h('div', { class: 'title__head' }, [
         MQ.ui.logo(),
         h('div', { class: 'title__tagrow' }, [

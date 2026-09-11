@@ -3733,6 +3733,35 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(INDEX_HTML.indexOf('css/motion3d.css') >= 0, 'index: motion3d.css');
   ['./css/motion3d.css', './js/core/vox.js', './js/content/chest3d.js', './js/ui/three.js'].forEach(function (f) { check(sw.indexOf("'" + f + "'") >= 0, 'sw.js の FILES に ' + f); });
   ['../css/motion3d.css', '../js/core/vox.js', '../js/content/chest3d.js', '../js/ui/three.js'].forEach(function (f) { check(harness.indexOf(f) >= 0, 'harness.html に ' + f); });
+
+  /* 背景（v12.6）：scenery.js は common.js の あと・start.js の 前。css/sw/harness にも ある。
+     時間帯の さかいめ・7エリア ぜんぶの 遠景と ゆかが 作れて 部品が 100こ いか */
+  check(INDEX_HTML.indexOf('js/ui/scenery.js') > INDEX_HTML.indexOf('js/ui/common.js') && INDEX_HTML.indexOf('js/ui/scenery.js') < INDEX_HTML.indexOf('js/ui/start.js'), 'index: scenery.js は common.js の あと・start.js の 前');
+  check(INDEX_HTML.indexOf('css/scenery.css') >= 0, 'index: scenery.css');
+  ['./css/scenery.css', './js/ui/scenery.js'].forEach(function (f) { check(sw.indexOf("'" + f + "'") >= 0, 'sw.js の FILES に ' + f); });
+  ['../css/scenery.css', '../js/ui/scenery.js'].forEach(function (f) { check(harness.indexOf(f) >= 0, 'harness.html に ' + f); });
+  (function () {
+    const saveCE = global.document.createElement;
+    global.document.createElement = function () { const el = { kids: [], style: {}, appendChild(c) { this.kids.push(c); }, replaceChild() {}, querySelectorAll() { return []; } }; return el; };
+    try {
+      load('js/ui/scenery.js');
+      const sc = MQ.ui.scenery;
+      function countI(el) { return el.kids.reduce(function (n, k) { return n + (k.kids.length ? countI(k) : 1); }, 0); }
+      check(sc.timeOfDay(new Date(2026, 8, 11, 5)) === 'night' && sc.timeOfDay(new Date(2026, 8, 11, 6)) === 'morning' && sc.timeOfDay(new Date(2026, 8, 11, 9)) === 'day' &&
+            sc.timeOfDay(new Date(2026, 8, 11, 15, 59)) === 'day' && sc.timeOfDay(new Date(2026, 8, 11, 16)) === 'evening' && sc.timeOfDay(new Date(2026, 8, 11, 19)) === 'night', 'scenery: 時間帯の さかいめ 6/9/16/19');
+      check(sc.skyOf('forest') === 'evening' && sc.skyOf('tower') === 'night' && sc.skyOf('mountain', 'morning') === 'morning', 'scenery: 森は 夕方・塔は 夜・山は 時計');
+      sc.BIOMES.forEach(function (b) {
+        ['morning', 'day', 'evening', 'night'].forEach(function (t) {
+          const n = countI(sc.arena(b, t));
+          check(n >= 10 && n <= 130, 'scenery: ' + b + '/' + t + ' の 部品 ' + n + '（10〜130）');
+        });
+        check(sc.floor(b).kids[0].className === 'afloor afloor--' + b, 'scenery: ' + b + ' の ゆか');
+      });
+      ['morning', 'day', 'evening', 'night'].forEach(function (t) { const n = countI(sc.title(t)); check(n >= 20 && n <= 170, 'scenery: タイトル/' + t + ' の 部品 ' + n + '（20〜170）'); });
+      check(['g1', 'g2', 'g3', 'g4', 'g5', 'g6'].every(function (g) { return countI(sc.mapFar(g)) > 0; }), 'scenery: 地図の 山なみ 6テーマ');
+      check(sc.mapTint('night').className === 'map__tint tod-night', 'scenery: 地図の 光');
+    } finally { global.document.createElement = saveCE; }
+  })();
   check(harness.indexOf('3d/vox2.js') < 0 && harness.indexOf('3d/motion.css') < 0, 'harness.html は tools/3d の 写し（vox2.js・motion.css）を 読まない');
   G.clear();
   // 保存された ものを 読み直せる

@@ -1,0 +1,86 @@
+/* =========================================================
+   背景（v12.6）：タイトル・バトル・地図の 遠景と ゆか
+   A 遠くの 山なみと まおうの 城／B ブロックの 森／C 夕やけ（本当の 時計で 空が 変わる）
+   中身（部品の ならび）は js/ui/scenery.js。ここは 色と 置き場所だけ。
+   きまり：画像なし・filter なし（v12.5 の 軽さ）・動かすのは opacity だけ。
+   ========================================================= */
+
+/* ---- 遠景の 層（<i> を bottom で ならべる） ---- */
+.bgfar { position: absolute; left: 0; right: 0; bottom: 0; height: 150px; z-index: 0; pointer-events: none; overflow: hidden; }
+.title__scene .bgfar { bottom: 0; height: 150px; }
+.title__top .bgtop { position: absolute; left: 0; right: 0; top: 0; height: 52px; z-index: 0; pointer-events: none; overflow: hidden; }
+.title__top .bgtop i { position: absolute; display: block; bottom: 0; }
+.arena__bg .bgfar { bottom: 74px; height: 120px; }            /* 草（60〜74）の 上から */
+.bgfar i { position: absolute; display: block; bottom: 0; }
+.bgfar .bk { box-shadow: inset -2px -2px 0 rgba(0,0,0,.16), inset 2px 2px 0 rgba(255,255,255,.14); }   /* 3面の 光（ブロック） */
+.bgfar .star { box-shadow: 0 0 4px #fff; }
+.bgfar .sun { box-shadow: 0 0 30px 10px rgba(255,190,90,.55); }
+.bgfar .win { box-shadow: 0 0 6px 2px rgba(255,212,71,.8); }
+.bgfar .moon { box-shadow: 0 0 18px 6px rgba(255,244,200,.35); }
+.bgfar .gem { box-shadow: 0 0 10px 3px rgba(180,108,255,.55); }
+.bgfar .water { box-shadow: inset 0 3px 0 rgba(255,255,255,.35); }
+.bgfar .fog { left: 0; right: 0; width: auto; }
+
+/* ---- 空（C）：時間帯で 変わる（tod-* は JS が つける。森・海・空・塔は つけない） ---- */
+.title.tod-morning .title__sky { background: linear-gradient(#7fc4f0 0%, #b8e2f8 52%, #ffe0b0 100%); }
+.title.tod-evening .title__sky { background: linear-gradient(#2a3a7c 0%, #7a4f9a 34%, #e8735f 66%, #ffb36e 86%, #ffe1a0 100%); }
+.title.tod-night   .title__sky { background: linear-gradient(#0b1230 0%, #1a2a5c 55%, #2e3f7a 100%); }
+.title.tod-morning .title__glow { background: radial-gradient(closest-side, rgba(255,240,200,.55), rgba(255,240,200,0)); }
+.title.tod-evening .title__glow { background: radial-gradient(closest-side, rgba(255,220,160,.55), rgba(255,220,160,0)); }
+.title.tod-night   .title__glow { background: radial-gradient(closest-side, rgba(180,200,255,.22), rgba(180,200,255,0)); }
+.title.tod-night   { background: #0b1230; }
+.title.tod-evening { background: #7a4f9a; }
+
+.arena__bg.tod-morning .arena__sky { background: linear-gradient(#6fbdf0 0%, #b8e2f8 50%, #ffe0b0 100%); }
+.arena__bg.tod-evening .arena__sky { background: linear-gradient(#3a3f8a 0%, #b45a8a 40%, #ff9a5a 78%, #ffd08a 100%); }
+.arena__bg.tod-night   .arena__sky { background: linear-gradient(#0b1230 0%, #1a2a5c 55%, #2e3f7a 100%); }
+.arena__bg.tod-night .cloud--c i { background: #3a4a80; }
+
+/* ---- ボス戦で 空が 暗く なる（bossIntro が is-dusk・おこると is-dusk2）---- */
+.arena__dusk { position: absolute; inset: 0; z-index: 0; opacity: 0; pointer-events: none; transition: opacity 1.6s ease-out;
+  background: linear-gradient(rgba(24,10,56,.66) 0%, rgba(70,26,90,.42) 62%, rgba(70,26,90,0) 100%); }
+.arena__bg.is-dusk .arena__dusk { opacity: 1; }
+.arena__bg.is-dusk2 .arena__dusk { opacity: 1; background: linear-gradient(rgba(60,8,30,.72) 0%, rgba(120,30,50,.42) 62%, rgba(120,30,50,0) 100%); }
+.arena__bg.is-dusk .bgfar { opacity: .55; transition: opacity 1.6s ease-out; }
+.arena__bg.is-dusk .cloud--c { opacity: .35; transition: opacity 1.6s ease-out; }
+.arena__bg--tower.is-dusk .arena__dusk, .arena__bg--tower.is-dusk2 .arena__dusk { opacity: 0; }   /* 塔は もともと 夜 */
+.arena__bg--tower.is-dusk .bgfar { opacity: 1; }
+
+/* ---- バトルの ゆか：手前が 大きく 奥が 小さい マス目（3案 共通） ---- */
+.afloorwrap { position: absolute; left: 0; right: 0; bottom: 0; height: 70px; overflow: hidden; }
+.afloor {
+  position: absolute; left: -30%; right: -30%; bottom: 0; height: 150px;
+  transform-origin: 50% 100%; transform: perspective(260px) rotateX(52deg);
+  background-color: var(--fl1, #8f9aa8);
+  background-image:
+    repeating-linear-gradient(90deg, var(--fl2, rgba(0,0,0,.14)) 0 2px, transparent 2px 34px),
+    repeating-linear-gradient(180deg, var(--fl2, rgba(0,0,0,.14)) 0 2px, transparent 2px 30px);
+  box-shadow: inset 0 0 40px rgba(0,0,0,.18);
+}
+.afloor--mountain { --fl1: #8f9aa8; --fl2: rgba(0,0,0,.14); }                 /* 石 */
+.afloor--forest   { --fl1: #7d5a3a; --fl2: rgba(0,0,0,.18); }                 /* 土 */
+.afloor--sea      { --fl1: #e3cf95; --fl2: rgba(120,90,30,.16); }             /* すな */
+.afloor--sky      { --fl1: #eef4ff; --fl2: rgba(90,150,220,.22); }            /* 雲 */
+.afloor--tower    { --fl1: #3a2f5a; --fl2: rgba(170,120,255,.32); box-shadow: inset 0 0 40px rgba(0,0,0,.4), inset 0 0 80px rgba(120,60,200,.25); }   /* 石だたみ（光る すじ） */
+.afloor--lake     { --fl1: #8496a8; --fl2: rgba(20,40,80,.16); }              /* ぬれた 石 */
+.afloor--town     { --fl1: #b0a08c; --fl2: rgba(60,40,20,.2); }               /* 石だたみ */
+.afloor--town::after {                                                         /* 1つ おきに ずらした しきいし */
+  content: ''; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(90deg, transparent 0 17px, rgba(60,40,20,.2) 17px 19px, transparent 19px 34px);
+  background-size: 34px 60px; background-position: 0 30px;
+}
+
+/* ---- 地図：海の 向こうの うすい 山なみ（A）と 時間帯の 光（C） ---- */
+.mapfar { position: absolute; left: 0; right: 0; top: 0; height: 18px; z-index: 1; overflow: hidden; pointer-events: none; opacity: .75; }
+.mapfar i { position: absolute; display: block; bottom: 0; }
+.map__tint { position: absolute; inset: 0; z-index: 3; pointer-events: none; }   /* ノード（4〜）より 下・かざり（2）より 上 */
+.map__tint.tod-morning { background: linear-gradient(rgba(255,230,170,.14), rgba(255,230,170,0) 40%); }
+.map__tint.tod-evening { background: linear-gradient(rgba(255,150,60,.18), rgba(140,50,100,.16)); }
+.map__tint.tod-night   { background: rgba(10,20,70,.3); }
+
+/* B：地図の かざりに てっぺんの 光（木・家・岩は もう ブロックの 形なので 光だけ 足す） */
+.deco--tree i:nth-child(1), .deco--house i:nth-child(1), .deco--rock i:nth-child(1) { box-shadow: inset 0 2px 0 rgba(255,255,255,.28), inset -2px -2px 0 rgba(0,0,0,.14); }
+
+@media (prefers-reduced-motion: reduce) {
+  .arena__dusk, .arena__bg.is-dusk .bgfar, .arena__bg.is-dusk .cloud--c { transition: none; }
+}

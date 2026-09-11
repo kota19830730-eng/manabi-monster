@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=BIZ+UDPGothic:wght@400;700&display=swap">
 <link rel="stylesheet" href="../css/style.css">
 <link rel="stylesheet" href="../css/motion3d.css">
+<link rel="stylesheet" href="../css/scenery.css">
 </head>
 <body>
 <!--
@@ -136,6 +137,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="3d/demo3d.js"></script>   <!-- 3D の デモ（vox・chest3d・motion3d.css は ゲームの ファイルを 読む） -->
 <script src="../js/ui/common.js"></script>
 <script src="../js/ui/three.js"></script>
+<script src="../js/ui/scenery.js"></script>
 <script src="../js/ui/news.js"></script>
 <script src="../js/ui/look.js"></script>
 <script src="../js/ui/start.js"></script>
@@ -206,6 +208,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     MQ.save.load();
     MQ.save.setSetting('sfx', false);
     MQ.save.setSetting('bgm', false);
+    if (MQ.ui.scenery) MQ.ui.scenery.setNow(new Date(2026, 8, 11, 13, 0, 0));   // 背景（v12.6）：撮る ときは 昼に 固定（#scenery で 変える）
     const p = MQ.save.createPlayer('こうた', { hair: 'gold', skin: 'mid', style: 'short' });
     MQ.save.update(function (pl) {
       pl.xp = opts.xp != null ? opts.xp : 1400;
@@ -2580,6 +2583,51 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       await wait(400);
       await playBattle('boss', { stopAtBoss: true });
       await wait(2200);
+      return;
+    }
+    /* 背景（v12.6）：#scenery[:<朝|昼|夕|夜>]＝タイトル／#scenery:arena:<biome>[:<時間帯>]＝バトルの 遠景と ゆか／
+       #scenery:map[:<時間帯>]＝地図。時間帯は morning/day/evening/night。ログに 部品の 数と 空の 時間帯 */
+    if (mode.indexOf('scenery') === 0) {
+      const a = mode.split(':');
+      const HOUR = { morning: 7, day: 13, evening: 17, night: 21 };
+      const at = function (t) { MQ.ui.scenery.setNow(new Date(2026, 8, 11, HOUR[t] || 13, 0, 0)); return t in HOUR ? t : 'day'; };
+      fresh();
+      if (a[1] === 'arena') {
+        const t = at(a[3] || 'day');
+        MQ.ui.battle.start('sansu3-6');
+        await wait(500);
+        MQ.ui.battle.paintScene(a[2] || 'mountain');
+        await wait(100);
+        const far = $('.arena__bg .bgfar');
+        say('scenery arena: biome=' + (a[2] || 'mountain') + ' time=' + t + ' sky=' + ($('.arena__bg').className.match(/tod-\w+/) || ['fixed'])[0] +
+          ' parts=' + MQ.ui.scenery.count(far) + ' floor=' + ($('.afloor') ? $('.afloor').className : 'none') + ' hills=' + $$('.arena__hills').length);
+        freeze();
+        return;
+      }
+      if (a[1] === 'map') {
+        const t = at(a[2] || 'day');
+        MQ.ui.goMap(); await wait(300); dismissTowerPop();
+        say('scenery map: time=' + t + ' far=' + MQ.ui.scenery.count($('.mapfar')) + ' tint=' + ($('.map__tint') ? $('.map__tint').className : 'none'));
+        return;
+      }
+      const t = at(a[1] || 'day');
+      MQ.ui.start.render(); MQ.ui.show('screen-start');
+      await wait(200);
+      say('scenery title: time=' + t + ' cls=' + ($('.title').className) + ' parts=' + MQ.ui.scenery.count($('.title__scene .bgfar')));
+      freeze();
+      return;
+    }
+    /* 背景（v12.6）：ボス戦で 空が 暗く なる。#bossdark（ため）／#bossdark:hot（おこった あと） */
+    if (mode.indexOf('bossdark') === 0) {
+      fresh();
+      MQ.ui.battle.start('sansu3-6');
+      await wait(400);
+      await playBattle('boss', { stopAtBoss: true });
+      await wait(2200);
+      if (mode === 'bossdark:hot') { $('.arena__bg').classList.add('is-dusk2'); }
+      $$('.arena__dusk, .arena__bg .bgfar, .arena__bg .cloud--c').forEach(function (el) { el.style.transition = 'none'; });   // virtual-time では transition が 進まない
+      await wait(1800);
+      say('bossdark: cls=' + $('.arena__bg').className + ' dusk-opacity=' + getComputedStyle($('.arena__dusk')).opacity);
       return;
     }
     if (mode === 'last') {

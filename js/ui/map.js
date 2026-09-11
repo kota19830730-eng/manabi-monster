@@ -406,6 +406,8 @@ MQ.ui.map = (function () {
       canvas, layer
     ]);
     MQ.tiles.paint(canvas, grid);
+    // 背景（v12.6）：海の 向こうの うすい 山なみ（A）と 時間帯の 光（C）。島・道・マス目は さわらない
+    if (MQ.ui.scenery) { layer.appendChild(MQ.ui.scenery.mapFar(plan.theme)); sheet.appendChild(MQ.ui.scenery.mapTint()); }
 
     // 木の 板の 橋（マスの 中の もようだけは CSS で かさねる）
     grid.bridges.forEach(function (r) {

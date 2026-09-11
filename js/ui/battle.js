@@ -38,14 +38,6 @@ MQ.ui.battle = (function () {
   let lastJudge = null;        // はんていの 結果（harness 用）
   let leftSec = 0;
 
-  // 遠くの 山（四角い ブロック 2つ）
-  function hill(w1, h1, w2, h2) {
-    return h('span', {}, [
-      h('i', { style: { width: w1 + 'px', height: h1 + 'px' } }),
-      h('b', { style: { width: w2 + 'px', height: h2 + 'px' } })
-    ]);
-  }
-
   /* =======================================================
      画面を くみ立てる
      ======================================================= */
@@ -54,15 +46,14 @@ MQ.ui.battle = (function () {
     d = {};
     d.root = h('div', { class: 'battle' }, [
       d.arena = h('section', { class: 'arena' }, [
-        // 背景は CSS の しきつめ（空・遠くの山・草・地面）。画像ファイルは 使わない
+        // 背景（v12.6）：空 → ボス戦の 暗さ → 雲 → 遠景（scenery.js・エリアごと）→ 草 → 奥ゆきの ゆか。画像ファイルは 使わない
         d.bg = h('div', { class: 'arena__bg' }, [
           h('div', { class: 'arena__sky' }),
+          d.dusk = h('div', { class: 'arena__dusk' }),
           h('div', { class: 'cloud cloud--c' }, [h('i'), h('i'), h('i')]),
-          h('div', { class: 'arena__hills' }, [
-            hill(26, 16, 54, 20), hill(34, 20, 66, 24), hill(22, 14, 46, 18)
-          ]),
+          d.far = h('div', { class: 'bgfar' }),         // paintScene() が エリアの 遠景に 入れかえる
           h('div', { class: 'arena__grass' }),
-          h('div', { class: 'arena__ground' })
+          d.floor = h('div', { class: 'afloorwrap' })   // paintScene() が エリアの ゆかに 入れかえる
         ]),
         d.top = h('div', { class: 'arena__top' }, [
           d.count = h('span', { class: 'pillstat' }),
@@ -383,8 +374,19 @@ MQ.ui.battle = (function () {
     return true;
   }
 
-  function paintScene(biome) {
-    if (d.bg) d.bg.className = 'arena__bg arena__bg--' + (biome || 'mountain');
+  /* 背景（v12.6）：エリアの 遠景と ゆかを 入れかえる。空が 時計で 変わる エリア（山・湖・町）には tod-* を つける。
+     className を 書き直す ので ボス戦の is-dusk も ここで 消える（つぎの たたかいの はじめ） */
+  function paintScene(biome, time) {
+    if (!d.bg) return;
+    biome = biome || 'mountain';
+    const sc = MQ.ui.scenery;
+    const tod = sc && !sc.FIXED[biome] ? sc.skyOf(biome, time) : null;
+    d.bg.className = 'arena__bg arena__bg--' + biome + (tod ? ' tod-' + tod : '');
+    if (sc) {
+      const far = sc.arena(biome, time), fl = sc.floor(biome);
+      d.bg.replaceChild(far, d.far); d.far = far;
+      d.bg.replaceChild(fl, d.floor); d.floor = fl;
+    }
   }
 
   /* =======================================================
@@ -1485,6 +1487,7 @@ MQ.ui.battle = (function () {
         d.msg.textContent = last ? e.name + '「まだ 本気では なかった…！」' : e.name + ' は おこりだした！';
         if (last) MQ.sfx.henshin(); else MQ.sfx.enrage();
         MQ.bgm.setEnrage(true);          // 曲が 速くなる
+        if (d.bg && !last) d.bg.classList.add('is-dusk2');   // v12.6：おこると 空が 赤黒く
         shake(true);
         if (last) flash(true);
         setTimeout(function () {
@@ -1591,6 +1594,7 @@ MQ.ui.battle = (function () {
     d.foes.innerHTML = '';
     d.warnText.textContent = 'WARNING';
     d.warnSub.textContent = 'ボスが ちかづいてくる…！';
+    if (d.bg) d.bg.classList.add('is-dusk');   // v12.6：ボス戦は 空が 暗く なる（塔は もともと 夜・CSS で 効かない）
     d.warning.className = 'warning';
     d.warning.hidden = false;
     void d.warning.offsetWidth;
@@ -2760,6 +2764,7 @@ MQ.ui.battle = (function () {
 
   return {
     start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,
+    paintScene: paintScene,   // 背景（v12.6）を harness から 入れかえる 用
     lastJudge: function () { return lastJudge; },
     // メモ欄の 中を のぞく（tools/harness.html 用・v5.5）
     memoStrokes: function () { return memo && memo.strokes ? memo.strokes() : 0; },
