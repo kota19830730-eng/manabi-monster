@@ -121,6 +121,33 @@ MQ.vox = (function () {
       }
     };
   }
+  /* v12.5：よこ・上下の 面を 色だけで ぬる。cols＝ふちの 色の ならび（行 or 列 ごと）。
+     ぜんぶ 同じ 色 → background-color 1つ（GPU に 画像を もたせない）。
+     ちがう 色が ならぶ → 硬い しまの linear-gradient（dir 'x'＝色は 上→下・'y'＝左→右）。
+     明るさは 面の 光（LIT）× 0.92（前の AO の 平均に 合わせる） */
+  const SIDE_AO = 0.92;
+  const SIDEC = {};
+  function sideCss(c, side) {
+    const k = side + c;
+    if (!SIDEC[k]) { const a = litRgb(c, side); SIDEC[k] = 'rgb(' + Math.round(a[0] * SIDE_AO) + ',' + Math.round(a[1] * SIDE_AO) + ',' + Math.round(a[2] * SIDE_AO) + ')'; }
+    return SIDEC[k];
+  }
+  function sideFill(f, cols, side, dir) {
+    const n = cols.length;
+    let same = true;
+    for (let i = 1; i < n; i++) if (cols[i] !== cols[0]) { same = false; break; }
+    if (same || n < 2) { f.style.backgroundColor = sideCss(cols[0], side); return; }
+    const stops = [];
+    let i = 0;
+    while (i < n) {
+      let j = i;
+      while (j + 1 < n && cols[j + 1] === cols[i]) j++;
+      const a = (i / n * 100).toFixed(2), b = ((j + 1) / n * 100).toFixed(2);
+      stops.push(sideCss(cols[i], side) + ' ' + a + '% ' + b + '%');
+      i = j + 1;
+    }
+    f.style.backgroundImage = 'linear-gradient(' + (dir === 'x' ? 'to bottom' : 'to right') + ', ' + stops.join(', ') + ')';
+  }
   /* 下じき（前の 面の うしろ）：左半分は 左の ふちの 色・右半分は 右の ふちの 色（行ごと） */
   function underDraw(L, R, w, h) {
     return {
@@ -440,7 +467,7 @@ MQ.vox = (function () {
      ・hide … カメラの 向きで ぜったい 見えない がわ（'L'／'R'）。はね（rotateY で 動く）と keep の 部品は はぶかない
      箱は 奥ゆきの まん中ぞろえ（z −d/2〜+d/2）なので、「かくれる」＝ x・y の はんいが 中に 入って 奥ゆきも 同じ か 大きい */
   /* 検査用の スイッチ（harness が 切りかえて 見くらべる）：noCull＝かくれる 面も 作る／noMerge＝つながない／allBack＝うしろも ぜんぶ */
-  const FLAGS = { noCull: false, noMerge: false, allBack: false };
+  const FLAGS = { noCull: false, noMerge: false, allBack: false, sideTex: false };   // sideTex＝v12.1 までの アトラスの 模様を よこ・上下の 面に（くらべる 用・v12.5）
   function cull(parts, hide) {
     hide = FLAGS.noCull ? '' : (hide || '');
     parts.forEach(function (p) {
@@ -558,9 +585,18 @@ MQ.vox = (function () {
     if (r.w <= 1 && r.h <= 1) return box;
     const fl = r.face || { back: true, L: true, R: true, T: true, B: true };
     const dp = Math.max(2, Math.round(r.d));                          // 模様の 点の 数（奥ゆき）
+    /* v12.5 軽く：よこ・上下の 面は 画像（アトラス）を はらず、色だけ。
+       実測（PC・GPU・#perf3d）：バトルの 1コマ 上位5% 34〜44ms → 17ms。面の 数は 同じでも、
+       画像を はった 層は GPU が 1まいずつ 絵を もつ（拡大の background-size＋pixelated）ので 重かった。
+       おくほど 暗く（AO）は 面ぜんたいを 8% 暗く する だけ、ざらつきは やめた（1ばいでは 見えない 太さ）。
+       色が 行ごとに ちがう 面（かみ＋はだ など）だけ CSS の linear-gradient（硬い しま）。FLAGS.sideTex で 前の 模様に もどせる */
     const tex = function (f, cols, side, dir, flip) {
-      const t = texDraw(cols, dp, side, dir, flip);
-      atlas.use(f, atlas.slot('T|' + side + dir + dp + (flip ? 'f' : '') + '|' + cols.join(','), t));
+      if (FLAGS.sideTex) {
+        const t = texDraw(cols, dp, side, dir, flip);
+        atlas.use(f, atlas.slot('T|' + side + dir + dp + (flip ? 'f' : '') + '|' + cols.join(','), t));
+        return f;
+      }
+      sideFill(f, cols, side, dir);
       return f;
     };
     // うしろ（色は 左右の ふちの 平均を 暗く）

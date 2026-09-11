@@ -2112,6 +2112,31 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('wide: ' + m.classList.contains('memo--wide') + ' memo=' + Math.round(m.getBoundingClientRect().height) + 'px btn=' + b.textContent);
       return;
     }
+    /* v12.5：#perffx:<わざ>[:pal]＝ひっさつわざの 演出の あいだ（1.4秒）の 1コマを はかる。本当の 時計で（cdp.js）。
+       わざ＝fire bolt star nova starburst。pal を つけると 相棒も いっしょ（③） */
+    if (mode.indexOf('perffx') === 0) {
+      const want = mode.split(':')[1] || 'nova';
+      const withPal = mode.indexOf(':pal') > 0;
+      fresh();
+      if (withPal) MQ.save.update(function (pl) { MQ.pals.add(pl, 'drago-1'); MQ.pals.setActive(pl, 'drago-1'); });
+      MQ.ui.battle.start('sansu3-6');
+      await wait(800);
+      const frames = [];
+      let last = performance.now();
+      const sp = MQ.ui.battle.demoSpecial(want);
+      await new Promise(function (res) {
+        function tick() { const t = performance.now(); frames.push(t - last); last = t; if (t - t0 < 1400) requestAnimationFrame(tick); else res(); }
+        const t0 = performance.now();
+        requestAnimationFrame(tick);
+      });
+      frames.shift();
+      const sorted = frames.slice().sort(function (a, b) { return a - b; });
+      const avg = frames.reduce(function (a, b) { return a + b; }, 0) / frames.length;
+      say('perffx(' + want + (withPal ? '+pal' : '') + '): ' + sp.name + ' コマ数=' + frames.length + ' 1コマ 平均=' + avg.toFixed(1) + 'ms 中央=' + sorted[Math.floor(sorted.length / 2)].toFixed(1) + 'ms 上位5%=' + sorted[Math.floor(sorted.length * 0.95)].toFixed(1) + 'ms 最大=' + sorted[sorted.length - 1].toFixed(1) + 'ms（16.7 いかが 60fps）');
+      say('perffx: fx の 部品=' + $$('.fx *').length + ' fxscreen の 部品=' + $$('.fxscreen *').length);
+      dump();
+      return;
+    }
     /* 3D の 重さを 数える（v12.1・2026-09-10）：#perf3d[:2d][:title]
        バトル（相棒つき）か タイトルを 出して、部品の 数（箱・面・DOM）・作る 時間・1コマの 時間（本当の 時計）を 出す。
        1コマは --virtual-time-budget なしで 動かした ときだけ 本当の 数字（virtual-time では 時計が にせもの） */

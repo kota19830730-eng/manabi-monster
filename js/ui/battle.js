@@ -2093,6 +2093,8 @@ MQ.ui.battle = (function () {
     if (old) old.remove();
     d.heroImg.hidden = v3;
     if (v3) d.hero.insertBefore(MQ.ui.v3.hero(player, 84, { ry: 22, mo: 'mo-idle', cls: 'hero__img3d' }), d.heroImg);
+    /* v12.5 軽く：3D の あいだ 2D の 絵は hidden なので、カットイン（tier ≥ 3）で はじめて デコードされて 1コマ ひっかかる → 先に デコードして おく */
+    if (v3 && window.Image) { try { const pre = new Image(); pre.src = d.heroImg.src; if (pre.decode) pre.decode().catch(function () {}); } catch (e) {} }
   }
 
   function syncPal(player) {
