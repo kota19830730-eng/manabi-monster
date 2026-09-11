@@ -41,7 +41,7 @@ MQ.util = (function () {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
 
-  /* 文字を その子の 学年に 合わせる（v13.1・js/core/text.js）。raw ＝ 問題の 中身（辞書を 当てない） */
+  /* 文字を その子の 学年に 合わせる（v13.2・js/core/text.js）。raw ＝ 問題の 中身（辞書を 当てない） */
   function fitText(v, raw) {
     const T = window.MQ && MQ.text;
     return T ? T.fit(v, { raw: raw }) : v;

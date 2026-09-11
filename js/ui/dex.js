@@ -564,7 +564,7 @@ MQ.ui.dex = (function () {
   }
 
   /* しゅぎょうばの 予習（v13.0）：学期で 閉じて いる つぎの ステージを、なかまが 教えた あとに 開いて よいか */
-  /* ことばの 表示（v13.1）：画面の ことばを 学年に 合わせる／やさしく／高学年 */
+  /* ことばの 表示（v13.2）：画面の ことばを 学年に 合わせる／やさしく／高学年 */
   function wordsSection(player) {
     const cur = player.textLevel === 'easy' || player.textLevel === 'high' ? player.textLevel : 'auto';
     const g = player.grade || 3;

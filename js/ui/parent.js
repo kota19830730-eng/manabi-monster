@@ -49,7 +49,7 @@ MQ.ui.parent = (function () {
   function gradeOf(p) { return p.grade || 3; }
   let letterPick = {};        // 手紙の 書きかけ（教科・コイン・文）
 
-  // おうちの人ページは 大人の 文なので、ことばを 学年に 合わせる しくみ（v13.1）を 止めて 作る
+  // おうちの人ページは 大人の 文なので、ことばを 学年に 合わせる しくみ（v13.2）を 止めて 作る
   function render() {
     if (MQ.text) MQ.text.pause(true);
     try { renderInner(); } finally { if (MQ.text) MQ.text.pause(false); }
