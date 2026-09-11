@@ -3809,6 +3809,15 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   TB.SUBJECTS.forEach(function (s) { n += TB.list(s.id).length; });
   console.log('教科書（出版社）: 5教科 ' + n + '社・表 OK');
 })();
+/* ===== こうしんの 穴（v12.9.1）=====
+   sw.js の install は かならず サーバーから 取り直す（cache: 'reload'）。
+   ふつうの cache.addAll(FILES) に もどすと、10分 いないに 版を 出した とき 新しい 版の 箱に 古い ファイルが 入る */
+(function () {
+  const sw = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  const inst = sw.slice(sw.indexOf("addEventListener('install'"), sw.indexOf("addEventListener('activate'"));
+  check(inst.indexOf("cache: 'reload'") >= 0 && inst.indexOf('new Request(') >= 0, 'sw.js の install は cache: reload で 取り直す');
+  check(inst.indexOf('cache.addAll(FILES)') < 0, 'sw.js の install に ふつうの addAll(FILES) が のこって いない');
+})();
 /* ===== エラーの 保険（v7.6）===== */
 (function () {
   const G = MQ.guard;

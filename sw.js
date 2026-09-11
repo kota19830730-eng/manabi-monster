@@ -6,7 +6,7 @@
    ※ファイルを 増やしたら FILES にも 足してください。
    --------------------------------------------------------- */
 
-const CACHE_NAME = 'manabi-monster-v135';
+const CACHE_NAME = 'manabi-monster-v136';
 
 /* フォントの キャッシュ（v7.9）
    書体は Google（fonts.googleapis.com / fonts.gstatic.com）から 読んで いる。
@@ -107,9 +107,16 @@ const FILES = [
   './assets/icons/icon-512.png'
 ];
 
+/* v12.9.1：**かならず サーバーから 取り直す**（cache: 'reload'）。
+   GitHub Pages は ぜんぶの ファイルを max-age=600（10分）で 送る ので、ふつうの addAll だと
+   10分 いないに つぎの 版を 出した とき **新しい 版の 箱に 古い ファイルが 入って** しまい、
+   タブレットは 番号だけ 新しくて 中身は 古い まま（お知らせも もう 出ない）に なって いた。
+   本物の Chrome で 再現・直った ことも 確認ずみ。この 行を 元に もどさない */
 self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(function (cache) { return cache.addAll(FILES); })
+    caches.open(CACHE_NAME).then(function (cache) {
+      return cache.addAll(FILES.map(function (u) { return new Request(u, { cache: 'reload' }); }));
+    })
   );
   self.skipWaiting();
 });
