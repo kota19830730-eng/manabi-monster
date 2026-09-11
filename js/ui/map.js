@@ -597,15 +597,17 @@ MQ.ui.map = (function () {
         ]),
         h('span', { class: 'tegamibtn__go', text: '▶' })
       ]) : null,
-      /* しゅぎょうば（v13.0）：相棒が 教えて くれる 予習・復習。指導の 中身が ある ステージが 1つでも あれば */
-      (!firstTime && MQ.dojo && MQ.ui.dojo && MQ.dojo.count(player)) ? h('button', {
+      /* しゅぎょうば（v13.0）：相棒が 教えて くれる 予習・復習。
+         **どの 学年で あそんで いても 出す**（v13.1）。v13.0 では 中身の ない 学年
+         （小3 いがい）で バーごと 消えて いて「ないけど」と 言われた。はじめての 子だけ 出さない（v11.1） */
+      (!firstTime && MQ.dojo && MQ.ui.dojo) ? h('button', {
         class: 'dojobtn', type: 'button',
         onclick: function () { MQ.sfx.tap(); MQ.ui.dojo.openList(); }
       }, [
         h('span', { class: 'dojobtn__ico' }, [MQ.enemies.node(MQ.dojo.sensei(player).id, { size: 30 })]),
         h('span', { class: 'dojobtn__body' }, [
           h('b', { class: 'dojobtn__t', text: 'しゅぎょうば' }),
-          h('span', { class: 'dojobtn__s', text: (MQ.dojo.candidates(player).preview.length ? 'よしゅう・' : '') + 'ふくしゅう を なかまが おしえて くれる' })
+          h('span', { class: 'dojobtn__s', text: (MQ.dojo.candidates(player).preview.length ? 'よしゅう・' : '') + 'ふくしゅう を なかまが おしえて くれる' })   // どの 学年でも 同じ 文（ひらがな）
         ]),
         h('span', { class: 'dojobtn__go', text: '▶' })
       ]) : null,

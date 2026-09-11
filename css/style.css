@@ -3959,3 +3959,8 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 .dojorow__sub[data-area="shakai"] { background: #c9b0ff; }
 .dojorow__sub[data-area="eigo"] { background: #ffd447; }
 .previewblk { margin-bottom: 6px; }
+
+/* しゅぎょうばの 自動の 指導（v13.1）：れいの 問題・こたえ・せつめい */
+.dojo__exq { margin: 2px 0 8px; font-family: var(--f-head); font-size: 22px; line-height: 1.35; text-align: center; color: var(--paper-ink); }
+.dojo__exq .num { white-space: nowrap; }
+.dojo__exnote { font-size: 14px; line-height: 1.45; color: #6a5a3a; }

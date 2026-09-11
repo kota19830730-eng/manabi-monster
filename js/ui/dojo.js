@@ -1,12 +1,13 @@
 /* ---------------------------------------------------------
-   しゅぎょうば の 画面（v13.0）
+   しゅぎょうば の 画面（v13.0・v13.1 で 全学年・全教科）
 
    一覧（よしゅう／いまの ステージ／ふくしゅう）→ 修行（3だん）→ 合格
      ① せつめい      … 相棒の ふきだし＋例の カード（「つぎへ」で 進む）
-     ② いっしょに とく … 問題 → 「まず なにを する？」の 3たく → ヒント → 答えと 式（相棒が 見せる）
+     ② いっしょに とく … 問題 → 「まず なにを する？」の 3たく（手書きの 指導だけ）→ ヒント → 答えと 式
      ③ ひとりで やってみる … ヒントが 出て いる 問題に 答える。まちがえたら 声かけ → もう 1回。
                           2回めも ちがえば 答えを 見せて つぎへ。まちがい 1問まで で 合格
-   ルールは js/core/dojo.js、文は js/content/lessonN.js。
+   ルールと 画面の 文は js/core/dojo.js（MQ.dojo.text()。小1・小2は 小1の かん字だけ）、
+   手書きの 指導は js/content/lessonN.js。
    部品は バトルの もの（.card .keys .key .choice .display .hintbox）と .bagcard を 借りる。
    --------------------------------------------------------- */
 window.MQ = window.MQ || {};
@@ -14,12 +15,14 @@ MQ.ui = MQ.ui || {};
 
 MQ.ui.dojo = (function () {
   const h = MQ.util.h;
-  const DOTS = ['せつめい', 'いっしょに', 'ひとりで'];
   let S = null;        // いまの 修行
   let root = null;
+  let T = null;        // 画面の 文（学年で かわる）
 
   function player() { return MQ.save.current(); }
   function strip(s) { return String(s || '').replace(/<[^>]+>/g, ''); }
+  function F(s, v) { return MQ.dojo.fmt(s, v); }
+  function dots() { return ['せつめい', 'いっしょに', 'ひとりで']; }
 
   /* =======================================================
      一覧
@@ -28,11 +31,13 @@ MQ.ui.dojo = (function () {
     const p = player();
     if (!p) return;
     S = null;
+    T = MQ.dojo.text();
     const c = MQ.dojo.candidates(p);
     const sen = MQ.dojo.sensei(p);
-    const kid = (MQ.content.activeWorld().grade || 3) <= 2;
     function row(e) {
       const st = e.stage;
+      const sub = e.preview ? (e.done ? T.rowPreDone : T.rowPre)
+        : (e.stars ? '★' + e.stars + '　' + (e.done ? F(T.rowDoneN, e.done) : T.rowReview) : (e.done ? F(T.rowDoneN, e.done) : T.rowNow));
       return h('button', {
         class: 'dojorow' + (e.preview ? ' dojorow--pre' : '') + (e.done ? ' dojorow--done' : ''), type: 'button',
         onclick: function () { MQ.sfx.tap(); open(st.id); }
@@ -40,7 +45,7 @@ MQ.ui.dojo = (function () {
         h('span', { class: 'dojorow__sub', 'data-area': e.area.id, text: e.area.short || e.area.name }),
         h('span', { class: 'dojorow__body' }, [
           h('b', { class: 'dojorow__t', text: st.name }),
-          h('span', { class: 'dojorow__s', text: e.preview ? (e.done ? 'しゅぎょうずみ・地図で あそべる' : 'まだ 学校で ならって いない ところ') : (e.stars ? '★' + e.stars + '　' + (e.done ? 'しゅぎょう ' + e.done + '回' : 'もう いちど たしかめる') : (e.done ? 'しゅぎょう ' + e.done + '回' : 'これから たたかう ところ')) })
+          h('span', { class: 'dojorow__s', text: sub })
         ]),
         h('span', { class: 'dojorow__go', text: e.done ? '✓' : '▶' })
       ]);
@@ -58,12 +63,11 @@ MQ.ui.dojo = (function () {
       h('div', { class: 'dojo__scroll' }, [
         h('div', { class: 'dojo__sensei dojo__sensei--list' }, [
           senseiImg(sen, 56),
-          bubble(sen.name + '「' + (total ? 'どこを べんきょう する？ いっしょに やろう！' : 'ここの しゅぎょうは じゅんびちゅう。小3の 算数から できるよ。') + '」')
+          bubble(sen.name + '「' + (total ? T.listHello : T.listEmpty) + '」')
         ]),
-        section('よしゅう', c.preview, kid ? 'まだ ならって いない ところを さきに' : 'まだ 学校で ならって いない ところを 先に'),
-        section('いまの ステージ', c.now, null),
-        section('ふくしゅう', c.review, null),
-        total ? null : h('p', { class: 'dojosec__n', text: '（いまは 小3の 算数だけ。ほかの 教科・学年は これから）' })
+        section(T.secPreview, c.preview, T.secPreviewNote),
+        section(T.secNow, c.now, null),
+        section(T.secReview, c.review, null)
       ])
     ]);
     MQ.ui.mount('screen-dojo', root);
@@ -78,7 +82,7 @@ MQ.ui.dojo = (function () {
     return h('div', { class: 'dojo__top' }, [
       h('button', { class: 'dojo__back', type: 'button', 'aria-label': 'もどる', text: '‹', onclick: function () { MQ.sfx.tap(); onBack(); } }),
       h('div', { class: 'dojo__title' }, [h('b', { text: title })]),
-      dot != null ? h('div', { class: 'dojo__dots' }, DOTS.map(function (t, i) {
+      dot != null ? h('div', { class: 'dojo__dots' }, dots().map(function (t, i) {
         return h('span', { class: 'dojo__dot' + (i < dot ? ' is-done' : '') + (i === dot ? ' is-on' : '') }, [h('i'), h('span', { text: t })]);
       })) : h('div', { class: 'dojo__dots' })
     ]);
@@ -86,20 +90,20 @@ MQ.ui.dojo = (function () {
   function senseiImg(sen, size) {
     return h('div', { class: 'dojo__img' }, [MQ.enemies.node(sen.id, { size: size || 64, cls: 'dojo__mon' })]);
   }
-  function bubble(text, cls) {
-    return h('div', { class: 'dojo__bubble' + (cls ? ' ' + cls : '') }, [h('i', { class: 'dojo__tail' }), h('div', { class: 'dojo__say', text: text })]);
+  function bubble(text) {
+    return h('div', { class: 'dojo__bubble' }, [h('i', { class: 'dojo__tail' }), h('div', { class: 'dojo__say', text: text })]);
   }
-  function card(q, extraCls) {
+  function card(q) {
     const t = strip(q.prompt);
     const size = t.length > 44 ? ' card__q--xs' : t.length > 26 ? ' card__q--s' : ' card__q--m';
-    return h('div', { class: 'card dojo__card' + (extraCls ? ' ' + extraCls : '') }, [
+    return h('div', { class: 'card dojo__card' }, [
       h('p', { class: 'card__unit', text: q.unit || '' }),
       h('div', { class: 'card__q' + size, html: q.prompt })
     ]);
   }
   function hintBox(q) {
     if (!q.hint) return null;
-    return h('div', { class: 'hintbox dojo__hint' }, [h('span', { class: 'hintbox__label', text: 'ヒント' }), h('span', { text: q.hint })]);
+    return h('div', { class: 'hintbox dojo__hint' }, [h('span', { class: 'hintbox__label', text: 'ヒント' }), h('span', { text: strip(q.hint) })]);
   }
   function nextBtn(text, fn, cls) {
     return h('button', { class: 'btn ' + (cls || '') + ' dojo__next', type: 'button', text: text, onclick: function () { MQ.sfx.tap(); fn(); } });
@@ -111,7 +115,7 @@ MQ.ui.dojo = (function () {
   }
   function say(text) {
     const b = root && root.querySelector('.dojo__say');
-    if (b) b.textContent = text;
+    if (b) b.textContent = S ? S.sen.name + '「' + text + '」' : text;
     const w = root && root.querySelector('.dojo__bubble');
     if (w) { w.classList.remove('is-pop'); void w.offsetWidth; w.classList.add('is-pop'); }
   }
@@ -125,9 +129,10 @@ MQ.ui.dojo = (function () {
      ======================================================= */
   function open(stageId) {
     const p = player();
+    T = MQ.dojo.text();
     const ses = MQ.dojo.session(stageId, p);
-    if (!ses) { MQ.ui.toast('この ステージの しゅぎょうは じゅんびちゅう'); return; }
-    S = { ses: ses, sen: MQ.dojo.sensei(p), misses: 0, rounds: 0, again: false };
+    if (!ses) { MQ.ui.toast(T.none); return; }
+    S = { ses: ses, sen: MQ.dojo.sensei(p), misses: 0, rounds: 0 };
     root = h('div', { class: 'dojo' }, [
       topBar(ses.stage.name, 0, function () { openList(); }),
       h('div', { class: 'dojo__sensei' }, [senseiImg(S.sen, 64), bubble('')]),
@@ -141,14 +146,14 @@ MQ.ui.dojo = (function () {
 
   function intro() {
     setDot(0);
-    say(S.sen.name + '「' + S.ses.lesson.intro + '」');
+    say(S.ses.lesson.intro);
     paint(h('div', { class: 'dojo__pane' }, [
       h('div', { class: 'dojo__hello' }, [
         h('b', { text: S.ses.stage.name }),
-        h('span', { text: S.ses.preview ? 'まだ 学校で ならって いない ところ。さきに 見て おこう！' : '3つの だんで すすむよ。' }),
-        h('div', { class: 'dojo__plan' }, DOTS.map(function (t, i) { return h('span', { text: (i + 1) + ' ' + t }); }))
+        h('span', { text: S.ses.preview ? T.helloPre : T.helloPlan }),
+        h('div', { class: 'dojo__plan' }, dots().map(function (t, i) { return h('span', { text: (i + 1) + ' ' + t }); }))
       ]),
-      nextBtn('はじめる！', function () { explain(0); })
+      nextBtn(T.start, function () { explain(0); })
     ]));
   }
 
@@ -157,13 +162,13 @@ MQ.ui.dojo = (function () {
     const ex = S.ses.lesson.explain;
     if (i >= ex.length) { guided(0, 'ask'); return; }
     setDot(0);
-    say(S.sen.name + '「' + ex[i].say + '」');
+    say(ex[i].say);
     paint(h('div', { class: 'dojo__pane' }, [
       h('div', { class: 'card dojo__card dojo__card--ex' }, [
-        h('p', { class: 'card__unit', text: 'せつめい ' + (i + 1) + ' / ' + ex.length }),
+        h('p', { class: 'card__unit', text: T.exLabel + ' ' + (i + 1) + ' / ' + ex.length }),
         h('div', { class: 'dojo__exbody', html: ex[i].ex || '' })
       ]),
-      nextBtn(i + 1 < ex.length ? 'つぎへ' : 'いっしょに といて みよう', function () { explain(i + 1); })
+      nextBtn(i + 1 < ex.length ? T.next : T.toGuided, function () { explain(i + 1); })
     ]));
   }
 
@@ -173,14 +178,11 @@ MQ.ui.dojo = (function () {
     if (i >= qs.length) { practice(0, 'ask'); return; }
     setDot(1);
     const q = qs[i];
-    const les = S.ses.lesson;
-    const step = q.__step === undefined ? (q.__step = MQ.dojo.stepFor(les, q)) : q.__step;
-    const label = 'いっしょに ' + (i + 1) + ' / ' + qs.length;
+    const step = q.__step === undefined ? (q.__step = MQ.dojo.stepFor(S.ses.lesson, q)) : q.__step;
     const kids = [card(q)];
-
-    if (phase === 'ask' && step) {
-      say(S.sen.name + '「' + step.ask + '」');
-      kids.push(h('div', { class: 'dojo__steps' }, step.options.map(function (o, k) {
+    function stepBtns(showResult) {
+      return h('div', { class: 'dojo__steps' }, step.options.map(function (o, k) {
+        if (showResult) return h('button', { class: 'dojo__step' + (o.ok ? ' is-ok' : k === picked ? ' is-ng' : ''), type: 'button', text: o.text, disabled: true });
         return h('button', {
           class: 'dojo__step', type: 'button', text: o.text, 'data-ok': o.ok ? '1' : '0',
           onclick: function () {
@@ -188,32 +190,29 @@ MQ.ui.dojo = (function () {
             else { MQ.sfx.miss(); guided(i, 'step-ng', k); }
           }
         });
-      })));
-    } else if (phase === 'step-ng' && step) {
-      say(S.sen.name + '「おしい。' + step.why + '」');
-      kids.push(h('div', { class: 'dojo__steps' }, step.options.map(function (o, k) {
-        return h('button', { class: 'dojo__step' + (o.ok ? ' is-ok' : k === picked ? ' is-ng' : ''), type: 'button', text: o.text, disabled: true });
-      })));
-      kids.push(nextBtn('ヒントを 見る', function () { guided(i, 'hint'); }));
-    } else if (phase === 'step-ok' && step) {
-      say(S.sen.name + '「そう！ ' + step.why + '」');
-      kids.push(h('div', { class: 'dojo__steps' }, step.options.map(function (o) {
-        return h('button', { class: 'dojo__step' + (o.ok ? ' is-ok' : ''), type: 'button', text: o.text, disabled: true });
-      })));
-      kids.push(nextBtn('ヒントを 見る', function () { guided(i, 'hint'); }));
+      }));
+    }
+
+    if (phase === 'ask' && step) {
+      say(step.ask);
+      kids.push(stepBtns(false));
+    } else if ((phase === 'step-ng' || phase === 'step-ok') && step) {
+      say((phase === 'step-ok' ? T.stepOk : T.stepNg) + step.why);
+      kids.push(stepBtns(true));
+      kids.push(nextBtn(T.seeHint, function () { guided(i, 'hint'); }));
     } else if (phase === 'ask' || phase === 'hint') {
-      // 手順の 3たくが ない 問題は ヒントから
-      say(S.sen.name + '「' + (q.hint ? 'ヒントは これ。' : 'いっしょに 考えよう。') + '」');
+      // 手順の 3たくが ない 問題（自動の 指導は ぜんぶ）は ヒントから
+      say(q.hint ? T.hintIs : T.think);
       if (q.hint) kids.push(hintBox(q));
-      kids.push(nextBtn('答えを 見る', function () { guided(i, 'answer'); }));
+      kids.push(nextBtn(T.seeAns, function () { guided(i, 'answer'); }));
     } else {
       const ans = MQ.dojo.answerText(q);
-      say(S.sen.name + '「答えは ' + ans + '。' + (q.note ? strip(q.note) : '') + '」');
+      say(F(T.ansIs, ans) + (q.note ? ' ' + strip(q.note) : ''));
       if (q.hint) kids.push(hintBox(q));
-      kids.push(h('div', { class: 'dojo__answer' }, [h('span', { class: 'dojo__anslabel', text: 'こたえ' }), h('b', { text: ans })]));
-      kids.push(nextBtn(i + 1 < qs.length ? 'つぎの 問題' : 'ひとりで やって みよう', function () { guided(i + 1, 'ask'); }));
+      kids.push(h('div', { class: 'dojo__answer' }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: ans })]));
+      kids.push(nextBtn(i + 1 < qs.length ? T.nextQ : T.toPractice, function () { guided(i + 1, 'ask'); }));
     }
-    paint(h('div', { class: 'dojo__pane' }, [h('p', { class: 'dojo__label', text: label })].concat(kids)));
+    paint(h('div', { class: 'dojo__pane' }, [h('p', { class: 'dojo__label', text: T.guidedLabel + ' ' + (i + 1) + ' / ' + qs.length })].concat(kids)));
   }
 
   /* ---- ③ ひとりで やってみる ---- */
@@ -223,27 +222,26 @@ MQ.ui.dojo = (function () {
     if (i >= qs.length) { finishRound(); return; }
     setDot(2);
     const q = qs[i];
-    const label = 'ひとりで ' + (i + 1) + ' / ' + qs.length;
     const kids = [card(q)];
     if (phase === 'ask') {
       input = ''; div = { q: '', r: '', active: 'q' };
       q.__tries = 0;
-      say(S.sen.name + '「' + (i === 0 ? 'こんどは きみの ばん。ヒントを 見ながら やって みよう！' : 'つぎ！ この ちょうしで。') + '」');
+      say(i === 0 ? T.yourTurn : T.goOn);
     } else if (phase === 'retry') {
-      say(S.sen.name + '「' + MQ.dojo.missText(S.ses.lesson, q, given) + '」');
+      say(MQ.dojo.missText(S.ses.lesson, q, given, T));
     } else if (phase === 'ok') {
-      say(S.sen.name + '「' + MQ.dojo.praise() + (q.note ? ' ' + strip(q.note) : '') + '」');
+      say(MQ.dojo.praise(T) + (q.note ? ' ' + strip(q.note) : ''));
     } else if (phase === 'reveal') {
-      say(S.sen.name + '「答えは ' + MQ.dojo.answerText(q) + '。' + (q.note ? strip(q.note) + ' ' : '') + 'つぎで とりかえそう！」');
+      say(F(T.ansIs, MQ.dojo.answerText(q)) + ' ' + (q.note ? strip(q.note) + ' ' : '') + T.reveal);
     }
     if (q.hint) kids.push(hintBox(q));
     if (phase === 'ask' || phase === 'retry') {
       kids.push(inputArea(q, function (value) { submit(i, value); }));
     } else {
-      kids.push(h('div', { class: 'dojo__answer' + (phase === 'ok' ? ' is-ok' : '') }, [h('span', { class: 'dojo__anslabel', text: 'こたえ' }), h('b', { text: MQ.dojo.answerText(q) })]));
-      kids.push(nextBtn(i + 1 < qs.length ? 'つぎの 問題' : 'けっかを 見る', function () { practice(i + 1, 'ask'); }));
+      kids.push(h('div', { class: 'dojo__answer' + (phase === 'ok' ? ' is-ok' : '') }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: MQ.dojo.answerText(q) })]));
+      kids.push(nextBtn(i + 1 < qs.length ? T.nextQ : T.seeResult, function () { practice(i + 1, 'ask'); }));
     }
-    paint(h('div', { class: 'dojo__pane' }, [h('p', { class: 'dojo__label', text: label })].concat(kids)));
+    paint(h('div', { class: 'dojo__pane' }, [h('p', { class: 'dojo__label', text: T.practiceLabel + ' ' + (i + 1) + ' / ' + qs.length })].concat(kids)));
   }
 
   function submit(i, value) {
@@ -280,22 +278,22 @@ MQ.ui.dojo = (function () {
             class: 'display display--half' + (div.active === f ? ' is-on' : ''), type: 'button',
             onclick: function () { MQ.sfx.tap(); div.active = f; renderDisplays(); }
           }, [
-            h('span', { class: 'display__label', text: isFrac ? (f === 'q' ? '分子（上）' : '分母（下）') : (f === 'q' ? 'こたえ' : 'あまり') }),
+            h('span', { class: 'display__label', text: isFrac ? (f === 'q' ? '分子（上）' : '分母（下）') : (f === 'q' ? T.ans : T.rem) }),
             h('span', { class: 'display__value', text: div[f] === '' ? '?' : div[f] })
           ]));
         });
       } else {
         displays.appendChild(h('div', { class: 'display is-on' }, [
-          h('span', { class: 'display__label', text: 'こたえ' }),
+          h('span', { class: 'display__label', text: T.ans }),
           h('span', { class: 'display__value', text: input === '' ? '?' : input })
         ]));
       }
     }
     function press(label) {
-      MQ.sfx.key && MQ.sfx.key();
+      if (MQ.sfx.key) MQ.sfx.key();
       if (label === 'こたえる') {
-        if (two) { if (div.q === '' || div.r === '') { MQ.ui.toast(isFrac ? '分子と 分母を 入れてね' : 'こたえと あまりを 入れてね'); return; } onSubmit({ q: div.q, r: div.r }); return; }
-        if (input === '' || input === '.' || input === '-') { MQ.ui.toast('こたえを 入れてね'); return; }
+        if (two) { if (div.q === '' || div.r === '') { MQ.ui.toast(isFrac ? '分子と 分母を 入れてね' : T.needDiv); return; } onSubmit({ q: div.q, r: div.r }); return; }
+        if (input === '' || input === '.' || input === '-') { MQ.ui.toast(T.needAns); return; }
         onSubmit(input);
         return;
       }
@@ -304,11 +302,9 @@ MQ.ui.dojo = (function () {
         if (label === 'けす') v = v.slice(0, -1);
         else if (v.length < 4) v += label;
         div[div.active] = v;
-        if (label !== 'けす' && div.active === 'q' && v.length >= 2 && div.r === '') { /* そのまま。わくは タップで かえる */ }
       } else {
         if (label === 'けす') input = input.slice(0, -1);
         else if (label === '.') { if (input.indexOf('.') < 0 && input !== '' && input.length < maxLen) input += '.'; }
-        else if (label === '-') { if (input === '') input = '-'; }
         else if (input.length < maxLen) input += label;
       }
       renderDisplays();
@@ -329,20 +325,17 @@ MQ.ui.dojo = (function () {
     S.rounds++;
     if (MQ.dojo.passed(S.misses)) { done(); return; }
     // 合格 ならず → 新しい 問題で ②から（ばつは ない）
-    const p = player();
-    const fresh = MQ.dojo.session(S.ses.stageId, p);
-    S.ses.guided = fresh.guided;
-    S.ses.practice = fresh.practice;
+    const fresh = MQ.dojo.session(S.ses.stageId, player());
+    if (fresh) { S.ses.guided = fresh.guided; S.ses.practice = fresh.practice; }
     S.misses = 0;
-    S.again = true;
     setDot(1);
-    say(S.sen.name + '「おしい！ もう いちど いっしょに やろう。こんどは できるよ！」');
+    say(T.againSay);
     paint(h('div', { class: 'dojo__pane' }, [
       h('div', { class: 'dojo__hello' }, [
-        h('b', { text: 'もう いちど' }),
-        h('span', { text: 'まちがえても だいじょうぶ。あたらしい 問題で もう 1回 いっしょに とこう。' })
+        h('b', { text: T.againTitle }),
+        h('span', { text: T.againText })
       ]),
-      nextBtn('いっしょに とく', function () { guided(0, 'ask'); })
+      nextBtn(T.againBtn, function () { guided(0, 'ask'); })
     ]));
   }
 
@@ -351,30 +344,30 @@ MQ.ui.dojo = (function () {
     let res = null;
     const stageId = S.ses.stageId;
     MQ.save.update(function (p) { res = MQ.dojo.complete(p, stageId); });
-    MQ.sfx.defeat && MQ.sfx.defeat();
+    if (MQ.sfx.defeat) MQ.sfx.defeat();
     const p = player();
     const found = MQ.content.findStage(stageId);
     const canFight = found && MQ.content.isUnlocked(p, found.area, found.stage);
     setDot(3);
-    say(S.sen.name + '「しゅぎょう かんりょう！ ' + (S.ses.preview ? 'これで ' + S.ses.stage.name + ' が 地図で あそべるよ！' : 'ばっちり おぼえたね！') + '」');
+    say(S.ses.preview ? F(T.doneSayPre, S.ses.stage.name) : T.doneSay);
     const lines = [h('b', { class: 'dojodone__xp', text: 'けいけんち +' + res.xp })];
-    if (res.first) lines.push(h('span', { text: 'はじめての 合格！' }));
-    if (res.levelUp) lines.push(h('span', { class: 'dojodone__lv', text: 'レベルアップ！ Lv.' + res.level }));
-    if (res.pal && S.sen.pal) lines.push(h('span', { text: S.sen.name + ' にも けいけんち' }));
-    if (res.titles && res.titles.length) lines.push(h('span', { class: 'dojodone__lv', text: 'しょうごう「' + res.titles[0].name + '」' }));
+    if (res.first) lines.push(h('span', { text: T.first }));
+    if (res.levelUp) lines.push(h('span', { class: 'dojodone__lv', text: F(T.lvUp, res.level) }));
+    if (res.pal && S.sen.pal) lines.push(h('span', { text: F(T.palXp, S.sen.name) }));
+    if (res.titles && res.titles.length) lines.push(h('span', { class: 'dojodone__lv', text: F(T.title, res.titles[0].name) }));
     paint(h('div', { class: 'dojo__pane' }, [
       h('div', { class: 'bagcard dojodone' }, [
         h('span', { class: 'bagcard__star bagcard__star--l' }),
         h('span', { class: 'bagcard__star bagcard__star--r' }),
-        h('div', { class: 'bagcard__head' }, [h('h3', { class: 'bagcard__title', text: 'しゅぎょう かんりょう！' })]),
+        h('div', { class: 'bagcard__head' }, [h('h3', { class: 'bagcard__title', text: T.doneTitle })]),
         h('div', { class: 'dojodone__body' }, [
-          h('span', { class: 'dojodone__stage', text: S.ses.stage.name + (S.ses.preview ? '（よしゅう）' : '') }),
+          h('span', { class: 'dojodone__stage', text: S.ses.stage.name + (S.ses.preview ? T.preTag : '') }),
           h('div', { class: 'dojodone__lines' }, lines)
         ]),
         h('div', { class: 'dojodone__btns' }, [
-          canFight ? nextBtn('たたかいに いく！', function () { MQ.ui.battle.start(stageId); }, '') : null,
-          nextBtn('しゅぎょうばへ', function () { openList(); }, 'btn--cream'),
-          nextBtn('ちずへ', function () { MQ.ui.goMap(); }, 'btn--stone')
+          canFight ? nextBtn(T.fight, function () { MQ.ui.battle.start(stageId); }, '') : null,
+          nextBtn(T.toList, function () { openList(); }, 'btn--cream'),
+          nextBtn(T.toMap, function () { MQ.ui.goMap(); }, 'btn--stone')
         ])
       ])
     ]));

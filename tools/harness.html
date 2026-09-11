@@ -3021,6 +3021,39 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       fresh();
       MQ.save.update(function (pl) { pl.seenNews = MQ.news.latest(); pl.term = 1; pl.units = {}; pl.stars['sansu3-5'] = 3; pl.stars['sansu3-6'] = 2; });
       const sub = mode.split(':')[1] || '';
+      /* #dojo:g2 / #dojo:g5 … 小3 いがいで あそんで いても 地図に バーが 出る → 一覧 → 自動の 指導（v13.1）
+           #dojo:g2:map（地図）#dojo:g2:list（一覧）#dojo:g2:ex（せつめい）#dojo:g2（ひとりで まで 通す） */
+      if (/^g\d$/.test(sub)) {
+        const g = Number(sub.slice(1));
+        MQ.save.setPlayGrade(g);
+        MQ.ui.goMap();
+        await wait(250);
+        const bar = $('.dojobtn');
+        say('dojo:' + sub + ' 地図の バー ' + (bar ? 'あり OK' : 'なし MISSING'));
+        const step = mode.split(':')[2] || '';
+        if (step === 'map') { dump(); freeze(); return; }
+        if (bar) bar.click();
+        await wait(150);
+        const rows = $$('.dojorow');
+        const areas = {}; rows.forEach(function (r) { const a = $('.dojorow__sub', r).textContent; areas[a] = (areas[a] || 0) + 1; });
+        say('dojo:' + sub + ' 一覧の 行 ' + (rows.length ? rows.length + ' OK' : '0 MISSING') + '（' + Object.keys(areas).map(function (k) { return k + ' ' + areas[k]; }).join('・') + '）');
+        if (step === 'list') { dump(); freeze(); return; }
+        // 算数 いがいの ステージを えらぶ（自動の 指導を 見る）
+        const pickRow = rows.filter(function (r) { return !/算数|さんすう/.test($('.dojorow__sub', r).textContent); })[0] || rows[0];
+        if (pickRow) pickRow.click();
+        await wait(120);
+        say('dojo:' + sub + ' はじめ「' + ($('.dojo__say') ? $('.dojo__say').textContent : 'MISSING') + '」');
+        if ($('.dojo__next')) $('.dojo__next').click();
+        await wait(60);
+        say('dojo:' + sub + ' せつめい ' + ($('.dojo__exq') ? 'れい あり OK' : 'なし MISSING') + '「' + ($('.dojo__say') ? $('.dojo__say').textContent.slice(0, 50) : '') + '」');
+        if (step === 'ex') { dump(); freeze(); return; }
+        let gd = 0;
+        while (gd++ < 20 && !/ひとりで/.test(($('.dojo__label') || {}).textContent || '')) {
+          const nb = $('.dojo__next'); if (!nb) break; nb.click(); await wait(25);
+        }
+        say('dojo:' + sub + ' ' + (/ひとりで/.test(($('.dojo__label') || {}).textContent || '') ? 'ひとりで まで 通った OK' : 'とちゅうで 止まった MISSING') + '／こたえの 入れ方 ' + ($('.choice') ? 'えらぶ' : $('.keys') ? 'テンキー' : 'MISSING'));
+        dump(); freeze(); return;
+      }
       const c0 = MQ.dojo.candidates(MQ.save.current());
       say('dojo: よしゅう ' + c0.preview.map(function (e) { return e.stage.id; }).join(',') + '（sansu3-7 が ' + (c0.preview.some(function (e) { return e.stage.id === 'sansu3-7'; }) ? 'ある OK' : 'ない MISSING') + '）／いまの ' + c0.now.length + '／ふくしゅう ' + c0.review.length);
       say('dojo: 予習前 isAvailable(sansu3-7)=' + MQ.content.isAvailable(MQ.content.findStage('sansu3-7').stage));
@@ -3892,6 +3925,17 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const nb = $('.dojo__next'); if (!nb) break; nb.click(); await wait(20);
     }
     say('しゅぎょうば: ' + (/ひとりで/.test(($('.dojo__label') || {}).textContent || '') ? 'ひとりで まで 通った OK' : 'とちゅうで 止まった MISSING'));
+    // 小2でも バーが 出て、自動の 指導が 開く（v13.1）
+    MQ.save.setPlayGrade(2);
+    MQ.ui.goMap();
+    await wait(80);
+    say('しゅぎょうば 小2: 地図の バー ' + ($('.dojobtn') ? 'あり OK' : 'なし MISSING'));
+    MQ.ui.dojo.openList();
+    await wait(80);
+    const r2 = $$('.dojorow');
+    if (r2.length) { r2[r2.length - 1].click(); await wait(60); }
+    say('しゅぎょうば 小2: ' + (r2.length && $('.dojo__say') && MQ.ui.dojo.state() ? '一覧 ' + r2.length + '・自動の 指導 OK' : 'MISSING'));
+    MQ.save.setPlayGrade(3);
     MQ.ui.goMap();
     await wait(60);
 

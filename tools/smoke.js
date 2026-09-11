@@ -4150,20 +4150,24 @@ function stripComments(src) {
   const sids = ses.guided.concat(ses.practice).map(function (q) { return q.id; });
   check(new Set(sids).size === sids.length, 'dojo: セッションの 問題が かぶらない');
   check(ses.guided.concat(ses.practice).every(function (q) { return /^(number|choice|divrem|frac)$/.test(q.type); }), 'dojo: 使える 型だけ');
-  check(D.session('kokugo3-1', sp) === null, 'dojo: 指導が ない ステージは null');
+  // 手書きが ない ステージは 自動の 指導（v13.1）
+  const ak = D.session('kokugo3-1', sp);
+  check(ak && ak.auto && ak.lesson.explain.length >= 1 && ak.guided.length === 2 && ak.practice.length === 3, 'dojo: 国語は 自動の 指導');
+  check(!D.lesson('tower3'), 'dojo: 塔には 指導が ない');
   // 予習：1学期まで → sansu3-7 は 閉じる → 合格すると 開く → previewOk=false で 閉じる
   MQ.save.update(function (pl) { pl.term = 1; pl.units = {}; });
   const st7 = MQ.content.findStage('sansu3-7').stage, area = MQ.content.findStage('sansu3-7').area;
   check(!MQ.content.isAvailable(st7), 'dojo: 1学期まで なら sansu3-7 は 閉じて いる');
   check(D.previewTarget(MQ.save.current(), area) === st7, 'dojo: 予習の 相手は sansu3-7');
   const c1 = D.candidates(MQ.save.current());
-  check(c1.preview.length === 1 && c1.preview[0].stage.id === 'sansu3-7' && c1.now.length >= 1, 'dojo: 一覧 よしゅう 1・いまの ' + c1.now.length);
+  // ローマ字（kokugo3-5）も 生成の ステージ なので 予習に 入る ことが ある（v13.1）
+  check(c1.preview.some(function (e) { return e.stage.id === 'sansu3-7'; }) && c1.preview.every(function (e) { return !e.stage.pool; }) && c1.now.length >= 1, 'dojo: 一覧 よしゅう 1・いまの ' + c1.now.length + '（よしゅう ' + c1.preview.map(function (e) { return e.stage.id; }).join(',') + '）');
   let r1 = null, r2 = null;
   MQ.save.update(function (pl) { r1 = D.complete(pl, 'sansu3-7'); });
   check(r1.xp === D.XP_FIRST && r1.first && MQ.save.current().dojoDone === 1, 'dojo: はじめての 合格 +' + r1.xp);
   check(MQ.content.isAvailable(st7), 'dojo: 合格したら sansu3-7 が 開く');
   check(MQ.content.lockedReason(st7) && D.termClosed(MQ.save.current(), st7), 'dojo: 学期では まだ（リボンの 条件）');
-  check(D.candidates(MQ.save.current()).preview.length === 0, 'dojo: 開いた ステージは よしゅうの 行から 消える');
+  const c1b = D.candidates(MQ.save.current()); check(!c1b.preview.some(function (e) { return e.stage.id === 'sansu3-7'; }), 'dojo: 開いた ステージは よしゅうの 行から 消える（' + c1b.preview.map(function (e) { return e.stage.id; }).join(',') + '）');
   MQ.save.update(function (pl) { r2 = D.complete(pl, 'sansu3-7'); });
   check(r2.xp === D.XP_AGAIN && !r2.first && MQ.save.current().dojo['sansu3-7'].done === 2 && MQ.save.current().dojoDone === 1, 'dojo: 2回めは +' + r2.xp);
   MQ.save.update(function (pl) { pl.previewOk = false; });
@@ -4179,6 +4183,36 @@ function stripComments(src) {
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'd', name: 'd', grade: 3, xp: 0 }], currentId: 'd', settings: {} }));
   const od = MQ.save.current();
   check(od.previewOk === true && od.dojoDone === 0 && typeof od.dojo === 'object', 'dojo: 古い セーブは よしゅう ON・0');
+  /* 全学年・全教科（v13.1）：指導が 作れる ステージは セッションが かならず 作れる */
+  const perGrade = [];
+  [1, 2, 3, 4, 5, 6].forEach(function (g) {
+    MQ.save.createPlayer('g' + g, null, g);
+    let open = 0, ok = 0;
+    MQ.content.subjectAreas().forEach(function (area) {
+      area.stages.forEach(function (st) {
+        if (st.tower || !MQ.content.isAvailable(st)) return;
+        open++;
+        if (!D.has(st.id)) return;
+        const s = D.session(st.id, MQ.save.current());
+        const good = !!(s && s.guided.length === 2 && s.practice.length === 3 && s.lesson.explain.length >= 1 && s.lesson.intro);
+        check(good, 'dojo: 小' + g + ' ' + st.id + ' の セッション');
+        if (good) ok++;
+      });
+    });
+    check(ok / open >= 0.8, 'dojo: 小' + g + ' 指導が ある ステージ ' + ok + ' / ' + open + '（8わり いじょう）');
+    check(D.count(MQ.save.current()) >= 1, 'dojo: 小' + g + ' の 一覧が からっぽで ない');
+    perGrade.push('小' + g + ' ' + ok + '/' + open);
+  });
+  // 画面の 文の かん字：小3〜 は 小3まで（＋位）、小1・小2 は 小1まで
+  function badUpTo(s, g, extra) { const bad = []; (String(s).match(/[一-龠]/g) || []).forEach(function (k) { if (!MQ.kakusu.upTo(k, g) && (extra || '').indexOf(k) < 0 && bad.indexOf(k) < 0) bad.push(k); }); return bad; }
+  Object.keys(D.KID).forEach(function (k) { const v = [].concat(D.KID[k]).join(''); const b = badUpTo(v, 1); check(!b.length, 'dojo: 小1・小2の 文 ' + k + ' かん字 ' + b.join('')); });
+  Object.keys(D.TEXT).forEach(function (k) { const v = [].concat(D.TEXT[k]).join(''); const b = badUpTo(v, 3, '位'); check(!b.length, 'dojo: 画面の 文 ' + k + ' かん字 ' + b.join('')); });
+  // 予習は 問題を その場で 作る ステージだけ（国語の リストは 学期で 0問に なる）
+  MQ.save.createPlayer('pre', null, 3);
+  MQ.save.update(function (pl) { pl.term = 1; pl.units = {}; });
+  MQ.content.subjectAreas().forEach(function (area) { const t = D.previewTarget(MQ.save.current(), area); check(!t || !t.pool, 'dojo: 予習の 相手は 生成の ステージだけ（' + area.id + '）'); });
+  console.log('しゅぎょうば 全学年: ' + perGrade.join('・'));
+
   // 読みこみ順と 登録
   check(INDEX_HTML.indexOf('js/content/lesson3.js') > INDEX_HTML.indexOf('js/content/sansu3.js') && INDEX_HTML.indexOf('js/core/dojo.js') > INDEX_HTML.indexOf('js/content/world3.js') && INDEX_HTML.indexOf('js/ui/dojo.js') > INDEX_HTML.indexOf('js/ui/map.js'), 'index: lesson3 は sansu3 の あと・dojo.js は world3 の あと・ui/dojo は map の あと');
   check(INDEX_HTML.indexOf('id="screen-dojo"') >= 0, 'index: screen-dojo');
