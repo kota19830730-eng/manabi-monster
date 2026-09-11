@@ -2637,6 +2637,18 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       bossLog('final');
       return;
     }
+    /* ふきだしと てきの かさなりを はかる（v12.9）：#bubble:<battle|boss|last|elite|r1>  ログ＝ステージ px の 四角 */
+    if (mode.indexOf('bubble') === 0) {
+      const kind = mode.split(':')[1] || 'battle';
+      fresh();
+      if (kind === 'last') { MQ.save.update(function (pl) { ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); }); MQ.ui.battle.start('tower3'); await wait(3400); }
+      else { MQ.ui.battle.start('sansu3-6'); await wait(500); if (kind === 'boss') { await playBattle('boss', { stopAtBoss: true }); await wait(2200); } }
+      const k = MQ.stage.size().scale || 1, o = $('#stage').getBoundingClientRect();
+      const R = function (el) { if (!el) return 'none'; const r = el.getBoundingClientRect(); return Math.round((r.left - o.left) / k) + ',' + Math.round((r.top - o.top) / k) + ' ' + Math.round(r.width / k) + 'x' + Math.round(r.height / k); };
+      const foe = $('.foes .enemy'), img = $('.foes .enemy__img3d, .foes .enemy__img'), v3 = $('.foes .v3'), hold = $('.foes .v3hold');
+      say('bubble ' + kind + ': msg=' + R($('.arena__msg')) + ' foe=' + R(foe) + ' img=' + R(img) + ' v3=' + R(v3) + ' hold=' + R(hold) + ' bag=' + R($('.bagbtn')) + ' hero=' + R($('.hero')) + ' text=' + ($('.arena__msg') || {}).textContent);
+      return;
+    }
     if (mode === 'boss') {
       fresh();
       MQ.ui.battle.start('sansu3-6');

@@ -1184,10 +1184,9 @@ body {
 .bossinfo .foecharge { position: static; transform: none; margin: 0; padding: 3px 5px; border-radius: 999px; background: rgba(10,16,40,.72); }
 .hpbar--boss .hpbar__fill { background: linear-gradient(90deg, #ff8a5a, #ff3d5e); }   /* ボス戦の バーは ボスの HP＝赤 */
 .enemy--last .foecharge { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); margin: 0; }   /* 名前が 頭の 上から パネルへ うつった ので ためは 頭の 上に もどす */
-.battle--tower .arena__msg { max-width: 136px; }   /* ラスボス（112px）に かぶらない */
-.combo.is-sp { font-size: 20px; max-width: 176px; white-space: normal; line-height: 1.05; }   /* 「13 コンボ！／ひっさつ！」は 2行に（右下の アイテムボタンの 下に もぐらない） */
+.combo.is-sp { font-size: 20px; max-width: 150px; white-space: normal; line-height: 1.05; }   /* 「13 コンボ！／ひっさつ！」は 2行に（右下の アイテムボタンの 下に もぐらない） */
 /* 相棒の なまえと ゲージは 左はしに そろえる（まん中ぞろえだと 長い なまえが 画面の 左に はみ出た＝実機の 写真） */
-.pal__name, .pal__gauge { left: 0; transform: none; }
+
 
 /* ---- 当たった／よけた などの うごき ---- */
 .is-appear { animation: popin .22s ease-out; }
@@ -1301,10 +1300,14 @@ body {
 .arena__field { position: absolute; inset: 0; }
 .arena__top { position: absolute; top: 10px; left: 10px; width: 256px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; z-index: 3; }   /* 右がわは あけて モンスターと かぶらない */
 .arena__msg.is-quiet { opacity: 0; }
+/* ふきだし＝アリーナの いちばん 下の 帯（v12.9）。
+   前は 勇者と てきの あいだ（top 70・left 132・max 152）に おいて いたが、タブレット（ステージ 700）だと
+   2体 ならぶ てき・ぶんしん・呼ばれた ザコが ふきだしの うしろに かくれた（ユーザー「吹き出しで モンスター 隠れてる」）。
+   足もとの 下（ゆかの 上）なら だれも かくれない。右は 小さく なった アイテムボタン（44px）の ぶんだけ あける */
 .arena__msg {
-  position: absolute; top: 70px; left: 132px; max-width: 152px;   /* バーの 下・勇者の 右・モンスターの 左（v12.1：主人公が 32px 右へ → 右はしは 284 の まま） */
+  position: absolute; left: 8px; right: 62px; bottom: 6px;
   padding: 5px 10px; border-radius: 12px; background: #fff; color: #1c2647;
-  font-size: 13px; box-shadow: 0 5px 0 rgba(0,0,0,.22); z-index: 4;   /* v10.5：相棒（3）より 上。ふきだしは いつも 読める */
+  font-size: 13px; line-height: 1.35; box-shadow: 0 4px 0 rgba(0,0,0,.22); z-index: 4;   /* v10.5：相棒（3）より 上。ふきだしは いつも 読める */
 }
 /* v10.5：カットインの あいだ（0.62秒）は ふきだしと 相棒を 消す。
    帯は 半透明なので、下に ふきだしと 相棒が いると すけて 見えて ごちゃごちゃ した（息子さん「相棒が 前に かぶる」）。
@@ -1328,8 +1331,8 @@ body {
 /* v12.1：相棒は 主人公の うしろ（左はし）・同じ 草の 上（bottom 62）・主人公より うしろ（z 1）。
    なまえと ゲージは 足もとの 下（暗い ゆか）に 出す。ためゲージと コンボは 54px 右へ よけた */
 .pal { position: absolute; left: 6px; bottom: 62px; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.pal__name { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px; }
-.pal__gauge { position: absolute; top: calc(100% + 16px); left: 50%; transform: translateX(-50%); }
+.pal__name { position: absolute; bottom: 100%; left: 0; margin-bottom: 2px; }                 /* v12.9：頭の 上（足もとは ふきだしの 帯） */
+.pal__gauge { position: absolute; bottom: calc(100% + 15px); left: 0; }
 .pal .mons { filter: drop-shadow(0 3px 3px rgba(10,10,40,.45)); animation: bob 2s ease-in-out infinite; }
 .pal__name { font-family: var(--f-head); font-size: 9px; color: #ffe9a8; text-shadow: 0 1px 0 rgba(0,0,0,.6); white-space: nowrap; }
 .pal.is-hit { animation: palJump .55s ease-out; }
@@ -1372,7 +1375,7 @@ body {
 .palname__btns .btn, .rename__btns .btn { flex: 1; }
 
 @media (prefers-reduced-motion: reduce) { .pal.is-hit, .pal__slash, .palbanner { animation-duration: .01s; } }
-.combo { position: absolute; bottom: 8px; left: 54px; font-family: var(--f-head); font-size: 26px; color: #fff; text-shadow: 0 3px 0 #d6491f, 0 0 14px rgba(255,150,80,.8); z-index: 3; }
+.combo { position: absolute; top: 62px; left: 134px; font-family: var(--f-head); font-size: 24px; color: #fff; text-shadow: 0 3px 0 #d6491f, 0 0 14px rgba(255,150,80,.8); z-index: 3; }
 .dmg { position: absolute; font-family: var(--f-head); font-size: 22px; color: #fff; text-shadow: 0 2px 0 #d6491f; z-index: 4; }
 
 .tag--hp { display: flex; align-items: center; }
@@ -2674,16 +2677,17 @@ body {
 /* ---- 右下の ボタン ---- */
 .bagbtn {
   position: absolute; right: 10px; bottom: 8px; z-index: 6;
-  display: inline-flex; align-items: center; gap: 7px;
-  height: 48px; padding: 0 11px 0 10px; border: 0; border-radius: 14px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; cursor: pointer;   /* v12.9：字を やめて 四角に（前は 143×48） */
   font-family: var(--f-head); font-size: 16px; color: var(--gold-ink); text-shadow: 0 1px 0 rgba(255,255,255,.45);
   background: linear-gradient(var(--gold-lt), var(--gold-2));
   box-shadow: 0 6px 0 var(--gold-sh), 0 10px 18px rgba(0,0,0,.32), inset 0 3px 0 rgba(255,255,255,.55);
 }
 .bagbtn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--gold-sh), 0 5px 10px rgba(0,0,0,.3), inset 0 3px 0 rgba(255,255,255,.5); }
 .bagbtn .btn__shine { clip-path: inset(0 round 14px); }
+.bagbtn__t { display: none; }
 .bagbtn__n {
-  min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
+  position: absolute; left: -7px; bottom: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; border: 2px solid var(--gold-lt);   /* のこり数は 左下（右上は 効果の 点） */
   display: inline-flex; align-items: center; justify-content: center;
   background: #1b2540; color: var(--gold); font-size: 13px; text-shadow: none;
   box-shadow: inset 0 2px 0 rgba(0,0,0,.45);
@@ -3174,12 +3178,14 @@ body {
 
 /* ⑦ ためゲージ：コンボの すぐ 下。あと 何問で ひっさつか 見える */
 .charge {
-  position: absolute; left: 54px; bottom: 38px; z-index: 4;   /* コンボ（bottom:8）の すぐ 上。v12.1：相棒の なまえの 右 */
+  position: absolute; left: 134px; top: 64px; z-index: 4;   /* v12.9：勇者と てきの あいだ。コンボが 出て いる ときは その 下（.combo + .charge） */
   display: flex; align-items: center; gap: 6px;
   padding: 3px 9px; border-radius: 10px; background: rgba(10,14,34,.72);
   font-family: var(--f-body); font-size: 10px; color: #ffe9a8;
 }
 .charge[hidden] { display: none; }
+.combo:not([hidden]) + .charge { top: 94px; }
+.combo.is-sp:not([hidden]) + .charge { top: 108px; }
 .charge__dots { display: flex; gap: 3px; }
 .charge__dot { width: 7px; height: 7px; background: rgba(255,255,255,.22); border: 1px solid rgba(255,233,168,.5); }
 .charge__dot.is-on { background: #ffe07a; border-color: #fff3c4; box-shadow: 0 0 5px 1px rgba(255,214,90,.9); }
