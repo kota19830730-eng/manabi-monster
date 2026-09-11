@@ -3838,3 +3838,124 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 .unlockpop__body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .unlockpop__t { font-family: var(--f-head); font-size: 14px; color: #ffd447; }
 .unlockpop__s { font-size: 11px; color: var(--tx-sub); }
+
+
+/* =========================================================
+   しゅぎょうば（v13.0）：相棒が 指導して くれる 予習・復習
+   紺の 画面・上に 帯（ステージ名＋3だんの 点）・左に 相棒・右に 白い ふきだし。
+   問題カード・テンキー・えらぶ・こたえの わくは バトルの 部品（.card .keys .display .choice）を 借りる。
+   ========================================================= */
+.dojo { display: flex; flex-direction: column; height: 100%; background: linear-gradient(var(--bg-1), var(--bg-0)); color: #fff; }
+.dojo__top { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: linear-gradient(var(--hd-1), var(--hd-2)); box-shadow: 0 3px 0 var(--hd-edge); }
+.dojo__back { flex: none; width: 40px; height: 40px; border: 0; border-radius: 10px; background: linear-gradient(#4a5680, #333d61); color: #fff; font-size: 30px; line-height: 1; padding: 0 0 4px; box-shadow: 0 4px 0 #202844, inset 0 2px 0 rgba(255,255,255,.2); cursor: pointer; }
+.dojo__back:active { transform: translateY(3px); box-shadow: 0 1px 0 #202844, inset 0 2px 0 rgba(255,255,255,.2); }
+.dojo__title { flex: 1; min-width: 0; }
+.dojo__title b { display: block; font-family: var(--f-head); font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dojo__dots { flex: none; display: flex; gap: 8px; }
+.dojo__dot { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 9px; color: #8fa0c8; }
+.dojo__dot i { display: block; width: 12px; height: 12px; border-radius: 50%; background: #2b3a66; box-shadow: inset 0 -2px 0 rgba(0,0,0,.35); }
+.dojo__dot.is-done i { background: linear-gradient(var(--grn-1), var(--grn-2)); }
+.dojo__dot.is-on { color: #fff; }
+.dojo__dot.is-on i { background: linear-gradient(var(--gold-lt), var(--gold-2)); box-shadow: 0 0 8px rgba(255,212,71,.8); }
+
+/* 相棒と ふきだし */
+.dojo__sensei { flex: none; display: flex; align-items: flex-end; gap: 8px; padding: 10px 10px 4px; }
+.dojo__sensei--list { padding-top: 14px; }
+.dojo__img { flex: none; width: 72px; height: 72px; display: flex; align-items: flex-end; justify-content: center; }
+.dojo__sensei--list .dojo__img { width: 60px; height: 60px; }
+.dojo__bubble { position: relative; flex: 1; min-width: 0; min-height: 46px; padding: 8px 12px; border-radius: 14px; background: #fff; color: #1c2647; font-size: 14px; line-height: 1.4; box-shadow: 0 3px 0 rgba(0,0,0,.28); }
+.dojo__tail { position: absolute; left: -8px; bottom: 16px; border: 8px solid transparent; border-right-color: #fff; border-left: 0; }
+.dojo__say { font-weight: 700; }
+.dojo__bubble.is-pop { animation: dojoPop .26s ease-out; }
+@keyframes dojoPop { 0% { transform: scale(.96); } 60% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
+/* まん中：スクロールするのは ここだけ */
+.dojo__main { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 10px 14px; }
+.dojo__pane { display: flex; flex-direction: column; gap: 8px; }
+.dojo__label { margin: 0; font-family: var(--f-head); font-size: 12px; color: #8fa0c8; }
+.dojo__card { flex: none; max-height: none; min-height: 0; overflow: visible; }
+.dojo__card .card__q { text-align: center; }
+.dojo__card--ex .dojo__exbody { font-size: 17px; line-height: 1.55; color: var(--paper-ink); }
+.dojo__ex p { margin: 4px 0; }
+.dojo__ex b { color: var(--org-2); font-family: var(--f-head); }
+.dojo__exbody .num { white-space: nowrap; }
+
+/* はじめの 案内 */
+.dojo__hello { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.07); }
+.dojo__hello b { font-family: var(--f-head); font-size: 18px; color: var(--gold); }
+.dojo__hello span { font-size: 13px; color: #dbe4ff; }
+.dojo__plan { display: flex; gap: 6px; margin-top: 4px; }
+.dojo__plan span { flex: 1; padding: 6px 4px; border-radius: 8px; background: #1b2a52; text-align: center; font-size: 12px; color: #c9d2ee; }
+
+/* まず なにを する？ */
+.dojo__steps { display: flex; flex-direction: column; gap: 8px; }
+.dojo__step { min-height: 48px; padding: 8px 14px; border: 0; border-radius: 12px; background: linear-gradient(#fff8e6, #f3e6c2); color: #1c2647; font-family: var(--f-head); font-size: 15px; line-height: 1.3; text-align: left; box-shadow: 0 5px 0 var(--paper-sh); cursor: pointer; }
+.dojo__step:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--paper-sh); }
+.dojo__step:disabled { cursor: default; opacity: .8; }
+.dojo__step.is-ok { background: linear-gradient(#c8f7c0, #8fe08a); box-shadow: 0 5px 0 var(--grn-sh); opacity: 1; }
+.dojo__step.is-ng { background: linear-gradient(#ffc7d2, #ff9db0); box-shadow: 0 5px 0 #a8324c; opacity: 1; }
+
+/* ヒント・こたえ */
+.dojo__hint { background: rgba(255,255,255,.12); }
+.dojo__hint .hintbox__label { margin-right: 6px; }
+.dojo__answer { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 12px; border: 2px solid var(--gold); background: rgba(255,212,71,.12); }
+.dojo__answer.is-ok { border-color: var(--grn-1); background: rgba(99,217,79,.14); }
+.dojo__anslabel { font-size: 12px; color: var(--gold-lt); }
+.dojo__answer b { font-family: var(--f-head); font-size: 28px; color: var(--gold); }
+.dojo__answer.is-ok b { color: #c8f7c0; }
+.dojo__next { width: 100%; min-height: 56px; }
+.dojo__input { display: flex; flex-direction: column; gap: 8px; }
+.dojo__choices { grid-template-columns: 1fr; }
+
+/* 一覧 */
+.dojo__scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 10px 16px; }
+.dojosec__t { margin: 14px 0 6px; font-family: var(--f-head); font-size: 15px; color: var(--gold); }
+.dojosec__n { margin: 0 0 8px; font-size: 12px; color: #8fa0c8; }
+.dojorow { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 8px; padding: 9px 10px; border: 0; border-radius: 12px; background: rgba(255,255,255,.07); color: #fff; font-family: var(--f-body); text-align: left; box-shadow: 0 3px 0 rgba(0,0,0,.35); cursor: pointer; }
+.dojorow:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.dojorow--pre { border: 2px solid var(--gold); padding: 7px 8px; }
+.dojorow__sub { flex: none; padding: 4px 8px; border-radius: 8px; color: #1c2647; font-size: 12px; font-weight: 700; }
+.dojorow__body { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.dojorow__t { font-family: var(--f-head); font-size: 15px; }
+.dojorow__s { font-size: 11px; color: #c9d2ee; }
+.dojorow__go { flex: none; font-family: var(--f-head); font-size: 18px; color: var(--gold); }
+.dojorow--done .dojorow__go { color: var(--grn-1); }
+
+/* 合格 */
+.dojodone { position: relative; }
+.dojodone__body { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0 6px; }
+.dojodone__stage { font-family: var(--f-head); font-size: 17px; color: #fff; }
+.dojodone__lines { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 13px; color: #dbe4ff; }
+.dojodone__xp { font-family: var(--f-head); font-size: 24px; color: var(--gold); }
+.dojodone__lv { color: #c8f7c0; font-weight: 700; }
+.dojodone__btns { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.dojodone__btns .btn { min-height: 52px; }
+
+/* 地図：しゅぎょうばの バー（みどりの 青）・よしゅうの リボン・霧の ノードの 入口 */
+.dojobtn {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  border: 0; cursor: pointer; padding: 8px 16px;
+  background: linear-gradient(#3a9ad9, #1f5fa8);
+  color: #fff; font-family: var(--f-body); text-align: left;
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.3), 0 -3px 0 #12406f;
+}
+.dojobtn:active { box-shadow: inset 0 3px 0 rgba(255,255,255,.2); }
+.dojobtn__ico { flex: none; width: 34px; height: 34px; display: flex; align-items: flex-end; justify-content: center; }
+.dojobtn__body { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.dojobtn__t { font-family: var(--f-head); font-size: 17px; }
+.dojobtn__s { font-size: 12px; color: #d8ecff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dojobtn__go { flex: none; font-family: var(--f-head); font-size: 18px; }
+.node__pre { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); z-index: 3; padding: 1px 7px; border-radius: 999px; background: linear-gradient(#ffe89a, #f2b93c); color: #6a4208; font-family: var(--f-head); font-size: 10px; white-space: nowrap; box-shadow: 0 2px 0 #b8801d; }
+.node--preview .node__dot { box-shadow: 0 5px 0 #b8801d, 0 0 0 3px rgba(255,212,71,.55), 0 9px 9px rgba(8,16,44,.4), inset 0 3px 0 rgba(255,255,255,.35); }
+.node--dojo { cursor: pointer; }
+.node--dojo .node__dot { color: var(--gold); box-shadow: 0 5px 0 #171d34, 0 0 0 3px rgba(255,212,71,.45), 0 9px 9px rgba(8,16,44,.4), inset 0 3px 0 rgba(255,255,255,.14); }
+.node__pre--fog { top: -9px; }
+/* 「いま ここ」の ふきだしと かさなる ので、いまの ステージでは 右上に ななめの ふだ */
+.node--now .node__pre { left: auto; right: -20px; top: -4px; transform: rotate(14deg); }
+/* 一覧の 教科チップ（--c-* は 定義が ない ので 色を 書く） */
+.dojorow__sub[data-area="sansu"] { background: #ff8f5e; }
+.dojorow__sub[data-area="kokugo"] { background: #63d94f; }
+.dojorow__sub[data-area="rikashakai"], .dojorow__sub[data-area="rika"] { background: #4fd3ff; }
+.dojorow__sub[data-area="shakai"] { background: #c9b0ff; }
+.dojorow__sub[data-area="eigo"] { background: #ffd447; }
+.previewblk { margin-bottom: 6px; }

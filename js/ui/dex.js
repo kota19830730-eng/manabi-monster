@@ -563,6 +563,26 @@ MQ.ui.dex = (function () {
     ].concat(rows));
   }
 
+  /* しゅぎょうばの 予習（v13.0）：学期で 閉じて いる つぎの ステージを、なかまが 教えた あとに 開いて よいか */
+  function previewBlock(player) {
+    const on = player.previewOk !== false;
+    return h('div', { class: 'previewblk' }, [
+      h('h3', { class: 'ulist__name', text: 'よしゅう（しゅぎょうば）' }),
+      h('p', { class: 'note', text: '地図の「しゅぎょうば」で、まだ ならって いない つぎの 単元を なかまが 教えます。合格すると その ステージが 地図で 遊べます（学期の せっていより 1つ 先まで）。' }),
+      h('div', { class: 'termrow' }, [[true, 'つける'], [false, 'なし']].map(function (t) {
+        return h('button', {
+          class: 'chip' + (on === t[0] ? ' is-on' : ''), type: 'button', text: t[1],
+          onclick: function () {
+            MQ.sfx.tap();
+            MQ.save.update(function (pl) { pl.previewOk = t[0]; });
+            MQ.ui.toast(t[0] ? 'しゅぎょうばで よしゅう できます' : 'よしゅうは なしに しました（ならった ところだけ）');
+            render('parent');
+          }
+        });
+      }))
+    ]);
+  }
+
   function termsSection(player) {
     const grade = player.grade || 3;
     const term = MQ.terms.settingTerm(player);
@@ -625,6 +645,7 @@ MQ.ui.dex = (function () {
       h('h2', { class: 'label', text: '学校で ならった ところ' }),
       h('p', { class: 'note', text: 'チェックの ある 単元の 問題だけ 出ます。学期を えらぶと 教科書の じゅんに そろい、単元を 押すと 1つずつ 変えられます（学校の 進み方に 合わせて）。' }),
       booksBlock(player, grade),
+      previewBlock(player),
       h('h3', { class: 'ulist__name', text: '学期' }),
       btns,
       h('p', { class: 'note' }, [

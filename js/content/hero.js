@@ -1311,7 +1311,9 @@ MQ.hero = (function () {
           MQ.capsule.byRarity(k, 'sr').forEach(function (x) { if (p.capsule.got[x.id]) n++; });
         });
         return n >= 3;
-      } }
+      } },
+    // しゅぎょうば（v13.0）：5つの ステージに 合格
+    { id: 't-dojo5', name: 'しゅぎょうの たつじん', how: 'しゅぎょうばで 5つの ステージに 合格', test: function (p) { return (p.dojoDone || 0) >= 5; } }
   ];
   const titleById = {};
   titles.forEach(function (t) { titleById[t.id] = t; });

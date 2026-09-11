@@ -105,6 +105,10 @@ MQ.save = (function () {
     /* できる ことが ふえた！の カード（v11.1）は はじめての 子だけ。
        もう たたかった ことの ある 子（息子さん）には 出さない */
     if (typeof p.seenUnlock !== 'boolean') p.seenUnlock = (p.battles || 0) > 0;
+    // しゅぎょうば（v13.0）：ステージごとの 合格の 回数・合格した ステージの 数・予習を ゆるすか（はじめは ON）
+    if (!p.dojo || typeof p.dojo !== 'object' || Array.isArray(p.dojo)) p.dojo = {};
+    if (typeof p.dojoDone !== 'number') p.dojoDone = Object.keys(p.dojo).filter(function (k) { return (p.dojo[k] && p.dojo[k].done) > 0; }).length;
+    if (typeof p.previewOk !== 'boolean') p.previewOk = true;
     if (typeof p.defeated !== 'number') p.defeated = 0;
     // しょうごうの ための カウンター（v2.0）
     if (typeof p.itemUses !== 'number') p.itemUses = 0;     // アイテムを 使った 回数

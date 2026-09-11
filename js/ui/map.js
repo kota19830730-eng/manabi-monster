@@ -456,13 +456,17 @@ MQ.ui.map = (function () {
       /* ---- ステージ ---- */
       b.nodes.forEach(function (n) {
         if (n.fog) {
-          layer.appendChild(h('div', {
-            class: 'node node--fog',
-            style: { left: n.xPct + '%', top: n.y + 'px' }
+          /* しゅぎょうば（v13.0）：つぎの ステージに 指導の 中身が あれば、霧の ノードを 押すと 予習に 行ける */
+          const pt = (!firstTime && MQ.dojo && MQ.ui.dojo) ? MQ.dojo.previewTarget(player, b.area) : null;
+          layer.appendChild(h(pt ? 'button' : 'div', {
+            class: 'node node--fog' + (pt ? ' node--dojo' : ''), type: pt ? 'button' : null,
+            style: { left: n.xPct + '%', top: n.y + 'px' },
+            onclick: pt ? function () { MQ.sfx.tap(); MQ.ui.dojo.open(pt.id); } : null
           }, [
             h('span', { class: 'node__dot', text: '?' }),
+            pt ? h('span', { class: 'node__pre node__pre--fog', text: 'よしゅう' }) : null,
             h('span', { class: 'node__soon', text: 'あと ' + n.count + 'こ' }),
-            n.when ? h('span', { class: 'node__name', text: n.when }) : null
+            n.when ? h('span', { class: 'node__name', text: pt ? 'しゅぎょうばで' : n.when }) : null
           ]));
           return;
         }
@@ -476,6 +480,9 @@ MQ.ui.map = (function () {
         else if (isNow) cls += ' node--now';
         else if (sc) cls += ' node--clear';
         if (isFever && unlocked) cls += ' node--fever';   // フィーバー教科の ステージは 光る（v7.2）
+        // しゅぎょうばの 予習で 開いた ステージ（学期では まだ）には「よしゅう」の リボン（v13.0）
+        const previewed = !!(MQ.dojo && MQ.dojo.termClosed(player, st) && MQ.dojo.previewOpen(player, st.id));
+        if (previewed) cls += ' node--preview';
 
         const dot = h('span', { class: 'node__dot', text: unlocked ? String(n.idx || st.no) : '?' });
         if (isNow) dot.appendChild(h('span', { class: 'node__here', text: 'いま ここ' }));
@@ -507,6 +514,7 @@ MQ.ui.map = (function () {
           }
         }, [
           dot,
+          previewed ? h('span', { class: 'node__pre', text: 'よしゅう' }) : null,
           MQ.ui.stars(sc),
           h('span', { class: 'node__name', text: st.name })
         ]));
@@ -588,6 +596,18 @@ MQ.ui.map = (function () {
           h('span', { class: 'tegamibtn__s', text: 'タップして よんでみよう' })
         ]),
         h('span', { class: 'tegamibtn__go', text: '▶' })
+      ]) : null,
+      /* しゅぎょうば（v13.0）：相棒が 教えて くれる 予習・復習。指導の 中身が ある ステージが 1つでも あれば */
+      (!firstTime && MQ.dojo && MQ.ui.dojo && MQ.dojo.count(player)) ? h('button', {
+        class: 'dojobtn', type: 'button',
+        onclick: function () { MQ.sfx.tap(); MQ.ui.dojo.openList(); }
+      }, [
+        h('span', { class: 'dojobtn__ico' }, [MQ.enemies.node(MQ.dojo.sensei(player).id, { size: 30 })]),
+        h('span', { class: 'dojobtn__body' }, [
+          h('b', { class: 'dojobtn__t', text: 'しゅぎょうば' }),
+          h('span', { class: 'dojobtn__s', text: (MQ.dojo.candidates(player).preview.length ? 'よしゅう・' : '') + 'ふくしゅう を なかまが おしえて くれる' })
+        ]),
+        h('span', { class: 'dojobtn__go', text: '▶' })
       ]) : null,
       (!firstTime && MQ.content.mixOpen(player)) ? h('button', {
         class: 'mixbtn', type: 'button',

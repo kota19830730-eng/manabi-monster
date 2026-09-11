@@ -56,6 +56,8 @@ const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function 
  'js/core/blocks.js', 'js/core/vox.js'].concat(CONTENT_ORDER).forEach(load);   // vox.js（りったい・v12.0）は chest3d.js より 前
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
 load('js/core/capsule.js');
+// しゅぎょうば（v13.0）は MQ.content / MQ.lessons を 見るので 教科の あとで 読む
+load('js/core/dojo.js');
 
 const MQ = global.MQ;
 const TYPES = ['number', 'choice', 'divrem', 'roma', 'write', 'frac'];
@@ -1015,6 +1017,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     fastCount: 9, bestCombo: 18, itemUses: 12, custom: [{ id: 'c1' }],
     missionsDone: 12, revengeWins: 6,  // v3.1 の しょうごう
     counters: 10,                      // v7.7 カウンターの たつじん
+    dojoDone: 5,                       // v13.0 しゅぎょうの たつじん
     elites: 10, weakHits: 10,          // v8.1 中ボス ハンター・弱点を つく 者
     // v9.0 カプセル コレクター（30回）・げきレアの もちぬし（げきレア 3つ）
     capsule: (function () {
@@ -3355,7 +3358,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
   // しょうごう
   check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
-  check(MQ.hero.titles.length === 51, 'しょうごう 51（v11.0 で 冥界を こえた 者）: ' + MQ.hero.titles.length);
+  check(MQ.hero.titles.length === 52, 'しょうごう 52（v13.0 で しゅぎょうの たつじん）: ' + MQ.hero.titles.length);
   // 古い セーブ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
   check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');
@@ -4088,6 +4091,102 @@ function stripComments(src) {
 })();
 
 // 非同期の 検査（AI の generate など）が おわってから まとめる
+/* =======================================================
+   しゅぎょうば（v13.0）：相棒が 指導して くれる 予習・復習
+   ======================================================= */
+(function () {
+  const D = MQ.dojo, LS = MQ.lessons;
+  check(!!D && !!LS, 'dojo: MQ.dojo と MQ.lessons が ある');
+  // 小3 算数 18ステージ ぜんぶ
+  for (let i = 1; i <= 18; i++) check(LS.has('sansu3-' + i), 'dojo: sansu3-' + i + ' の 指導が ある');
+  check(LS.ids().length === 18, 'dojo: 指導は 18ステージ（' + LS.ids().length + '）');
+  // 文の 中身と かん字（小3まで＋半径・直径の 径・位）
+  const OKX = '径位辺';   // 半径・直径・位・二等辺三角形（sansu3.js の 問題文にも ある）
+  function badK(s) { const bad = []; (String(s).replace(/<[^>]+>/g, '').match(/[一-龠]/g) || []).forEach(function (k) { if (!MQ.kakusu.upTo(k, 3) && OKX.indexOf(k) < 0 && bad.indexOf(k) < 0) bad.push(k); }); return bad; }
+  let stepHits = 0, stepTotal = 0, missTexts = 0;
+  LS.ids().forEach(function (id) {
+    const l = LS.get(id);
+    check(typeof l.intro === 'string' && l.intro.length > 8, 'dojo: ' + id + ' intro');
+    check(Array.isArray(l.explain) && l.explain.length >= 2 && l.explain.length <= 3, 'dojo: ' + id + ' explain 2〜3（' + (l.explain || []).length + '）');
+    l.explain.forEach(function (e, k) { check(e.say && e.ex, 'dojo: ' + id + ' explain#' + k + ' say/ex'); const b = badK(e.say + e.ex); check(!b.length, 'dojo: ' + id + ' explain#' + k + ' かん字 ' + b.join('')); });
+    check(!badK(l.intro).length, 'dojo: ' + id + ' intro かん字 ' + badK(l.intro).join(''));
+    check(Array.isArray(l.steps) && l.steps.length >= 1 && Array.isArray(l.miss) && l.miss.length >= 1, 'dojo: ' + id + ' steps/miss');
+    const no = Number(id.split('-')[1]);
+    const qs = MQ.sansu3.make(no, 30).concat(MQ.sansu3.make(no, 6, { boss: true }));
+    qs.forEach(function (q) {
+      if (!/^(number|choice|divrem|frac)$/.test(q.type)) return;
+      stepTotal++;
+      const s = D.stepFor(l, q);
+      if (s) {
+        stepHits++;
+        check(s.options.length === 3 && s.options.filter(function (o) { return o.ok; }).length === 1 && s.ask && s.why, 'dojo: ' + id + ' 3たく（' + q.unit + '）');
+        const uniq = new Set(s.options.map(function (o) { return o.text; })).size;
+        check(uniq === 3, 'dojo: ' + id + ' 3たくが かぶらない（' + q.unit + '）');
+        const b = badK(s.ask + s.options.map(function (o) { return o.text; }).join('') + s.why);
+        check(!b.length, 'dojo: ' + id + ' 3たくの かん字 ' + b.join('') + '（' + q.unit + '）');
+      }
+      // まちがえた ときの 声かけは かならず 何か 出る（落ちない）
+      const wrongV = q.type === 'choice' ? (q.answer + 1) % q.choices.length : q.type === 'number' ? Number(q.answer) + 1 : q.type === 'divrem' ? { q: q.answer.q, r: q.b } : { q: q.answer.n + 1, r: q.answer.d };
+      const t = D.missText(l, q, wrongV);
+      check(typeof t === 'string' && t.length > 4, 'dojo: ' + id + ' 声かけ（' + q.unit + '）');
+      const bk = badK(t); check(!bk.length, 'dojo: ' + id + ' 声かけの かん字 ' + bk.join('') + '（' + q.unit + '）');
+      if (t.indexOf('おしい。ヒントを もういちど') < 0) missTexts++;
+    });
+  });
+  check(stepHits / stepTotal >= 0.85, 'dojo: 手順の 3たくが ある 問題 ' + stepHits + ' / ' + stepTotal + '（85% いじょう）');
+  check(missTexts > 0, 'dojo: 単元ごとの 声かけが 出る ' + missTexts);
+  // 声かけの 中身
+  const dq = { type: 'divrem', unit: 'あまりのあるわり算', prompt: '17 ÷ 5', a: 17, b: 5, answer: { q: 3, r: 2 } };
+  check(/わる数/.test(D.missText(LS.get('sansu3-6'), dq, { q: 2, r: 7 })), 'dojo: あまり ≥ わる数 の 声かけ');
+  check(/大きく/.test(D.missText(LS.get('sansu3-6'), dq, { q: 4, r: 0 })), 'dojo: 答えが 大きすぎる 声かけ');
+  const vq = { type: 'number', unit: 'たし算の筆算', layout: 'vertical', a: 58, b: 27, sign: '+', prompt: '58 + 27', answer: 85 };
+  check(/くり上がり/.test(D.missText(LS.get('sansu3-4'), vq, 75)), 'dojo: くり上がり わすれの 声かけ');
+  check(/0 の 数/.test(D.commonMiss({ type: 'number', answer: 90 }, 900)), 'dojo: 共通の 声かけ（10倍）');
+  // セッション
+  MQ.save.load(); MQ.save.createPlayer('しゅぎょう');
+  const sp = MQ.save.current();
+  const ses = D.session('sansu3-6', sp);
+  check(ses && ses.guided.length === D.GUIDED_N && ses.practice.length === D.PRACTICE_N, 'dojo: セッション いっしょに ' + (ses && ses.guided.length) + '／ひとりで ' + (ses && ses.practice.length));
+  const sids = ses.guided.concat(ses.practice).map(function (q) { return q.id; });
+  check(new Set(sids).size === sids.length, 'dojo: セッションの 問題が かぶらない');
+  check(ses.guided.concat(ses.practice).every(function (q) { return /^(number|choice|divrem|frac)$/.test(q.type); }), 'dojo: 使える 型だけ');
+  check(D.session('kokugo3-1', sp) === null, 'dojo: 指導が ない ステージは null');
+  // 予習：1学期まで → sansu3-7 は 閉じる → 合格すると 開く → previewOk=false で 閉じる
+  MQ.save.update(function (pl) { pl.term = 1; pl.units = {}; });
+  const st7 = MQ.content.findStage('sansu3-7').stage, area = MQ.content.findStage('sansu3-7').area;
+  check(!MQ.content.isAvailable(st7), 'dojo: 1学期まで なら sansu3-7 は 閉じて いる');
+  check(D.previewTarget(MQ.save.current(), area) === st7, 'dojo: 予習の 相手は sansu3-7');
+  const c1 = D.candidates(MQ.save.current());
+  check(c1.preview.length === 1 && c1.preview[0].stage.id === 'sansu3-7' && c1.now.length >= 1, 'dojo: 一覧 よしゅう 1・いまの ' + c1.now.length);
+  let r1 = null, r2 = null;
+  MQ.save.update(function (pl) { r1 = D.complete(pl, 'sansu3-7'); });
+  check(r1.xp === D.XP_FIRST && r1.first && MQ.save.current().dojoDone === 1, 'dojo: はじめての 合格 +' + r1.xp);
+  check(MQ.content.isAvailable(st7), 'dojo: 合格したら sansu3-7 が 開く');
+  check(MQ.content.lockedReason(st7) && D.termClosed(MQ.save.current(), st7), 'dojo: 学期では まだ（リボンの 条件）');
+  check(D.candidates(MQ.save.current()).preview.length === 0, 'dojo: 開いた ステージは よしゅうの 行から 消える');
+  MQ.save.update(function (pl) { r2 = D.complete(pl, 'sansu3-7'); });
+  check(r2.xp === D.XP_AGAIN && !r2.first && MQ.save.current().dojo['sansu3-7'].done === 2 && MQ.save.current().dojoDone === 1, 'dojo: 2回めは +' + r2.xp);
+  MQ.save.update(function (pl) { pl.previewOk = false; });
+  check(!MQ.content.isAvailable(st7) && !D.previewTarget(MQ.save.current(), area), 'dojo: おうちの人が よしゅうを なしに すると 閉じる');
+  MQ.save.update(function (pl) { pl.previewOk = true; pl.term = 0; });
+  check(MQ.content.isAvailable(st7), 'dojo: ぜんぶ なら いつもどおり');
+  // 先生：相棒が いなければ フクロン
+  check(D.sensei(MQ.save.current()).id === D.SENSEI_ID, 'dojo: 相棒なしは ' + D.SENSEI_ID);
+  // しょうごう
+  MQ.save.update(function (pl) { ['sansu3-1', 'sansu3-2', 'sansu3-3', 'sansu3-4'].forEach(function (id) { D.complete(pl, id); }); });
+  check(MQ.save.current().dojoDone === 5 && (MQ.save.current().titles || []).indexOf('t-dojo5') >= 0, 'dojo: 5つで しゅぎょうの たつじん');
+  // 古い セーブ
+  MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'd', name: 'd', grade: 3, xp: 0 }], currentId: 'd', settings: {} }));
+  const od = MQ.save.current();
+  check(od.previewOk === true && od.dojoDone === 0 && typeof od.dojo === 'object', 'dojo: 古い セーブは よしゅう ON・0');
+  // 読みこみ順と 登録
+  check(INDEX_HTML.indexOf('js/content/lesson3.js') > INDEX_HTML.indexOf('js/content/sansu3.js') && INDEX_HTML.indexOf('js/core/dojo.js') > INDEX_HTML.indexOf('js/content/world3.js') && INDEX_HTML.indexOf('js/ui/dojo.js') > INDEX_HTML.indexOf('js/ui/map.js'), 'index: lesson3 は sansu3 の あと・dojo.js は world3 の あと・ui/dojo は map の あと');
+  check(INDEX_HTML.indexOf('id="screen-dojo"') >= 0, 'index: screen-dojo');
+  const swD = fs.readFileSync(path.join(base, 'sw.js'), 'utf8'), hD = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  ['./js/content/lesson3.js', './js/core/dojo.js', './js/ui/dojo.js'].forEach(function (f) { check(swD.indexOf("'" + f + "'") >= 0, 'sw.js の FILES に ' + f); });
+  ['../js/content/lesson3.js', '../js/core/dojo.js', '../js/ui/dojo.js', 'id="screen-dojo"'].forEach(function (f) { check(hD.indexOf(f) >= 0, 'harness.html に ' + f); });
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

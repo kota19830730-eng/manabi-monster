@@ -917,7 +917,8 @@ MQ.content = (function () {
     if (st.tower) return true;
     if (!st.available) return false;                                   // 問題が まだ ない
     if (!MQ.terms || !MQ.terms.stageLearned) return true;
-    if (!MQ.terms.stageLearned(MQ.terms.current(), st.id)) return false; // まだ ならって いない
+    // まだ ならって いない。ただし しゅぎょうばで 予習を 合格した つぎの ステージは 開く（v13.0・previewOk が false なら 閉じる）
+    if (!MQ.terms.stageLearned(MQ.terms.current(), st.id) && !(MQ.dojo && MQ.dojo.previewOpen(MQ.terms.current(), st.id))) return false;
     if (st.pool && st.pool() < MIN_POOL) return false;                 // 出せる 問題が 少なすぎる
     return true;
   }

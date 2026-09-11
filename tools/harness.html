@@ -61,6 +61,7 @@
 <main id="screen-result" class="screen"></main>
 <main id="screen-dex"    class="screen"></main>
   <main id="screen-parent" class="screen"></main>
+  <main id="screen-dojo"   class="screen"></main>
 <div id="toast" class="toast" role="status"></div>
 </div>
 <pre id="log" style="position:fixed;left:0;bottom:0;max-height:0;overflow:hidden;opacity:0;margin:0"></pre>
@@ -103,6 +104,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/chest3d.js"></script>
 <script src="../js/content/zu.js"></script>
 <script src="../js/content/sansu3.js"></script>
+<script src="../js/content/lesson3.js"></script>
 <script src="../js/content/kokugo3.js"></script>
 <script src="../js/content/sansu1.js"></script>
 <script src="../js/content/kanjiq.js"></script>
@@ -132,6 +134,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/terms.js"></script>
 <script src="../js/content/world3.js"></script>
 <script src="../js/content/news.js"></script>
+<script src="../js/core/dojo.js"></script>
 <script src="../js/core/capsule.js"></script>
 <!-- 3D の 試作（デモ用・v12 で ゲームに 入る まで tools/3d に おく） -->
 <script src="3d/demo3d.js"></script>   <!-- 3D の デモ（vox・chest3d・motion3d.css は ゲームの ファイルを 読む） -->
@@ -142,6 +145,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/look.js"></script>
 <script src="../js/ui/start.js"></script>
 <script src="../js/ui/map.js"></script>
+<script src="../js/ui/dojo.js"></script>
 <script src="../js/ui/battle.js"></script>
 <script src="../js/ui/result.js"></script>
 <script src="../js/ui/dex.js"></script>
@@ -3005,6 +3009,93 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
        #review    1問 わざと まちがえる → ためられる → つぎの たたかいに 出る（リボンを 撮る）
        #review2   その 問題に 1回めで 正解 → 消える（けっか画面に「ふくしゅう」）
        ※ 本物の 画面を 通して たたかう（applyRewards が 走らないと p.review に たまらない） */
+    /* #dojo … しゅぎょうば（v13.0）：相棒が 指導して くれる 予習・復習
+         #dojo         一覧（よしゅう／いまの ステージ／ふくしゅう）
+         #dojo:lesson  せつめいの 画面
+         #dojo:step    「まず なにを する？」の 3たく
+         #dojo:miss    ひとりで やってみる で まちがえた ときの 声かけ
+         #dojo:done    合格の 画面（けいけんち・学期で 閉じて いた ステージが 開く）
+         #dojomap      修行で 開いた ステージの「よしゅう」リボン（地図）
+       1学期まで に して、2学期の「大きい 数」（sansu3-7）を 予習する */
+    if (mode.indexOf('dojo') === 0) {
+      fresh();
+      MQ.save.update(function (pl) { pl.seenNews = MQ.news.latest(); pl.term = 1; pl.units = {}; pl.stars['sansu3-5'] = 3; pl.stars['sansu3-6'] = 2; });
+      const sub = mode.split(':')[1] || '';
+      const c0 = MQ.dojo.candidates(MQ.save.current());
+      say('dojo: よしゅう ' + c0.preview.map(function (e) { return e.stage.id; }).join(',') + '（sansu3-7 が ' + (c0.preview.some(function (e) { return e.stage.id === 'sansu3-7'; }) ? 'ある OK' : 'ない MISSING') + '）／いまの ' + c0.now.length + '／ふくしゅう ' + c0.review.length);
+      say('dojo: 予習前 isAvailable(sansu3-7)=' + MQ.content.isAvailable(MQ.content.findStage('sansu3-7').stage));
+      if (mode === 'dojomap') {
+        MQ.save.update(function (pl) { MQ.dojo.complete(pl, 'sansu3-7'); });
+        MQ.ui.goMap();
+        await wait(250);
+        const pre = $('.node--preview');
+        say('dojo: 予習後 isAvailable(sansu3-7)=' + MQ.content.isAvailable(MQ.content.findStage('sansu3-7').stage) + '／地図の リボン ' + (pre ? '「' + $('.node__pre', pre).textContent + '」 OK' : 'なし MISSING') + '／しゅぎょうば ボタン ' + ($('.dojobtn') ? 'あり OK' : 'なし MISSING') + '／霧の ノード ' + ($('.node--dojo') ? 'よしゅうに 行ける OK' : 'ふつう'));
+        if (pre) { const y = pre.offsetTop; const sc = $('.map__scroll'); if (sc) sc.scrollTop = Math.max(0, y - 220); }
+        dump(); freeze(); return;
+      }
+      MQ.ui.dojo.openList();
+      await wait(120);
+      say('dojo: 一覧の 行 ' + $$('.dojorow').length + '（よしゅうの 行 ' + $$('.dojorow--pre').length + '）');
+      if (!sub) { dump(); freeze(); return; }
+      // 霧の ノードと 同じ 入口（open）で 2学期の ステージへ
+      MQ.ui.dojo.open('sansu3-7');
+      await wait(120);
+      say('dojo: はじめ「' + ($('.dojo__say') ? $('.dojo__say').textContent : 'MISSING') + '」');
+      $('.dojo__next').click(); await wait(60);
+      say('dojo: せつめい ' + ($('.dojo__exbody') ? 'あり OK' : 'なし MISSING') + '「' + ($('.dojo__say') ? $('.dojo__say').textContent.slice(0, 40) : '') + '…」');
+      if (sub === 'lesson') { dump(); freeze(); return; }
+      let guard = 0;
+      while (guard++ < 5 && $('.dojo__exbody')) { $('.dojo__next').click(); await wait(40); }
+      const st = MQ.ui.dojo.state();
+      say('dojo: いっしょに ' + st.ses.guided.length + '問／ひとりで ' + st.ses.practice.length + '問／手順の 3たく ' + ($('.dojo__steps') ? 'あり OK' : 'なし（この 問題には ない）'));
+      if ($('.dojo__steps')) {
+        say('dojo: ' + $('.dojo__say').textContent + ' → ' + $$('.dojo__step').map(function (b) { return (b.getAttribute('data-ok') === '1' ? '○' : '×') + b.textContent; }).join(' / '));
+        if (sub === 'step') { dump(); freeze(); return; }
+        $$('.dojo__step').filter(function (b) { return b.getAttribute('data-ok') === '0'; })[0].click(); await wait(40);
+        say('dojo: ちがう 手順を 押した →「' + $('.dojo__say').textContent + '」');
+      }
+      // ② を さいごまで（ヒント → 答え → つぎ）
+      guard = 0;
+      while (guard++ < 12 && !/ひとりで/.test(($('.dojo__label') || {}).textContent || '')) {
+        const okb = $$('.dojo__step').filter(function (b) { return !b.disabled && b.getAttribute('data-ok') === '1'; })[0];
+        if (okb) { okb.click(); await wait(30); continue; }
+        const nb = $('.dojo__next'); if (!nb) break; nb.click(); await wait(30);
+      }
+      say('dojo: ' + (($('.dojo__label') || {}).textContent || 'MISSING') + '／ヒント ' + ($('.dojo__hint') ? 'あり OK' : 'なし') + '／こたえの 入れ方 ' + ($('.keys') ? 'テンキー' : $('.choice') ? 'えらぶ' : 'MISSING'));
+      // ③：ボタンを 押して 答える（テンキー／えらぶ／2つの わく）
+      async function answer(good) {
+        const q = MQ.ui.dojo.state().ses.practice[Number((($('.dojo__label') || {}).textContent || '').match(/(\d+) \//)[1]) - 1];
+        if (q.type === 'choice') {
+          const want = good ? q.choices[q.answer] : q.choices[(q.answer + 1) % q.choices.length];
+          $$('.choice').filter(function (b) { return b.textContent === want; })[0].click(); await wait(30); return;
+        }
+        function type(s) { String(s).split('').forEach(function (ch) { $$('.key').filter(function (k) { return k.textContent === ch; })[0].click(); }); }
+        if (q.type === 'divrem' || q.type === 'frac') {
+          const a = q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : { q: q.answer.q, r: q.answer.r };
+          type(String(good ? a.q : a.q + 1));
+          $$('.display--half')[1].click();
+          type(String(good ? a.r : (q.type === 'divrem' ? q.b + 1 : a.r)));
+        } else {
+          type(String(good ? q.answer : (Number(q.answer) === 0 ? 1 : Number(q.answer) * 10)));
+        }
+        $$('.key').filter(function (k) { return k.textContent === 'こたえる'; })[0].click(); await wait(30);
+      }
+      await answer(false);
+      say('dojo: わざと まちがえた →「' + $('.dojo__say').textContent + '」（もう 1回 ' + ($('.keys') || $('.choice') ? 'できる OK' : 'できない MISSING') + '）');
+      if (sub === 'miss') { dump(); freeze(); return; }
+      await answer(true);
+      say('dojo: 2回めで 正解 →「' + $('.dojo__say').textContent.slice(0, 40) + '…」');
+      $('.dojo__next').click(); await wait(30);
+      await answer(true); $('.dojo__next').click(); await wait(30);
+      await answer(true);
+      const xp0 = MQ.save.current().xp;
+      $('.dojo__next').click(); await wait(120);
+      const p1 = MQ.save.current();
+      say('dojo: 合格 ' + ($('.dojodone') ? 'あり OK' : 'なし MISSING') + '／けいけんち +' + (p1.xp - xp0) + '（30 が 正）／p.dojo ' + JSON.stringify(p1.dojo) + '／dojoDone ' + p1.dojoDone);
+      say('dojo: 予習後 isAvailable(sansu3-7)=' + MQ.content.isAvailable(MQ.content.findStage('sansu3-7').stage) + '（true が 正）／たたかいに いく ボタン ' + ($$('.dojodone__btns .btn').some(function (b) { return /たたかい/.test(b.textContent); }) ? 'あり OK' : 'なし'));
+      dump(); freeze(); return;
+    }
+
     if (mode.indexOf('review') === 0) {
       const two = mode === 'review2';
       fresh();
@@ -3786,6 +3877,23 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     MQ.ui.capsule.close();
     await wait(80);
     say('カプセル: とじた ' + ($('.capsule') ? 'MISSING（のこって いる）' : 'ok'));
+
+    /* しゅぎょうば（v13.0）：一覧 → せつめい → いっしょに → ひとりで まで 通す */
+    MQ.save.setPlayGrade(3);   // ここまでの 検査で 学年が 小6 などに なって いる（指導は いま 小3 だけ）
+    MQ.ui.dojo.openList();
+    await wait(100);
+    say('しゅぎょうば: 一覧の 行 ' + ($$('.dojorow').length ? $$('.dojorow').length + ' OK' : 'MISSING'));
+    MQ.ui.dojo.open('sansu3-6');
+    await wait(80);
+    let dg = 0;
+    while (dg++ < 20 && !/ひとりで/.test(($('.dojo__label') || {}).textContent || '')) {
+      const okb = $$('.dojo__step').filter(function (b) { return !b.disabled && b.getAttribute('data-ok') === '1'; })[0];
+      if (okb) { okb.click(); await wait(20); continue; }
+      const nb = $('.dojo__next'); if (!nb) break; nb.click(); await wait(20);
+    }
+    say('しゅぎょうば: ' + (/ひとりで/.test(($('.dojo__label') || {}).textContent || '') ? 'ひとりで まで 通った OK' : 'とちゅうで 止まった MISSING'));
+    MQ.ui.goMap();
+    await wait(60);
 
     say('=== エラー: ' + L.filter(function (t) { return t.indexOf('ERROR') === 0 || t.indexOf('MISSING') >= 0; }).length + ' ===');
     dump();
