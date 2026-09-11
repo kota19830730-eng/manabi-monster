@@ -257,6 +257,9 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 
   // 画面の ボタンを 押して 答える（UIも まとめて ためす）
   function answerViaUI(good) {
+    // ボスの「ふつう／本気」を えらぶ パネル（v12.7）が 出て いたら ボタンを 押す（ふだんは ふつう・window.__pickHard で 本気）
+    const pick = document.querySelector('.bosspick');
+    if (pick) { const pb = pick.querySelector(window.__pickHard ? '.bosspick__btn--hard' : '.bosspick__btn--norm'); if (pb) pb.click(); }
     const q = MQ.battle.current();
     if (!q) return false;
     if (q.type === 'choice') {
@@ -2575,6 +2578,63 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         if (q && q.type === 'write') { say('write question shown'); return; }
         answerViaUI(true); await wait(3400);
       }
+      return;
+    }
+    /* ボスを 強く（v12.7）
+       #bosspick          … ボスが 出た ところ（ふつう／本気 を えらぶ パネル）
+       #bosshard          … 本気を えらんだ ボス（むらさきの オーラ・リボン「本気」）
+       #bossfinal[:hard]  … さいごの 力（第3形態・HP1）
+       #bossrecap         … まとめ問題（ボスの 2問め）
+       #bossguard         … 本気で 2回めの 正解 → ガード
+       #lastfinal         … ラスボス（HP9 の 玉）の さいごの 力
+       ログ：パネル・ピルの 字・HP の 玉・クラス・ふきだし */
+    if (['bosspick', 'bosshard', 'bossfinal', 'bossrecap', 'bossguard', 'lastfinal'].indexOf(mode.split(':')[0]) >= 0) {
+      const sub = mode.split(':');
+      const bossLog = function (tag) {
+        const cur = $('.enemy--boss');
+        say(tag + ': pick=' + (!!$('.bosspick')) + ' pill=' + ($('#screen-battle .pillstat') ? $('#screen-battle .pillstat').textContent : '-') +
+          ' hp=' + MQ.battle.bossHp() + '/' + MQ.battle.bossHpMax() + ' segs=' + $$('.bosshp__seg').length + (($('.bosshp') || {}).className || '').replace('bosshp', '') +
+          ' hard=' + MQ.battle.bossHard() + ' final=' + MQ.battle.isFinal() + ' cls=' + (cur ? cur.className : '-') +
+          ' aura=' + (cur ? (function (c) { return c.content + ' ' + c.width + 'x' + c.height + ' op' + c.opacity + ' z' + c.zIndex; })(getComputedStyle(cur, '::before')) : '-') +
+          ' ribbon=' + ($('.enemy__ribbon--hard') ? $('.enemy__ribbon--hard').textContent : '-') +
+          ' unit=' + ($('#screen-battle .card__unit') ? $('#screen-battle .card__unit').textContent : '-') + ' msg=' + ($('.arena__msg') ? $('.arena__msg').textContent : ''));
+        // 場所（ステージの 中の px）：名前・HP・リボン・ため・アイテム
+        const R = function (sel) { const el = $(sel); if (!el) return sel + '=none'; const r = el.getBoundingClientRect(), k = MQ.stage.size().scale || 1, o = $('#stage').getBoundingClientRect(); return sel + '=' + Math.round((r.left - o.left) / k) + ',' + Math.round((r.top - o.top) / k) + ' ' + Math.round(r.width / k) + 'x' + Math.round(r.height / k); };
+        say(tag + ' rects: ' + ['.arena', '.enemy--boss', '.enemy--boss .enemy__name', '.bosshp', '.enemy__ribbon--hard', '.foecharge', '.bagbtn', '.arena__msg'].map(R).join(' | '));
+      };
+      if (mode === 'lastfinal') {
+        fresh({ frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true } });
+        MQ.ui.battle.start('tower3');
+        await wait(3200);
+        bossLog('last pick');
+        $('.bosspick__btn--norm').click();
+        await wait(300);
+      } else {
+        fresh();
+        MQ.ui.battle.start('sansu3-6');
+        await wait(400);
+        await playBattle('boss', { stopAtBoss: true });
+        await wait(2200);
+        bossLog('pick');
+        if (sub[0] === 'bosspick') { freeze(); return; }
+        const hard = sub[0] === 'bosshard' || sub[0] === 'bossguard' || sub[1] === 'hard';
+        $(hard ? '.bosspick__btn--hard' : '.bosspick__btn--norm').click();
+        await wait(500);
+        bossLog('picked');
+        if (sub[0] === 'bosshard') { freeze(); return; }
+        if (sub[0] === 'bossguard') {
+          answerViaUI(false); await wait(700); answerViaUI(true); await wait(400);
+          bossLog('guard'); freeze(); return;
+        }
+        if (sub[0] === 'bossrecap') {
+          answerViaUI(true); await wait(3000);
+          bossLog('recap'); return;
+        }
+      }
+      // さいごの 力まで 正解で すすめる
+      let g = 0;
+      while (!MQ.battle.isFinal() && !MQ.battle.isOver() && g++ < 20) { answerViaUI(true); await wait(60); if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); } await wait(3300); }
+      bossLog('final');
       return;
     }
     if (mode === 'boss') {

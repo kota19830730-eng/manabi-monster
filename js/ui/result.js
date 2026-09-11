@@ -90,7 +90,7 @@ MQ.ui.result = (function () {
       bossCard = h('div', { class: 'rs__boss' + (sum.bossBeaten ? ' rs__boss--win' : '') }, [
         h('div', { class: 'rs__bossbox' + (sum.bossBeaten ? ' is-ko' : '') }, [
           bossId ? MQ.enemies.node(bossId, { size: 58, cls: 'rs__bossimg' }) : null,
-          h('span', { class: 'rs__tag' + (sum.bossBeaten ? ' rs__tag--win' : ''), text: sum.bossBeaten ? 'たおした' : 'にげられた' })
+          h('span', { class: 'rs__tag' + (sum.bossBeaten ? ' rs__tag--win' : ''), text: sum.bossBeaten ? (sum.bossHard ? '本気で たおした' : 'たおした') : 'にげられた' })
         ]),
         h('div', { class: 'rs__score' }, [
           h('div', {}, [

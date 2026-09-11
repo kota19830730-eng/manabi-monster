@@ -3073,7 +3073,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   const st = C.findStage('sansu3-1').stage;
   function ans(q) { return q.type === 'choice' || q.type === 'number' || q.type === 'roma' ? q.answer : q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : { q: q.answer.q, r: q.answer.r }; }
   // 12体＋たからばこ：たからばこを 数えずに 3体ごとに こうげき（3・6・9・12体め）
-  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: true, attacks: true });
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: true, attacks: true, bossHp: 5, bossMax: 8, enrageAt: 3 });
   const pat = [], xps = [];
   let seenChest = false;
   while (B.phase() === 'mob') {
@@ -3101,10 +3101,13 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   // カウンターの 問題の けいけんちは (10 + クリティカル 5)×1.5＝23 いじょう（2体同時の ボーナスが 足される ことも ある）
   check(B.summary().counters === 3, 'attack: カウンター 3回（3体めは まちがえた）' + B.summary().counters);
   check(xps.length === 3 && xps.every(function (x) { return x >= Math.round((B.XP.mob + B.XP.critBonus) * B.COUNTER_MUL); }), 'attack: カウンターの けいけんち 1.5ばい ' + xps.join(','));
-  // ボス：2問めが 大わざ → 正解で 2ダメージ
-  check(B.phase() === 'boss' && B.chargeInfo().boss === true && B.chargeInfo().level === 1 && !B.chargeInfo().attacking, 'attack: ボス 1問めは ため 1/2 ' + JSON.stringify(B.chargeInfo()));
+  // ボス：3問めが 大わざ（v12.7 で 2 → 3問ごと）→ 正解で 2ダメージ。3問めは ボスの わざの 予定を 外して ためだけに する
+  B._setBossPlan({});
+  check(B.phase() === 'boss' && B.chargeInfo().boss === true && B.chargeInfo().level === 1 && !B.chargeInfo().attacking && B.chargeInfo().need === 3, 'attack: ボス 1問めは ため 1/3 ' + JSON.stringify(B.chargeInfo()));
   B.answer(ans(B.current())); B.next();
-  check(B.chargeInfo().attacking === true, 'attack: ボス 2問めは 大わざ');
+  check(B.chargeInfo().attacking === false && B.chargeInfo().level === 2, 'attack: ボス 2問めは ため 2/3');
+  B.answer(ans(B.current())); B.next();
+  check(B.chargeInfo().attacking === true, 'attack: ボス 3問めは 大わざ');
   const hp0 = B.bossHp();
   const rb = B.answer(ans(B.current()));
   check(rb.outcome === 'bosshit' && rb.counter === true && rb.dmg === 2 && B.bossHp() === hp0 - 2 && rb.burst === 0, 'attack: ボスに カウンター 2ダメージ ' + JSON.stringify({ d: rb.dmg, hp: B.bossHp(), b: rb.burst }));
@@ -3610,6 +3613,109 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
       'zu.js を ' + f + '.js より 先に 読む');
   });
   console.log('読みこみ じゅんばん: index/harness/smoke そろい・教科 ' + CONTENT_ORDER.length + ' ファイル');
+})();
+/* ===== ボスを 強く（v12.7）=====
+   ・表（BOSS_SET）・ためは 3問に 1回・相棒は ボスに 1まで・3だんかい（おこる → さいごの 力）は 1回ずつ
+   ・本気モード：2回めの 正解は ガード（相棒だけ 通る）・けいけんち／コイン 2ばい・ボスに 答えたら 変えられない
+   ・まとめ問題：2・4…問めは 前に クリアした ステージから（stageId は その ステージ）
+   ・ふつうの 子の 勝率は ほぼ 100%、本気は 正答率で 変わる（400回ずつ） */
+(function () {
+  const B = MQ.battle;
+  const S = B.BOSS_SET;
+  check(S && S.normal.bossHp === 5 && S.normal.bossMax === 8 && S.tower.bossHp === 9 && S.tower.bossMax === 14 && S.first.bossHp === 3 && S.towerSmall.bossHp === 7, 'ボスの 表 ' + JSON.stringify(S));
+  check(B.CHARGE_BOSS === 3 && B.PAL_BOSS_MAX === 1 && B.HARD_MUL === 2, 'ボス: ため 3問に 1回・相棒 1まで・本気 2ばい');
+  Object.keys(S).forEach(function (k) { const x = S[k]; check(x.bossMax > x.bossHp && x.enrageAt < x.bossHp && x.finalAt < x.enrageAt, 'ボスの 表の ならび ' + k); });
+  const st = MQ.content.findStage('sansu3-6').stage;
+  const st1 = MQ.content.findStage('sansu3-1').stage, st2 = MQ.content.findStage('sansu3-2').stage;
+  function right(q) { return q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : q.type === 'divrem' ? { q: q.answer.q, r: q.answer.r } : q.answer; }
+  function bad(q) { return q.type === 'number' ? q.answer + 1 : q.type === 'choice' ? (q.answer + 1) % q.choices.length : q.type === 'write' ? false : q.type === 'roma' ? 'zzzz' : q.type === 'frac' ? { q: q.answer.n + 1, r: q.answer.d } : { q: q.answer.q + 1, r: q.answer.r }; }
+  function toBoss(o) {
+    B.start(Object.assign({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false }, S.normal, o || {}));
+    while (B.phase() === 'mob') { B.answer(right(B.current())); B.next(); }
+  }
+  // 3だんかい：5 → 3 で おこる（1回だけ）→ 1 で さいごの 力（1回だけ）
+  toBoss({ attacks: false });
+  const seen = [];
+  while (B.phase() === 'boss') {
+    const r = B.answer(right(B.current()));
+    seen.push((r.enrage ? 'E' : '') + (r.final ? 'F' : '') + (r.defeated ? 'D' : '') + r.hpLeft);
+    B.next();
+  }
+  check(seen.join(',') === '4,E3,2,F1,D0', 'ボス: 3だんかい ' + seen.join(','));
+  check(B.summary().bossBeaten && !B.summary().bossHard, 'ボス: ふつうで たおした');
+  // 本気モード：2回めの 正解は ガード（ダメージ 0）・ばくれつは のこる・けいけんち 2ばい
+  toBoss({ attacks: false });
+  check(B.setBossHard(true) === true && B.bossHard() === true, '本気: えらべる');
+  const q0 = B.current();
+  B.answer(bad(q0));
+  const rb = B.answer(right(q0));
+  check(rb.outcome === 'bosshit' && rb.blocked === true && rb.dmg === 0 && B.bossHp() === 5 && rb.hard === true, '本気: 2回めの 正解は ガード ' + JSON.stringify({ o: rb.outcome, d: rb.dmg, hp: B.bossHp() }));
+  check(rb.xp === B.XP.bossHitRetry * 2, '本気: ガードでも けいけんちは 2ばいで 入る ' + rb.xp);
+  check(B.setBossHard(false) === false && B.bossHard() === true, '本気: ボスに 答えたら 変えられない');
+  B.next();
+  const r1 = B.answer(right(B.current()));
+  check(r1.dmg === 1 && r1.xp === B.XP.bossHit * 2 + (r1.crit ? B.XP.critBonus * 2 : 0), '本気: 1回めの 正解は 1ダメージ・2ばい ' + r1.xp);
+  while (B.phase() === 'boss') { B.answer(right(B.current())); B.next(); }
+  check(B.summary().bossBeaten && B.summary().bossHard === true && B.summary().coins >= 2, '本気: たおすと コイン 2 ' + B.summary().coins);
+  // 本気でも まちがえた 問題が ぜんぶ ガードだと にげられる（負けは ない）
+  toBoss({ attacks: false });
+  B.setBossHard(true);
+  while (B.phase() === 'boss') { const q = B.current(); B.answer(bad(q)); B.answer(right(q)); B.next(); }
+  check(B.summary().bossFled === true && !B.summary().bossBeaten && B.bossHp() === 5, '本気: 2回めばかりだと にげられる');
+  // ばくれつは ガードされた ときは のこる
+  toBoss({ attacks: false, items: [{ id: 'bx', power: 'burst', val: 2, uses: 1 }] });
+  B.setBossHard(true);
+  B.useItem('bx');
+  const qb = B.current(); B.answer(bad(qb)); B.answer(right(qb)); B.next();
+  check(B.buffs().dmg === 2, '本気: ガードされた ときは ばくれつが のこる ' + B.buffs().dmg);
+  const rb2 = B.answer(right(B.current()));
+  check(rb2.dmg === 2 && rb2.burst === 2, '本気: つぎの 1回めの 正解で ばくれつ 2ダメージ');
+  // 相棒は ボスに 1まで（王さまでも）。追い打ちで 2に なっても「ばくれつ」とは 言わない
+  toBoss({ attacks: false, pal: { id: 'x', name: 'x', power: { xp: 20, dmg: 2 } } });
+  let palSeen = false;
+  while (B.phase() === 'boss') {
+    const r = B.answer(right(B.current()));
+    if (r.palHit) { palSeen = true; check(r.dmg <= 2 && r.burst === 0, '相棒の 追い打ちは ボスに +1 まで ' + JSON.stringify({ d: r.dmg, b: r.burst })); }
+    B.next();
+  }
+  check(palSeen, '相棒の 追い打ちが ボスに 出た');
+  // まとめ問題：2・4…問めは 前の ステージ
+  toBoss({ attacks: false, recap: [st1, st2], bossHp: 20, bossMax: 8, enrageAt: 3, finalAt: 1 });
+  const ids = [];
+  while (B.phase() === 'boss') { const q = B.current(); ids.push(q.recap ? q.stageId : '-'); B.answer(right(q)); B.next(); }
+  check(ids.length === 8 && ids.every(function (x, i) { return i % 2 === 0 ? x === '-' : (x === 'sansu3-1' || x === 'sansu3-2'); }), 'まとめ問題の ならび ' + ids.join(','));
+  const res = B.summary().results.filter(function (r) { return r.boss; });
+  check(res.filter(function (r) { return r.stageId !== 'sansu3-6'; }).length === 4, 'まとめ問題の 記ろくは もとの ステージに');
+  check(!('recap' in B.plain(Object.assign({}, B.current() || {}, { recap: 'x', type: 'number' }))), 'plain は recap を 消す');
+  // ごちゃまぜ・塔には まとめ問題を つけない
+  B.start({ stage: st, mode: 'normal', mix: true, enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 1, recap: [st1] });
+  while (B.phase() === 'mob') { B.answer(right(B.current())); B.next(); }
+  let mixRecap = false;
+  while (B.phase() === 'boss') { if (B.current().recap) mixRecap = true; B.answer(right(B.current())); B.next(); }
+  check(!mixRecap, 'ごちゃまぜに まとめ問題は 出ない');
+  // 勝率（400回）：ふつうは 正答 60% でも 95% いじょう・ぜんぶ 正解なら 4〜6問／本気で 正答 40% は 下がる
+  function winRate(rate, hard, n) {
+    let w = 0, qs = 0;
+    for (let i = 0; i < n; i++) {
+      toBoss({ attacks: true });
+      if (hard) B.setBossHard(true);
+      let g = 0;
+      while (B.phase() === 'boss' && g++ < 40) {
+        const q = B.current();
+        if (Math.random() < rate) B.answer(right(q));
+        else { B.answer(bad(q)); if (B.phase() === 'boss' && B.isRetry()) B.answer(Math.random() < 0.7 ? right(q) : bad(q)); }
+        if (B.phase() === 'boss') B.next();
+      }
+      if (B.summary().bossBeaten) { w++; qs += B.bossAsked(); }
+    }
+    return { win: w / n, q: w ? qs / w : 0 };
+  }
+  const all = winRate(1, false, 200), weak = winRate(0.6, false, 400), hard40 = winRate(0.4, true, 400), hard60 = winRate(0.6, true, 400), hard80 = winRate(0.8, true, 400);
+  check(all.win === 1 && all.q >= 4 && all.q <= 6, 'ふつう・ぜんぶ 正解: ' + all.q.toFixed(1) + '問');
+  check(weak.win >= 0.95, 'ふつう・正答 60%: 勝率 ' + Math.round(weak.win * 100) + '%');
+  check(hard80.win >= 0.9, '本気・正答 80%: 勝率 ' + Math.round(hard80.win * 100) + '%');
+  check(hard60.win > hard40.win && hard40.win < 0.6, '本気は 正答率で 勝率が 変わる: 60% ' + Math.round(hard60.win * 100) + '%・40% ' + Math.round(hard40.win * 100) + '%');
+  console.log('ボスを 強く: ぜんぶ正解 ' + all.q.toFixed(1) + '問・正答60% 勝率 ' + Math.round(weak.win * 100) + '%・本気 正答80/60/40% 勝率 ' + Math.round(hard80.win * 100) + '/' + Math.round(hard60.win * 100) + '/' + Math.round(hard40.win * 100) + '%');
 })();
 /* ===== 教科書（出版社）えらび（v12.4）===== */
 (function () {

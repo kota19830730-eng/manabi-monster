@@ -74,13 +74,13 @@ MQ.battle = (function () {
 
   /* ■ てきの ため → カウンター（v7.7）
        敵がわも「ため」て、たまりきった 問題で こうげきして くる。
-         ザコ … 3問ごと（たからばこは 数えない）／ボス … 2問ごと
+         ザコ … 3問ごと（たからばこは 数えない）／ボス … 3問ごと（v12.7 で 2 → 3。2だと 2問めで かならず 2ダメージ）
        その 問題に 1回めで 正解 → **カウンター**（ザコは けいけんち 1.5ばい・ボスは 2ダメージ）
        まちがえると「くらった」… 演出と コンボ 0 だけ（コンボ 0は いつもの まちがいと 同じ）。
        **何も うしなわない**（ライフなし・負けなし の きまりは そのまま）。ユーザー決定 2026-09-06。
        おうちの人ページで 切れる（opts.attacks: false）。とっくんでは 出ない。 */
   const CHARGE_MOB = 3;
-  const CHARGE_BOSS = 2;
+  const CHARGE_BOSS = 3;
   const COUNTER_MUL = 1.5;
   const COUNTER_DMG = 2;
 
@@ -103,6 +103,25 @@ MQ.battle = (function () {
   const BOSS_SKILLS = ['kamae', 'clone', 'call'];
   const SUMMON_GOLDEN = 0.1;
 
+  /* ■ ボスを 強く（v12.7・ユーザー「ボスと ラスボスが 弱すぎる。歯ごたえが ほしい」）
+       実測（400回ずつ）：ぜんぶ 正解なら ボスは 2問・ラスボスは 4問で おわって いた（正答 60% でも 勝率 100%）。
+       ・HP と 問題数を ふやす（下の 表。画面がわ ui/battle.js が わたす。core の 初期値は むかしの まま＝テストの ため）
+       ・ボスの ためは 3問に 1回（CHARGE_BOSS）
+       ・相棒の 追い打ちは ボスには 1ダメージまで（PAL_BOSS_MAX。ザコへの けいけんちは 段階の まま）
+       ・3だんかい：HP が enrageAt いかで おこる（第2形態）→ finalAt いかで「さいごの 力」（第3形態）
+       ・まとめ問題：ボスの 2・4・6…問めは そのエリアで 前に クリアした ステージから（opts.recap）
+       ・本気モード（setBossHard）：子どもが ボスの 前に えらぶ。1回めの 正解だけ ダメージ（2回めは ガード）、
+         ボスの けいけんち・コインが 2ばい。**ふつうを えらべば 勝率は いままでと ほぼ 同じ**（負けない きまりは そのまま）
+       ふつうの ボスは 約5問・ラスボスは 約7問に なる（ぜんぶ 正解の とき）。 */
+  const BOSS_SET = {
+    normal: { bossHp: 5, bossMax: 8, enrageAt: 3, finalAt: 1 },
+    first: { bossHp: 3, bossMax: 5, enrageAt: 1, finalAt: 0 },       // はじめての たたかい（v11.1）は みじかい まま
+    tower: { bossHp: 9, bossMax: 14, enrageAt: 6, finalAt: 3 },
+    towerSmall: { bossHp: 7, bossMax: 11, enrageAt: 5, finalAt: 2 }   // 小1・小2 の さいごの とう
+  };
+  const PAL_BOSS_MAX = 1;
+  const HARD_MUL = 2;
+
   let s = null;
 
   function now() { return Date.now(); }
@@ -122,7 +141,7 @@ MQ.battle = (function () {
   function plain(q) {
     const copy = Object.assign({}, q);
     ['boss', 'revenge', 'enemyId', 'rare', 'chest', 'groupId', 'groupSize', 'groupPos', 'groupIds', 'golden', 'coins',
-     'elite', 'eliteHp', 'elitePos', 'weak', 'summon', 'called', 'review', 'reviewMiss'].forEach(function (k) {
+     'elite', 'eliteHp', 'elitePos', 'weak', 'summon', 'called', 'review', 'reviewMiss', 'recap'].forEach(function (k) {
       delete copy[k];
     });
     if (q.type === 'choice') {
@@ -144,11 +163,22 @@ MQ.battle = (function () {
   // ボス問題を 1問 作る（なるべく 同じ問題を くり返さない）
   function makeBossQuestion() {
     let q = null;
-    for (let i = 0; i < 6; i++) {
+    // まとめ問題（v12.7）：2・4・6…問め（index が 奇数）は 前に クリアした ステージから
+    const recapSt = (s.recap && s.recap.length && s.bossAsked % 2 === 1) ? MQ.util.pick(s.recap) : null;
+    if (recapSt) {
+      for (let i = 0; i < 6; i++) {
+        const made = recapSt.make(1, { boss: true, index: s.bossAsked });
+        if (!made || !made[0]) break;
+        const c = prepare(made[0]);
+        if (s.usedBossKeys.indexOf(c.id) === -1) { q = c; break; }
+      }
+      if (q) { q.stageId = recapSt.id; q.recap = recapSt.name; }   // とくい・にがては もとの ステージに ためる
+    }
+    for (let i = 0; i < 6 && !q; i++) {
       const made = s.stage.make(1, { boss: true, index: s.bossAsked, bossArea: s.bossArea });
       if (!made || !made[0]) break;
       q = prepare(made[0]);
-      if (s.usedBossKeys.indexOf(q.id) === -1) break;
+      if (s.usedBossKeys.indexOf(q.id) !== -1 && i < 5) q = null;
     }
     if (!q) return null;
     s.usedBossKeys.push(q.id);
@@ -457,6 +487,10 @@ MQ.battle = (function () {
       bossHp: bossHp,
       bossMax: opts.bossMax || (mode === 'tower' ? 8 : 5),
       enrageAt: opts.enrageAt || (mode === 'tower' ? 3 : 1),
+      finalAt: opts.finalAt || 0,  // さいごの 力（第3形態・v12.7）。0 は なし
+      final: false,
+      bossHard: false,             // 本気モード（v12.7・setBossHard）
+      recap: mode === 'normal' && !opts.mix ? (opts.recap || []).filter(function (x) { return x && x.make && x !== stage; }) : [],
       bossAsked: 0,
       usedBossKeys: [],
       bossQ: null,
@@ -667,6 +701,7 @@ MQ.battle = (function () {
   function answer(value) {
     const q = current();
     const wasRetry = s.retry;
+    if (s.phase === 'boss') s.bossAnswered = true;   // 本気モードは もう 変えられない（v12.7）
 
     if (isCorrect(q, value)) {
       s.retry = false;
@@ -714,8 +749,10 @@ MQ.battle = (function () {
         const skill = pl ? pl.kind : null;
         // ばくれつ こうげき：ダメージが ふえ、そのぶん けいけんちも 入る
         const palHit = palHitNow();
-        let dmg = s.buff.dmg > 1 ? Math.min(s.buff.dmg, s.bossHp) : 1;
-        if (palHit) dmg = Math.min(dmg + palPower().dmg, s.bossHp);   // 相棒の 追い打ち（3段階めは 2ダメージ・v8.2）
+        // 本気モード（v12.7）：2回めの 正解は ガードされる（相棒の 追い打ちだけ 通る）
+        const blocked = s.bossHard && wasRetry;
+        let dmg = blocked ? 0 : (s.buff.dmg > 1 ? Math.min(s.buff.dmg, s.bossHp) : 1);
+        if (palHit) dmg = Math.min(dmg + Math.min(PAL_BOSS_MAX, palPower().dmg), s.bossHp);   // 相棒の 追い打ち（ボスには 1まで・v12.7）
         // カウンター（v7.7）：ボスの 大わざの 問題に 1回めで 正解 → 2ダメージ
         const counter = !wasRetry && attacking();
         if (counter) { dmg = Math.min(Math.max(dmg, COUNTER_DMG), s.bossHp); s.counters++; }
@@ -726,6 +763,7 @@ MQ.battle = (function () {
         const open = s.bossOpen && !wasRetry;
         if (open) { dmg = Math.min(Math.max(dmg, 2), s.bossHp); s.skillHits++; }
         s.bossOpen = false;
+        const usedBurst = !blocked && s.buff.dmg > 1;   // 相棒の 追い打ちで 2に なった ときは「ばくれつ」と 言わない
         // たての かまえ（v8.1）：1回めで 正解 → ガードブレイク（つぎの 1問が すきだらけ）
         const broke = skill === 'kamae' && !wasRetry;
         if (broke) { s.bossOpen = true; s.skillHits++; }
@@ -735,8 +773,8 @@ MQ.battle = (function () {
           if (pl.pos === 0) s.cloneClean = !wasRetry;
           else { cloneKO = s.cloneClean && !wasRetry; if (cloneKO) s.skillHits++; }
         }
-        s.buff.dmg = 1;
-        let xp = (wasRetry ? (last ? XP.lastHitRetry : XP.bossHitRetry) : (last ? XP.lastHit : XP.bossHit)) * dmg;
+        if (!blocked) s.buff.dmg = 1;        // ガードされた ときは ばくれつを のこす（v12.7）
+        let xp = (wasRetry ? (last ? XP.lastHitRetry : XP.bossHitRetry) : (last ? XP.lastHit : XP.bossHit)) * Math.max(1, dmg);
         if (crit) xp += XP.critBonus;
         if (broke) xp += XP.kamaeBreak;
         if (cloneKO) xp += XP.cloneBonus;
@@ -744,7 +782,8 @@ MQ.battle = (function () {
         s.bossHp -= dmg;
         const defeated = s.bossHp <= 0;
         // ボスを たおすと コイン 1（v2.0 第2段階）＋ オーロラの マント（げきレア・v9.0）で もう ＋2
-        const bossCoins = 1 + (s.gear.bossCoin || 0);
+        const bossCoins = (1 + (s.gear.bossCoin || 0)) * (s.bossHard ? HARD_MUL : 1);
+        let enrageNow = false, finalNow = false;
         if (defeated) {
           xp += last ? XP.lastBonus : XP.bossBonus;
           s.coins += bossCoins;
@@ -752,9 +791,12 @@ MQ.battle = (function () {
           s.bossBeaten = true;
           s.defeated.push(s.bossId);
           s.endedAt = now();
-        } else if (s.bossHp <= s.enrageAt && !s.enraged) {
-          s.enraged = true;
+        } else {
+          // おこる（第2形態）・さいごの 力（第3形態）。その 1回だけ 知らせる（前は おこった あと 毎回 true だった）
+          if (s.bossHp <= s.enrageAt && !s.enraged) { s.enraged = true; enrageNow = true; }
+          if (s.finalAt && s.bossHp <= s.finalAt && !s.final) { s.final = true; s.enraged = true; finalNow = true; }
         }
+        if (s.bossHard) xp *= HARD_MUL;      // 本気モードは けいけんち 2ばい（v12.7）
         xp = gain(xp);
         noteReview(q, wasRetry);
         if (!defeated && s.bossAsked >= s.bossMax) { s.phase = 'done'; s.bossFled = true; s.endedAt = now(); }
@@ -762,9 +804,10 @@ MQ.battle = (function () {
           outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note, palHit: palHit,
           counter: counter,
           weakHit: weakHit, skill: skill, clonePos: pl ? pl.pos : 0, broke: broke, open: open, cloneKO: cloneKO,   // v8.1
-          dmg: dmg, burst: dmg > 1 && !counter && !weakHit && !open ? dmg : 0, coins: defeated ? bossCoins : 0,
+          dmg: dmg, burst: usedBurst && !counter && !weakHit && !open ? dmg : 0, coins: defeated ? bossCoins : 0,
           hpLeft: s.bossHp, defeated: defeated, last: last,
-          enrage: !defeated && s.bossHp <= s.enrageAt && s.enraged,
+          blocked: blocked, hard: s.bossHard,                         // 本気モード（v12.7）
+          enrage: enrageNow && !finalNow, final: finalNow,
           fled: !defeated && s.phase === 'done'
         };
       }
@@ -1184,6 +1227,7 @@ MQ.battle = (function () {
       defeated: s.defeated,
       bossBeaten: s.bossBeaten,
       bossFled: s.bossFled,
+      bossHard: s.bossHard,            // 本気モードで たたかった（v12.7）
       escaped: s.escapedNow.map(function (q) {
         return {
           key: q.id, q: plain(q), enemyId: q.enemyId,
@@ -1243,6 +1287,16 @@ MQ.battle = (function () {
     bossAsked: function () { return s.bossAsked; },
     bossMax: function () { return s.bossMax; },
     isEnraged: function () { return s.enraged; },
+    // ボスを 強く（v12.7）
+    BOSS_SET: BOSS_SET, PAL_BOSS_MAX: PAL_BOSS_MAX, HARD_MUL: HARD_MUL,
+    isFinal: function () { return !!(s && s.final); },
+    bossHard: function () { return !!(s && s.bossHard); },
+    // 本気モード：ボスの 1問めに 答える 前だけ 変えられる（ボスが いない たたかいでは なにも しない）
+    setBossHard: function (on) {
+      if (!s || !s.hasBoss || s.bossAnswered) return false;
+      s.bossHard = !!on;
+      return true;
+    },
     combo: function () { return s.combo; },
     palGauge: function () { return s.palGauge; },
     palGaugeNeed: function () { return MQ.pals ? MQ.pals.gaugeNeed() : 3; },
