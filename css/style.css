@@ -1172,6 +1172,23 @@ body {
 .enemy--last .enemy__name { top: auto; bottom: 100%; left: auto; right: 0; transform: none; margin: 0 0 3px; }
 .enemy--last .bosshp { margin-top: 2px; }
 
+/* ボス戦の 画面を 見やすく（v12.8・息子さんの 実機の 写真「バトルシーンが 台無し」）
+   1体だけの ボスは 名前・弱点・HP を 右上の パネルに まとめる。足もとに おくと 右下の アイテムボタンに かくれ、
+   頭の 上に おくと 3D の 図が 上まで あって 画面から はみ出た。ぶんしん・呼ばれた ザコの となり（twin）は いままで どおり */
+.bossinfo { position: absolute; top: 6px; right: 10px; z-index: 3; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; pointer-events: none; }
+.bossinfo[hidden] { display: none; }
+.bossinfo .enemy__name { position: static; transform: none; margin: 0; font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.bossinfo__row { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.bossinfo__row:empty { display: none; }
+.bossinfo .enemy__weak { position: static; transform: none; margin: 0; }
+.bossinfo .foecharge { position: static; transform: none; margin: 0; padding: 3px 5px; border-radius: 999px; background: rgba(10,16,40,.72); }
+.hpbar--boss .hpbar__fill { background: linear-gradient(90deg, #ff8a5a, #ff3d5e); }   /* ボス戦の バーは ボスの HP＝赤 */
+.enemy--last .foecharge { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); margin: 0; }   /* 名前が 頭の 上から パネルへ うつった ので ためは 頭の 上に もどす */
+.battle--tower .arena__msg { max-width: 136px; }   /* ラスボス（112px）に かぶらない */
+.combo.is-sp { font-size: 20px; max-width: 176px; white-space: normal; line-height: 1.05; }   /* 「13 コンボ！／ひっさつ！」は 2行に（右下の アイテムボタンの 下に もぐらない） */
+/* 相棒の なまえと ゲージは 左はしに そろえる（まん中ぞろえだと 長い なまえが 画面の 左に はみ出た＝実機の 写真） */
+.pal__name, .pal__gauge { left: 0; transform: none; }
+
 /* ---- 当たった／よけた などの うごき ---- */
 .is-appear { animation: popin .22s ease-out; }
 .is-hit { animation: hitfx .3s ease-out; }

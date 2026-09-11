@@ -73,6 +73,8 @@ MQ.ui.battle = (function () {
           ]),
           d.foes = h('div', { class: 'foes' })
         ]),
+        // ボスの 名前・HP・弱点は 右上の パネル（v12.8）。足もとに おくと 右下の アイテムボタンに かくれ、頭の 上だと 画面から はみ出た
+        d.bossInfo = h('div', { class: 'bossinfo', hidden: true }),
         d.fx = h('div', { class: 'fx' }),
         d.combo = h('div', { class: 'combo', hidden: true }),
         d.charge = h('div', { class: 'charge', hidden: true }),   // ⑦ ためゲージ（v7.5）
@@ -477,18 +479,30 @@ MQ.ui.battle = (function () {
         h('div', { class: 'shadow shadow--foe' }),
         boss && sk && sk.kind === 'kamae' && !q.called ? h('span', { class: 'enemy__kamae' }) : null,
         // ラスボスは 名前が 長い（かいぞくキャプテン）ので「ラスボス」は 左上の ピルに まかせて 名前だけ（v6.4）
-        h('span', { class: 'enemy__name', text: sk && sk.kind === 'clone' && boss && i !== pos ? 'ぶんしん' : (boss && !last ? 'ボス ' : '') + e.name }),
+        // 1体だけの ボスは 名前・弱点・HP を 右上の パネル（d.bossInfo）に 出す（v12.8）
+        boss && !twin ? null : h('span', { class: 'enemy__name', text: sk && sk.kind === 'clone' && boss && i !== pos ? 'ぶんしん' : (boss && !last ? 'ボス ' : '') + e.name }),
         q.revenge && i === pos && !boss ? h('span', { class: 'enemy__ribbon', text: 'リベンジ' }) : null,
         q.review && !q.revenge && i === pos && !boss ? h('span', { class: 'enemy__ribbon enemy__ribbon--review', text: 'もういちど' }) : null,
         q.elite && i === pos ? h('span', { class: 'enemy__ribbon enemy__ribbon--elite', text: '中ボス' }) : null,
         boss && i === pos && MQ.battle.bossHard && MQ.battle.bossHard() ? h('span', { class: 'enemy__ribbon enemy__ribbon--hard', text: '本気' }) : null,
         skillLabel ? h('span', { class: 'enemy__skill' + (sk.open && !sk.kind ? ' enemy__skill--open' : ''), text: skillLabel }) : null,
-        wk ? h('span', { class: 'enemy__weak' + (q.weak === wk ? ' is-now' : ''), text: weakText(wk) }) : null,
-        boss && i === pos ? h('div', { class: 'bosshp' }) : null,
+        wk && !(boss && !twin) ? h('span', { class: 'enemy__weak' + (q.weak === wk ? ' is-now' : ''), text: weakText(wk) }) : null,
+        boss && i === pos && twin ? h('div', { class: 'bosshp' }) : null,
         q.elite && i === pos ? h('div', { class: 'bosshp elitehp' }) : null
       ]);
       d.foes.appendChild(box);
+      if (boss && !twin && i === pos) {
+        // 2行だけ：名前／弱点＋ため。HP の 玉は 出さない（左上の バーが ボスの HP・ふきだしが「あと Nかい」）。
+        // 3行に すると ラスボス（112px）の 頭に かぶる
+        d.bossInfo.innerHTML = '';
+        d.bossInfo.appendChild(h('span', { class: 'enemy__name', text: e.name }));
+        d.bossInfo.appendChild(h('div', { class: 'bossinfo__row' }, [
+          wk ? h('span', { class: 'enemy__weak' + (q.weak === wk ? ' is-now' : ''), text: weakText(wk) }) : null
+        ]));
+        d.bossInfo.hidden = false;
+      }
     });
+    if (!(bossAt && ids.length === 1)) d.bossInfo.hidden = true;
 
     d.cur = d.foes.children[Math.min(pos, d.foes.children.length - 1)];
     if (q.boss) renderBossHp();
@@ -520,7 +534,7 @@ MQ.ui.battle = (function () {
      たまりきった 問題は「こうげき！」の ラベルが ついて 敵が 赤く 光る */
   function renderCharge() {
     if (!d.cur || !MQ.battle.chargeInfo) return;
-    const old = d.cur.querySelector('.foecharge');
+    const old = d.arena.querySelector('.foecharge');
     if (old) old.remove();
     d.cur.classList.remove('is-charging', 'is-attacking');
     const ci = MQ.battle.chargeInfo();
@@ -528,7 +542,9 @@ MQ.ui.battle = (function () {
     const box = h('div', { class: 'foecharge' });
     for (let i = 0; i < ci.need; i++) box.appendChild(h('span', { class: 'foecharge__dot' + (i < ci.level ? ' is-on' : '') }));
     if (ci.attacking) box.appendChild(h('span', { class: 'foecharge__label', text: ci.boss ? '大わざ！' : 'こうげき！' }));
-    d.cur.appendChild(box);
+    // 1体だけの ボスは 右上の パネルの 2行め（v12.8）。頭の 上だと パネルと ぶつかる
+    const host = (!d.bossInfo.hidden && d.bossInfo.querySelector('.bossinfo__row')) || d.cur;
+    host.appendChild(box);
     if (ci.attacking) { d.cur.classList.add('is-attacking'); MQ.sfx.charge(); }
     else if (ci.level > 0) d.cur.classList.add('is-charging');
   }
@@ -569,7 +585,7 @@ MQ.ui.battle = (function () {
   }
 
   function renderBossHp() {
-    const el = d.foes.querySelector('.bosshp');
+    const el = (!d.bossInfo.hidden && d.bossInfo.querySelector('.bosshp')) || d.foes.querySelector('.bosshp');
     if (!el) return;
     el.innerHTML = '';
     const max = MQ.battle.bossHpMax();
@@ -606,7 +622,7 @@ MQ.ui.battle = (function () {
     d.combo.textContent = n + ' コンボ！' + (sp ? '　ひっさつ！' : '');
     // クリティカルの 色。オーロラの けん（げきレア）を つけて いると 2コンボから（v9.0）
     const critFrom = (MQ.battle.critFrom && MQ.battle.critFrom()) || 3;
-    d.combo.className = 'combo' + (n >= critFrom ? ' combo--crit' : '') + (sp ? ' combo--' + sp.id : '');
+    d.combo.className = 'combo' + (n >= critFrom ? ' combo--crit' : '') + (sp ? ' combo--' + sp.id + ' is-sp' : '');
     chargeShow(n, sp);
     d.combo.classList.remove('is-pop');
     void d.combo.offsetWidth;
@@ -745,9 +761,10 @@ MQ.ui.battle = (function () {
     } else if (bossPhase && sk && sk.open) {
       d.msg.textContent = 'すきだらけだ！ 正解で 2ダメージ！';
     } else if (bossPhase) {
-      d.msg.textContent = !bossOnScreen ? (last ? e.name + 'が 立ちはだかる…！' + (ctx.weakArea ? ' ' + weakText(ctx.weakArea) : '') : 'ボスの ' + e.name + ' が たちふさがる！')
-        : MQ.battle.isFinal && MQ.battle.isFinal() ? e.name + ' は さいごの 力を ふりしぼって いる！' + left
-        : MQ.battle.isEnraged() ? e.name + ' は おこって いる！' + left
+      // ふきだしは 3行まで（v12.8）。名前は 右上の パネルに ある ので くり返さない
+      d.msg.textContent = !bossOnScreen ? (last ? e.name + 'が 立ちはだかる…！' : 'ボスの ' + e.name + ' が たちふさがる！')
+        : MQ.battle.isFinal && MQ.battle.isFinal() ? 'さいごの 力だ！' + left
+        : MQ.battle.isEnraged() ? 'おこって いる！' + left
         : 'こうげきだ！' + left;
       bossOnScreen = true;
     } else if (q.elite) {
@@ -769,12 +786,12 @@ MQ.ui.battle = (function () {
         : e.name + ' が あらわれた！';
     }
     // 弱点（v8.1）：この 問題の 教科が 弱点 → チャンス
-    if (q.weak && !q.chest && !q.called) d.msg.textContent += ' ' + weakText(q.weak) + '！ チャンス！';
+    if (q.weak && !q.chest && !q.called) d.msg.textContent += bossPhase ? ' 弱点！ チャンス！' : ' ' + weakText(q.weak) + '！ チャンス！';
     if (bossPhase && !q.called) bossOnScreen = true;
     // てきの こうげき（v7.7）：たまりきった 問題は ふきだしも「正解で カウンター！」に
     const ci = MQ.battle.chargeInfo ? MQ.battle.chargeInfo() : null;
     if (ci && ci.attacking && !q.chest) {
-      d.msg.textContent = ci.boss ? e.name + ' の 大わざ！ 正解で カウンター（' + MQ.battle.COUNTER_DMG + 'ダメージ）！'
+      d.msg.textContent = ci.boss ? '大わざだ！ 正解で カウンター ' + MQ.battle.COUNTER_DMG + 'ダメージ！'
         : e.name + ' が こうげきして きた！ 正解で カウンター！';
     }
 
@@ -789,9 +806,9 @@ MQ.ui.battle = (function () {
   function renderCount() {
     const bossPhase = MQ.battle.phase() === 'boss';
     const last = MQ.battle.mode() === 'tower';
-    d.count.innerHTML = bossPhase
-      ? '<span>' + (last ? 'ラスボス' : 'ボス') + '</span>'
-      : (ctx.tokkun ? '<span>とっくん</span>' : '<span>てき</span>');
+    // ボス戦は ラベルなし（v12.8）：「ラスボス にげるまで 14」だと タイムの ピルが 2行めに 落ちて、HPバーが 勇者に かぶった
+    d.count.innerHTML = bossPhase ? '' : (ctx.tokkun ? '<span>とっくん</span>' : '<span>てき</span>');
+    if (d.prog) d.prog.classList.toggle('hpbar--boss', bossPhase);   // ボス戦は バーが ボスの HP（赤）
     // 中ボス（v8.1）の 2問は 1体と 数える
     const fc = MQ.battle.foeCount ? MQ.battle.foeCount() : { no: MQ.battle.mobIndex() + 1, total: MQ.battle.mobTotal() };
     if (!bossPhase) {
@@ -799,7 +816,7 @@ MQ.ui.battle = (function () {
     }
     // フィーバー教科（v7.2）：けいけんち 2ばいの しるし
     const fv = MQ.battle.fever ? MQ.battle.fever() : null;
-    if (fv) d.count.appendChild(h('i', { class: 'pillstat__fever', text: '×' + (fv.xpMul || 2) }));
+    if (fv && !bossPhase) d.count.appendChild(h('i', { class: 'pillstat__fever', text: '×' + (fv.xpMul || 2) }));
     if (!bossPhase) {
       setProgress(1 - (fc.no - 1) / Math.max(1, fc.total));
     } else {

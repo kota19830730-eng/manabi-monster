@@ -2600,7 +2600,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
           ' unit=' + ($('#screen-battle .card__unit') ? $('#screen-battle .card__unit').textContent : '-') + ' msg=' + ($('.arena__msg') ? $('.arena__msg').textContent : ''));
         // 場所（ステージの 中の px）：名前・HP・リボン・ため・アイテム
         const R = function (sel) { const el = $(sel); if (!el) return sel + '=none'; const r = el.getBoundingClientRect(), k = MQ.stage.size().scale || 1, o = $('#stage').getBoundingClientRect(); return sel + '=' + Math.round((r.left - o.left) / k) + ',' + Math.round((r.top - o.top) / k) + ' ' + Math.round(r.width / k) + 'x' + Math.round(r.height / k); };
-        say(tag + ' rects: ' + ['.arena', '.enemy--boss', '.enemy--boss .enemy__name', '.bosshp', '.enemy__ribbon--hard', '.foecharge', '.bagbtn', '.arena__msg'].map(R).join(' | '));
+        say(tag + ' rects: ' + ['.arena', '.enemy--boss', '.bossinfo .enemy__name', '.bosshp', '.enemy__ribbon--hard', '.foecharge', '.bagbtn', '.arena__msg'].map(R).join(' | '));
       };
       if (mode === 'lastfinal') {
         fresh({ frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true } });
