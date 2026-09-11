@@ -20,6 +20,8 @@ MQ.ui.news = (function () {
   /* お知らせ 1つぶんの 絵。ゲームに ある 部品だけを つかう */
   function art(it, player) {
     if (it.kind === 'coin') return MQ.ui.coinNode(44);
+    // dock：地図の ドックの アイコン（v13.3・js/ui/map.js の DOCK_ICONS）
+    if (it.kind === 'dock' && MQ.ui.map && MQ.ui.map.dockIcon) return MQ.ui.map.dockIcon(it.id || 'dice', 44);
     if (it.kind === 'hero') return h('img', { class: 'sprite newsrow__hero', src: MQ.hero.sprite(player), alt: '' });
     if (it.kind === 'item') return MQ.treasure.node(it.id, { gold: !!it.gold, size: 44 });
     /* mons：id が 配列なら 小さく よこに ならべる（進化・ごちゃまぜ）。

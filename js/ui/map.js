@@ -361,6 +361,53 @@ MQ.ui.map = (function () {
     [48, 95, 4, 10, 'pole'], [52, 99, 16, 9, 'flag']
   ];
 
+  /* =======================================================
+     地図の ドックの アイコン（v13.3）
+     モンスター・たからものと 同じ ブロックの ぬり方（js/core/blocks.js）で 40マス。
+     [x, y, よこ, たて, 色の キー, フラグ]。色は A を 決めれば B・C・D は 自動。
+       dice      … ごちゃまぜ。3つの 面が 算数・国語・理科の 色（まざる・何が 出るか わからない）
+       scroll    … しゅぎょうば。金の じくと 赤い ひも（教えて もらう 場所）
+       hourglass … タイムアタック
+       book      … メニュー（ずかん）
+     まえの ごちゃまぜの 4まいの 四角は Windows の マークに にて いた ので やめた。
+     見た目の 正本は docs/STYLE_GUIDE.md の「地図の ドック（v13.3）」
+     ======================================================= */
+  const DOCK_ICONS = {
+    dice: { pal: { A: '#ff8f5e', G: '#7fe36a', L: '#3fa8ee', w: '#ffffff' }, s: [
+      // 右の 面（青）… 2マスずつ 上へ ずらして ななめの 面に 見せる
+      [28, 11, 3, 24, 'L', 'n'], [30, 9, 3, 24, 'L', 'n'], [32, 7, 3, 24, 'L', 'n'], [34, 5, 3, 24, 'L', 'n'],
+      // 上の 面（みどり）
+      [12, 3, 25, 3, 'G', 'n'], [10, 5, 25, 3, 'G', 'n'], [8, 7, 25, 3, 'G', 'n'], [6, 9, 25, 3, 'G', 'n'],
+      // 前の 面（オレンジ）と 目
+      [4, 12, 26, 25, 'A', 'h'],
+      [8, 16, 5, 5, 'w', 'n'], [21, 16, 5, 5, 'w', 'n'], [14, 22, 5, 5, 'w', 'n'], [8, 28, 5, 5, 'w', 'n'], [21, 28, 5, 5, 'w', 'n'],
+      [18, 6, 5, 3, 'w', 'n'], [31, 17, 3, 5, 'w', 'n'], [31, 25, 3, 4, 'w', 'n']
+    ] },
+    scroll: { pal: { A: '#e0a83a', B: '#b9791f', w: '#fff3cf', k: '#8a6a3a', r: '#e0463c' }, s: [
+      [6, 12, 28, 17, 'w', 'n'],
+      [10, 16, 16, 2, 'k', 'n'], [10, 20, 18, 2, 'k', 'n'], [10, 24, 12, 2, 'k', 'n'],
+      [2, 6, 36, 7, 'A', 'h'], [2, 28, 36, 7, 'A', 'h'],
+      [0, 7, 3, 5, 'B'], [37, 7, 3, 5, 'B'], [0, 29, 3, 5, 'B'], [37, 29, 3, 5, 'B'],
+      [29, 12, 3, 16, 'r', 'n'], [27, 26, 7, 6, 'r']
+    ] },
+    hourglass: { pal: { A: '#ffd66b', C: '#9b6a3c', w: '#fff8e0' }, s: [
+      [4, 2, 32, 6, 'C'], [4, 32, 32, 6, 'C'],
+      [10, 8, 20, 11, 'A', 'h'], [17, 17, 6, 6, 'A'], [10, 21, 20, 11, 'A'],
+      [15, 24, 10, 6, 'w', 'n']
+    ] },
+    book: { pal: { A: '#4f7de0', w: '#fff6d8' }, s: [
+      [4, 5, 32, 30, 'A', 'h'],
+      [18, 5, 4, 30, 'B', 'n'],
+      [7, 10, 9, 3, 'w', 'n'], [7, 16, 9, 3, 'w', 'n'],
+      [24, 10, 9, 3, 'w', 'n'], [24, 16, 9, 3, 'w', 'n'],
+      [4, 32, 32, 4, 'B', 'n']
+    ] }
+  };
+  function dockIcon(name, size) {
+    const d = DOCK_ICONS[name];
+    return MQ.blocks.box(d.s, MQ.blocks.fill(d.pal), { size: size, base: 40, raw: true, cls: 'dockico' });
+  }
+
   function towerArt() {
     const art = h('span', { class: 'tower__art' });
     TOWER_B.forEach(function (p) {
@@ -581,72 +628,82 @@ MQ.ui.map = (function () {
       firstTime ? null : panelEl
     ]);
 
-    /* ---- 下の バー：ごちゃまぜ バトル（v7.3・むらさき）と にげた敵（ピンク） ---- */
+    /* ---- 下の ドック（v13.3・案A）----
+       まえは 地図の 下に 大きな 帯が つみ上がって いた（てがみ・しゅぎょうば・ごちゃまぜ・とっくん）。
+       混む 日は 地図が 画面の 44%（311/700）まで へった。
+       → 下の 段を アイコンの ならび（ドック）に して、ごちゃまぜは まん中の 大きな ボタンに。
+         てがみ と にげた敵は 地図の すみに 浮かぶ 小さな ふだ（出る 日だけ）。
+         プレイヤーの ボタンは 学年えらび（小3 ▾）の 中へ。
+       → 地図は どの 日も 513（タブレット）。
+       class 名（.maptab .maptab--grade .mixbtn .dojobtn .tegamibtn .tegamibtn__t .revenge）は
+       harness が 見て いる ので 名前を 変えない。
+       はじめての 子（v11.1）は メニューと 学年だけ（ほかは 1回 たたかうと 出る）。
+       見た目の 正本は docs/STYLE_GUIDE.md の「地図の ドック（v13.3）」 */
     const escapedCount = MQ.save.countAllEscaped(player);
-    const kid = (MQ.content.activeWorld().grade || 3) <= 2;
-    const bottom = h('div', { class: 'mapbottom' }, [
-      /* おうちの人からの てがみ（v8.5）。読んだら 消える */
-      (!firstTime && MQ.letter && MQ.letter.pending(player)) ? h('button', {
-        class: 'tegamibtn', type: 'button',
-        onclick: function () { MQ.sfx.tap(); openLetter(); }
-      }, [
-        h('span', { class: 'tegamibtn__env' }, [h('i', { class: 'flap' }), h('i', { class: 'seal' })]),
-        h('span', { class: 'tegamibtn__body' }, [
-          h('b', { class: 'tegamibtn__t', text: 'おうちの人から てがみ' }),
-          h('span', { class: 'tegamibtn__s', text: 'タップして よんでみよう' })
-        ]),
-        h('span', { class: 'tegamibtn__go', text: '▶' })
-      ]) : null,
-      /* しゅぎょうば（v13.0）：相棒が 教えて くれる 予習・復習。
-         **どの 学年で あそんで いても 出す**（v13.1）。v13.0 では 中身の ない 学年
-         （小3 いがい）で バーごと 消えて いて「ないけど」と 言われた。はじめての 子だけ 出さない（v11.1） */
-      (!firstTime && MQ.dojo && MQ.ui.dojo) ? h('button', {
-        class: 'dojobtn', type: 'button',
-        onclick: function () { MQ.sfx.tap(); MQ.ui.dojo.openList(); }
-      }, [
-        h('span', { class: 'dojobtn__ico' }, [MQ.enemies.node(MQ.dojo.sensei(player).id, { size: 30 })]),
-        h('span', { class: 'dojobtn__body' }, [
-          h('b', { class: 'dojobtn__t', text: 'しゅぎょうば' }),
-          h('span', { class: 'dojobtn__s', text: (MQ.dojo.candidates(player).preview.length ? 'よしゅう・' : '') + 'ふくしゅう を なかまが おしえて くれる' })   // どの 学年でも 同じ 文（ひらがな）
-        ]),
-        h('span', { class: 'dojobtn__go', text: '▶' })
-      ]) : null,
-      (!firstTime && MQ.content.mixOpen(player)) ? h('button', {
-        class: 'mixbtn', type: 'button',
-        onclick: function () { MQ.sfx.tap(); MQ.ui.battle.start(MQ.content.mixStage().id); }
-      }, [
-        h('span', { class: 'mixbtn__ico' }, [h('i'), h('i'), h('i'), h('i')]),
-        h('span', { class: 'mixbtn__body' }, [
-          h('b', { class: 'mixbtn__t', text: 'ごちゃまぜ バトル' }),
-          h('span', { class: 'mixbtn__s', text: (kid ? 'ぜんぶの きょうかが まざる' : 'ぜんぶの 教科が まざる') + '・コイン +1' })
-        ]),
-        h('span', { class: 'mixbtn__go', text: '▶' })
-      ]) : null,
-      (!firstTime && escapedCount) ? h('button', {
-        class: 'revenge', type: 'button',
-        onclick: function () { MQ.sfx.tap(); MQ.ui.battle.startTokkun(); }
-      }, [
-        h('span', { class: 'revenge__new', text: 'NEW' }),
-        h('span', { class: 'revenge__text', html: 'にげた敵が <b>' + escapedCount + '</b>ひき！' }),
-        h('span', { class: 'revenge__go', text: 'とっくん ▶' })
+    const hasLetter = !!(!firstTime && MQ.letter && MQ.letter.pending(player));
+    const hasRevenge = !firstTime && escapedCount > 0;
+    const revFirst = hasRevenge ? (MQ.save.allEscaped(player)[0] || {}).entry : null;
+    const dojoOn = !!(!firstTime && MQ.dojo && MQ.ui.dojo);
+    const mixOn = !firstTime && MQ.content.mixOpen(player);
+    const hasChips = hasLetter || hasRevenge;
+    function tab(label, ico, onclick, cls, extra, aria) {
+      return h('button', {
+        class: 'maptab' + (cls ? ' ' + cls : ''), type: 'button', 'aria-label': aria || label,
+        onclick: function () { MQ.sfx.tap(); onclick(); }
+      }, [dockIcon(ico, 30), h('b', { class: 'maptab__t', text: label }), extra || null]);
+    }
+    const bottom = h('div', { class: 'mapbottom' + (mixOn ? ' has-mix' : '') }, [
+      /* 地図の すみの ふだ：おうちの人からの てがみ（v8.5・読んだら 消える）と にげた敵（とっくん） */
+      hasChips ? h('div', { class: 'mapchips' }, [
+        hasLetter ? h('button', {
+          class: 'mapchip tegamibtn', type: 'button', 'aria-label': 'おうちの人から てがみ',
+          onclick: function () { MQ.sfx.tap(); openLetter(); }
+        }, [
+          h('span', { class: 'tegamibtn__env' }, [h('i', { class: 'flap' }), h('i', { class: 'seal' })]),
+          h('b', { class: 'tegamibtn__t', text: 'てがみ' })
+        ]) : h('span'),
+        hasRevenge ? h('button', {
+          class: 'mapchip revenge', type: 'button', 'aria-label': 'にげた敵と とっくん',
+          onclick: function () { MQ.sfx.tap(); MQ.ui.battle.startTokkun(); }
+        }, [
+          (revFirst && revFirst.enemyId) ? MQ.enemies.node(revFirst.enemyId, { size: 30, cls: 'revenge__mon' }) : null,
+          h('span', { class: 'revenge__text' }, ['にげた敵 ', h('b', { text: String(escapedCount) }), 'ひき']),
+          h('i', { class: 'revenge__go' })
+        ]) : null
       ]) : null,
 
-      /* 学年えらび（v8.0）：ふだんは かくして おき、下の「小3 ▾」で 出す */
+      /* 学年えらび（v8.0）：ふだんは かくして おき、下の「小3 ▾」で 出す。
+         プレイヤーを かえる ボタンも ここ（v13.3・ドックに 入りきらない ため） */
       gradeEl = h('div', { class: 'gradesheet', hidden: true }, [
         h('p', { class: 'gradesheet__note', text: 'べつの 学年で あそぶ（よしゅう・ふくしゅう）' }),
-        gradeRow(player)
+        gradeRow(player),
+        h('button', {
+          class: 'gradesheet__player', type: 'button',
+          onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); }
+        }, [h('span', { text: 'プレイヤーを かえる' }), h('i', { class: 'gradesheet__go', text: '▶' })])
       ]),
 
-      /* ボタンの 段（v8.0）：上に あった 3つと 学年を ここへ */
+      /* ドック（v13.3）：メニュー／しゅぎょう／ごちゃまぜ（まん中・大きい）／タイム／学年 */
       h('div', { class: 'maptabs' }, [
-        h('button', { class: 'maptab', type: 'button', text: 'メニュー', onclick: function () { MQ.sfx.tap(); MQ.ui.dex.render(); MQ.ui.show('screen-dex'); } }),
+        tab('メニュー', 'book', function () { MQ.ui.dex.render(); MQ.ui.show('screen-dex'); }),
+        /* しゅぎょうば（v13.0）：どの 学年でも 出す（v13.1）。よしゅうが できる ときは ふだ */
+        dojoOn ? tab('しゅぎょう', 'scroll', function () { MQ.ui.dojo.openList(); }, 'maptab--dojo dojobtn',
+          MQ.dojo.candidates(player).preview.length ? h('span', { class: 'maptab__badge', text: 'よしゅう' }) : null,
+          'しゅぎょうば') : null,
+        /* ごちゃまぜ バトル（v7.3）：にがて対策の 1つ なので いちばん 目立つ まん中に */
+        mixOn ? h('button', {
+          class: 'maptab maptab--mix mixbtn', type: 'button', 'aria-label': 'ごちゃまぜ バトル',
+          onclick: function () { MQ.sfx.tap(); MQ.ui.battle.start(MQ.content.mixStage().id); }
+        }, [
+          dockIcon('dice', 42),
+          h('b', { class: 'maptab__t', text: 'ごちゃまぜ' }),
+          h('span', { class: 'maptab__coin', 'aria-label': 'コイン +1' }, [h('i', { class: 'maptab__coinico' }), h('span', { text: '+1' })])
+        ]) : null,
         // タイムアタックは 1回 たたかってから（v11.1）
-        firstTime ? null : h('button', { class: 'maptab', type: 'button', text: 'タイムアタック', onclick: function () { MQ.sfx.tap(); timeAttack(player); } }),
-        // 「おうちの人」は タイトル画面の 右上に ひっこした（v7.8）
-        h('button', { class: 'maptab', type: 'button', text: 'プレイヤー', onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); } }),
+        firstTime ? null : tab('タイム', 'hourglass', function () { timeAttack(player); }, '', null, 'タイムアタック'),
         h('button', {
           class: 'maptab maptab--grade', type: 'button',
-          'aria-label': '学年を えらぶ',
+          'aria-label': '学年と プレイヤー',
           onclick: function () { MQ.sfx.tap(); toggleGrade(); }
         }, [
           h('b', { text: '小' + (MQ.content.activeWorld().grade || 3) }),
@@ -657,7 +714,7 @@ MQ.ui.map = (function () {
 
     MQ.ui.mount('screen-map', h('div', { class: 'map map--' + plan.theme }, [
       top,
-      h('div', { class: 'map__scroll' }, [sheet, h('div', { class: 'map__vig' })]),
+      h('div', { class: 'map__scroll' }, [sheet, h('div', { class: 'map__pad' + (hasChips ? ' has-chips' : '') }), h('div', { class: 'map__vig' })]),
       dimEl,
       bottom
     ]));
@@ -704,7 +761,7 @@ MQ.ui.map = (function () {
     const rows = [
       [h('i', { class: 'mapobi__star unlockpop__star' }), 'きょうの フィーバー', 'その きょうかが けいけんち 2ばい！'],
       [MQ.ui.coinNode(30), 'きょうの ミッション', '3つ できたら コインが もらえる'],
-      [h('span', { class: 'mixbtn__ico' }, [h('i'), h('i'), h('i'), h('i')]), 'あそび方が ふえた', 'ごちゃまぜ バトル・タイムアタック']
+      [dockIcon('dice', 32), 'あそび方が ふえた', 'ごちゃまぜ バトル・タイムアタック']
     ];
     function close() {
       if (!unlockEl) return;
@@ -936,5 +993,5 @@ MQ.ui.map = (function () {
   }
 
   // unlockPop は harness の 検査用にも 出す（v11.1）
-  return { render: render, paint: paint, unlockPop: unlockPop, isFirstTime: isFirstTime };
+  return { render: render, paint: paint, unlockPop: unlockPop, isFirstTime: isFirstTime, dockIcon: dockIcon };
 })();

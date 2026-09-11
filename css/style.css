@@ -1083,38 +1083,6 @@ body {
 .chip__own { position: absolute; top: -5px; right: -1px; font-size: 10px; font-style: normal; color: var(--gold-lt); }
 .chip--g.is-on .chip__own { color: #7a5a00; }
 .mapbottom { flex: none; }
-/* ごちゃまぜ バトル（v7.3）：地図の 下の むらさきの バー */
-.mixbtn {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  border: 0; cursor: pointer; padding: 10px 16px;
-  background: linear-gradient(#8e5cff, #5a2fd0);
-  color: #fff; font-family: var(--f-body); text-align: left;
-  box-shadow: inset 0 3px 0 rgba(255,255,255,.3), 0 -3px 0 #3a1c8a;
-}
-.mixbtn:active { box-shadow: inset 0 3px 0 rgba(255,255,255,.2); }
-.mixbtn__ico { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; width: 30px; height: 30px; }
-.mixbtn__ico i { display: block; box-shadow: inset -3px -3px 0 rgba(0,0,0,.25), inset 2px 2px 0 rgba(255,255,255,.35); }
-.mixbtn__ico i:nth-child(1) { background: var(--c-sansu, #ff8f5e); }
-.mixbtn__ico i:nth-child(2) { background: var(--c-kokugo, #63d94f); }
-.mixbtn__ico i:nth-child(3) { background: var(--c-rika, #4fd3ff); }
-.mixbtn__ico i:nth-child(4) { background: var(--c-eigo, #ffd447); }
-.mixbtn__body { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
-.mixbtn__t { font-family: var(--f-head); font-size: 17px; }
-.mixbtn__s { font-size: 12px; color: #e6dcff; }
-.mixbtn__go { flex: none; font-family: var(--f-head); font-size: 18px; }
-.revenge {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  border: 0; cursor: pointer; padding: 14px 16px;
-  background: linear-gradient(var(--dgr-1), var(--dgr-2));
-  color: #fff; font-family: var(--f-body); font-size: 17px;
-  box-shadow: inset 0 3px 0 rgba(255,255,255,.3);
-}
-.revenge:active { box-shadow: inset 0 3px 0 rgba(255,255,255,.2); }
-.revenge__new { padding: 3px 9px; border-radius: 8px; background: rgba(0,0,0,.28); font-size: 14px; }
-.revenge__text { flex: 1; text-align: left; white-space: nowrap; }
-.revenge__text b { font-family: var(--f-head); font-size: 20px; }
-.revenge__go { font-family: var(--f-head); }
-
 /* =========================================================
    03 バトル
    ========================================================= */
@@ -3563,18 +3531,6 @@ body {
    ・押すと 紙の 色の カード（.tegami）
    見た目の 正本は docs/STYLE_GUIDE.md の「おうちの人からの てがみ」
    ========================================================= */
-.tegamibtn {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  border: 0; cursor: pointer; padding: 9px 16px;
-  background: linear-gradient(#fff6d6, #ffe3a0);
-  color: #4a2a06; font-family: var(--f-body); text-align: left;
-  box-shadow: inset 0 3px 0 rgba(255,255,255,.7), 0 -3px 0 var(--gold-sh);
-}
-.tegamibtn:active { box-shadow: inset 0 3px 0 rgba(255,255,255,.4); }
-.tegamibtn__t { font-family: var(--f-head); font-size: 15px; }
-.tegamibtn__s { display: block; font-size: 11px; color: #8a6420; }
-.tegamibtn__body { flex: 1; min-width: 0; }
-.tegamibtn__go { flex: none; font-family: var(--f-head); font-size: 16px; color: var(--gold-sh); }
 /* 封筒（CSS だけで 描く） */
 .tegamibtn__env, .tegami__env {
   position: relative; flex: none; display: block; width: 34px; height: 24px; border-radius: 3px;
@@ -3931,20 +3887,7 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 .dojodone__btns { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .dojodone__btns .btn { min-height: 52px; }
 
-/* 地図：しゅぎょうばの バー（みどりの 青）・よしゅうの リボン・霧の ノードの 入口 */
-.dojobtn {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  border: 0; cursor: pointer; padding: 8px 16px;
-  background: linear-gradient(#3a9ad9, #1f5fa8);
-  color: #fff; font-family: var(--f-body); text-align: left;
-  box-shadow: inset 0 3px 0 rgba(255,255,255,.3), 0 -3px 0 #12406f;
-}
-.dojobtn:active { box-shadow: inset 0 3px 0 rgba(255,255,255,.2); }
-.dojobtn__ico { flex: none; width: 34px; height: 34px; display: flex; align-items: flex-end; justify-content: center; }
-.dojobtn__body { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
-.dojobtn__t { font-family: var(--f-head); font-size: 17px; }
-.dojobtn__s { font-size: 12px; color: #d8ecff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dojobtn__go { flex: none; font-family: var(--f-head); font-size: 18px; }
+/* 地図：よしゅうの リボン・霧の ノードの 入口（しゅぎょうばの ボタンは v13.3 の ドック） */
 .node__pre { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); z-index: 3; padding: 1px 7px; border-radius: 999px; background: linear-gradient(#ffe89a, #f2b93c); color: #6a4208; font-family: var(--f-head); font-size: 10px; white-space: nowrap; box-shadow: 0 2px 0 #b8801d; }
 .node--preview .node__dot { box-shadow: 0 5px 0 #b8801d, 0 0 0 3px rgba(255,212,71,.55), 0 9px 9px rgba(8,16,44,.4), inset 0 3px 0 rgba(255,255,255,.35); }
 .node--dojo { cursor: pointer; }
@@ -3968,3 +3911,81 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 /* ことばを 学年に 合わせる（v13.2）：小5・小6は 文節の スペースが ない ので、ことばの 途中でも 折り返す
    （keep-all の ままだと 1行が 長く なって 問題カードから はみ出す） */
 body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
+
+/* =========================================================
+   地図の ドック（v13.3・案A）
+   まえは 地図の 下に 帯が つみ上がり、混む 日は 地図が 311/700 まで へった。
+   下の 段を アイコンの ならびに して、ごちゃまぜは まん中で ひと回り 大きく 飛び出す。
+   てがみ と にげた敵は 地図の すみに 浮かぶ ふだ（.mapchips）。
+   アイコンは js/ui/map.js の DOCK_ICONS（ブロックの ぬり方）。
+   見た目の 正本は docs/STYLE_GUIDE.md の「地図の ドック（v13.3）」
+   ========================================================= */
+.maptabs {
+  position: relative; display: flex; align-items: flex-end; gap: 5px;
+  height: 74px; padding: 6px 8px 8px; box-sizing: border-box;
+  background: var(--bg-2); border-top: 3px solid var(--hd-edge);
+}
+.maptab {
+  flex: 1; min-width: 0; height: 58px; min-height: 0; padding: 3px 0 0; position: relative;
+  flex-direction: column; justify-content: flex-start; gap: 1px;
+}
+.maptab .dockico { flex: none; }
+.maptab__t { font-family: var(--f-body); font-weight: 700; font-size: 11px; letter-spacing: .02em; line-height: 1.25; white-space: nowrap; }
+.maptab--dojo { color: #fff; background: linear-gradient(#3a9ad9, #1f5fa8); box-shadow: 0 4px 0 #12406f, inset 0 2px 0 rgba(255,255,255,.3); }
+.maptab--dojo:active { box-shadow: 0 1px 0 #12406f, inset 0 2px 0 rgba(255,255,255,.3); }
+.maptab__badge {
+  position: absolute; top: -8px; right: -5px; padding: 0 6px; height: 18px; border-radius: 9px;
+  background: linear-gradient(#ff7a6a, #e8443a); color: #fff; font-family: var(--f-head); font-size: 10px; line-height: 18px;
+  box-shadow: 0 2px 0 #9a2a20; white-space: nowrap;
+}
+/* まん中の ごちゃまぜ：ドックより 26px 上に 飛び出す（地図の いちばん 下に かかる ぶんは .map__pad で あける） */
+.maptab--mix {
+  flex: 0 0 88px; height: 84px; margin-top: -26px; border-radius: 16px; padding-top: 5px; gap: 2px; color: #fff;
+  background: linear-gradient(#9d6cff, #5a2fd0);
+  box-shadow: 0 5px 0 #3a1c8a, inset 0 3px 0 rgba(255,255,255,.35), 0 0 0 3px var(--gold), 0 8px 18px rgba(0,0,0,.45);
+}
+.maptab--mix:active { transform: translateY(3px); box-shadow: 0 2px 0 #3a1c8a, inset 0 3px 0 rgba(255,255,255,.35), 0 0 0 3px var(--gold); }
+.maptab--mix .maptab__t { font-family: var(--f-head); font-weight: 400; font-size: 13px; }
+.maptab__coin {
+  position: absolute; top: -9px; right: -9px; display: flex; align-items: center; gap: 1px; height: 22px; padding: 0 6px 0 3px; border-radius: 11px;
+  background: linear-gradient(#ffe89a, #f2b93c); color: var(--gold-ink); font-family: var(--f-head); font-size: 11px;
+  box-shadow: 0 2px 0 var(--gold-sh);
+}
+/* コインの ふだの 中の 小さな コイン（CSS の 丸。たからものの コインの 絵は 14px だと 四角に 見えた） */
+.maptab__coinico { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff3b0 0 25%, #ffd447 26% 60%, #d99a1e 61%); box-shadow: 0 0 0 1px #9a6a10; }
+.maptab--grade { flex: 0 0 62px; justify-content: center; padding-top: 0; }
+.maptab--grade b { font-size: 17px; }
+.maptab__arrow { margin-top: 2px; }
+
+/* 地図の すみの ふだ（出る 日だけ）。ドックの 上に 浮かぶ */
+.mapchips { position: absolute; left: 8px; right: 8px; top: -66px; display: flex; justify-content: space-between; align-items: flex-end; pointer-events: none; }
+.mapchip {
+  pointer-events: auto; display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px 0 7px; border: 0; border-radius: 19px; cursor: pointer;
+  font-family: var(--f-head); font-size: 13px; white-space: nowrap;
+  box-shadow: 0 4px 0 rgba(0,0,0,.35), 0 6px 12px rgba(0,0,0,.35);
+}
+.mapchip:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.mapchip.tegamibtn { background: linear-gradient(#fff6d6, #ffe3a0); color: #4a2a06; }
+.mapchip .tegamibtn__env { width: 30px; height: 21px; }
+.mapchip .tegamibtn__env .flap { width: 26px; height: 13px; }
+.mapchip .tegamibtn__env .seal { left: 10px; top: 7px; }
+.tegamibtn__t { font-family: var(--f-head); font-size: 13px; }
+.mapchip.revenge { background: linear-gradient(var(--dgr-1), var(--dgr-2)); color: #fff; }
+.revenge__mon { margin: -6px -2px -6px 0; }
+.revenge__text b { font-size: 16px; margin: 0 1px; }
+.revenge__go { width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 7px solid #fff; margin-left: 2px; }
+
+/* 地図の いちばん 下の あき：ごちゃまぜの ボタン（26px）と ふだ（66px）に かくれる ぶん。
+   ふだは ごちゃまぜの コインの ふだ（ドックの 上 35px）より 上に 置く（かさならない） */
+.map__pad { height: 30px; }
+.map__pad.has-chips { height: 72px; }
+
+/* 学年えらびの 中の「プレイヤーを かえる」 */
+.gradesheet__player {
+  display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% - 24px); margin: 2px 12px 8px; min-height: 36px;
+  border: 0; border-radius: 10px; cursor: pointer; color: var(--navy-tx); font-family: var(--f-body); font-weight: 700; font-size: 13px;
+  background: linear-gradient(var(--navy-1), var(--navy-2)); box-shadow: 0 3px 0 var(--navy-sh), inset 0 2px 0 rgba(255,255,255,.18);
+}
+.gradesheet__go { font-style: normal; font-size: 11px; }
+/* ごちゃまぜの ボタンは ドックより 上に 飛び出す（26px＋コインの ふだ）ので、その ぶん あけて「プレイヤーを かえる」に かぶらない ように */
+.has-mix .gradesheet { padding-bottom: 32px; }

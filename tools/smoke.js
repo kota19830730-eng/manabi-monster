@@ -3525,7 +3525,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   const N = MQ.news;
   check(!!N, 'MQ.news が 読めて いる');
   if (!N) return;
-  const KINDS = ['mons', 'item', 'coin', 'hero'];
+  const KINDS = ['mons', 'item', 'coin', 'hero', 'dock'];   // dock＝地図の ドックの アイコン（v13.3）
   const ids = {}; MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) { ids[e.id] = 1; });
   const tids = {}; MQ.treasure.list.forEach(function (t) { tids[t.id] = 1; });
   let itemN = 0;
@@ -3546,6 +3546,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
         check(!Array.isArray(it.id) || it.id.length <= 3, w + ': ならべるのは 3体まで');
       }
       if (it.kind === 'item') check(!!tids[it.id], w + ': たからもの ' + it.id + ' が ある');
+      if (it.kind === 'dock') check(['dice', 'scroll', 'hourglass', 'book'].indexOf(it.id) !== -1, w + ': ドックの アイコン ' + it.id + ' が ある');
       // 文は ひらがな＋小1の かん字だけ（どの 学年の 子も 読める）
       check(typeof it.title === 'string' && it.title.length > 0 && it.title.length <= 18, w + ': みだしは 18字まで（' + it.title + '）');
       check(typeof it.text === 'string' && it.text.length > 0 && it.text.length <= 62, w + ': 文は 62字まで（' + it.text.length + '字）');

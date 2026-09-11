@@ -1237,6 +1237,45 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       dump();
       return;
     }
+    /* 地図の ドック（v13.3・案A）
+       #dock       … ふつうの 日：地図の 高さ・ドックの ボタンの ならび・ごちゃまぜが まん中
+       #dock:busy  … てがみ＋にげた敵の 日：ふだが 出る・地図の 高さが 変わらない・ふだと ごちゃまぜが かさならない
+       #dock:grade … 学年えらびを 開いた ところ（「プレイヤーを かえる」が ごちゃまぜに かくれない） */
+    if (mode === 'dock' || mode.indexOf('dock:') === 0) {
+      fresh();
+      const sub = mode.split(':')[1] || '';
+      if (sub === 'busy') MQ.save.update(function (p) {
+        MQ.letter.write(p, { text: 'がんばってね', reward: 1 });
+        p.escaped = { 'g3:sansu': [{ key: 'a', q: {}, enemyId: 'slime-red', at: 1 }] };
+      });
+      MQ.ui.goMap();
+      await wait(300);
+      const k = $('#stage').getBoundingClientRect().width / 400, s0 = $('#stage').getBoundingClientRect();
+      const box = function (el) { if (!el) return null; const b = el.getBoundingClientRect(); return { t: (b.top - s0.top) / k, b: (b.bottom - s0.top) / k, l: (b.left - s0.left) / k, r: (b.right - s0.left) / k }; };
+      const hit = function (a, b) { return a && b && a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b; };
+      const tabs = $$('#screen-map .maptabs .maptab');
+      const mapH = Math.round(box($('#screen-map .map__scroll')).b - box($('#screen-map .map__scroll')).t);
+      say('dock: 地図の 高さ ' + mapH + (mapH >= 500 ? ' OK' : ' NG（500 みまん）') + ' / ステージ ' + MQ.stage.size().h);
+      say('dock: ボタン ' + tabs.map(function (b) { return b.getAttribute('aria-label'); }).join('/') +
+          ' / まん中 ' + (tabs[2] && tabs[2].classList.contains('maptab--mix') ? 'ごちゃまぜ OK' : 'NG'));
+      const mix = box($('#screen-map .maptab--mix'));
+      const coin = box($('#screen-map .maptab__coin'));
+      if (sub === 'busy') {
+        const chips = $$('#screen-map .mapchip');
+        say('dock:busy ふだ ' + chips.map(function (c) { return c.getAttribute('aria-label'); }).join('/') + (chips.length === 2 ? ' OK' : ' NG'));
+        const over = chips.some(function (c) { return hit(box(c), mix) || hit(box(c), coin); });
+        say('dock:busy ふだと ごちゃまぜ ' + (over ? 'かさなる NG' : 'かさならない OK'));
+        say('dock:busy 地図の いちばん 下の あき ' + Math.round(box($('#screen-map .map__pad')).b - box($('#screen-map .map__pad')).t) + 'px');
+      }
+      if (sub === 'grade') {
+        $('#screen-map .maptab--grade').click();
+        await wait(150);
+        const pb = box($('#screen-map .gradesheet__player'));
+        say('dock:grade プレイヤーを かえる ' + (pb ? (hit(pb, mix) || hit(pb, coin) ? 'ごちゃまぜに かくれる NG' : 'かくれない OK') : 'MISSING'));
+      }
+      dump();
+      return;
+    }
     /* 地図の 上下（v8.0・A＋B）
        #mapui        … 帯を 押して パネルが 出る／地図を さわると とじる／学年えらび／下の 段
        #mapui:open   … パネルを ひらいた ところ（撮る 用）
