@@ -507,6 +507,13 @@ body {
 }
 .title__grass { position: absolute; left: 0; right: 0; top: 0; height: 26px; background-color: #63c94a; box-shadow: inset 0 4px 0 rgba(255,255,255,.22); }
 .title__dirt  { position: absolute; left: 0; right: 0; top: 26px; bottom: 0; background-color: #8a5a32; }
+/* v12.5.1（ユーザー「タイトルの メニューが 出て くるまでの ブルーの 下の カラーが 気に なる。ブラウンに 統一」）：
+   オープニングで ボタン（.title__actions）が せり上がって くる まえ、地面の 下に 空の 青が 見えて いた。
+   地面の 下を ボタンの 台と 同じ 茶の しま（#7d502c／#714727）で うめる。ボタンは z-index 5 で この 上に のる */
+.title__land::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 600px; z-index: 0;
+  background: repeating-linear-gradient(90deg, #7d502c 0 22px, #714727 22px 44px);
+}
 .title__speck { position: absolute; background: #7d502c; }
 .title__speck--a { left: 44px; top: 40px; width: 10px; height: 10px; }
 .title__speck--b { left: 320px; top: 52px; width: 12px; height: 12px; }
