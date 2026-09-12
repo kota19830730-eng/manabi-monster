@@ -225,6 +225,22 @@
 .ci__img.ci-pose-sky, .ci__img.ci-pose-point, .ci__img.ci-pose-spread { transform: rotate(-6deg); }
 .ci__img.ci-pose-raise, .ci__img.ci-pose-thrust, .ci__img.ci-pose-charge { transform: rotate(8deg); }
 
+/* ---- スターバーストの ゆれ（v13.8）：前は is-quake-5 の CSS が なく、いちばん 強い わざだけ ゆれて いなかった。
+   一閃（0.5秒〜）で 小さく ゆれ、1.3秒の 大ばくはつで いちばん 大きく 長く ゆれる ---- */
+.battle.is-quake-5 { animation: quake2fx .6s ease-out .5s, quake5fx 1.4s ease-out 1.3s; }
+@keyframes quake5fx {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  6% { transform: translate(-20px, 12px) rotate(-1.4deg); }
+  14% { transform: translate(20px, -12px) rotate(1.4deg); }
+  22% { transform: translate(-18px, 10px) rotate(-1.1deg); }
+  32% { transform: translate(16px, -9px) rotate(.9deg); }
+  44% { transform: translate(-12px, 7px) rotate(-.5deg); }
+  56% { transform: translate(10px, -5px); }
+  68% { transform: translate(-6px, 3px); }
+  80% { transform: translate(4px, -2px); }
+  90% { transform: translate(-2px, 1px); }
+}
+
 /* カットインの 3D を 先に 1回 描いて 絵を 読みこませる ところ（ほぼ 見えない） */
 .ciwarm { position: absolute; left: 0; top: 0; width: 40px; height: 40px; overflow: hidden; opacity: .01; pointer-events: none; z-index: 0; }
 .ciwarm .v3scene { position: absolute; left: 0; top: 0; }

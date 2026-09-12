@@ -1807,7 +1807,7 @@ MQ.ui.battle = (function () {
      ======================================================= */
   const TIER1_MIN = 5;
   const SPECIALS = [
-    { min: 20, tier: 5, id: 'starburst', name: 'スターバースト ストライク！', ms: 2100 },   // v7.5（名前は v9.5 で 変えた）
+    { min: 20, tier: 5, id: 'starburst', name: 'スターバースト ストライク！', ms: 2500 },   // v7.5（名前は v9.5 で 変えた）・v13.8 で さいごの 大ばくはつの ぶん 長く
     { min: 16, tier: 4, id: 'nova', name: 'ぎんがの ビッグバン！', ms: 1900 },
     { min: 12, tier: 3, id: 'star', name: 'ひかりの メテオ！',     ms: 1350 },
     { min: 8,  tier: 2, id: 'bolt', name: 'いなずま おとし！',     ms: 1100 }
@@ -2135,14 +2135,14 @@ MQ.ui.battle = (function () {
     const k = (MQ.stage && MQ.stage.size) ? (MQ.stage.size().scale || 1) : 1;
     return { x: Math.round((r.left + r.width / 2 - b.left) / k), y: Math.round((r.top + r.height / 2 - b.top) / k) };
   }
-  // 画面ぜんたいが ゆれる（1〜4。大きいほど はげしく 長く）
+  // 画面ぜんたいが ゆれる（1〜5。大きいほど はげしく 長く。5＝スターバースト：一閃で 小さく → 1.3秒の 大ばくはつで 大きく）
   function quake(level) {
     const el = d.root;
-    el.classList.remove('is-quake-1', 'is-quake-2', 'is-quake-3', 'is-quake-4');
+    el.classList.remove('is-quake-1', 'is-quake-2', 'is-quake-3', 'is-quake-4', 'is-quake-5');
     void el.offsetWidth;
     el.classList.add('is-quake-' + level);
     clearTimeout(quakeTimer);
-    quakeTimer = setTimeout(function () { el.classList.remove('is-quake-' + level); }, level >= 4 ? 1600 : level === 3 ? 1000 : 700);
+    quakeTimer = setTimeout(function () { el.classList.remove('is-quake-' + level); }, level >= 5 ? 2800 : level === 4 ? 1600 : level === 3 ? 1000 : 700);
   }
 
   // 敵の ふっとび（is-hit より 強い。12コンボ〜は 大きく、16〜は すいこまれて はじける）

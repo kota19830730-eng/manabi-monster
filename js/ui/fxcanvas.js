@@ -4,7 +4,7 @@
 
    ・バトル画面（アリーナ）の 上に Canvas を 1枚 かさねて、光る 粒を 1回に 数百こ 描く。
      粒の 形は 四角（マイクラの 火の粉・雷と 同じ）。重なった ところほど 明るい（'lighter'）。
-   ・岩・氷の かけらは 回る 立体の 箱（Canvas に 3面を 描く＝CSS 3D より ずっと 軽い）。
+   ・ほのお・はっぱ・たつまき・岩・いん石・星・結晶は Canvas の 中の 小さな 3D（多面体を 回して 光を あてて 描く・v13.7）。
    ・わざが ない あいだは 何も 描かない（rAF も 止まる）。
    ・時間は 1/60秒 きざみで すすめる → seek(ms) で 同じ 絵が 出る（harness で 止めて 撮れる）。
    ・画像ファイルは 使わない。
@@ -46,6 +46,7 @@
   const RAMP = {
     fire:  ramp(['#ffffff', '#fff3a8', '#ffc24a', '#ff7a1e', '#e2361a', '#6e1206']),
     ember: ramp(['#fffbe0', '#ffd45a', '#ff8a2a', '#c83a14']),
+    flame: ramp(['#fffbe8', '#ffe066', '#ffb030', '#ff6a1a', '#e0321a', '#8a1a0a']),
     leaf:  ramp(['#ffffff', '#eaffcc', '#9cf07a', '#3fbf4a']),
     ice:   ramp(['#ffffff', '#e6fbff', '#9fe6ff', '#4fb4f0', '#2a6fc0']),
     wind:  ramp(['#ffffff', '#f0fcff', '#c4f0ff', '#8fd4f0']),
@@ -101,8 +102,12 @@
   function P(E, o) {
     if (E.parts.length >= MAXP) return null;
     const p = { x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, drag: 0, age: 0, life: 500, s0: 5, s1: 1, a: 1, fi: 0.06, fo: 0.55,
-      m: 'g', ramp: RAMP.fire, rot: 0, vr: 0, sway: 0, ph: 0 };
+      m: 'g', ramp: RAMP.fire, rot: 0, vr: 0, sway: 0, ph: 0, rx: 0, ry: 0, rz: 0, vrx: 0, vry: 0, vrz: 0 };
     for (const k in o) p[k] = o[k];
+    if (p.orbit) {
+      const rad = p.cone ? 8 + (-p.oy) * p.cone : p.rad;
+      p.x = p.cx + Math.cos(p.ang) * rad; p.y = p.cy + Math.sin(p.ang) * rad * p.sq + p.oy;
+    }
     p.px = p.x; p.py = p.y;
     E.parts.push(p);
     return p;
@@ -130,8 +135,8 @@
     for (let i = 0; i < n(E, k); i++) {
       const a = o.up ? -Math.PI / 2 + R(E, -1.2, 1.2) : R(E, 0, Math.PI * 2);
       const v = R(E, o.v0 || 120, o.v1 || 360);
-      P(E, { x: x + R(E, -8, 8), y: y + R(E, -8, 8), vx: Math.cos(a) * v, vy: Math.sin(a) * v - (o.lift || 80), ay: 720, drag: 0.4,
-        life: R(E, 520, 900), s0: R(E, o.s0 || 4, o.s1 || 9), s1: 0, m: 'c', col: rgbOf(col), rot: R(E, 0, 6), vr: R(E, -9, 9), rot2: R(E, 0, 6), vr2: R(E, -7, 7), fo: 0.7 });
+      rockP(E, x + R(E, -8, 8), y + R(E, -8, 8), { vx: Math.cos(a) * v, vy: Math.sin(a) * v - (o.lift || 80), ay: 720, drag: 0.4,
+        life: R(E, 520, 900), s0: R(E, o.s0 || 4, o.s1 || 9), s1: 1, col: rgbOf(col) });
     }
   }
   function smoke(E, x, y, k, o) {
@@ -143,10 +148,13 @@
   }
 
   /* 走る あとに のこる 光（主人公が てきへ ダッシュする わざ）。t0〜t1 の あいだ、主人公の 位置 → てきの 手まえ */
+  function trailPos(E, from, to, t0, t1) {
+    const u = Math.max(0, Math.min(1, (E.t - t0) / (t1 - t0))), e = 1 - (1 - u) * (1 - u);
+    return { x: from.x + (to.x - 58 - from.x) * e, y: from.y + (to.y - from.y) * 0.3 * e };
+  }
   function trail(E, from, to, t0, t1, rp, k, size) {
     if (!during(E, t0, t1)) return;
-    const u = (E.t - t0) / (t1 - t0), e = 1 - (1 - u) * (1 - u);
-    const x = from.x + (to.x - 58 - from.x) * e, y = from.y + (to.y - from.y) * 0.3 * e;
+    const q = trailPos(E, from, to, t0, t1), x = q.x, y = q.y;
     for (let i = 0; i < n(E, k); i++) {
       P(E, { x: x + R(E, -14, 8), y: y + R(E, -26, 26), vx: R(E, -80, -20), vy: R(E, -90, 10), drag: 1.5, life: R(E, 260, 460), s0: R(E, size * 0.5, size), s1: 1, ramp: rp, fo: 0.4 });
     }
@@ -358,27 +366,29 @@
   }
   // 空から おちる いん石（回る 岩の 箱＋火の 尾）。着いたら onHit
   function meteor(E, x0, y0, x1, y1, dur, size, onHit) {
-    const t = thing(E, { life: dur, x: x0, y: y0, rot: R(E, 0, 6), rot2: R(E, 0, 6), hit: false,
+    const t = thing(E, { life: dur, x: x0, y: y0, rot: R(E, 0, 6), rot2: R(E, 0, 6), hit: false, rk: E.things.length % 4, top: true,
       update: function (dt) {
         const u = Math.min(1, t.age / dur), e = u * u;
         const nx = x0 + (x1 - x0) * e, ny = y0 + (y1 - y0) * e;
         const vx = (nx - t.x) / dt * 1000, vy = (ny - t.y) / dt * 1000;
         t.x = nx; t.y = ny; t.rot += dt * 0.012; t.rot2 += dt * 0.009;
         for (let i = 0; i < n(E, 3); i++) {
-          P(E, { x: t.x + R(E, -size * 0.4, size * 0.4), y: t.y + R(E, -size * 0.4, size * 0.4), vx: -vx * 0.08 + R(E, -30, 30), vy: -vy * 0.08 + R(E, -30, 30),
-            drag: 2, life: R(E, 300, 480), s0: size * R(E, 0.6, 1.1), s1: 1, ramp: RAMP.fire, fo: 0.3 });
+          const back = size * 0.7 / (Math.hypot(vx, vy) || 1);
+          P(E, { x: t.x - vx * back + R(E, -size * 0.3, size * 0.3), y: t.y - vy * back + R(E, -size * 0.3, size * 0.3), vx: -vx * 0.08 + R(E, -30, 30), vy: -vy * 0.08 + R(E, -30, 30),
+            drag: 2, life: R(E, 260, 420), s0: size * R(E, 0.35, 0.6), s1: 1, ramp: RAMP.fire, fo: 0.3 });
         }
         if (!t.hit && t.age >= dur - STEP) { t.hit = true; if (onHit) onHit(x1, y1); }
       },
       draw: function (g) {
         if (t.hit) return;
         g.globalCompositeOperation = 'lighter';
-        g.drawImage(glowOf([255, 190, 80]), t.x - size * 2.4, t.y - size * 2.4, size * 4.8, size * 4.8);
+        g.globalAlpha = 0.7;
+        g.drawImage(glowOf([255, 170, 70]), t.x - size * 1.9, t.y - size * 1.9, size * 3.8, size * 3.8);
+        g.globalAlpha = 1;
         g.globalCompositeOperation = 'source-over';
-        cube(g, t.x, t.y, size, t.rot, t.rot2, [138, 92, 58], 1);
+        mesh(g, ROCKS[t.rk], { x: t.x, y: t.y, s: size * 0.8, rx: t.rot2, ry: t.rot, rz: 0.4, col: [150, 98, 62], spec: 0.3 });
         g.globalCompositeOperation = 'lighter';
-        g.fillStyle = 'rgba(255,200,110,.55)';
-        g.fillRect(t.x - size * 0.35, t.y - size * 0.35, size * 0.7, size * 0.7);
+        mesh(g, ROCKS[t.rk], { x: t.x, y: t.y, s: size * 0.82, rx: t.rot2, ry: t.rot, rz: 0.4, col: [255, 140, 50], a: 0.3, emis: true });   // もえて いる 面
       } });
     return t;
   }
@@ -411,10 +421,11 @@
     }
   }
 
-  /* ---------- 3D の 氷（v13.6.1）：多面体を 回して 光を あてて 描く 小さな 3D ----------
-     mesh＝{ v: [[x,y,z]…]（まん中が 0・大きさ 1 くらい）, f: [[頂点の 番号…]…] }。凸の 形なので
+  /* ---------- 小さな 3D（v13.6.1 で こおり・v13.7 で ぜんぶの わざ）：多面体を 回して 光を あてて 描く ----------
+     mesh＝{ v: [[x,y,z]…]（まん中が 0・大きさ 1 くらい）, f: [[頂点の 番号…]…], fk: [面ごとの 明るさ]（なくて よい） }。
      面の 向きは「まん中 → 面の まん中」で 外がわに そろえ、手まえ（z＜0）を 向く 面だけ 奥から じゅんに ぬる。
-     光は 左上の 手まえから。面の ふちに 白い 線＝結晶の カット面に 見える */
+     光は 左上の 手まえから。面の ふちに 白い 線＝カット面に 見える。
+     ・まわりを すかして 見せる もの（たつまき）は both＝うしろの 面も うすく ぬる */
   const CRYSTAL = (function () {
     const v = [], f = [], r = 0.3;
     for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; v.push([Math.cos(a) * r, 1, Math.sin(a) * r]); }       // 0〜5 下の 六角
@@ -426,8 +437,71 @@
   })();
   const BOX = { v: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]],
     f: [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [4, 5, 1, 0], [3, 2, 6, 7]] };
+  /* 形を 作る ときだけ 使う 乱数（いつも 同じ 形に なる） */
+  function shapeRnd(seed) { const r = rng(seed); return function (a, b) { return a + (b - a) * r(); }; }
+  // ごつごつ した 岩（20面体の 頂点を でこぼこに）＝いん石。面ごとに 明るさを 少し ばらつかせる
+  const ROCKS = [11, 23, 37, 41].map(function (seed) {
+    const q = shapeRnd(seed), p = 1.618;
+    const base = [[-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0], [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p], [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]];
+    const v = base.map(function (b) { const l = Math.hypot(b[0], b[1], b[2]), k = q(0.72, 1.12) / l; return [b[0] * k, b[1] * k, b[2] * k]; });
+    const f = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+      [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+    return { v: v, f: f, fk: f.map(function () { return q(0.82, 1.12); }) };
+  });
+  // 小さな かけら（箱の 角を ずらした ブロック。マイクラの 石の かけらの ように）
+  const CHIPS = [5, 17, 29, 53].map(function (seed) {
+    const q = shapeRnd(seed);
+    return { v: BOX.v.map(function (b) { return [b[0] * q(0.62, 1), b[1] * q(0.62, 1), b[2] * q(0.62, 1)]; }), f: BOX.f, fk: BOX.f.map(function () { return q(0.85, 1.1); }) };
+  });
+  // ほのおの 舌（下が まるく、上に むかって ねじれながら とがる）。五角の 輪 2だん
+  const FLAME = (function () {
+    const v = [[0, 0.62, 0]], f = [], N = 5;
+    for (let i = 0; i < N; i++) { const a = i * Math.PI * 2 / N; v.push([Math.cos(a) * 0.56, 0.18, Math.sin(a) * 0.56]); }
+    for (let i = 0; i < N; i++) { const a = (i + 0.5) * Math.PI * 2 / N; v.push([Math.cos(a) * 0.36 + 0.06, -0.38, Math.sin(a) * 0.36]); }
+    v.push([0.16, -1.15, 0]);
+    for (let i = 0; i < N; i++) {
+      const j = (i + 1) % N, A = 1 + i, B = 1 + j, C = 1 + N + i, D = 1 + N + j;
+      f.push([0, B, A]); f.push([A, B, C]); f.push([B, D, C]); f.push([C, D, 2 * N + 1]);
+    }
+    return { v: v, f: f };
+  })();
+  // はっぱ（うすい ひし形。まん中の すじ＝ふちの 白線）
+  const LEAF = { v: [[0, -1, 0], [0, 1, 0], [-0.62, 0.08, 0], [0.62, 0.08, 0], [0, -0.04, -0.17], [0, -0.04, 0.17]],
+    f: [[0, 2, 4], [0, 4, 3], [1, 4, 2], [1, 3, 4], [0, 5, 2], [0, 3, 5], [1, 2, 5], [1, 5, 3]] };
+  // たつまきの 輪（上が 少し ひろい 筒。面を 明・暗・明… に して 回ると すじが 回って 見える）
+  const BAND = (function () {
+    const v = [], f = [], fk = [], N = 12;
+    for (let i = 0; i < N; i++) { const a = i * Math.PI * 2 / N; v.push([Math.cos(a) * 1.18, -1, Math.sin(a) * 1.18]); }
+    for (let i = 0; i < N; i++) { const a = i * Math.PI * 2 / N; v.push([Math.cos(a), 1, Math.sin(a)]); }
+    for (let i = 0; i < N; i++) { const j = (i + 1) % N; f.push([i, j, N + j, N + i]); fk.push(i % 2 ? 0.55 : 1.35); }
+    return { v: v, f: f, fk: fk };
+  })();
+  // 5つの とがりの 星（まん中が 手まえと おくに ふくらむ＝立体の 星）
+  const STAR5 = (function () {
+    const v = [], f = [];
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.44 : 1; v.push([Math.cos(a) * r, Math.sin(a) * r, 0]); }
+    v.push([0, 0, -0.42]); v.push([0, 0, 0.42]);
+    for (let i = 0; i < 10; i++) { const j = (i + 1) % 10; f.push([i, j, 10]); f.push([j, i, 11]); }
+    return { v: v, f: f };
+  })();
+  // 宝石（六角の 上下が とがる。ビッグバン・スターバーストの 結晶の 輪と かけら。細長く すると えんぴつに 見える ので ずんぐり）
+  const GEM = (function () {
+    const v = [[0, -1, 0], [0, 0.8, 0]], f = [];
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; v.push([Math.cos(a) * 0.66, -0.2, Math.sin(a) * 0.66]); }
+    for (let i = 0; i < 6; i++) { const j = (i + 1) % 6; f.push([0, 2 + i, 2 + j]); f.push([1, 2 + j, 2 + i]); }
+    return { v: v, f: f };
+  })();
+  // 六角の 柱（かみなりの 光の 柱）
+  const PRISM6 = (function () {
+    const v = [], f = [], fk = [];
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; v.push([Math.cos(a), -1, Math.sin(a)]); }
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; v.push([Math.cos(a), 1, Math.sin(a)]); }
+    for (let i = 0; i < 6; i++) { const j = (i + 1) % 6; f.push([i, j, 6 + j, 6 + i]); fk.push(i % 2 ? 0.7 : 1.25); }
+    return { v: v, f: f, fk: fk };
+  })();
   const L3 = (function () { const x = -0.45, y = -0.75, z = -0.5, l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; })();
-  /* o: x,y＝画面の まん中・s＝大きさ(px)・sx/sy/sz＝形の のばし・rx/ry/rz＝回転・col＝色・a＝すけ具合・edge＝ふちの 白線 */
+  /* o: x,y＝画面の まん中・s＝大きさ(px)・sx/sy/sz＝形の のばし・rx/ry/rz＝回転・col＝色・a＝すけ具合・edge＝ふちの 白線
+        emis＝自分で 光る（かげを 弱く）・both＝うしろの 面も ぬる・spec＝てかり */
   function mesh(g, M, o) {
     const czz = Math.cos(o.rz || 0), szz = Math.sin(o.rz || 0), cyy = Math.cos(o.ry || 0), syy = Math.sin(o.ry || 0), cxx = Math.cos(o.rx || 0), sxx = Math.sin(o.rx || 0);
     const R3 = [], P2 = [];
@@ -450,24 +524,76 @@
       mx /= F.length; my /= F.length; mz /= F.length;
       if (nx * mx + ny * my + nz * mz < 0) { nx = -nx; ny = -ny; nz = -nz; }   // 外がわ むきに
       const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
-      if (nz > -0.02) continue;                                              // うしろ むきは 描かない
-      vis.push({ F: F, z: mz, d: Math.max(0, nx * L3[0] + ny * L3[1] + nz * L3[2]) });
+      const back = nz > -0.02;
+      if (back && !o.both) continue;                                         // うしろ むきは 描かない
+      vis.push({ F: F, z: mz, back: back, k: M.fk ? M.fk[fi] : 1, d: back ? 0.2 : Math.max(0, nx * L3[0] + ny * L3[1] + nz * L3[2]) });
     }
     vis.sort(function (p, q) { return q.z - p.z; });
-    const col = o.col, al = o.a == null ? 1 : o.a;
+    const col = o.col, al = o.a == null ? 1 : o.a, spk = o.spec == null ? 0.9 : o.spec;
     for (let i = 0; i < vis.length; i++) {
-      const v = vis[i], sh = 0.42 + 0.62 * v.d, sp = Math.pow(v.d, 6) * 0.9;
+      const v = vis[i];
+      const sh = (o.emis ? 0.74 + 0.4 * v.d : 0.42 + 0.62 * v.d) * v.k * (v.back ? 0.5 : 1), sp = v.back ? 0 : Math.pow(v.d, 6) * spk;
       const r = Math.min(255, col[0] * sh + 255 * sp) | 0, gg = Math.min(255, col[1] * sh + 255 * sp) | 0, bb = Math.min(255, col[2] * sh + 255 * sp) | 0;
+      const fa = al * (v.back ? 0.55 : 1);
       g.beginPath();
       g.moveTo(P2[v.F[0]][0], P2[v.F[0]][1]);
       for (let k = 1; k < v.F.length; k++) g.lineTo(P2[v.F[k]][0], P2[v.F[k]][1]);
       g.closePath();
-      g.fillStyle = 'rgba(' + r + ',' + gg + ',' + bb + ',' + al + ')';
+      g.fillStyle = 'rgba(' + r + ',' + gg + ',' + bb + ',' + fa + ')';
       g.fill();
-      if (o.edge) { g.strokeStyle = 'rgba(255,255,255,' + (o.edge * al) + ')'; g.lineWidth = o.lw || 1; g.stroke(); }
+      if (o.edge) { g.strokeStyle = 'rgba(255,255,255,' + (o.edge * fa) + ')'; g.lineWidth = o.lw || 1; g.stroke(); }
     }
   }
   const ICE = [170, 226, 255];
+  const GREENS = ['#7ee06a', '#3fbf4a', '#b8f07a', '#2f9a3a'].map(rgbOf);
+  const STARCOL = ['#ffd447', '#ff5e7a', '#7cf9c4', '#4fd3ff', '#c48bff', '#ffffff'].map(rgbOf);
+
+  /* 3D の 粒（m: 'M'）：ほのお・はっぱ・岩・星 など。s0→s1 で 大きさが かわる。
+     add＝光を 足す（ほのお・光の 柱）／glow＝うしろに 光の にじみ */
+  function drawM(g, p, s, a, ci) {
+    const col = p.col || p.ramp.c[ci];
+    if (p.glow) {
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = a * 0.6;
+      g.drawImage(glowOf(p.glow === true ? col : p.glow), p.x - s * 1.7, p.y - s * 1.7, s * 3.4, s * 3.4);
+      g.globalAlpha = 1;
+    }
+    g.globalCompositeOperation = p.add ? 'lighter' : 'source-over';
+    mesh(g, p.mesh, { x: p.x, y: p.y, s: s, sx: p.sx, sy: p.sy, sz: p.sz, rx: p.rx, ry: p.ry, rz: p.rz, col: col, a: a, edge: p.edge, emis: p.emis, both: p.both, spec: p.spec });
+  }
+  function flameP(E, x, y, o) {
+    return P(E, Object.assign({ x: x, y: y, m: 'M', mesh: FLAME, add: true, emis: true, ramp: RAMP.flame, sx: 0.8, sy: 1.4, sz: 0.8,
+      ry: R(E, 0, 6), vry: R(E, -8, 8), rz: R(E, -0.25, 0.25), vrz: R(E, -1.2, 1.2), fi: 0.12, fo: 0.45, a: 0.5, edge: 0 }, o || {}));   // 小さな ほのおに ふちの 線は つけない（重い）
+  }
+  function leafP(E, x, y, o) {
+    return P(E, Object.assign({ x: x, y: y, m: 'M', mesh: LEAF, col: GREENS[E.parts.length % 4], sx: 1, sy: 1, sz: 1,
+      rx: R(E, 0, 6), ry: R(E, 0, 6), rz: R(E, 0, 6), vrx: R(E, -9, 9), vry: R(E, -12, 12), vrz: R(E, -7, 7), edge: 0.5, spec: 0.5, emis: true, fo: 0.6 }, o || {}));
+  }
+  function starP(E, x, y, o) {
+    return P(E, Object.assign({ x: x, y: y, m: 'M', mesh: STAR5, col: STARCOL[E.parts.length % STARCOL.length], glow: true,
+      rx: R(E, -0.6, 0.6), ry: R(E, 0, 6), rz: R(E, 0, 6), vry: R(E, -10, 10), vrz: R(E, -5, 5), vrx: R(E, -3, 3), edge: 0.55, fo: 0.6 }, o || {}));
+  }
+  function rockP(E, x, y, o) {
+    return P(E, Object.assign({ x: x, y: y, m: 'M', mesh: CHIPS[E.parts.length % 4], col: rgbOf('#8a6a4a'),
+      rx: R(E, 0, 6), ry: R(E, 0, 6), rz: R(E, 0, 6), vrx: R(E, -9, 9), vry: R(E, -9, 9), vrz: R(E, -6, 6), spec: 0.3, fo: 0.72 }, o || {}));
+  }
+  // 3D の 星が まわりから すいこまれる（ビッグバン・スターバーストの ため）
+  function starIn(E, F, k, r0, r1) {
+    for (let i = 0; i < n(E, k); i++) {
+      P(E, { m: 'M', mesh: STAR5, col: STARCOL[(E.step + i) % STARCOL.length], glow: true, edge: 0.5, cx: F.x, cy: F.y, ang: R(E, 0, 6.3), rad: R(E, r0, r1), w: 3.2,
+        dr: -R(E, 300, 460), rise: 0, oy: 0, sq: 0.8, orbit: true, kill: 8, life: 700, s0: R(E, 10, 15), s1: 4, rx: R(E, -0.5, 0.5), ry: R(E, 0, 6), rz: R(E, 0, 6), vry: 12, vrz: 5, fi: 0.2 });
+    }
+  }
+  // 3D の 星が 外に とびちる
+  function starOut(E, x, y, k, o) {
+    o = o || {};
+    for (let i = 0; i < n(E, k); i++) {
+      const a = R(E, 0, Math.PI * 2), v = R(E, o.v0 || 160, o.v1 || 520);
+      starP(E, x, y, { vx: Math.cos(a) * v, vy: Math.sin(a) * v - (o.lift || 0), ay: o.g == null ? 80 : o.g, drag: 1.1, life: R(E, o.l0 || 700, o.l1 || 1200),
+        s0: R(E, o.s0 || 8, o.s1 || 16), s1: 3 });
+    }
+  }
+
   // 3D の 氷の 刃：主人公の そばで 生まれ（0〜35%）、回りながら てきへ とぶ（35〜100%）
   function iceBlade(E, from, to, i) {
     const sx0 = from.x + 30, sy0 = from.y - 8 - i * 18, tx = to.x - 6, ty = to.y + (i - 1) * 16;
@@ -478,7 +604,7 @@
         if (u > 0.35) {
           const e = (u - 0.35) / 0.65, ee = e * e;
           t.x = sx0 + (tx - sx0) * ee; t.y = sy0 + (ty - sy0) * ee;
-          if (E.step % 1 === 0) P(E, { x: t.x + R(E, -6, 6), y: t.y + R(E, -6, 6), vx: R(E, -60, -10), vy: R(E, -30, 30), drag: 2, life: R(E, 200, 360), s0: R(E, 3, 6), s1: 1, ramp: RAMP.ice });
+          P(E, { x: t.x + R(E, -6, 6), y: t.y + R(E, -6, 6), vx: R(E, -60, -10), vy: R(E, -30, 30), drag: 2, life: R(E, 200, 360), s0: R(E, 3, 6), s1: 1, ramp: RAMP.ice });
         }
         if (t.age >= life - STEP && !t.hit) { t.hit = true; burst(E, tx, ty, 10, { ramp: RAMP.ice, v0: 80, v1: 260, g: 160 }); }
       },
@@ -492,23 +618,10 @@
         mesh(g, CRYSTAL, { x: t.x, y: t.y, s: size * grow, sx: 1.0, sy: 1.9, sz: 0.5, rz: dir + Math.PI / 2, ry: spin0 + u * 14, rx: -0.3, col: ICE, a: 0.9, edge: 0.75 });
       } });
   }
-  // てきを とじこめる 3D の 氷の 箱（すけて なかが 見える）
-  function iceCage(E, F, life) {
-    thing(E, { life: life, draw: function (g, u) {
-      const a = Math.min(1, u / 0.12) * (u > 0.9 ? (1 - u) / 0.1 : 1);
-      const s = F.h * 0.72, sx = (F.w * 0.78) / s;
-      const shake = u > 0.8 ? Math.sin(u * 180) * 1.5 : 0;
-      g.globalCompositeOperation = 'source-over';
-      mesh(g, BOX, { x: F.x + shake, y: F.y + F.h * 0.04, s: s, sx: sx, sy: 1, sz: sx * 0.8, rx: -0.3, ry: 0.55 + Math.sin(u * 3) * 0.04, col: [150, 215, 250], a: 0.42 * a, edge: 1.8, lw: 2.4 });
-      g.globalCompositeOperation = 'lighter';
-      g.fillStyle = 'rgba(210,245,255,' + (0.22 * a) + ')';
-      g.fillRect(F.x - F.w * 0.5, F.y - F.h * 0.5, F.w * 0.18, F.h * 0.9);          // ななめの 光の すじ
-    } });
-  }
   // 地面から 花のように ひらく 3D の 結晶
   function iceBloom(E, F, until) {
     const list = [];
-    [-1.55, -1.2, -0.85, -0.5, 0.5, 0.85, -0.16, 0.2].forEach(function (k, i) {   // 右は 画面の はしに 近い ので 左に 多め
+    [-1.55, -1.2, -0.85, -0.5, 0.5, 0.85, -0.16, 0.2].forEach(function (k) {   // 右は 画面の はしに 近い ので 左に 多め
       list.push({ dx: k * (F.w * 0.5 + 14), rz: Math.max(-1, Math.min(1, k)) * R(E, 0.4, 0.75), h: (F.h * 0.36 + 14) * R(E, 0.8, 1.15) * (1.15 - Math.min(1, Math.abs(k)) * 0.35),
         ry: R(E, 0, 6), delay: Math.abs(k) * 70, w: R(E, 0.9, 1.25) });
     });
@@ -526,6 +639,124 @@
       }
     } });
   }
+  // 火柱：大きな 3D の ほのおが てきの まわりを 回りながら ふき上がる（まん中に いちばん 大きい 1本）
+  function firePillar(E, F, life) {
+    const fl = [];
+    for (let i = 0; i < 6; i++) fl.push({ a: i * Math.PI * 2 / 6 + R(E, -0.2, 0.2), h: R(E, 0.75, 1.1), ry: R(E, 0, 6), sp: R(E, 5, 10) * (i % 2 ? 1 : -1) });
+    const mid = { ry: R(E, 0, 6) };
+    thing(E, { life: life, draw: function (g, u) {
+      const grow = u < 0.22 ? 1 - (1 - u / 0.22) * (1 - u / 0.22) : 1, a = u < 0.55 ? 1 : 1 - (u - 0.55) / 0.45;
+      const base = F.h * 0.46 + 16, rad = F.w * 0.46 + 6;
+      const list = fl.map(function (f) { const an = f.a + u * 3.2; return { f: f, an: an, z: Math.sin(an) }; });
+      list.push({ mid: true, z: 0 });
+      list.sort(function (p, q) { return q.z - p.z; });
+      list.forEach(function (o) {
+        let x, yb, s, ry, rz;
+        if (o.mid) { x = F.x; yb = F.bot + 2; s = base * 1.45 * grow * (0.95 + 0.05 * Math.sin(u * 40)); ry = mid.ry + u * 9; rz = Math.sin(u * 11) * 0.12; }
+        else { x = F.x + Math.cos(o.an) * rad; yb = F.bot + Math.sin(o.an) * rad * 0.28; s = base * o.f.h * grow * (0.88 + 0.12 * Math.sin(u * 30 + o.an)); ry = o.f.ry + u * o.f.sp; rz = Math.cos(o.an) * 0.3; }
+        if (s < 2) return;
+        const col = RAMP.flame.c[Math.min(11, 2 + ((u * 8) | 0) + (o.mid ? 0 : 1))];
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = 0.55 * a;
+        g.drawImage(glowOf(col), x - s * 1.2, yb - s * 2, s * 2.4, s * 2.4);
+        g.globalAlpha = 1;
+        g.globalCompositeOperation = 'source-over';
+        mesh(g, FLAME, { x: x, y: yb - s * 0.62 * 1.1, s: s, sx: 0.8, sy: 1.1, sz: 0.8, ry: ry, rz: rz, rx: -0.2, col: col, a: 0.92 * a, emis: true, edge: 0.35, spec: 0.5 });
+      });
+    } });
+  }
+  // たつまき：3D の 輪を 7だん つみ上げて それぞれ 回す（上ほど ひろい・すけて うしろの 面も 見える）
+  function tornado(E, F, life) {
+    const NR = 7, rings = [];
+    for (let i = 0; i < NR; i++) rings.push({ k: i / (NR - 1), ry: R(E, 0, 6), sp: (i % 2 ? 11 : 15) + R(E, -2, 2), ph: R(E, 0, 6) });
+    thing(E, { life: life, draw: function (g, u) {
+      const grow = Math.min(1, u / 0.2), fade = u > 0.8 ? (1 - u) / 0.2 : 1;
+      const H0 = (F.h + 34) * (0.35 + 0.65 * grow), step = H0 / NR;
+      g.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < NR; i++) {
+        const r = rings[i], k = r.k;
+        const rad = (10 + (F.w * 0.34 + 18) * k) * (0.6 + 0.4 * grow);
+        const y = F.bot - 6 - step * (i + 0.5);
+        const wob = Math.sin(u * 13 + k * 3.5 + r.ph) * 7 * k;
+        mesh(g, BAND, { x: F.x + wob, y: y, s: rad, sy: step * 0.62 / rad, rx: -0.28, ry: r.ry + u * r.sp, col: [190, 236, 255], a: 0.26 * fade, both: true, emis: true, edge: 0.22 * fade });
+      }
+    } });
+  }
+  // 空から おちる 3D の 光の 柱（いなずま）。六角の 柱が 2本 ぎゃくに 回る
+  function lightPillar(E, x, yTop, yBot, w, life) {
+    thing(E, { life: life, draw: function (g, u) {
+      const a = u < 0.08 ? u / 0.08 : (u < 0.45 ? 1 : 1 - (u - 0.45) / 0.55);
+      const hh = yBot - yTop, cy = (yTop + yBot) / 2;
+      const ww = w * (1 - u * 0.55) * (1 + Math.sin(u * 70) * 0.1);
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = a;
+      g.drawImage(glowOf([110, 180, 255]), x - ww * 3.5, cy - hh * 0.62, ww * 7, hh * 1.24);
+      g.globalAlpha = 1;
+      mesh(g, PRISM6, { x: x, y: cy, s: ww, sy: hh / 2 / ww, rx: -0.04, ry: u * 16, col: [120, 190, 255], a: 0.5 * a, emis: true, edge: 0.7 * a });
+      mesh(g, PRISM6, { x: x, y: cy, s: ww * 0.42, sy: hh / 2 / (ww * 0.42), rx: -0.04, ry: -u * 22, col: [235, 248, 255], a: 0.85 * a, emis: true });
+    } });
+  }
+  // 地面の いたが めくれて とぶ（いなずまが 落ちた ところ）
+  function slabs(E, F, k) {
+    for (let i = 0; i < n(E, k); i++) {
+      const dir = i % 2 ? 1 : -1;
+      P(E, { x: F.x + dir * R(E, 10, F.w * 0.55 + 22), y: F.bot + R(E, -2, 4), vx: dir * R(E, 30, 140), vy: R(E, -300, -150), ay: 820, drag: 0.3, life: R(E, 620, 900),
+        m: 'M', mesh: BOX, col: rgbOf(['#7a6a58', '#6a5c4c', '#8c7a62'][i % 3]), sy: 0.3, sz: 0.85, rx: R(E, -0.4, 0.2), ry: R(E, 0, 6), rz: dir * R(E, 0.2, 0.7),
+        vrz: dir * R(E, 1, 4), vry: R(E, -3, 3), s0: R(E, 9, 14), s1: 7, fo: 0.7, spec: 0.3 });
+    }
+  }
+  // 大きな 3D の 星（スターバースト：ためる → ばくはつで ひらいて 回る）
+  function bigStar(E, x, y, s0, s1, life, col, o) {
+    o = o || {};
+    thing(E, { life: life, top: true, draw: function (g, u) {
+      const e = o.charge ? u * u : 1 - Math.pow(1 - Math.min(1, u / 0.25), 3);
+      const out = o.charge ? 1 : (u < 0.7 ? 1 : 1 - Math.pow((u - 0.7) / 0.3, 2));
+      const s = (s0 + (s1 - s0) * e) * out * (1 + Math.sin(u * 60) * 0.04);
+      const a = 1;
+      if (s < 1) return;
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = a;
+      g.drawImage(glowOf(col), x - s * 2.4, y - s * 2.4, s * 4.8, s * 4.8);
+      g.globalAlpha = 1;
+      g.globalCompositeOperation = 'source-over';
+      const rot = { rx: Math.sin(u * 5) * 0.4, ry: u * (o.spin || 7), rz: u * 2 };
+      mesh(g, STAR5, { x: x, y: y, s: s, rx: rot.rx, ry: rot.ry, rz: rot.rz, col: col, a: a, edge: 0.8, lw: 1.5 });
+      g.globalCompositeOperation = 'lighter';
+      mesh(g, STAR5, { x: x, y: y, s: s * 1.03, rx: rot.rx, ry: rot.ry, rz: rot.rz, col: [255, 255, 255], a: 0.4 * a * (o.charge ? u : 1 - u), emis: true });
+    } });
+  }
+  // 3D の 結晶が 輪に なって ひろがりながら 回る（tilt＝輪の かたむき）
+  function crystalRing(E, x, y, r0, r1, cnt, tilt, life, o) {
+    o = o || {};
+    const base = R(E, 0, 6), cols = o.cols || STARCOL;
+    thing(E, { life: life, draw: function (g, u) {
+      const e = 1 - Math.pow(1 - u, 3), rr = r0 + (r1 - r0) * e, a = u < 0.7 ? 1 : (1 - u) / 0.3;
+      const ct = Math.cos(tilt), st = Math.sin(tilt), spin = base + u * (o.spin || 3);
+      const L = [];
+      for (let i = 0; i < cnt; i++) {
+        const an = spin + i * Math.PI * 2 / cnt, lx = Math.cos(an) * rr, lz = Math.sin(an) * rr;
+        L.push({ an: an, x: x + lx, y: y - lz * st, z: lz * ct, c: cols[i % cols.length] });
+      }
+      L.sort(function (p, q) { return q.z - p.z; });
+      L.forEach(function (c) {
+        const k = 1 - c.z / (rr * 3 + 40) * 0.7, size = (o.size || 15) * (0.7 + 0.5 * e) * k;
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = a * 0.7;
+        g.drawImage(glowOf(c.c), c.x - size * 1.5, c.y - size * 1.5, size * 3, size * 3);
+        g.globalAlpha = 1;
+        g.globalCompositeOperation = 'source-over';
+        mesh(g, GEM, { x: c.x, y: c.y, s: size, sx: 0.95, sy: 1.05, sz: 0.95, rz: Math.atan2(c.y - y, c.x - x) + Math.PI / 2, ry: u * 9 + c.an, rx: -0.2, col: c.c, a: a, edge: 0.6 });
+      });
+    } });
+  }
+  // 小さな ばくはつ（スターバーストの つづけざまの ばくはつ）
+  function pop(E, x, y, big) {
+    flash(E, big ? '#ffffff' : '#fff2d0', big ? 0.3 : 0.16, 160);
+    ring(E, x, y, 6, big ? 150 : 100, 460, '#ffffff', big ? 6 : 4, 1);
+    burst(E, x, y, big ? 34 : 22, { rainbow: true, v0: 120, v1: 460, g: 160 });
+    starOut(E, x, y, big ? 10 : 6, { v0: 120, v1: 380, s0: 6, s1: 12, l0: 500, l1: 900 });
+    bigStar(E, x, y, 4, big ? 46 : 30, 420, STARCOL[(x | 0) % STARCOL.length]);
+  }
 
   /* =========================================================
      わざごとの 台本。E.t＝はじまってから の ミリ秒。
@@ -533,57 +764,71 @@
      当たる 時間は battle.js の SP_MOTION.hit と そろえて ある
      ========================================================= */
   const SCRIPTS = {
-    /* ---- ほのお ギリ（算数）：火の粉を けんに あつめ → たての 一閃 → 火柱が ふき上がる ---- */
+    /* ---- ほのお ギリ（算数・v13.7 で 3D）：走る あとに 3D の 炎 → たての 一閃 → 3D の 炎が 回りながら 火柱に・岩の かけら ---- */
     fire: { dur: 1100, run: function (E, F, S) {
-      trail(E, E.Hr, F, 40, 470, RAMP.fire, 5, 12);
+      trail(E, E.Hr, F, 40, 470, RAMP.fire, 4, 11);
+      if (during(E, 40, 470) && E.step % 2 === 0) {
+        const q = trailPos(E, E.Hr, F, 40, 470);
+        flameP(E, q.x + R(E, -10, 4), q.y + R(E, -22, 18), { vx: R(E, -90, -30), vy: R(E, -90, -30), life: R(E, 220, 340), s0: R(E, 8, 12), s1: 2 });
+      }
       if (at(E, 470)) flash(E, '#ffb050', 0.4, 240);
       if (at(E, 490)) slash(E, F.x - 6, F.y, F.h * 0.55 + 26, -Math.PI * 0.62, Math.PI * 0.95, 400, '#ff8a2a', 18);
       if (at(E, 540)) slash(E, F.x + 8, F.y + 4, F.h * 0.45 + 20, -Math.PI * 0.2, Math.PI * 0.8, 360, '#ffd45a', 13);
       if (at(E, 500)) {
         ring(E, F.x, F.bot, 8, 130, 560, '#ff7a1e', 7, 0.3);
-        burst(E, F.x, F.y, 54, { up: true, v0: 200, v1: 520, g: 520 });
-        chunks(E, F.x, F.bot - 4, 8, '#8a5a3a', { up: true, lift: 120, s0: 3, s1: 7 });
+        burst(E, F.x, F.y, 36, { up: true, v0: 200, v1: 520, g: 520 });
+        chunks(E, F.x, F.bot - 4, 10, '#8a5a3a', { up: true, lift: 140, s0: 5, s1: 10 });
+        firePillar(E, F, 520);
       }
-      if (during(E, 500, 920)) {
-        const u = (E.t - 500) / 420;
-        for (let i = 0; i < n(E, 10); i++) {
-          P(E, { x: F.x + R(E, -F.w * 0.55, F.w * 0.55) * (1 - u * 0.4), y: F.bot + R(E, -4, 4), vx: R(E, -30, 30), vy: R(E, -190, -380), ay: -80, drag: 0.4,
-            life: R(E, 380, 660), s0: R(E, 9, 18), s1: 1.5, ramp: RAMP.fire, sway: R(E, 30, 70), ph: R(E, 0, 6), fo: 0.45 });
+      if (during(E, 500, 900)) {
+        const u = (E.t - 500) / 400;
+        for (let i = 0; i < n(E, E.step % 2 ? 1 : 2); i++) {
+          flameP(E, F.x + R(E, -F.w * 0.62, F.w * 0.62) * (1 - u * 0.3), F.bot + R(E, -4, 4), { vx: R(E, -25, 25), vy: R(E, -200, -340), ay: -60, drag: 0.5,
+            life: R(E, 360, 560), s0: R(E, 9, 17), s1: 2, sway: R(E, 20, 50), ph: R(E, 0, 6) });
         }
+        P(E, { x: F.x + R(E, -F.w * 0.5, F.w * 0.5), y: F.bot, vx: R(E, -40, 40), vy: R(E, -220, -420), ay: -40, drag: 0.4, life: R(E, 380, 620), s0: R(E, 2, 4), s1: 1, ramp: RAMP.ember, fo: 0.45 });
       }
       if (during(E, 560, 900) && E.step % 3 === 0) smoke(E, F.x, F.top, 1);
     } },
 
-    /* ---- はっぱ カッター（国語）：X の 2連斬り → はっぱの うずまき ---- */
+    /* ---- はっぱ カッター（国語・v13.7 で 3D）：3D の はっぱが とぶ → X の 2連斬り → 3D の はっぱの うずまき ---- */
     leaf: { dur: 1100, run: function (E, F, S, Hr) {
       trail(E, Hr, F, 40, 330, RAMP.leaf, 3, 7);
-      if (E.t < 320) {
-        for (let i = 0; i < n(E, 1); i++) {
-          const y = R(E, 10, F.bot);
-          P(E, { x: R(E, -10, 60), y: y, vx: (F.x - 30) * 2.4, vy: (F.y - y) * 1.2, life: 400, s0: 5, s1: 4, m: 'l', col: rgbOf(['#7ee06a', '#3fbf4a', '#b8f07a'][i % 3]), rot: R(E, 0, 6), vr: 10 });
-        }
+      if (E.t < 320 && E.step % 2 === 0) {
+        const y = R(E, 10, F.bot);
+        leafP(E, R(E, -10, 60), y, { vx: (F.x - 30) * 2.4, vy: (F.y - y) * 1.2, life: 400, s0: R(E, 11, 15), s1: 10 });
       }
+      const pop2 = function (k) {
+        for (let i = 0; i < n(E, k); i++) {
+          const a = R(E, 0, Math.PI * 2), v = R(E, 120, 360);
+          leafP(E, F.x + R(E, -8, 8), F.y + R(E, -8, 8), { vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, ay: 160, drag: 1.4, life: R(E, 520, 820), s0: R(E, 12, 17), s1: 6 });
+        }
+      };
       if (at(E, 330)) {
         flash(E, '#c8ffa8', 0.3, 200);
         slash(E, F.x, F.y, F.h * 0.5 + 24, -Math.PI * 0.85, Math.PI * 0.9, 340, '#7ee06a', 15);
-        burst(E, F.x, F.y, 26, { ramp: RAMP.leaf, v0: 120, v1: 360, g: 200 });
+        burst(E, F.x, F.y, 18, { ramp: RAMP.leaf, v0: 120, v1: 360, g: 200 });
         ring(E, F.x, F.bot, 8, 110, 480, '#7ee06a', 5, 0.3);
+        pop2(12);
       }
       if (at(E, 520)) {
         slash(E, F.x, F.y, F.h * 0.5 + 24, -Math.PI * 0.15, -Math.PI * 0.9, 340, '#b8f07a', 15);
-        burst(E, F.x, F.y, 26, { ramp: RAMP.leaf, v0: 120, v1: 360, g: 200 });
+        burst(E, F.x, F.y, 18, { ramp: RAMP.leaf, v0: 120, v1: 360, g: 200 });
+        pop2(8);
       }
       if (during(E, 330, 900)) {
-        for (let i = 0; i < n(E, 3); i++) {
-          const leafy = i % 3 !== 2;
-          P(E, { m: leafy ? 'l' : 'o', draw: leafy ? 'l' : 'g', cx: F.x, cy: F.bot - 8, ang: R(E, 0, 6.3), rad: R(E, 18, 44), w: R(E, 7, 11), dr: R(E, 20, 60), rise: R(E, 70, 150), sq: 0.38,
-            life: R(E, 520, 760), s0: leafy ? R(E, 4, 7) : 3, s1: leafy ? 4 : 1, col: rgbOf(['#7ee06a', '#3fbf4a', '#b8f07a', '#2f8f3a'][i % 4]), ramp: RAMP.leaf, rot: R(E, 0, 6), vr: R(E, -12, 12), orbit: true, oy: 0 });
+        for (let i = 0; i < n(E, 2); i++) {
+          leafP(E, 0, 0, { cx: F.x, cy: F.bot - 8, ang: R(E, 0, 6.3), rad: R(E, 16, 40), w: R(E, 7, 10), dr: R(E, 30, 70), rise: R(E, 80, 160), sq: 0.36, oy: 0, orbit: true,
+            life: R(E, 560, 780), s0: R(E, 10, 14), s1: 7 });
         }
+        if (E.step % 2 === 0) P(E, { m: 'o', draw: 'g', cx: F.x, cy: F.bot - 8, ang: R(E, 0, 6.3), rad: R(E, 18, 44), w: R(E, 7, 11), dr: R(E, 20, 60), rise: R(E, 70, 150), sq: 0.38,
+          life: R(E, 520, 760), s0: 3, s1: 1, ramp: RAMP.leaf, orbit: true, oy: 0 });
       }
     } },
 
-    /* ---- こおりの やいば（理科・社会・v13.6.1 で 3D に）：3D の 氷の 刃が 3本 とぶ → てきを 氷の 箱に とじこめ、
-       地面から 結晶が 花のように ひらく → てきが たおれる 直前（790ms）に くだけて 3D の かけらが とびちる ---- */
+    /* ---- こおりの やいば（理科・社会・v13.6.1 で 3D に）：3D の 氷の 刃が 3本 とぶ →
+       地面から 結晶が 花のように ひらく → てきが たおれる 直前（790ms）に くだけて 3D の かけらが とびちる
+       （v13.7：てきを とじこめる 四角い 氷の 箱は ユーザーの 指示で 外した） ---- */
     ice: { dur: 1150, run: function (E, F, S, Hr) {
       trail(E, Hr, F, 20, 360, RAMP.ice, 3, 7);
       if (E.t < 300 && E.step % 2 === 0) {
@@ -597,7 +842,6 @@
         flash(E, '#dff6ff', 0.55, 260);
         ring(E, F.x, F.bot, 8, 150, 600, '#9fe6ff', 6, 0.3);
         burst(E, F.x, F.y, 30, { ramp: RAMP.ice, v0: 140, v1: 420, g: 300 });
-        iceCage(E, F, 430);
         iceBloom(E, F, 430);
       }
       if (at(E, 790)) {
@@ -615,7 +859,7 @@
       }
     } },
 
-    /* ---- かぜの たつまき（英語）：風の すじ → たつまきが てきを つつむ ---- */
+    /* ---- かぜの たつまき（英語・v13.7 で 3D）：風の すじ → 3D の 輪を つみ上げた たつまきが てきを つつむ・岩と はっぱが 回る ---- */
     wind: { dur: 1150, run: function (E, F, S, Hr) {
       trail(E, Hr, F, 40, 380, RAMP.wind, 3, 7);
       if (E.t < 400 && E.step % 2 === 0) {
@@ -625,27 +869,36 @@
         flash(E, '#ffffff', 0.28, 200);
         ring(E, F.x, F.bot, 10, 120, 500, '#e6f6ff', 6, 0.3);
         burst(E, F.x, F.bot - 10, 20, { ramp: RAMP.wind, v0: 120, v1: 300, g: 100 });
+        tornado(E, F, 620);
       }
       if (during(E, 380, 980)) {
-        for (let i = 0; i < n(E, 6); i++) {
+        for (let i = 0; i < n(E, 3); i++) {
           P(E, { m: 'o', draw: 's', cx: F.x, cy: F.bot, ang: R(E, 0, 6.3), rad: 8, cone: 0.42, w: R(E, 11, 16), dr: 0, rise: R(E, 120, 220), oy: -R(E, 0, 30), sq: 0.3,
             life: R(E, 420, 640), s0: 2.4, s1: 1, ramp: RAMP.wind, orbit: true, a: 0.9 });
         }
         if (E.step % 2 === 0) smoke(E, F.x, F.bot - 4, 1, { ramp: RAMP.dust, a: 0.35 });
-        if (E.step % 5 === 0) P(E, { m: 'o', draw: 'c', cx: F.x, cy: F.bot, ang: R(E, 0, 6.3), rad: 20, cone: 0.42, w: 9, rise: R(E, 90, 160), oy: 0, sq: 0.3, life: 700, s0: R(E, 3, 6), s1: 2, col: rgbOf('#9a7a4a'), rot: 0, vr: 8, rot2: 0, vr2: 6, orbit: true });
+        if (E.step % 3 === 0) {
+          const rock = E.step % 2 === 0;
+          P(E, { m: 'M', mesh: rock ? CHIPS[E.step % 4] : LEAF, col: rock ? rgbOf('#9a7a4a') : GREENS[E.step % 4], cx: F.x, cy: F.bot, ang: R(E, 0, 6.3), rad: 20, cone: 0.44, w: 9,
+            rise: R(E, 90, 170), oy: 0, sq: 0.3, life: 720, s0: rock ? R(E, 4, 7) : R(E, 6, 9), s1: 3, rx: R(E, 0, 6), ry: R(E, 0, 6), rz: R(E, 0, 6), vrx: 8, vry: 10, vrz: 5,
+            orbit: true, edge: rock ? 0 : 0.4, spec: 0.3 });
+        }
       }
     } },
 
-    /* ---- いなずま おとし（8コンボ）：空が 光る → ふとい 雷が てきに 落ちる → 地面に ひび ---- */
+    /* ---- いなずま おとし（8コンボ・v13.7 で 3D）：空が 光る → 3D の 光の 柱と ふとい 雷が 落ちる → 地面の いたが めくれて 岩が とぶ ---- */
     bolt: { dur: 1250, run: function (E, F) {
       if (at(E, 140)) { flash(E, '#cfe6ff', 0.25, 90); bolt(E, R(E, 30, 180), -10, R(E, 40, 200), R(E, 40, 90), 150, { w: 1.4 }); }
       if (at(E, 300)) { flash(E, '#cfe6ff', 0.25, 90); bolt(E, R(E, 220, 380), -10, R(E, 200, 360), R(E, 40, 90), 150, { w: 1.4 }); }
       if (at(E, 600)) {
         flash(E, '#ffffff', 0.75, 150);
         flash(E, '#6aa8ff', 0.25, 460);
+        lightPillar(E, F.x, -20, F.bot + 4, 22, 560);
         bolt(E, F.x + R(E, -12, 12), -24, F.x, F.top + 8, 520, { w: 3.6, br: 4, jit: 0.24 });
-        burst(E, F.x, F.bot - 6, 64, { ramp: RAMP.bolt, v0: 220, v1: 640, g: 300, drag: 2.2, l0: 260, l1: 560, s: 2.2 });
+        burst(E, F.x, F.bot - 6, 48, { ramp: RAMP.bolt, v0: 220, v1: 640, g: 300, drag: 2.2, l0: 260, l1: 560, s: 2.2 });
         ring(E, F.x, F.bot, 6, 150, 460, '#9fd8ff', 6, 0.3);
+        slabs(E, F, 8);
+        chunks(E, F.x, F.bot - 2, 12, '#7a6a58', { up: true, lift: 160, v0: 160, v1: 420, s0: 4, s1: 9 });
         for (let i = 0; i < 6; i++) {
           const dir = i < 3 ? -1 : 1, len = R(E, 40, 90);
           bolt(E, F.x + dir * 6, F.bot, F.x + dir * len, F.bot + R(E, -4, 6), 600, { w: 1.3, jit: 0.18 });
@@ -659,7 +912,7 @@
       }
     } },
 
-    /* ---- ひかりの メテオ（12コンボ）：けんから 光の 柱 → いん石が つぎつぎ → 大ばくはつ ---- */
+    /* ---- ひかりの メテオ（12コンボ・v13.7 で 3D）：けんから 光の 柱 → ごつごつした 3D の いん石が つぎつぎ → 大ばくはつ ---- */
     star: { dur: 1500, run: function (E, F, S) {
       if (at(E, 120)) pillar(E, S.x, S.y, 5, S.y + 20, 520, '#ffd447');
       if (E.t < 520) P(E, { x: S.x + R(E, -50, 50), y: S.y + R(E, -10, 40), vx: 0, vy: R(E, -160, -80), life: 380, s0: 3, s1: 1, ramp: RAMP.gold });
@@ -675,14 +928,19 @@
               ring(E, x, F.bot, 10, 200, 620, '#ffa91e', 7, 0.3);
               rays(E, x, y, 16, 220, 760, '#ffd447', 0.6);
               glint(E, x, y, 120, 520);
-              burst(E, x, y, 80, { ramp: RAMP.gold, v0: 200, v1: 620, g: 360, l0: 500, l1: 1000, s: 3 });
-              chunks(E, x, y, 14, '#8a6a4a', { v0: 150, v1: 420 });
+              burst(E, x, y, 70, { ramp: RAMP.gold, v0: 200, v1: 620, g: 360, l0: 500, l1: 1000, s: 3 });
+              for (let i = 0; i < n(E, 10); i++) {
+                const a = R(E, 0, Math.PI * 2), v = R(E, 160, 460);
+                P(E, { x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 140, ay: 720, drag: 0.4, life: R(E, 600, 950), s0: R(E, 7, 12), s1: 2,
+                  m: 'M', mesh: ROCKS[i % 4], col: rgbOf('#9a6a44'), rx: R(E, 0, 6), ry: R(E, 0, 6), vrx: R(E, -8, 8), vry: R(E, -8, 8), vrz: R(E, -5, 5), spec: 0.35, fo: 0.72 });
+              }
+              chunks(E, x, y, 10, '#8a6a4a', { v0: 150, v1: 420 });
               smoke(E, x, y, 8);
             } else {
               flash(E, '#ffd890', 0.18, 140);
               ring(E, x, y, 6, 70, 380, '#ffd447', 4, 0.4);
-              burst(E, x, y, 22, { ramp: RAMP.gold, v0: 120, v1: 380, g: 420 });
-              chunks(E, x, y, 5, '#8a6a4a', { up: true });
+              burst(E, x, y, 20, { ramp: RAMP.gold, v0: 120, v1: 380, g: 420 });
+              chunks(E, x, y, 6, '#8a6a4a', { up: true });
               smoke(E, x, y, 2);
             }
           });
@@ -690,13 +948,15 @@
       });
     } },
 
-    /* ---- ぎんがの ビッグバン（16コンボ）：星を すいこむ → まっしろ → 虹の わと 銀河の うず ---- */
+    /* ---- ぎんがの ビッグバン（16コンボ・v13.7 で 3D）：3D の 星を すいこむ → まっしろ →
+       虹の わ・3D の 結晶の 輪・3D の 星が とびちる → 銀河の うず ---- */
     nova: { dur: 2000, run: function (E, F) {
       if (E.t < 520) {
-        for (let i = 0; i < n(E, 4); i++) {
+        for (let i = 0; i < n(E, 2); i++) {
           P(E, { m: 'o', draw: 's', cx: F.x, cy: F.y, ang: R(E, 0, 6.3), rad: R(E, 150, 290), w: 4, dr: -R(E, 380, 560), rise: 0, oy: 0, sq: 1,
             life: 560, s0: 2.4, s1: 1.4, ramp: RAINBOW[i % RAINBOW.length], orbit: true, kill: 5 });
         }
+        if (E.step % 2 === 0) starIn(E, F, 1, 160, 260);
       }
       if (at(E, 30)) orb(E, F.x, F.y, 4, 30, 540, '#c48bff', { shrinkAt: 0.9 });
       if (at(E, 550)) {
@@ -705,7 +965,10 @@
           E.later.push({ at: 550 + i * 60, fn: function () { ring(E, F.x, F.y, 10, 320, 760, c, 9, 1); } });
         });
         rays(E, F.x, F.y, 18, 300, 1300, '#c48bff', 0.8);
-        burst(E, F.x, F.y, 110, { rainbow: true, v0: 160, v1: 560, g: 60, drag: 1.3, l0: 700, l1: 1200, s: 2.8 });
+        burst(E, F.x, F.y, 80, { rainbow: true, v0: 160, v1: 560, g: 60, drag: 1.3, l0: 700, l1: 1200, s: 2.8 });
+        starOut(E, F.x, F.y, 24, { v0: 170, v1: 540, g: 60, s0: 12, s1: 22 });
+        bigStar(E, F.x, F.y, 8, 62, 760, [200, 160, 255], { spin: 9 });
+        crystalRing(E, F.x, F.y, 16, 170, 12, -1.15, 1000, { spin: 3.5, size: 15 });
         glint(E, F.x, F.y, 160, 700);
       }
       if (during(E, 560, 1500)) {
@@ -714,37 +977,67 @@
           P(E, { m: 'o', draw: 'g', cx: F.x, cy: F.y, ang: arm * Math.PI + R(E, -0.25, 0.25) + E.t * 0.004, rad: R(E, 4, 18), w: 2.6, dr: R(E, 110, 190), rise: 0, oy: 0, sq: 0.55,
             life: 950, s0: 4, s1: 1, ramp: RAINBOW[(E.step + i) % RAINBOW.length], orbit: true, fo: 0.4 });
         }
+        if (E.step % 4 === 0) {
+          P(E, { m: 'M', mesh: STAR5, col: STARCOL[E.step % STARCOL.length], glow: true, edge: 0.5, cx: F.x, cy: F.y, ang: (E.step % 8 < 4 ? 0 : Math.PI) + E.t * 0.004, rad: R(E, 8, 20), w: 2.6,
+            dr: R(E, 110, 170), rise: 0, oy: 0, sq: 0.55, life: 950, s0: R(E, 9, 13), s1: 3, rx: 0, ry: R(E, 0, 6), rz: R(E, 0, 6), vry: 10, vrz: 4, orbit: true, fo: 0.4 });
+        }
       }
       if (E.t > 900 && E.step % 2 === 0) P(E, { x: R(E, 0, W), y: -4, vx: R(E, -20, 20), vy: R(E, 40, 80), life: 1100, s0: R(E, 2, 4), s1: 1.5, ramp: RAINBOW[E.step % RAINBOW.length] });
     } },
 
-    /* ---- スターバースト ストライク（20コンボ）：オーロラ → 4れんぞく 一閃 → 光の 柱 → 大きな 星の かがやき ---- */
-    starburst: { dur: 2300, run: function (E, F, S, Hr) {
+    /* ---- スターバースト ストライク（20コンボ・v13.7 で ぜんりょくの 3D）：オーロラ → 4れんぞく 一閃（3D の 結晶が はじける）→
+       3D の 星を すいこんで まん中に 大きな 星を ためる → 光の 柱 →
+       1300ms 大ばくはつ（大きな 3D の 星が ひらく・結晶の 輪 2つ・3D の 星が とびちる）→ つづけて 3回 ばくはつ →
+       画面の はしまで とどく しょうげきの わ → 3D の 星の 雨 ---- */
+    starburst: { dur: 2500, run: function (E, F, S, Hr) {
       trail(E, Hr, F, 40, 500, RAINBOW[E.step % RAINBOW.length], 4, 9);
-      if (at(E, 10)) aurora(E, 2200, ['#7cf9c4', '#4fd3ff', '#c48bff', '#ffd447', '#ff8ec4', '#7cf9c4']);
+      if (at(E, 10)) aurora(E, 2450, ['#7cf9c4', '#4fd3ff', '#c48bff', '#ffd447', '#ff8ec4', '#7cf9c4']);
       const sl = [[500, 0.2, '#7cf9c4'], [620, 0.85, '#4fd3ff'], [740, 0.5, '#c48bff'], [860, -0.1, '#ffd447']];
       sl.forEach(function (s) {
         if (at(E, s[0])) {
           slash(E, F.x, F.y, F.h * 0.5 + 26, -Math.PI * s[1] - Math.PI * 0.5, Math.PI * 0.95, 360, s[2], 15);
           flash(E, s[2], 0.16, 140);
-          burst(E, F.x, F.y, 22, { rainbow: true, v0: 140, v1: 420, g: 200 });
+          burst(E, F.x, F.y, 18, { rainbow: true, v0: 140, v1: 420, g: 200 });
+          const c = rgbOf(s[2]);
+          for (let i = 0; i < n(E, 6); i++) {
+            const a = R(E, 0, Math.PI * 2), v = R(E, 140, 380);
+            P(E, { x: F.x, y: F.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, ay: 500, drag: 0.6, life: R(E, 450, 700), s0: R(E, 8, 13), s1: 3,
+              m: 'M', mesh: GEM, col: c, glow: true, rx: -0.3, ry: R(E, 0, 6), rz: R(E, 0, 6), vry: R(E, -10, 10), vrz: R(E, -8, 8), edge: 0.6, fo: 0.65 });
+          }
         }
       });
+      if (during(E, 900, 1290) && E.step % 2 === 0) starIn(E, F, 2, 120, 220);
+      if (at(E, 900)) bigStar(E, F.x, F.y, 2, 30, 400, [255, 236, 150], { charge: true, spin: 14 });
       if (at(E, 1000)) [-48, -24, 0, 24, 48].forEach(function (dx, i) { E.later.push({ at: 1000 + i * 40, fn: function () { pillar(E, F.x + dx, F.bot, 6, F.bot + 10, 420, i % 2 ? '#7cf9c4' : '#ffd447'); } }); });
-      if (during(E, 1000, 1300)) {
-        for (let i = 0; i < n(E, 3); i++) {
-          P(E, { m: 'o', draw: 's', cx: F.x, cy: F.y, ang: R(E, 0, 6.3), rad: R(E, 90, 160), w: 3, dr: -R(E, 300, 420), rise: 0, oy: 0, sq: 1, life: 400, s0: 2.2, s1: 1, ramp: RAINBOW[i % RAINBOW.length], orbit: true, kill: 6 });
-        }
-      }
       if (at(E, 1300)) {
-        flash(E, '#ffffff', 0.9, 420);
-        glint(E, F.x, F.y, 200, 800);
-        ring(E, F.x, F.y, 12, 320, 800, '#b8ffe6', 9, 1);
-        ring(E, F.x, F.bot, 10, 220, 700, '#c48bff', 7, 0.3);
-        rays(E, F.x, F.y, 20, 300, 1000, '#7cf9c4', -0.6);
-        burst(E, F.x, F.y, 120, { rainbow: true, v0: 180, v1: 620, g: 120, drag: 1.2, l0: 700, l1: 1200, s: 2.8 });
+        flash(E, '#ffffff', 0.8, 300);
+        flash(E, '#ffe08a', 0.22, 600);
+        bigStar(E, F.x, F.y, 30, 112, 820, [255, 214, 80], { spin: 5 });
+        crystalRing(E, F.x, F.y, 20, 200, 14, -1.1, 1100, { spin: 3, size: 17 });
+        crystalRing(E, F.x, F.y, 10, 150, 10, -0.55, 1000, { spin: -4, size: 13 });
+        glint(E, F.x, F.y, 200, 600);
+        rays(E, F.x, F.y, 16, 300, 900, '#ffe8a0', -0.6);
+        [0, 90, 180].forEach(function (d, i) {
+          E.later.push({ at: 1300 + d, fn: function () { ring(E, F.x, F.y, 12, 340 - i * 40, 800, ['#ffffff', '#b8ffe6', '#c48bff'][i], 10 - i * 2, 1); } });
+        });
+        ring(E, F.x, F.bot, 10, 240, 760, '#c48bff', 7, 0.3);
+        burst(E, F.x, F.y, 80, { rainbow: true, v0: 180, v1: 640, g: 120, drag: 1.2, l0: 700, l1: 1200, s: 2.6 });
+        starOut(E, F.x, F.y, 30, { v0: 200, v1: 600, g: 90, s0: 9, s1: 18 });
+        chunks(E, F.x, F.bot - 4, 10, '#9a8a70', { up: true, lift: 180, v0: 180, v1: 460 });
+      }
+      [[1480, -78, -34, false], [1640, 70, -48, false], [1800, -24, 40, true]].forEach(function (b) {
+        if (at(E, b[0])) pop(E, F.x + b[1], F.y + b[2], b[3]);
+      });
+      if (at(E, 1950)) {
+        flash(E, '#ffffff', 0.55, 360);
+        ring(E, F.x, F.y, 20, 520, 700, '#ffffff', 12, 1);
+        ring(E, F.x, F.y, 10, 420, 760, '#ffd447', 8, 0.5);
+        burst(E, F.x, F.y, 60, { rainbow: true, v0: 260, v1: 720, g: 80, drag: 1, l0: 500, l1: 900, s: 2.6 });
       }
       if (E.t > 1300 && E.step % 2 === 0) P(E, { x: R(E, 0, W), y: -4, vx: R(E, -20, 20), vy: R(E, 50, 100), life: 1000, s0: R(E, 2, 4), s1: 1.5, ramp: RAINBOW[E.step % RAINBOW.length] });
+      if (E.t > 1950 && E.t < 2400 && E.step % 3 === 0) {
+        starP(E, R(E, 10, W - 10), -10, { vx: R(E, -30, 30), vy: R(E, 120, 220), ay: 80, life: R(E, 700, 1000), s0: R(E, 5, 9), s1: 4, fo: 0.7 });
+      }
     } }
   };
 
@@ -775,6 +1068,7 @@
         p.y += p.vy * s;
       }
       p.rot += p.vr * s;
+      if (p.m === 'M' || p.draw === 'M') { p.rx += p.vrx * s; p.ry += p.vry * s; p.rz += p.vrz * s; }
       if (p.vr2) p.rot2 += p.vr2 * s;
     }
     for (let i = E.things.length - 1; i >= 0; i--) {
@@ -800,10 +1094,11 @@
     g.globalCompositeOperation = 'source-over';
     for (let i = 0; i < E.parts.length; i++) {
       const p = E.parts[i], u = p.age / p.life, m = p.draw || p.m;
-      if (m !== 'c' && m !== 'm' && m !== 'l' && m !== 'x') continue;
+      if (m !== 'c' && m !== 'm' && m !== 'l' && m !== 'x' && !(m === 'M' && !p.add)) continue;
       const s = p.s0 + (p.s1 - p.s0) * u, a = alphaOf(p, u);
       if (s <= 0.3 || a <= 0.01) continue;
-      if (m === 'c') cube(g, p.x, p.y, s, p.rot, p.rot2 || 0, p.col, a);
+      if (m === 'M') { drawM(g, p, s, a, Math.min(11, (u * 11) | 0)); g.globalCompositeOperation = 'source-over'; }
+      else if (m === 'c') cube(g, p.x, p.y, s, p.rot, p.rot2 || 0, p.col, a);
       else if (m === 'x') mesh(g, CRYSTAL, { x: p.x, y: p.y, s: s, sx: 0.6, sy: 1, sz: 0.6, rz: p.rot, ry: p.rot2 || 0, rx: -0.3, col: ICE, a: a * 0.92, edge: 0.6 });
       else if (m === 'm') {
         g.globalAlpha = a;
@@ -821,18 +1116,21 @@
     // 2) 大きな もの（一閃・雷・わ など）
     for (let i = 0; i < E.things.length; i++) {
       const t = E.things[i];
+      if (t.top) continue;
       g.save();
       t.draw(g, Math.min(1, t.age / t.life));
       g.restore();
     }
-    // 3) 光る 粒（かさなるほど 明るく）
+    // 3) 光る 粒（かさなるほど 明るく）。top の ものは そのあと（いん石・大きな 星が 光に うもれない ように）
     g.globalCompositeOperation = 'lighter';
     for (let i = 0; i < E.parts.length; i++) {
       const p = E.parts[i], u = p.age / p.life, m = p.draw || p.m;
-      if (m === 'c' || m === 'm' || m === 'l' || m === 'x') continue;
+      if (m === 'c' || m === 'm' || m === 'l' || m === 'x' || (m === 'M' && !p.add)) continue;
       const s = p.s0 + (p.s1 - p.s0) * u, a = alphaOf(p, u);
       if (s <= 0.2 || a <= 0.01) continue;
-      const ci = Math.min(11, (u * 11) | 0), c = p.ramp.c[ci];
+      const ci = Math.min(11, (u * 11) | 0);
+      if (m === 'M') { drawM(g, p, s, a, ci); g.globalCompositeOperation = 'lighter'; continue; }
+      const c = p.ramp.c[ci];
       g.globalAlpha = a;
       if (m === 's') {
         const dx = p.x - p.px, dy = p.y - p.py;
@@ -857,6 +1155,14 @@
       }
     }
     g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < E.things.length; i++) {
+      const t = E.things[i];
+      if (!t.top) continue;
+      g.save();
+      t.draw(g, Math.min(1, t.age / t.life));
+      g.restore();
+    }
     g.globalCompositeOperation = 'source-over';
   }
 

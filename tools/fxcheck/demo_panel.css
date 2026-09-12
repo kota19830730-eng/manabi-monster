@@ -1,0 +1,9 @@
+.mihon { position: fixed; left: 0; right: 0; bottom: 0; z-index: 99999; background: rgba(8,10,24,.9); border-top: 2px solid #ffd447; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); }
+.mihon__row { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.mihon__b { flex: none; min-width: 84px; padding: 6px 8px; border-radius: 10px; border: 0; color: #fff; font: 700 13px 'Zen Maru Gothic', system-ui, sans-serif; line-height: 1.2; background: #2a3566; box-shadow: 0 3px 0 #141a38; cursor: pointer; }
+.mihon__b small { display: block; font-size: 10px; opacity: .8; }
+.mihon__b--fire { background: #c2451a; } .mihon__b--leaf { background: #2f8f3a; } .mihon__b--ice { background: #2a6fc0; } .mihon__b--wind { background: #5a7ea8; }
+.mihon__b--bolt { background: #3050d0; } .mihon__b--star { background: #b8801d; } .mihon__b--nova { background: #6b2fb8; } .mihon__b--starburst { background: linear-gradient(90deg, #1d8f7a, #6b2fb8, #b8801d); }
+.mihon__b--pal.is-on { background: #b8801d; }
+.mihon__note { color: #cfd8f0; font: 500 11px 'Zen Maru Gothic', system-ui, sans-serif; margin: 0 2px 5px; }
+.mihon__b--snd { background: #3a3f56; border: 1px solid #ffd447; }

@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>body{margin:0;background:#111;color:#fff;font:12px sans-serif} #host{position:absolute;left:-9999px;width:400px;height:240px} .fxc{width:400px;display:block} img{display:block}</style>
+<div id="host"></div>
+<img id="out">
+<pre id="log"></pre>
+<script>window.MQ = {};</script>
+<script src="../../js/ui/fxcanvas.js"></script>
+<script>
+(function () {
+  const hash = decodeURIComponent(location.hash.slice(1)) || 'fire:300,500,600,700,850,1000';
+  const id = hash.split(':')[0];
+  const times = (hash.split(':')[1] || '300,600,900').split(',').map(Number);
+  const COLS = +(hash.split(':')[2] || 3);
+  const host = document.getElementById('host');
+  const fxc = MQ.ui.fxc;
+  fxc.attach(host);
+  const W = 400, H = 240, S = 2;
+  const foe = { x: 318, y: 118, w: 84, h: 84 }, hero = { x: 92, y: 150, w: 84, h: 84 };
+  const rows = Math.ceil(times.length / COLS);
+  const big = document.createElement('canvas');
+  big.width = W * S * COLS; big.height = (H + 14) * S * rows;
+  const g = big.getContext('2d');
+  g.fillStyle = '#111'; g.fillRect(0, 0, big.width, big.height);
+  const log = [];
+  let cv = host.querySelector('canvas');
+  times.forEach(function (t, i) {
+    const r = i === 0 ? fxc.seek(t, id, { foe: foe, hero: hero, height: H }) : fxc.seek(t);
+    cv = host.querySelector('canvas');
+    const ox = (i % COLS) * W * S, oy = Math.floor(i / COLS) * (H + 14) * S;
+    g.save(); g.translate(ox, oy); g.scale(S, S);
+    const gr = g.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, '#141a36'); gr.addColorStop(0.75, '#2c3a5c'); gr.addColorStop(0.76, '#2f4a25'); gr.addColorStop(1, '#223818');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#7a4cc0'; g.fillRect(foe.x - foe.w / 2, foe.y - foe.h / 2, foe.w, foe.h);
+    g.fillStyle = '#5a34a0'; g.fillRect(foe.x + foe.w / 2 - 12, foe.y - foe.h / 2, 12, foe.h);
+    g.fillStyle = '#fff'; g.fillRect(foe.x - 24, foe.y - 16, 12, 12); g.fillRect(foe.x + 6, foe.y - 16, 12, 12);
+    g.fillStyle = '#3a6ad0'; g.fillRect(hero.x - 20, hero.y - 40, 40, 80);
+    g.drawImage(cv, 0, 0, W, H);
+    g.fillStyle = '#ff0'; g.font = 'bold 14px sans-serif'; g.fillText(id + ' ' + t + 'ms  parts ' + (r ? r.parts : '-') + ' things ' + (r ? r.things : '-'), 6, H + 12);
+    g.restore();
+    log.push(t + ': ' + JSON.stringify(r));
+  });
+  document.getElementById('out').src = big.toDataURL('image/png');
+  document.getElementById('log').textContent = log.join('\n');
+})();
+</script>
