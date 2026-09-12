@@ -2470,6 +2470,17 @@ check(MQ.save.getSetting('sfx', true) === false && MQ.save.getSetting('bgm', tru
 const bgmErrs = MQ.bgm.validate();
 check(bgmErrs.length === 0, 'BGM の 曲データ' + (bgmErrs.length ? '：' + bgmErrs.join(' / ') : ''));
 console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
+/* v13.11 iPad／iPhone で 音楽が 流れない：Safari は pointerdown・touchstart では 音を ひらけない（touchend・click だけ）。
+   boot.js が 指を はなす たびに MQ.bgm.wake() を 呼ぶ こと・wake は 音の しくみが ない ところでも 落ちない こと */
+(function () {
+  const BOOT = fs.readFileSync(path.join(base, 'js/ui/boot.js'), 'utf8');
+  check(typeof MQ.bgm.wake === 'function', 'bgm: wake（iPad で ひらき直す）が ある');
+  let ok = true; try { MQ.bgm.wake(); } catch (e) { ok = false; }
+  check(ok, 'bgm: wake は 音の しくみが なくても 落ちない');
+  check(BOOT.indexOf("['touchend', 'click', 'keydown'].forEach") >= 0 && BOOT.indexOf('MQ.bgm.wake()') >= 0, 'boot.js: touchend・click・keydown の たびに BGM を ひらき直す（iPad）');
+  const SFX = fs.readFileSync(path.join(base, 'js/core/sfx.js'), 'utf8');
+  check(SFX.indexOf("ctx.state !== 'running'") >= 0, 'sfx: interrupted（iPad の 電話・ほかの アプリ）でも ひらき直す');
+})();
 check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょうごうが 入る');
 
 /* ---- 学期（v2.6）：ならった 単元だけ 出る ---- */

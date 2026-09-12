@@ -19,7 +19,8 @@ MQ.sfx = (function () {
         if (AC) ctx = new AC();
       } catch (e) { ctx = null; }
     }
-    if (ctx && ctx.state === 'suspended') ctx.resume().catch(function () {});
+    // 'suspended'（まだ ひらいて いない）と 'interrupted'（iPad／iPhone で 電話・ほかの アプリ）の どちらも ひらき直す
+    if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(function () {});
     return ctx;
   }
 

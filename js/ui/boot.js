@@ -24,6 +24,13 @@
 
   // 音は 最初の タップの あとから 鳴らせる
   document.addEventListener('pointerdown', function () { MQ.sfx.unlock(); MQ.bgm.kick(); }, { once: true });
+  /* v13.11：iPad／iPhone の Safari は pointerdown・touchstart では 音を ひらけない（touchend・click・keydown だけ）。
+     そのため 上の 1回だけでは BGM が ひらかず「効果音は 鳴るのに 音楽が 流れない」に なって いた
+     （効果音は ボタンの click で sfx.unlock() される ので 鳴って いた）。
+     さらに ほかの アプリに 切りかえたり 電話が 来たりすると 音が 止まる（interrupted）ので、
+     1回で 外さず、指を はなす たびに「止まって いれば ひらき直す」。ひらいて いる ときは 何も しない（wake は 軽い） */
+  function wakeAudio() { MQ.sfx.unlock(); if (MQ.bgm.wake) MQ.bgm.wake(); }
+  ['touchend', 'click', 'keydown'].forEach(function (ev) { document.addEventListener(ev, wakeAudio, { capture: true, passive: true }); });
 
   // フォントが 読めたら 描きなおす
   if (document.fonts && document.fonts.load) {

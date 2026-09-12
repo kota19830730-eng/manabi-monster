@@ -765,6 +765,13 @@ MQ.bgm = (function () {
       play(desired);
     }
   }
+  /* v13.11：iPad／iPhone の Safari の ため。タップ（touchend・click）の たびに boot.js が 呼ぶ。
+     まだ ひらいて いない（suspended）か 電話・ほかの アプリで 止まった（interrupted）ときだけ ひらき直す。
+     ひらいて いる ときは 何も しない（stop() で わざと 止めた 曲を 勝手に 鳴らし直さない） */
+  function wake() {
+    if (!ctx || ctx.state === 'running' || ctx.state === 'closed') return;
+    ctx.resume().then(function () { if (enabled && desired && !playing) play(desired); }).catch(function () {});
+  }
   function setEnabled(on) {
     enabled = !!on;
     if (!on) stop();
@@ -773,7 +780,7 @@ MQ.bgm = (function () {
   function setVolume(v) { volume = Math.max(0, Math.min(1, v)); }
 
   return {
-    play: play, then: then, stop: stop, kick: kickStart,
+    play: play, then: then, stop: stop, kick: kickStart, wake: wake,
     setIntensity: setIntensity, setEnrage: setEnrage,
     setEnabled: setEnabled, isEnabled: function () { return enabled; },
     setVolume: setVolume, validate: validate,
