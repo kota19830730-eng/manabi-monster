@@ -21,6 +21,14 @@
 .bgfar .water { box-shadow: inset 0 3px 0 rgba(255,255,255,.35); }
 .bgfar .fog { left: 0; right: 0; width: auto; }
 
+/* ---- タイトルを 地図と 同じ 仕上げに（v13.9）：遠景・地面・太陽と 月は Canvas に 描く（scenery.js の paintTitle*） ---- */
+.bgfar__cv { position: absolute; left: 0; bottom: 0; width: 400px; height: 100%; display: block; pointer-events: none; }
+.bgtop .bgfar__cv { top: 0; bottom: auto; height: 96px; }
+.title__top .bgtop--painted { overflow: visible; }                                             /* 太陽の 光が 四角く 切れない（かんばんの うしろに まわる） */
+.title__groundcv { position: absolute; left: 0; top: 0; width: 400px; height: 450px; z-index: 0; display: block; pointer-events: none; }   /* 原っぱ 120＋土 330（LAND_H＋SOIL_H） */
+.title__land--painted::after { top: calc(100% + 330px); background: var(--soil, #583720); }   /* 絵の 下も 土の 色で うめる */
+.title--painted .title__actions { background: transparent; }                                   /* ボタンの うしろは 地面の 土（絵）が 見える */
+
 /* ---- 空（C）：時間帯で 変わる（tod-* は JS が つける。森・海・空・塔は つけない） ---- */
 .title.tod-morning .title__sky { background: linear-gradient(#7fc4f0 0%, #b8e2f8 52%, #ffe0b0 100%); }
 .title.tod-evening .title__sky { background: linear-gradient(#2a3a7c 0%, #7a4f9a 34%, #e8735f 66%, #ffb36e 86%, #ffe1a0 100%); }

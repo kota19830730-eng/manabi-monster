@@ -2777,7 +2777,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const t = at(a[1] || 'day');
       MQ.ui.start.render(); MQ.ui.show('screen-start');
       await wait(200);
-      say('scenery title: time=' + t + ' cls=' + ($('.title').className) + ' parts=' + MQ.ui.scenery.count($('.title__scene .bgfar')));
+      say('scenery title: time=' + t + ' cls=' + ($('.title').className) + ' parts=' + MQ.ui.scenery.count($('.title__scene .bgfar')) +
+        ' painted=' + ($('.title__scene .bgfar__cv') ? 'far' : '-') + '/' + ($('.title__groundcv') ? 'ground' : '-') + '/' + ($('.title__top .bgfar__cv') ? 'top' : '-'));
       freeze();
       return;
     }

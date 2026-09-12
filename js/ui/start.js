@@ -132,15 +132,21 @@ MQ.ui.start = (function () {
   }
 
   /* =======================================================
-     地面（草 → 土）と そこに いる みんな
+     地面（原っぱ → 手まえの 土の がけ）と そこに いる みんな
+     v13.9：地図と 同じ 仕上げ（Canvas に なめらかに 描く・MQ.ui.scenery.ground）。
+     土は ボタンの うしろまで つづく（.title__land--painted）。Canvas が 使えない ときは v9.2 の ブロック
      ======================================================= */
-  function land() {
-    return h('div', { class: 'title__land' }, [
+  function land(tod) {
+    const sc = MQ.ui.scenery;
+    const cv = sc && sc.ground ? sc.ground(tod) : null;
+    const floor = cv ? [cv] : [
       h('div', { class: 'title__grass' }),
       h('div', { class: 'title__dirt' }),
       h('div', { class: 'title__speck title__speck--a' }),
       h('div', { class: 'title__speck title__speck--b' }),
-      h('div', { class: 'title__speck title__speck--c' }),
+      h('div', { class: 'title__speck title__speck--c' })
+    ];
+    return h('div', { class: 'title__land' + (cv ? ' title__land--painted' : ''), style: cv ? { '--soil': sc.soilColor(tod) } : null }, floor.concat([
 
       // うしろ：ボスの ドラゴンと 空の なかま、うかぶ「A」ブロック
       mob('drago-3', 128, 'dragon'),
@@ -166,7 +172,7 @@ MQ.ui.start = (function () {
       // オープニング（v10.4）だけで 見える：勇者の 足もとの 土ぼこり 6つ・たからばこから とぶ コイン 5まい
       h('div', { class: 'title__dust' }, [h('i'), h('i'), h('i'), h('i'), h('i'), h('i')]),
       h('div', { class: 'title__fly' }, [h('i'), h('i'), h('i'), h('i'), h('i')])
-    ]);
+    ]));
   }
 
   /* =======================================================
@@ -269,7 +275,7 @@ MQ.ui.start = (function () {
     ]));
 
     const tod = MQ.ui.scenery ? MQ.ui.scenery.timeOfDay() : 'day';   // 背景（v12.6）：本当の 時計で 空が 変わる
-    const wrap = h('div', { class: 'title tod-' + tod }, sky().concat([
+    const wrap = h('div', { class: 'title tod-' + tod + (MQ.ui.scenery && MQ.ui.scenery.canPaint && MQ.ui.scenery.canPaint() ? ' title--painted' : '') }, sky().concat([
       h('div', { class: 'title__sound' }, MQ.ui.soundButtons()),
       // 右上：おうちの人ページ（大人むけ。子どもの ボタンとは 分けて 小さく おく）
       h('button', { class: 'sw sw--parent', type: 'button', text: 'おうちの人', onclick: openParent }),
@@ -284,7 +290,7 @@ MQ.ui.start = (function () {
         ])
       ]),
       scene(),
-      land(),
+      land(tod),
       h('div', { class: 'title__actions' }, actions)
     ]));
 

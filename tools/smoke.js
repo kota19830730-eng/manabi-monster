@@ -4002,6 +4002,34 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
       ['morning', 'day', 'evening', 'night'].forEach(function (t) { const n = countI(sc.title(t)); check(n >= 20 && n <= 170, 'scenery: タイトル/' + t + ' の 部品 ' + n + '（20〜170）'); });
       check(['g1', 'g2', 'g3', 'g4', 'g5', 'g6'].every(function (g) { return countI(sc.mapFar(g)) > 0; }), 'scenery: 地図の 山なみ 6テーマ');
       check(sc.mapTint('night').className === 'map__tint tod-night', 'scenery: 地図の 光');
+      /* タイトルを 地図と 同じ 仕上げに（v13.9）：Canvas が ない（node）ときは ブロックに もどる／
+         にせの 2D で 遠景・地面・太陽と 月を 4つの 時間帯で 描いて、落ちない・ちゃんと ぬる・色が 正しい 形 */
+      check(sc.canPaint() === false && sc.ground('day') === null && countI(sc.title('day')) >= 20, 'scenery: Canvas が ない ときは ブロックの タイトル・地面は null');
+      (function () {
+        const bad = [];
+        function fakeCtx() {
+          const st = { fills: 0, strokes: 0, colors: [] };
+          const grad = { addColorStop: function (o, c) { if (!(o >= 0 && o <= 1)) bad.push('stop ' + o); st.colors.push(c); } };
+          const ctx = {
+            st: st,
+            set fillStyle(v) { if (typeof v === 'string') st.colors.push(v); }, get fillStyle() { return ''; },
+            set strokeStyle(v) { if (typeof v === 'string') st.colors.push(v); }, get strokeStyle() { return ''; },
+            fill: function () { st.fills++; }, stroke: function () { st.strokes++; }, fillRect: function () { st.fills++; },
+            createLinearGradient: function () { return grad; }, createRadialGradient: function () { return grad; }
+          };
+          ['save', 'restore', 'beginPath', 'closePath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'arc', 'ellipse', 'rect', 'clip', 'setTransform', 'drawImage'].forEach(function (k) { ctx[k] = function () {}; });
+          return ctx;
+        }
+        ['morning', 'day', 'evening', 'night'].forEach(function (t) {
+          const a = fakeCtx(), b = fakeCtx(), c = fakeCtx();
+          try { sc.paintTitleFar(a, 400, 150, t); sc.paintTitleGround(b, 400, sc.LAND_H + sc.SOIL_H, t); sc.paintTitleTop(c, 400, 96, t); }
+          catch (e) { bad.push(t + ': ' + e.message); }
+          [a, b, c].forEach(function (x) { x.st.colors.forEach(function (col) { if (!/^(#[0-9a-f]{6}|rgba?\([0-9., ]+\))$/.test(col)) bad.push(t + ' 色 ' + col); }); });
+          check(a.st.fills > 60 && b.st.fills > 200, 'scenery: タイトル/' + t + ' の 絵（遠景 ' + a.st.fills + '・地面 ' + b.st.fills + ' かい ぬる）');
+          check(t === 'day' ? c.st.fills === 0 : c.st.fills > 0, 'scenery: タイトル/' + t + ' の 太陽と 月');
+        });
+        check(bad.length === 0, 'scenery: タイトルの 絵に おかしな 色・とちゅうで 落ちる ところが ない ' + bad.slice(0, 3).join(' / '));
+      })();
     } finally { global.document.createElement = saveCE; }
   })();
   check(harness.indexOf('3d/vox2.js') < 0 && harness.indexOf('3d/motion.css') < 0, 'harness.html は tools/3d の 写し（vox2.js・motion.css）を 読まない');
