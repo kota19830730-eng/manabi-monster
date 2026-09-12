@@ -690,3 +690,13 @@
 .mo-pal-sp .p--wingR { animation: moFlapR .22s ease-in-out 6; }
 .mo-pal-sp .p--legA { animation: moShift .2s ease-in-out 6; }
 .mo-pal-sp .p--legB { animation: moShift .2s ease-in-out .1s 6; }
+
+/* ---------- v13.6 主人公の まばたき（ユーザー「主人公も 瞬き するように。オープニングでもね」） ----------
+   vox.js が 頭の 前の 面に まぶた（.v3lid）を 2まい おく。ふだんは scaleY 0（見えない）。
+   動くのは バトル（.arena）と タイトル（.title）の 中だけ（モンスターの まばたき .bx__eye と 同じ きまり）。5.2秒に 1回・130ms 閉じる */
+.v3lid { position: absolute; display: block; pointer-events: none; }
+.v3lid i { position: absolute; left: -4%; right: -4%; top: 0; bottom: 0; display: block; transform-origin: 50% 0; transform: scaleY(0); }
+.v3lid i::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 18%; background: rgba(92,52,40,.92); }
+.arena .v3lid i, .title .v3lid i { animation: v3blink 5.2s steps(1, end) infinite; animation-delay: var(--bw, 0s); }
+@keyframes v3blink { 0%, 95.5% { transform: scaleY(0); } 96%, 98% { transform: scaleY(1); } 98.5%, 100% { transform: scaleY(0); } }
+@media (prefers-reduced-motion: reduce) { .arena .v3lid i, .title .v3lid i { animation: none; } }

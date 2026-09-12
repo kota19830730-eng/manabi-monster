@@ -849,6 +849,23 @@ MQ.vox = (function () {
     atlas.finish(U);
     timing.atlas = now() - t3; timing.total = now() - t0;
     wrap.dataset.boxes = boxes.length;
+    /* v13.6 まばたき（ユーザー「主人公も 瞬き するように。オープニングでもね」2026-09-13）：
+       頭の 前の 面に まぶたを 2まい（はだの 色＝目の 下の ほっぺから とる）。目は 96マスの 顔で 左 x33〜42・右 x53〜62・y21〜30。
+       ふだんは 見えない（scaleY 0）。.arena（バトル）と .title（オープニング）の 中だけ ときどき 閉じる（css/motion3d.css の .v3lid） */
+    const head = wrap.querySelector('.p--head');
+    if (head && opts.blink !== false) {
+      const skin = g.col[16 * 48 + 18] || '#f0c8a0';
+      const z = BANDS[0][1] * U / 2 + 1;
+      [16.5, 26.5].forEach(function (x) {
+        const lid = document.createElement('span');
+        lid.className = 'v3lid';
+        lid.style.cssText = 'left:' + (x * U) + 'px;top:' + (10.6 * U) + 'px;width:' + (4.5 * U) + 'px;height:' + (5 * U) + 'px;transform:translateZ(' + z + 'px);';
+        const i = document.createElement('i');
+        i.style.background = skin;
+        lid.appendChild(i);
+        head.appendChild(lid);
+      });
+    }
     return wrap;
   }
 

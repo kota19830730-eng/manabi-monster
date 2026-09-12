@@ -53,7 +53,8 @@ MQ.ui.battle = (function () {
           h('div', { class: 'cloud cloud--c' }, [h('i'), h('i'), h('i')]),
           d.far = h('div', { class: 'bgfar' }),         // paintScene() が エリアの 遠景に 入れかえる
           h('div', { class: 'arena__grass' }),
-          d.floor = h('div', { class: 'afloorwrap' })   // paintScene() が エリアの ゆかに 入れかえる
+          d.floor = h('div', { class: 'afloorwrap' }),  // paintScene() が エリアの ゆかに 入れかえる
+          d.spsky = h('div', { class: 'arena__spsky' })  // ひっさつの あいだ 背景だけ 暗く（v13.6・光る 粒が 映える／キャラは 明るい まま）
         ]),
         d.top = h('div', { class: 'arena__top' }, [
           d.count = h('span', { class: 'pillstat' }),
@@ -165,6 +166,7 @@ MQ.ui.battle = (function () {
     const player = MQ.save.current();
     if (!found || !player) return;
     build();
+    endSpecial(true);   // v13.6：前の たたかいの 広げた 画面・光の 粒が のこって いたら 消す
     MQ.ui.syncCustom();
     clearTimeout(timer);
     clearInterval(tickTimer);
@@ -322,6 +324,7 @@ MQ.ui.battle = (function () {
     const all = MQ.util.shuffle(MQ.save.allEscaped(player)).slice(0, 5);
     if (!all.length) { MQ.ui.toast('にげた敵は いないよ'); return; }
     build();
+    endSpecial(true);   // v13.6：前の たたかいの 広げた 画面・光の 粒が のこって いたら 消す
     MQ.ui.syncCustom();
     clearTimeout(timer);
     clearInterval(tickTimer);
@@ -363,6 +366,7 @@ MQ.ui.battle = (function () {
     const qs = found.stage.make(DRILL_N, { boss: false });
     if (!qs || !qs.length) { MQ.ui.toast('この 単元の 問題は まだ ないよ'); return false; }
     build();
+    endSpecial(true);   // v13.6：前の たたかいの 広げた 画面・光の 粒が のこって いたら 消す
     MQ.ui.syncCustom();
     clearTimeout(timer);
     clearInterval(tickTimer);
@@ -716,6 +720,7 @@ MQ.ui.battle = (function () {
     d.msg.classList.remove('is-quiet');
     d.fx.textContent = '';
     d.fx.className = 'fx';
+    endSpecial(true);
     d.hint.hidden = true;
     d.hint.innerHTML = '';
     renderGuide(q);
@@ -1658,10 +1663,11 @@ MQ.ui.battle = (function () {
     d.warnText.textContent = 'WARNING';
     d.warnSub.textContent = 'ボスが ちかづいてくる…！';
     if (d.bg) d.bg.classList.add('is-dusk');   // v12.6：ボス戦は 空が 暗く なる（塔は もともと 夜・CSS で 効かない）
+    endSpecial(true);   // v13.6：さいごの ザコを 大わざで たおして 画面が 広がって いたら もどす
     d.warning.className = 'warning';
     d.warning.hidden = false;
     void d.warning.offsetWidth;
-    d.warning.classList.add('is-run');
+    d.warning.classList.add('is-in');   // v13.6：前は にげる 動き（is-run＝左へ 30px）を 借りて いて 幕ごと ずれて いた
     wait(1700, function () {
       d.warning.hidden = true;
       renderQuestion();
@@ -1721,10 +1727,11 @@ MQ.ui.battle = (function () {
     d.keys.hidden = true;
     d.warnText.textContent = 'FINAL BATTLE';
     d.warnSub.textContent = MQ.content.lastBoss().name + 'が 目を さました…！';
+    endSpecial(true);
     d.warning.className = 'warning warning--last';
     d.warning.hidden = false;
     void d.warning.offsetWidth;
-    d.warning.classList.add('is-run');
+    d.warning.classList.add('is-in');
     shake(true);
     wait(2600, function () {
       d.warning.hidden = true;
@@ -2077,18 +2084,23 @@ MQ.ui.battle = (function () {
   }
 
   /* 画面ぜんたいの 演出：色の 光（tint）＋集中線（8コンボ〜）＋しょうげきの わ（12コンボ〜）＋ゆれ */
-  function playScreenFx(sp, withPal) {
+  function playScreenFx(sp, withPal, arenaH, dlt, canvas) {
     if (!d.fxs) return;
     d.fxs.textContent = '';
-    d.fxs.className = 'fxscreen fxscreen--' + sp.id + ' fxscreen--t' + sp.tier + (withPal ? ' fxscreen--pal' : '');
+    d.fxs.className = 'fxscreen fxscreen--' + sp.id + ' fxscreen--t' + sp.tier + (withPal ? ' fxscreen--pal' : '') + (canvas ? ' fxscreen--c' : '');
     /* v12.2 ②：色の 光は アリーナの 中だけ・集中線と わの 中心は てきの 位置・技名の 帯は アリーナの いちばん 下
        （主人公と てきが 見える 場所に よける）。てきの 中心は 画面の px を ステージの 拡大で 割って 出す */
     const c = foeCenter();
-    d.fxs.style.setProperty('--arena-h', (d.arena ? d.arena.offsetHeight : 176) + 'px');
+    c.y += dlt || 0;
+    d.fxs.style.setProperty('--arena-h', (arenaH || (d.arena ? d.arena.offsetHeight : 176)) + 'px');
     d.fxs.style.setProperty('--fs-x', c.x + 'px');
     d.fxs.style.setProperty('--fs-y', c.y + 'px');
-    if (sp.tier >= 4) d.fxs.appendChild(h('span', { class: 'fxscreen__dark' }));   // すいこむ あいだは まっくら
-    d.fxs.appendChild(h('span', { class: 'fxscreen__tint' }));
+    d.fxs.style.setProperty('--sp-ms', sp.ms + 'ms');
+    /* v13.6：色の 光・集中線・わ は アリーナの 中に とじこめる（下の カットインに かからない） */
+    const clip = h('span', { class: 'fxscreen__clip' });
+    d.fxs.appendChild(clip);
+    if (sp.tier >= 4 && !canvas) clip.appendChild(h('span', { class: 'fxscreen__dark' }));   // すいこむ あいだは まっくら（Canvas の ときは 背景だけ まっくら＝.arena__spsky）
+    if (!canvas) clip.appendChild(h('span', { class: 'fxscreen__tint' }));        // Canvas の ときは 光は Canvas が 出す
     if (sp.tier >= 2) {
       const lines = h('span', { class: 'fxscreen__lines' });
       const n = sp.tier >= 4 ? 28 : sp.tier === 3 ? 20 : 14;
@@ -2096,10 +2108,12 @@ MQ.ui.battle = (function () {
       for (let i = 0; i < n; i++) {
         lines.appendChild(h('i', { style: { transform: 'rotate(' + (i * 360 / n + (i % 2) * 6) + 'deg)', animationDelay: (base + (i % 3) * 0.04) + 's', height: (700 + (i % 3) * 120) + 'px' } }));
       }
-      d.fxs.appendChild(lines);
+      clip.appendChild(lines);
     }
-    if (sp.tier >= 3) d.fxs.appendChild(h('span', { class: 'fxscreen__ring' }));
-    if (sp.tier >= 4) d.fxs.appendChild(h('span', { class: 'fxscreen__ring fxscreen__ring--b' }));
+    if (!canvas && sp.tier >= 3) clip.appendChild(h('span', { class: 'fxscreen__ring' }));
+    if (!canvas && sp.tier >= 4) clip.appendChild(h('span', { class: 'fxscreen__ring fxscreen__ring--b' }));
+    // 下の 問題の ところは 暗く（カットインの 舞台・v13.6）
+    d.fxs.appendChild(h('span', { class: 'fxveil' }));
     // 技名（黒い 帯＋大きな 文字＋星）は いちばん 上に
     d.fxs.appendChild(h('span', { class: 'fxband' }));
     d.fxs.appendChild(h('span', { class: 'fxname' + (sp.tier >= 4 ? ' fxname--max' : sp.tier === 3 ? ' fxname--big' : ''), text: sp.name }));
@@ -2139,51 +2153,182 @@ MQ.ui.battle = (function () {
     d.cur.classList.add(sp.tier >= 4 ? 'is-blast-max' : sp.tier >= 3 ? 'is-blast-big' : 'is-blast');
   }
 
-  /* ⑥ カットイン（v7.5）：わざが 出る 前に 主人公が よこから 大きく 入る。
-     ⑧ 相棒の ゲージも たまって いれば「がったい こうげき」に なる */
-  function cutIn(sp, withPal) {
-    if (!d.fxs) return;
-    const box = h('div', { class: 'cutin' + (withPal ? ' cutin--pal' : '') });
-    box.style.setProperty('--el', FX_COLOR[sp.id] || '#ffd447');
-    box.appendChild(h('span', { class: 'cutin__band' }));
-    const face = h('span', { class: 'cutin__face' });
-    const img = h('img', { class: 'cutin__hero', alt: '' });
-    img.src = MQ.hero.sprite(ctx.player);
-    face.appendChild(img);
-    if (withPal && palNow) {
-      const pal = h('span', { class: 'cutin__pal' });
-      pal.appendChild(MQ.enemies.node(palNow.id, { size: 44 }));
-      face.appendChild(pal);
-    }
-    box.appendChild(face);
-    box.appendChild(h('span', { class: 'cutin__tx',
-      text: withPal && palNow ? palNow.name + 'と いっしょに！' : 'いくぞ！' }));
-    d.fxs.appendChild(box);
-    // v10.5：カットインの あいだは ふきだしと 相棒を 消す（帯が 半透明で すけて ごちゃごちゃ する）
-    if (d.arena) d.arena.classList.add('is-cutin');
+  /* =======================================================
+     v13.6 ひっさつわざを 派手に
+     （ユーザー「必殺技の 炎や 雷を 3Dか 解像度 あげて 綺麗に」「カットインが 棒立ちで いくぞ だけ」
+       「こどもは 派手なの 好き」2026-09-13 → A＋B＋C）
+       A＝光る ブロックの 粒（js/ui/fxcanvas.js）。空だけ 暗く して（.arena__spsky・キャラの うしろ）光を 映えさせる
+       B＝8コンボ いじょうの わざの あいだ バトル画面を 広げる（grow）。
+          高さを ふやした ぶん margin-bottom を マイナスに する＝下の 問題の 大きさは 1px も 変わらない（上に かぶさる だけ）
+       C＝カットインは 下の 問題の ところ（アリーナの 下）に 出す＝わざの 動きを かくさない。
+          5つの 形（band／slash／face／duo＝相棒と／full＝16コンボ〜）・わざごとの ポーズ・毎回 ちがう せりふ
+     ルールは 変えない（見た目だけ）。わざの 長さ（sp.ms）も 変えない。
+     ======================================================= */
+  const BIG_TIER = 2;        // 8コンボ（いなずま おとし）から 画面を 広げる
+  const BIG_RATIO = 0.56;    // 広げた ときの アリーナの 高さ（ステージの 56%）
+  const SP_LINES = {
+    fire: ['もえろ！', 'ほのおの けん！', 'もえる 一げきだ！'],
+    leaf: ['きりさけ！', 'はっぱよ おどれ！', 'みどりの かぜよ！'],
+    ice: ['こおりつけ！', 'つめたい やいば！', 'ぜんぶ こおらせる！'],
+    wind: ['ふきとべ！', 'たつまきよ おこれ！', 'かぜに なれ！'],
+    bolt: ['かみなりよ！', 'しびれろ！', '空から いくぞ！'],
+    star: ['ほしよ ふれ！', 'メテオ いくぞ！', 'ひかりの あめだ！'],
+    nova: ['ぜんぶの 力を あつめる！', 'これが 本気だ！', 'うちゅうの 力だ！'],
+    starburst: ['これで きめる！', 'さいごの 一げき！', 'ほしの 力よ！']
+  };
+  const PAL_LINES = ['{p}、いっしょに いくぞ！', '{p}と いっしょに！', 'いくぞ、{p}！'];
+  const CI_POSE = { fire: 'raise', leaf: 'thrust', ice: 'guard', wind: 'sweep', bolt: 'sky', star: 'point', nova: 'spread', starburst: 'charge' };
+  const CI_MS = { 1: 760, 2: 900, 3: 980, 4: 1050, 5: 1150 };   // カットインが 出て いる 長さ
+  let ciLast = '', lineLast = '', growT = null, ciForce = null, instantGrow = false;
+
+  function ciLayout(sp, withPal) {
+    if (withPal && palNow) return 'duo';
+    if (sp.tier >= 4) return 'full';
+    const pool = ['band', 'slash', 'face'].filter(function (x) { return x !== ciLast; });
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  function pickLine(sp, withPal) {
+    const list = withPal && palNow
+      ? PAL_LINES.map(function (s) { return s.replace('{p}', palNow.name); })
+      : (SP_LINES[sp.id] || ['いくぞ！']);
+    const pool = list.filter(function (x) { return x !== lineLast; });
+    const s = pool[Math.floor(Math.random() * pool.length)] || list[0];
+    lineLast = s;
+    return s;
+  }
+  /* 3D は 見せる 大きさで 作らないと ぼやける（48マス × unit）。大きすぎる unit は 作るのも 描くのも 重いので 4まで（5〜6 は はじめの 1コマが 0.1秒 重く なった） */
+  function ciUnit(size) { return Math.max(2, Math.min(4, Math.round(size / 48))); }
+  /* はじめての わざで 1コマ ひっかからない ように、たたかいの はじめに 作って おく（しまって おくだけ） */
+  function ciWarm(player) {
+    if (!V3() || !MQ.ui.v3) return;
     setTimeout(function () {
-      if (box.parentNode) box.parentNode.removeChild(box);
-      if (d.arena) d.arena.classList.remove('is-cutin');
-    }, 620);
+      if (!d || !d.root) return;
+      const hold = h('div', { class: 'ciwarm' });
+      try { hold.appendChild(MQ.ui.v3.hero(player, 192, { ry: 22, unit: 4, mo: 'mo-ci' })); } catch (e) {}
+      d.root.appendChild(hold);
+      setTimeout(function () { hold.remove(); }, 250);   // 絵を 1回 描けば 読みこみは のこる
+    }, 900);
+  }
+  /* カットインの 主人公（3D は ポーズつき。部品の 回し方は css/specialfx.css の ci-pose-*） */
+  function ciFigure(sp, size) {
+    const pose = 'ci-pose-' + (CI_POSE[sp.id] || 'raise');
+    if (V3() && MQ.ui.v3) {
+      const sc = MQ.ui.v3.hero(ctx.player, size, { ry: 22, unit: ciUnit(size), mo: 'mo-ci', cls: 'ci__fig ' + pose });
+      if (sc) return sc;
+    }
+    const img = h('img', { class: 'ci__img ' + pose, alt: '' });
+    img.src = MQ.hero.sprite(ctx.player);
+    return img;
+  }
+  function cutIn(sp, withPal, arenaH) {
+    if (!d.fxs) return;
+    const lay = ciForce || ciLayout(sp, withPal);
+    ciLast = lay;
+    const lower = (d.root.offsetHeight || 700) - arenaH;
+    const hgt = lay === 'full' ? Math.max(140, lower - 6) : Math.max(120, Math.min(236, lower - 18));
+    const box = h('div', { class: 'ci ci--' + lay + ' ci--' + sp.id + ' ci--t' + sp.tier + (withPal ? ' ci--pal' : '') });
+    box.style.setProperty('--el', FX_COLOR[sp.id] || '#ffd447');
+    box.style.setProperty('--ci-h', hgt + 'px');
+    box.style.setProperty('--ci-ms', (CI_MS[sp.tier] + (withPal ? 150 : 0)) + 'ms');
+    box.appendChild(h('span', { class: 'ci__bg' }));
+    box.appendChild(h('span', { class: 'ci__speed' }));
+    const win = h('span', { class: 'ci__win' });
+    const heroBox = h('span', { class: 'ci__hero' });
+    const fig = lay === 'face' ? Math.round(hgt * 1.6) : lay === 'full' ? Math.round(Math.min(hgt * 0.86, 240)) : lay === 'duo' ? Math.round(hgt * 1.0) : Math.round(hgt * 1.15);
+    heroBox.style.setProperty('--fig', fig + 'px');
+    heroBox.appendChild(ciFigure(sp, fig));
+    win.appendChild(heroBox);
+    box.appendChild(win);
+    if (lay === 'duo' && palNow) {
+      const pb = h('span', { class: 'ci__pal' });
+      const size = Math.round(hgt * 0.78);
+      pb.appendChild((V3() && MQ.ui.v3.monster(palNow.id, size, { ry: 22, mo: 'mo-menace', cls: 'ci__palfig' })) || MQ.enemies.node(palNow.id, { size: size }));
+      win.appendChild(pb);
+      box.appendChild(h('span', { class: 'ci__div' }));
+    }
+    box.appendChild(h('span', { class: 'ci__tx', text: pickLine(sp, withPal) }));
+    box.appendChild(h('span', { class: 'ci__shine' }));
+    d.fxs.appendChild(box);
+  }
+
+  /* B：バトル画面を 広げる／もどす。広げた ぶん（px）を かえす */
+  function grow(on, now) {
+    const a = d && d.arena;
+    if (!a) return 0;
+    clearTimeout(growT);
+    if (on) {
+      const base = a.classList.contains('is-big') ? (+a.dataset.base || a.offsetHeight) : a.offsetHeight;
+      const big = Math.round(Math.max(base, (d.root.offsetHeight || 700) * BIG_RATIO));
+      const dlt = big - base;
+      if (dlt < 8) return 0;
+      a.dataset.base = base;
+      a.style.height = base + 'px';
+      a.style.marginBottom = '0px';
+      a.classList.add('is-big');
+      if (instantGrow) a.classList.add('is-instant');
+      void a.offsetHeight;
+      a.style.height = big + 'px';
+      a.style.marginBottom = (-dlt) + 'px';
+      return dlt;
+    }
+    if (!a.classList.contains('is-big')) return 0;
+    const done = function () { a.classList.remove('is-big', 'is-instant'); a.style.height = ''; a.style.marginBottom = ''; delete a.dataset.base; };
+    if (now) { done(); return 0; }
+    a.style.height = a.dataset.base + 'px';
+    a.style.marginBottom = '0px';
+    growT = setTimeout(done, 320);
+    return 0;
+  }
+  function skyOn(id) { if (d.spsky) { d.spsky.setAttribute('data-sp', id); d.spsky.classList.add('is-on'); } }
+  function skyOff() { if (d && d.spsky) d.spsky.classList.remove('is-on'); }
+
+  /* 画面の 中の ものの まん中と 大きさ（.battle の 左上から の ステージ px）。dlt＝広げて 下に ずれる ぶん */
+  function boxOf(el, dlt) {
+    if (!el || !d.root || !d.root.getBoundingClientRect) return null;
+    const r = el.getBoundingClientRect(), b = d.root.getBoundingClientRect();
+    if (!r.width) return null;
+    const k = (MQ.stage && MQ.stage.size) ? (MQ.stage.size().scale || 1) : 1;
+    return { x: (r.left + r.width / 2 - b.left) / k, y: (r.top + r.height / 2 - b.top) / k + (dlt || 0), w: r.width / k, h: r.height / k };
   }
 
   function playSpecial(sp, withPal) {
     if (!d.fx) return;
+    clearTimeout(fxTimer);
+    const fxc = MQ.ui.fxc;
+    const canvas = !!(fxc && fxc.attach(d.root) && fxc.ok() && fxc.has(sp.id));
     d.fx.textContent = '';
     d.fx.className = 'fx fx--' + sp.id + ' fx--t' + sp.tier;
-    buildFx(sp).forEach(function (el) { d.fx.appendChild(el); });
-    playScreenFx(sp, withPal);
-    if (sp.tier >= 3 || withPal) cutIn(sp, withPal);   // v12.2 ②：5〜8コンボは 動きで 見せる（カットインで 0.62秒 かくさない）
+    const base = d.arena.offsetHeight;
+    const dlt = sp.tier >= BIG_TIER ? grow(true) : 0;
+    const arenaH = base + dlt;
+    if (canvas) {
+      skyOn(sp.id);
+      const foe = d.cur ? (d.cur.querySelector('.enemy__img3d, .enemy__img') || d.cur) : null;
+      fxc.play(sp.id, { foe: boxOf(foe, dlt), hero: boxOf(d.hero.querySelector('.hero__img3d') || d.heroImg, dlt), height: arenaH });
+    } else {
+      buildFx(sp).forEach(function (el) { d.fx.appendChild(el); });
+    }
+    playScreenFx(sp, withPal, arenaH, dlt, canvas);
+    cutIn(sp, withPal, arenaH);
     MQ.sfx.special(sp.tier, sp.id);
-    flash(true);
+    if (!canvas) flash(true);
     if (d.msg) d.msg.classList.add('is-quiet');   // 技名と ぶつからないように
+    if (d.arena) d.arena.classList.add('is-cutin');
+    fxTimer = setTimeout(function () { endSpecial(false); }, sp.ms);
+  }
+  /* わざの おわり。now＝すぐ 消す（つぎの 問題が 出た とき）。
+     広げた 画面は わざの おわりでは もどさず、つぎの 問題が 出る しゅんかんに いっしょに もどす
+     （ゆっくり もどすと 3D の 画面を 毎コマ 描きなおして 0.1秒 ひっかかる・実測 v13.6） */
+  function endSpecial(now) {
+    if (!d) return;
     clearTimeout(fxTimer);
-    fxTimer = setTimeout(function () {
-      d.fx.textContent = '';
-      d.fx.className = 'fx';
-      if (d.fxs) { d.fxs.textContent = ''; d.fxs.className = 'fxscreen'; }
-      if (d.msg) d.msg.classList.remove('is-quiet');
-    }, sp.ms);
+    if (now && d.fxs) { d.fxs.textContent = ''; d.fxs.className = 'fxscreen'; }   // わざの おわり（now でない）は CSS で もう 見えない ので 消さない（3D の カットインを 消すと 1コマ 重い）
+    if (now && d.fx && /\bfx--t\d/.test(d.fx.className)) { d.fx.textContent = ''; d.fx.className = 'fx'; }
+    if (d.msg && !now) d.msg.classList.remove('is-quiet');
+    if (d.arena) d.arena.classList.remove('is-cutin');
+    skyOff();
+    if (now) grow(false, true);
+    if (MQ.ui.fxc) { if (now) MQ.ui.fxc.stop(); else MQ.ui.fxc.fade(); }
   }
 
   /* いまの 相棒を 画面に 出す（いなければ かくす） */
@@ -2203,6 +2348,7 @@ MQ.ui.battle = (function () {
     if (v3) d.hero.insertBefore(MQ.ui.v3.hero(player, 84, { ry: 22, mo: 'mo-idle', cls: 'hero__img3d' }), d.heroImg);
     /* v12.5 軽く：3D の あいだ 2D の 絵は hidden なので、カットイン（tier ≥ 3）で はじめて デコードされて 1コマ ひっかかる → 先に デコードして おく */
     if (v3 && window.Image) { try { const pre = new Image(); pre.src = d.heroImg.src; if (pre.decode) pre.decode().catch(function () {}); } catch (e) {} }
+    ciWarm(player);   // v13.6：カットインの 3D を 先に 作る
   }
 
   function syncPal(player) {
@@ -2847,11 +2993,15 @@ MQ.ui.battle = (function () {
 
   /* 見た目を たしかめる ための 入口（tools/harness.html から よぶ）。
      ふつうの あそびでは 使いません。 */
-  function demoSpecial(id) {
+  function demoSpecial(id, o) {
     build();
+    o = o || {};
     const sp = specialById(id);
     comboShow(sp.min);
-    playSpecial(sp);
+    ciForce = o.layout || null;         // v13.6：カットインの 形を きめて 撮る
+    instantGrow = !!o.instant;         // harness（virtual-time）は transition が すすまない ので すぐ 広げる
+    playSpecial(sp, !!o.pal);
+    ciForce = null; instantGrow = false;
     if (V3() && d.cur) specialMotion(sp, d.cur);   // v12.2：3D の 動きも いっしょに
     return sp;
   }
@@ -2867,6 +3017,8 @@ MQ.ui.battle = (function () {
   }
 
   return {
+    demoWarning: function (last) { build(); if (last) towerIntro(); else bossIntro(); },   // v13.6：harness #warning
+    demoEnd: function () { endSpecial(true); },   // v13.6：見本の ページで つぎの わざの 前に もどす
     start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,
     paintScene: paintScene,   // 背景（v12.6）を harness から 入れかえる 用
     lastJudge: function () { return lastJudge; },

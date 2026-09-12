@@ -94,6 +94,7 @@
     const ry = opts.ry == null ? 22 : opts.ry;
     const sc = scene(size, ry, 48 * U, opts.cls);
     const key = src.length + ':' + src.slice(-64) + '|' + U + '|' + (hideFor(ry, opts) || '-');   // data URL は 長い ので 末尾で 見分ける
+    sc.style.setProperty('--bw', (-Math.random() * 5).toFixed(2) + 's');   // v13.6：まばたきを 1人ずつ ずらす
     const done = function (v) { put(sc, v.cloneNode(true), opts.mo || 'mo-idle'); };
     if (heroCache[key]) { done(heroCache[key]); return sc; }
     const img = new Image();

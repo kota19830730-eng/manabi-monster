@@ -223,8 +223,16 @@ MQ.text = (function () {
             const e = list[n];
             if (!s.startsWith(e.h, i)) continue;
             if (e.same) { hit = { len: e.h.length, out: e.h }; break; }
-            if (e.d || e.need > lim) continue;
+            if (e.d) continue;
             if (e.n && !numBefore(s, i)) continue;
+            if (e.need > lim) {
+              /* v13.6：長い ことばが この 学年では まだ かん字に できない ときは、中の 短い ことばも かん字に しない
+                 （「ぎんがの」→「銀がの」・「ほしい」→「星い」に しない）。ことばは 長い じゅんに ならんで いる */
+              const tl0 = e.ut || e.tails;
+              if (tl0 && matchTail(s, i + e.h.length, tl0) == null && !e.s) continue;
+              hit = { len: e.h.length, out: e.h };
+              break;
+            }
             const j = i + e.h.length;
             let tail = '';
             const tl = e.ut || e.tails;
