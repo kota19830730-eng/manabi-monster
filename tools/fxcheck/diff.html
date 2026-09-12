@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- 2まいの 画像の ちがいを 数える（見た目が 変わって いないかの 検査）
+     diff.html?a=<まえ>&b=<あと> を --allow-file-access-from-files で 開いて #log を 読む。
+     ちがう 画素の 数・いちばん 大きな ちがい・ちがう ところの わく（x,y,w,h）を 出し、下に ちがいを 赤で 描く -->
+<pre id="log">wait</pre>
+<canvas id="c"></canvas>
+<script>
+const Q = new URLSearchParams(location.search);
+const A = new Image(), B = new Image();
+let n = 0;
+A.onload = B.onload = function () { if (++n < 2) return; go(); };
+A.src = Q.get('a'); B.src = Q.get('b');
+function px(img) { const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0); return g.getImageData(0, 0, c.width, c.height); }
+function go() {
+  const a = px(A), b = px(B), W = a.width, H = a.height;
+  const out = document.getElementById('c'); out.width = W; out.height = H;
+  const g = out.getContext('2d'), o = g.createImageData(W, H);
+  let cnt = 0, max = 0, x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let i = 0; i < a.data.length; i += 4) {
+    const d = Math.max(Math.abs(a.data[i] - b.data[i]), Math.abs(a.data[i + 1] - b.data[i + 1]), Math.abs(a.data[i + 2] - b.data[i + 2]));
+    const p = i / 4, x = p % W, y = (p / W) | 0;
+    const gray = (a.data[i] + a.data[i + 1] + a.data[i + 2]) / 9;
+    if (d > 8) { cnt++; if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; o.data[i] = 255; o.data[i + 1] = 0; o.data[i + 2] = 0; }
+    else { o.data[i] = o.data[i + 1] = o.data[i + 2] = gray; }
+    o.data[i + 3] = 255;
+    if (d > max) max = d;
+  }
+  g.putImageData(o, 0, 0);
+  document.getElementById('log').textContent = 'size ' + W + 'x' + H + ' ちがう画素 ' + cnt + ' (' + (cnt / (W * H) * 100).toFixed(2) + '%) いちばん ' + max + (cnt ? ' わく ' + x0 + ',' + y0 + ',' + (x1 - x0 + 1) + ',' + (y1 - y0 + 1) : '');
+}
+</script>

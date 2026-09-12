@@ -13,3 +13,15 @@
 - `#fx:<わざ>:<秒>`（harness）は 8コンボ〜の わざで 画面を すぐ 広げる ので、てきの 位置が 下に ずれて 見える。位置は `rt.js` で たしかめる。
 - PC が 混んで いる とき（Chrome 30こ いじょう）の 数字は ぶれる。前と あとを 同じ ときに はかって くらべる。
 - `demo3d.html`・`sounds.js`・撮った png は git に 入れない。
+
+## 重さの 犯人さがし（v13.10）
+
+| ファイル | すること | 使い方 |
+|---|---|---|
+| `paintwho.js` | 何が 描き直されて いるか（Paint の 回数を 要素ごとに） | `node paintwho.js battle 4 3`（何も して いない たたかい）・`node paintwho.js perffx:fire 2.5 3.5`（わざ）。`|css=…` を つなげると 部品を 外して くらべられる |
+| `ab.js` | 部品を 1つずつ 外して メイン／GPU の いそがしさ・描き直しの 回数を くらべる（dpr 2・800×1280） | `node ab.js starburst 3 base= noci="|css=.ci{display:none!important}"` |
+| `trace.js` / `prof.js` | Chrome の トレース／JS の 重い 関数 | `node prof.js perffx:starburst 3 8` |
+| `diff.html` | 2まいの 画像の ちがう 画素を 数える | `diff.html?a=<まえ>&b=<あと>` を `--allow-file-access-from-files` で |
+
+- **時間は PC の 混みぐあいで 1.6ばい ぶれる**。くらべる ときは 描き直しの 回数（paintwho）か、画素の ちがい（diff）で。
+- 前の 版と くらべる：`git worktree add -f <一時フォルダ> HEAD --detach` → 同じ 道具で 撮る（harness に `|js=` で `Math.random` を 種つきに）。おわったら `git worktree remove`。

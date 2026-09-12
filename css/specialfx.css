@@ -63,16 +63,21 @@
   84%     { transform: var(--tx0, translateX(0)) scale(1.04) rotate(-4deg); opacity: 1; }
   100%    { transform: var(--tx0, translateX(0)) scale(1.1) rotate(-4deg); opacity: 0; }
 }
-/* 光の すじが 1回 はしる */
-.ci__shine {
-  position: absolute; inset: 0; z-index: 4; mix-blend-mode: screen;
+/* 光の すじが 1回 はしる。
+   v13.10（軽く）：前は background-position を 動かして いて、毎コマ 描き直し（Paint）に なって いた。
+   すじを 260% の はばの ::before に 描いて transform で 動かす＝GPU だけで 動く。位置は 前と 同じ
+   （background-position 130%→-30% は はば 2.6倍の 絵の ずれ -2.08→+0.48＝自分の はばの -80%→+18.46%）。
+   mix-blend-mode: screen も 外した（白い 光は screen でも ふつうの かさねでも 同じ 色に なる。screen は 下を まとめて 描き直す ので 重い） */
+.ci__shine { position: absolute; inset: 0; z-index: 4; overflow: hidden; pointer-events: none; }
+.ci__shine::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 260%;
   background: linear-gradient(110deg, rgba(255,255,255,0) 38%, rgba(255,255,255,.75) 50%, rgba(255,255,255,0) 62%);
-  background-size: 260% 100%; background-position: 130% 0;
+  transform: translateX(-80%);
   animation: ciShine var(--ci-ms, 900ms) ease-out both;
 }
-@keyframes ciShine { 0%, 14% { background-position: 130% 0; } 42%, 100% { background-position: -30% 0; } }
-/* 速さの すじ（点線の 列が 左へ とぶ） */
-@keyframes ciDash { from { background-position: 0 0; } to { background-position: -180px 0; } }
+@keyframes ciShine { 0%, 14% { transform: translateX(-80%); } 42%, 100% { transform: translateX(18.4615%); } }
+/* 速さの すじ（点線の 列が 左へ とぶ）。v13.10：これも background-position → transform（::before を 1くり返し ぶん＝180px 長く して 左へ ずらす） */
+@keyframes ciDash { from { transform: translateX(0); } to { transform: translateX(-180px); } }
 @keyframes ciSpin { from { transform: rotate(0); } to { transform: rotate(30deg); } }
 
 /* 形1 band：ななめの 帯・左から 主人公・右に せりふ */
@@ -85,9 +90,12 @@
 }
 @keyframes ciBand { 0% { transform: skewY(-5deg) scaleX(0); } 14% { transform: skewY(-5deg) scaleX(1); } 100% { transform: skewY(-5deg) scaleX(1); } }
 .ci--band .ci__speed {
-  left: -8%; right: -8%; top: 10%; bottom: 10%; transform: skewY(-5deg); opacity: .75;
-  background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.55) 0 46px, rgba(255,255,255,0) 46px 90px, rgba(255,255,255,.3) 90px 110px, rgba(255,255,255,0) 110px 180px);
+  left: -8%; right: -8%; top: 10%; bottom: 10%; transform: skewY(-5deg); opacity: .75; overflow: hidden;
   -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 2px, transparent 2px 13px); mask-image: repeating-linear-gradient(180deg, #000 0 2px, transparent 2px 13px);
+}
+.ci--band .ci__speed::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; right: -180px;
+  background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.55) 0 46px, rgba(255,255,255,0) 46px 90px, rgba(255,255,255,.3) 90px 110px, rgba(255,255,255,0) 110px 180px);
   animation: ciDash .22s linear infinite;
 }
 .ci--band .ci__hero { left: 2%; bottom: calc(var(--fig, 200px) * -0.36); animation: ciFromL var(--ci-ms, 900ms) cubic-bezier(.15,.95,.3,1) both; }

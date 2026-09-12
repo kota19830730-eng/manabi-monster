@@ -150,7 +150,9 @@ body {
 @keyframes bob    { 0%,100% { transform: translateY(0); }   50% { transform: translateY(-6px); } }
 @keyframes drift  { 0% { transform: translateX(0); }        100% { transform: translateX(28px); } }
 @keyframes pulse  { 0%,100% { transform: scale(1); }        50% { transform: scale(1.07); } }
-@keyframes shine  { 0% { background-position: -140% 0; }    100% { background-position: 240% 0; } }
+/* shine（v13.10）：前は background-position を 動かして いて、ボタンの ところが 毎コマ 描き直し（Paint）に なって いた
+   （たたかいの 画面では 何も して いなくても 1秒に 95回）。いまは .btn__shine::before を transform で 動かす（位置は 前と 同じ・下の .btn__shine を 見る） */
+@keyframes shine  { 0% { transform: translateX(-30.9091%); } 100% { transform: translateX(-82.7273%); } }
 @keyframes popin  { 0% { transform: scale(.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -236,10 +238,15 @@ body {
 .btn:disabled:active { transform: none; }
 
 /* 主ボタンの 光沢スイープ */
-.btn__shine {
-  position: absolute; inset: 0; pointer-events: none;
+/* v13.10：光の すじは ::before に 描いて transform で すべらせる（GPU だけ・描き直し なし）。
+   前の 形＝はば 220% の 絵を くり返して background-position -140%→240%（絵の ずれ ＋1.68→−2.88 ボタン はば）。
+   同じ 見た目に する ため ::before を 絵 4まいぶん（880%）に して、ずれを 絵 2まいぶん（4.4）ずらした 位置から 動かす：
+   −2.72→−7.28 ボタン はば ＝ 自分の はばの −30.9091%→−82.7273%。とちゅうも くり返しの つぎ目も 前と 同じ */
+.btn__shine { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.btn__shine::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 880%;
   background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.55) 50%, transparent 60%);
-  background-size: 220% 100%;
+  background-size: 25% 100%;
   animation: shine 3.4s linear infinite;
 }
 
@@ -977,8 +984,9 @@ body {
 .fever { position: relative; margin: 6px 12px 4px; padding: 6px 12px 7px; border-radius: 12px; overflow: hidden;
          background: linear-gradient(var(--org-1), var(--org-2)); box-shadow: 0 4px 0 var(--org-sh), inset 0 2px 0 rgba(255,255,255,.4);
          color: #fff; display: flex; flex-direction: column; gap: 2px; }
-.fever::before { content: ''; position: absolute; top: -40%; left: -30%; width: 40%; height: 180%; background: rgba(255,255,255,.18); transform: rotate(18deg); animation: feverShine 3.2s ease-in-out infinite; pointer-events: none; }
-@keyframes feverShine { 0% { left: -40%; } 60% { left: 120%; } 100% { left: 120%; } }
+/* v13.10：光の すじは left で なく transform で 動かす（left は 毎コマ レイアウトの やり直し）。left −40%→120% ＝ 自分の はば（40%）の 0→400% */
+.fever::before { content: ''; position: absolute; top: -40%; left: -40%; width: 40%; height: 180%; background: rgba(255,255,255,.18); transform: translateX(0) rotate(18deg); animation: feverShine 3.2s ease-in-out infinite; pointer-events: none; }
+@keyframes feverShine { 0% { transform: translateX(0) rotate(18deg); } 60% { transform: translateX(400%) rotate(18deg); } 100% { transform: translateX(400%) rotate(18deg); } }
 .fever__row { display: flex; align-items: center; gap: 8px; }
 .fever__star { flex: none; width: 18px; height: 18px; background: var(--gold); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); filter: drop-shadow(0 0 6px rgba(255,232,154,.95)); animation: pulse 1.4s ease-in-out infinite; }
 .fever__label { flex: none; font-family: var(--f-head); font-size: 11px; color: #ffe89a; letter-spacing: .04em; }

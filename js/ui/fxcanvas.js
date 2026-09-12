@@ -94,8 +94,9 @@
     K = Math.min(3, sc * dpr);
     while (W * K * H * K > 2400000 && K > 1) K -= 0.25;   // 大きすぎる 画面は 少し あらく（重さ）
     cv.style.height = H + 'px';
-    cv.width = Math.round(W * K);
-    cv.height = Math.round(H * K);
+    // 大きさが 同じ なら 作り直さない（作り直すと GPU の 入れものを 取り直して、わざの はじめに ひっかかる・v13.10）
+    const cw = Math.round(W * K), chh = Math.round(H * K);
+    if (cv.width !== cw || cv.height !== chh) { cv.width = cw; cv.height = chh; }
   }
 
   /* ---------- 粒 ---------- */
@@ -502,42 +503,51 @@
   const L3 = (function () { const x = -0.45, y = -0.75, z = -0.5, l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; })();
   /* o: x,y＝画面の まん中・s＝大きさ(px)・sx/sy/sz＝形の のばし・rx/ry/rz＝回転・col＝色・a＝すけ具合・edge＝ふちの 白線
         emis＝自分で 光る（かげを 弱く）・both＝うしろの 面も ぬる・spec＝てかり */
+  // 作業用の 入れもの（mesh を 描く たびに 配列を 作らない＝ごみ集めの ひっかかりを へらす・v13.10）
+  const MV = 64, MF = 64;
+  const RX = new Float64Array(MV), RY = new Float64Array(MV), RZ = new Float64Array(MV), QX = new Float64Array(MV), QY = new Float64Array(MV);
+  const VF = new Array(MF), VZ = new Float64Array(MF), VD = new Float64Array(MF), VK = new Float64Array(MF), VB = new Uint8Array(MF), ORD = new Int32Array(MF);
   function mesh(g, M, o) {
     const czz = Math.cos(o.rz || 0), szz = Math.sin(o.rz || 0), cyy = Math.cos(o.ry || 0), syy = Math.sin(o.ry || 0), cxx = Math.cos(o.rx || 0), sxx = Math.sin(o.rx || 0);
-    const R3 = [], P2 = [];
-    for (let i = 0; i < M.v.length; i++) {
-      let x = M.v[i][0] * (o.sx || 1), y = M.v[i][1] * (o.sy || 1), z = M.v[i][2] * (o.sz || 1);
+    const sx = o.sx || 1, sy = o.sy || 1, sz = o.sz || 1, V = M.v, nv = V.length;
+    for (let i = 0; i < nv; i++) {
+      let x = V[i][0] * sx, y = V[i][1] * sy, z = V[i][2] * sz;
       let t = x * czz - y * szz; y = x * szz + y * czz; x = t;          // Z（かたむき）
       t = x * cyy + z * syy; z = -x * syy + z * cyy; x = t;              // Y（まわる）
       t = y * cxx - z * sxx; z = y * sxx + z * cxx; y = t;               // X（上から 見る）
       const k = 5 / (5 + z);
-      R3.push([x, y, z]); P2.push([o.x + x * o.s * k, o.y + y * o.s * k]);
+      RX[i] = x; RY[i] = y; RZ[i] = z; QX[i] = o.x + x * o.s * k; QY[i] = o.y + y * o.s * k;
     }
-    const vis = [];
+    let nvis = 0;
     for (let fi = 0; fi < M.f.length; fi++) {
-      const F = M.f[fi], a = R3[F[0]], b = R3[F[1]], c = R3[F[2]];
-      let nx = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]);
-      let ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
-      let nz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+      const Fc = M.f[fi], a = Fc[0], b = Fc[1], c = Fc[2];
+      let nx = (RY[b] - RY[a]) * (RZ[c] - RZ[a]) - (RZ[b] - RZ[a]) * (RY[c] - RY[a]);
+      let ny = (RZ[b] - RZ[a]) * (RX[c] - RX[a]) - (RX[b] - RX[a]) * (RZ[c] - RZ[a]);
+      let nz = (RX[b] - RX[a]) * (RY[c] - RY[a]) - (RY[b] - RY[a]) * (RX[c] - RX[a]);
       let mx = 0, my = 0, mz = 0;
-      for (let k = 0; k < F.length; k++) { mx += R3[F[k]][0]; my += R3[F[k]][1]; mz += R3[F[k]][2]; }
-      mx /= F.length; my /= F.length; mz /= F.length;
+      for (let k = 0; k < Fc.length; k++) { mx += RX[Fc[k]]; my += RY[Fc[k]]; mz += RZ[Fc[k]]; }
+      mx /= Fc.length; my /= Fc.length; mz /= Fc.length;
       if (nx * mx + ny * my + nz * mz < 0) { nx = -nx; ny = -ny; nz = -nz; }   // 外がわ むきに
       const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
       const back = nz > -0.02;
       if (back && !o.both) continue;                                         // うしろ むきは 描かない
-      vis.push({ F: F, z: mz, back: back, k: M.fk ? M.fk[fi] : 1, d: back ? 0.2 : Math.max(0, nx * L3[0] + ny * L3[1] + nz * L3[2]) });
+      VF[nvis] = Fc; VZ[nvis] = mz; VB[nvis] = back ? 1 : 0; VK[nvis] = M.fk ? M.fk[fi] : 1;
+      VD[nvis] = back ? 0.2 : Math.max(0, nx * L3[0] + ny * L3[1] + nz * L3[2]);
+      // 奥（z が 大きい）から じゅんに ならべる（面は 数こ〜20こ なので そう入で じゅうぶん。同じ z は 前の じゅんの まま）
+      let j = nvis - 1;
+      while (j >= 0 && VZ[ORD[j]] < mz) { ORD[j + 1] = ORD[j]; j--; }
+      ORD[j + 1] = nvis;
+      nvis++;
     }
-    vis.sort(function (p, q) { return q.z - p.z; });
     const col = o.col, al = o.a == null ? 1 : o.a, spk = o.spec == null ? 0.9 : o.spec;
-    for (let i = 0; i < vis.length; i++) {
-      const v = vis[i];
-      const sh = (o.emis ? 0.74 + 0.4 * v.d : 0.42 + 0.62 * v.d) * v.k * (v.back ? 0.5 : 1), sp = v.back ? 0 : Math.pow(v.d, 6) * spk;
+    for (let i = 0; i < nvis; i++) {
+      const v = ORD[i], Fc = VF[v], back = VB[v] === 1, d = VD[v];
+      const sh = (o.emis ? 0.74 + 0.4 * d : 0.42 + 0.62 * d) * VK[v] * (back ? 0.5 : 1), sp = back ? 0 : Math.pow(d, 6) * spk;
       const r = Math.min(255, col[0] * sh + 255 * sp) | 0, gg = Math.min(255, col[1] * sh + 255 * sp) | 0, bb = Math.min(255, col[2] * sh + 255 * sp) | 0;
-      const fa = al * (v.back ? 0.55 : 1);
+      const fa = al * (back ? 0.55 : 1);
       g.beginPath();
-      g.moveTo(P2[v.F[0]][0], P2[v.F[0]][1]);
-      for (let k = 1; k < v.F.length; k++) g.lineTo(P2[v.F[k]][0], P2[v.F[k]][1]);
+      g.moveTo(QX[Fc[0]], QY[Fc[0]]);
+      for (let k = 1; k < Fc.length; k++) g.lineTo(QX[Fc[k]], QY[Fc[k]]);
       g.closePath();
       g.fillStyle = 'rgba(' + r + ',' + gg + ',' + bb + ',' + fa + ')';
       g.fill();
