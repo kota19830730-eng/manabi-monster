@@ -35,7 +35,7 @@ MQ.ui.map = (function () {
   const TOP_SEA = 34;               // いちばん 上の 海
   const RIVER_H = 56;               // 川の ぶん
   const STRAIT = 40;                // 本島と 塔の島の あいだの 海
-  const TOWER_XPCT = 70;            // 塔の 小島の よこの いち（％）
+  const TOWER_XPCT = 50;            // 塔の 小島の よこの いち（％）。v13.4.2：70 → 50（ユーザー「位置の バランスが 悪い・もう少し 中央に」。70 だと 小島が 右はしで 切れて いた）
   const TOWER_PAD = 58;             // 小島の 下の 余白
 
   let canvas = null, layer = null, sheet = null;
