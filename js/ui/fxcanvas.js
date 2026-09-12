@@ -411,6 +411,122 @@
     }
   }
 
+  /* ---------- 3D の 氷（v13.6.1）：多面体を 回して 光を あてて 描く 小さな 3D ----------
+     mesh＝{ v: [[x,y,z]…]（まん中が 0・大きさ 1 くらい）, f: [[頂点の 番号…]…] }。凸の 形なので
+     面の 向きは「まん中 → 面の まん中」で 外がわに そろえ、手まえ（z＜0）を 向く 面だけ 奥から じゅんに ぬる。
+     光は 左上の 手まえから。面の ふちに 白い 線＝結晶の カット面に 見える */
+  const CRYSTAL = (function () {
+    const v = [], f = [], r = 0.3;
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; v.push([Math.cos(a) * r, 1, Math.sin(a) * r]); }       // 0〜5 下の 六角
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; v.push([Math.cos(a) * r, -0.45, Math.sin(a) * r]); }   // 6〜11 上の 六角
+    v.push([0, -1, 0]);                                                                                             // 12 とがった 先
+    for (let i = 0; i < 6; i++) { const j = (i + 1) % 6; f.push([i, j, j + 6, i + 6]); f.push([i + 6, j + 6, 12]); }
+    f.push([5, 4, 3, 2, 1, 0]);
+    return { v: v, f: f };
+  })();
+  const BOX = { v: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]],
+    f: [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [4, 5, 1, 0], [3, 2, 6, 7]] };
+  const L3 = (function () { const x = -0.45, y = -0.75, z = -0.5, l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; })();
+  /* o: x,y＝画面の まん中・s＝大きさ(px)・sx/sy/sz＝形の のばし・rx/ry/rz＝回転・col＝色・a＝すけ具合・edge＝ふちの 白線 */
+  function mesh(g, M, o) {
+    const czz = Math.cos(o.rz || 0), szz = Math.sin(o.rz || 0), cyy = Math.cos(o.ry || 0), syy = Math.sin(o.ry || 0), cxx = Math.cos(o.rx || 0), sxx = Math.sin(o.rx || 0);
+    const R3 = [], P2 = [];
+    for (let i = 0; i < M.v.length; i++) {
+      let x = M.v[i][0] * (o.sx || 1), y = M.v[i][1] * (o.sy || 1), z = M.v[i][2] * (o.sz || 1);
+      let t = x * czz - y * szz; y = x * szz + y * czz; x = t;          // Z（かたむき）
+      t = x * cyy + z * syy; z = -x * syy + z * cyy; x = t;              // Y（まわる）
+      t = y * cxx - z * sxx; z = y * sxx + z * cxx; y = t;               // X（上から 見る）
+      const k = 5 / (5 + z);
+      R3.push([x, y, z]); P2.push([o.x + x * o.s * k, o.y + y * o.s * k]);
+    }
+    const vis = [];
+    for (let fi = 0; fi < M.f.length; fi++) {
+      const F = M.f[fi], a = R3[F[0]], b = R3[F[1]], c = R3[F[2]];
+      let nx = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]);
+      let ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
+      let nz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+      let mx = 0, my = 0, mz = 0;
+      for (let k = 0; k < F.length; k++) { mx += R3[F[k]][0]; my += R3[F[k]][1]; mz += R3[F[k]][2]; }
+      mx /= F.length; my /= F.length; mz /= F.length;
+      if (nx * mx + ny * my + nz * mz < 0) { nx = -nx; ny = -ny; nz = -nz; }   // 外がわ むきに
+      const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+      if (nz > -0.02) continue;                                              // うしろ むきは 描かない
+      vis.push({ F: F, z: mz, d: Math.max(0, nx * L3[0] + ny * L3[1] + nz * L3[2]) });
+    }
+    vis.sort(function (p, q) { return q.z - p.z; });
+    const col = o.col, al = o.a == null ? 1 : o.a;
+    for (let i = 0; i < vis.length; i++) {
+      const v = vis[i], sh = 0.42 + 0.62 * v.d, sp = Math.pow(v.d, 6) * 0.9;
+      const r = Math.min(255, col[0] * sh + 255 * sp) | 0, gg = Math.min(255, col[1] * sh + 255 * sp) | 0, bb = Math.min(255, col[2] * sh + 255 * sp) | 0;
+      g.beginPath();
+      g.moveTo(P2[v.F[0]][0], P2[v.F[0]][1]);
+      for (let k = 1; k < v.F.length; k++) g.lineTo(P2[v.F[k]][0], P2[v.F[k]][1]);
+      g.closePath();
+      g.fillStyle = 'rgba(' + r + ',' + gg + ',' + bb + ',' + al + ')';
+      g.fill();
+      if (o.edge) { g.strokeStyle = 'rgba(255,255,255,' + (o.edge * al) + ')'; g.lineWidth = o.lw || 1; g.stroke(); }
+    }
+  }
+  const ICE = [170, 226, 255];
+  // 3D の 氷の 刃：主人公の そばで 生まれ（0〜35%）、回りながら てきへ とぶ（35〜100%）
+  function iceBlade(E, from, to, i) {
+    const sx0 = from.x + 30, sy0 = from.y - 8 - i * 18, tx = to.x - 6, ty = to.y + (i - 1) * 16;
+    const spin0 = R(E, 0, 6), life = 340 - i * 55;
+    const t = thing(E, { life: life, x: sx0, y: sy0,
+      update: function () {
+        const u = t.age / life;
+        if (u > 0.35) {
+          const e = (u - 0.35) / 0.65, ee = e * e;
+          t.x = sx0 + (tx - sx0) * ee; t.y = sy0 + (ty - sy0) * ee;
+          if (E.step % 1 === 0) P(E, { x: t.x + R(E, -6, 6), y: t.y + R(E, -6, 6), vx: R(E, -60, -10), vy: R(E, -30, 30), drag: 2, life: R(E, 200, 360), s0: R(E, 3, 6), s1: 1, ramp: RAMP.ice });
+        }
+        if (t.age >= life - STEP && !t.hit) { t.hit = true; burst(E, tx, ty, 10, { ramp: RAMP.ice, v0: 80, v1: 260, g: 160 }); }
+      },
+      draw: function (g, u) {
+        if (t.hit) return;
+        const grow = Math.min(1, u / 0.3), dir = Math.atan2(ty - sy0, tx - sx0);
+        const size = 30 + 8 * (2 - i);
+        g.globalCompositeOperation = 'lighter';
+        g.drawImage(glowOf([140, 220, 255]), t.x - size * 1.8, t.y - size * 1.8, size * 3.6, size * 3.6);
+        g.globalCompositeOperation = 'source-over';
+        mesh(g, CRYSTAL, { x: t.x, y: t.y, s: size * grow, sx: 1.0, sy: 1.9, sz: 0.5, rz: dir + Math.PI / 2, ry: spin0 + u * 14, rx: -0.3, col: ICE, a: 0.9, edge: 0.75 });
+      } });
+  }
+  // てきを とじこめる 3D の 氷の 箱（すけて なかが 見える）
+  function iceCage(E, F, life) {
+    thing(E, { life: life, draw: function (g, u) {
+      const a = Math.min(1, u / 0.12) * (u > 0.9 ? (1 - u) / 0.1 : 1);
+      const s = F.h * 0.72, sx = (F.w * 0.78) / s;
+      const shake = u > 0.8 ? Math.sin(u * 180) * 1.5 : 0;
+      g.globalCompositeOperation = 'source-over';
+      mesh(g, BOX, { x: F.x + shake, y: F.y + F.h * 0.04, s: s, sx: sx, sy: 1, sz: sx * 0.8, rx: -0.3, ry: 0.55 + Math.sin(u * 3) * 0.04, col: [150, 215, 250], a: 0.42 * a, edge: 1.8, lw: 2.4 });
+      g.globalCompositeOperation = 'lighter';
+      g.fillStyle = 'rgba(210,245,255,' + (0.22 * a) + ')';
+      g.fillRect(F.x - F.w * 0.5, F.y - F.h * 0.5, F.w * 0.18, F.h * 0.9);          // ななめの 光の すじ
+    } });
+  }
+  // 地面から 花のように ひらく 3D の 結晶
+  function iceBloom(E, F, until) {
+    const list = [];
+    [-1.55, -1.2, -0.85, -0.5, 0.5, 0.85, -0.16, 0.2].forEach(function (k, i) {   // 右は 画面の はしに 近い ので 左に 多め
+      list.push({ dx: k * (F.w * 0.5 + 14), rz: Math.max(-1, Math.min(1, k)) * R(E, 0.4, 0.75), h: (F.h * 0.36 + 14) * R(E, 0.8, 1.15) * (1.15 - Math.min(1, Math.abs(k)) * 0.35),
+        ry: R(E, 0, 6), delay: Math.abs(k) * 70, w: R(E, 0.9, 1.25) });
+    });
+    list.sort(function (p, q) { return Math.abs(p.dx) - Math.abs(q.dx); });
+    thing(E, { life: until, draw: function (g) {
+      g.globalCompositeOperation = 'source-over';
+      const age = this.age;
+      for (let i = 0; i < list.length; i++) {
+        const c = list[i], e = Math.max(0, Math.min(1, (age - c.delay) / 120));
+        if (e <= 0) continue;
+        const gr = 1 - (1 - e) * (1 - e) * (1 - e);
+        const bx = F.x + c.dx, by = F.bot + 4, sy = gr;
+        const cx = bx + Math.sin(c.rz) * c.h * sy, cy = by - Math.cos(c.rz) * c.h * sy;
+        mesh(g, CRYSTAL, { x: cx, y: cy, s: c.h, sx: 1.05 * c.w, sy: sy, sz: 1.05 * c.w, rz: c.rz, ry: c.ry, rx: -0.25, col: ICE, a: 0.9, edge: 0.7 });
+      }
+    } });
+  }
+
   /* =========================================================
      わざごとの 台本。E.t＝はじまってから の ミリ秒。
      F＝てき（x,y＝中心・w,h・top・bot＝足もと）、S＝けんの 先、Hr＝主人公の 中心
@@ -466,35 +582,34 @@
       }
     } },
 
-    /* ---- こおりの やいば（理科・社会）：こおりの つぶてが とぶ → 氷の 柱が つき出す → くだける ---- */
+    /* ---- こおりの やいば（理科・社会・v13.6.1 で 3D に）：3D の 氷の 刃が 3本 とぶ → てきを 氷の 箱に とじこめ、
+       地面から 結晶が 花のように ひらく → てきが たおれる 直前（790ms）に くだけて 3D の かけらが とびちる ---- */
     ice: { dur: 1150, run: function (E, F, S, Hr) {
-      if (E.t < 360 && E.step % 2 === 0) {
-        P(E, { x: Hr.x + R(E, -30, 30), y: Hr.y + R(E, -30, 20), vx: R(E, -20, 20), vy: R(E, -40, -10), life: 400, s0: 3, s1: 1, ramp: RAMP.ice });
+      trail(E, Hr, F, 20, 360, RAMP.ice, 3, 7);
+      if (E.t < 300 && E.step % 2 === 0) {
+        const a = R(E, 0, Math.PI * 2), r = R(E, 30, 60);
+        P(E, { x: Hr.x + 26 + Math.cos(a) * r, y: Hr.y - 40 + Math.sin(a) * r, vx: -Math.cos(a) * r * 3, vy: -Math.sin(a) * r * 3, life: 280, s0: 3, s1: 4, ramp: RAMP.ice, fi: 0.3, fo: 0.7 });
       }
-      if (at(E, 170)) {
-        for (let i = 0; i < 5; i++) {
-          const y = F.y + (i - 2) * 12;
-          P(E, { x: Hr.x + 10, y: Hr.y - 6 + (i - 2) * 6, vx: (F.x - Hr.x - 10) / 0.19, vy: (y - Hr.y) / 0.19, life: 190 + i * 6, s0: 5, s1: 5, m: 'k', ramp: RAMP.ice, fi: 0, fo: 0.95 });
-        }
-      }
+      if (at(E, 10)) iceBlade(E, Hr, F, 0);
+      if (at(E, 60)) iceBlade(E, Hr, F, 1);
+      if (at(E, 110)) iceBlade(E, Hr, F, 2);
       if (at(E, 360)) {
-        flash(E, '#dff6ff', 0.5, 240);
-        ring(E, F.x, F.bot, 8, 140, 560, '#9fe6ff', 6, 0.3);
+        flash(E, '#dff6ff', 0.55, 260);
+        ring(E, F.x, F.bot, 8, 150, 600, '#9fe6ff', 6, 0.3);
         burst(E, F.x, F.y, 30, { ramp: RAMP.ice, v0: 140, v1: 420, g: 300 });
-        const xs = [-72, -50, -26, 0, 26, 50, 72];
-        xs.forEach(function (dx, i) {
-          const tall = 1 - Math.abs(i - 3) / 3.6;
-          const hgt = (F.h * 0.8 + 30) * (0.55 + tall * 0.6);
-          const d = Math.abs(i - 3) * 28;
-          E.later.push({ at: 360 + d, fn: function () {
-            spike(E, F.x + dx + R(E, -4, 4), F.bot + 2, R(E, 10, 16), hgt, 110, 420 - d * 0.5, function (x, y, w, h) {
-              chunks(E, x, y - h / 2, 7, '#bfeaff', { s0: 3, s1: 7, v0: 90, v1: 300 });
-              burst(E, x, y - h / 2, 8, { ramp: RAMP.ice, v0: 60, v1: 220, g: 200 });
-            });
-          } });
-        });
+        iceCage(E, F, 430);
+        iceBloom(E, F, 430);
       }
-      if (at(E, 800)) flash(E, '#ffffff', 0.3, 180);
+      if (at(E, 790)) {
+        flash(E, '#ffffff', 0.5, 220);
+        ring(E, F.x, F.y, 10, 170, 520, '#e6fbff', 7, 1);
+        for (let i = 0; i < n(E, 34); i++) {
+          const a = R(E, 0, Math.PI * 2), v = R(E, 140, 420);
+          P(E, { x: F.x + R(E, -F.w * 0.4, F.w * 0.4), y: F.y + R(E, -F.h * 0.4, F.h * 0.45), vx: Math.cos(a) * v, vy: Math.sin(a) * v - 120, ay: 760, drag: 0.3,
+            life: R(E, 520, 820), s0: R(E, 9, 18), s1: 3, m: 'x', rot: R(E, 0, 6), vr: R(E, -10, 10), rot2: R(E, 0, 6), vr2: R(E, -8, 8), fo: 0.7 });
+        }
+        burst(E, F.x, F.y, 40, { ramp: RAMP.ice, v0: 160, v1: 480, g: 260 });
+      }
       if (E.t > 360 && E.step % 3 === 0) {
         P(E, { x: R(E, 0, W), y: -4, vx: R(E, -20, 20), vy: R(E, 40, 90), life: 900, s0: R(E, 2, 4), s1: 2, ramp: RAMP.ice, fo: 0.7 });
       }
@@ -685,10 +800,11 @@
     g.globalCompositeOperation = 'source-over';
     for (let i = 0; i < E.parts.length; i++) {
       const p = E.parts[i], u = p.age / p.life, m = p.draw || p.m;
-      if (m !== 'c' && m !== 'm' && m !== 'l') continue;
+      if (m !== 'c' && m !== 'm' && m !== 'l' && m !== 'x') continue;
       const s = p.s0 + (p.s1 - p.s0) * u, a = alphaOf(p, u);
       if (s <= 0.3 || a <= 0.01) continue;
       if (m === 'c') cube(g, p.x, p.y, s, p.rot, p.rot2 || 0, p.col, a);
+      else if (m === 'x') mesh(g, CRYSTAL, { x: p.x, y: p.y, s: s, sx: 0.6, sy: 1, sz: 0.6, rz: p.rot, ry: p.rot2 || 0, rx: -0.3, col: ICE, a: a * 0.92, edge: 0.6 });
       else if (m === 'm') {
         g.globalAlpha = a;
         const c = p.ramp.c[Math.min(11, (u * 11) | 0)];
@@ -713,7 +829,7 @@
     g.globalCompositeOperation = 'lighter';
     for (let i = 0; i < E.parts.length; i++) {
       const p = E.parts[i], u = p.age / p.life, m = p.draw || p.m;
-      if (m === 'c' || m === 'm' || m === 'l') continue;
+      if (m === 'c' || m === 'm' || m === 'l' || m === 'x') continue;
       const s = p.s0 + (p.s1 - p.s0) * u, a = alphaOf(p, u);
       if (s <= 0.2 || a <= 0.01) continue;
       const ci = Math.min(11, (u * 11) | 0), c = p.ramp.c[ci];
