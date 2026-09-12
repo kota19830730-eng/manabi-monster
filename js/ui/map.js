@@ -843,7 +843,12 @@ MQ.ui.map = (function () {
 
     MQ.ui.mount('screen-map', h('div', { class: 'map map--' + plan.theme }, [
       top,
-      h('div', { class: 'map__scroll', style: { background: seaBg() } }, [sheet, h('div', { class: 'map__pad' + (hasChips ? ' has-chips' : '') }), h('div', { class: 'map__vig' })]),
+      /* ふちの かげ（.map__vig）は スクロールの 外（.map__view）に おく（v13.4.1）。
+         中に あると 画面 1枚ぶんの 高さで いっしょに スクロールし、下の はしが 地図の まん中に よこ線で 出た（iPhone の スクショ） */
+      h('div', { class: 'map__view' }, [
+        h('div', { class: 'map__scroll', style: { background: seaBg() } }, [sheet, h('div', { class: 'map__pad' + (hasChips ? ' has-chips' : '') })]),
+        h('div', { class: 'map__vig' })
+      ]),
       dimEl,
       bottom
     ]));

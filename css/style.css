@@ -710,6 +710,9 @@ body {
 .map__sheet { position: relative; }
 .map__bg { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 .map__layer { position: absolute; inset: 0; }
+/* v13.4.1：スクロールの 外（.map__view）で 画面に 止まった まま。.map__scroll の 中に もどさない（いっしょに 動いて 地図に よこ線が 出た） */
+.map__view { position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.map__view > .map__scroll { flex: 1; }
 .map__vig { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 40px rgba(8,16,44,.45); z-index: 8; }
 
 /* 木の 板の 橋（川と 道が 交わる ところ） */
