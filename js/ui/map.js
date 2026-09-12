@@ -183,8 +183,10 @@ MQ.ui.map = (function () {
     lake:     ['tree', 'flower', 'tree', 'rock', 'flower', 'tree', 'flower', 'tree'],
     town:     ['house', 'tree', 'flower', 'house', 'rock', 'flower', 'tree', 'house']
   };
-  const DECO_W = { mt: 56, tree: 28, house: 34, rock: 22, flower: 8 };
-  const DECO_H = { mt: 42, tree: 32, house: 26, rock: 15, flower: 7 };
+  const DECO_W = { mt: 56, tree: 28, house: 50, rock: 22, flower: 8 };   // house は 3D の 家（v13.4.5・幅 44＋あき）
+  const DECO_H = { mt: 42, tree: 32, house: 44, rock: 15, flower: 7 };
+  // 1つの ゾーンに おく 家の じょうげん（v13.4.5）。町でも 4けん まで。前は 76回の 試行の 3/8 が 家で 11けん ならんだ
+  const HOUSE_PER_BAND = 4;
 
   function decoEl(kind, xPct, yPx) {
     return { kind: kind, xPct: xPct, x: xPct * 4, y: yPx };
@@ -218,6 +220,7 @@ MQ.ui.map = (function () {
     const T = MQ.tiles;
     const dx = DECO_W[kind] / 8;
     const pts = [[xPct, yPx], [xPct - dx, yPx], [xPct + dx, yPx], [xPct, yPx - 8]];
+    if (kind === 'house') pts.push([xPct - dx, yPx - 30], [xPct + dx, yPx - 30], [xPct, yPx + 6]);   // 3D の 家は 高さ 40：屋根の 角と 足もとも 陸の 上に
     for (let i = 0; i < pts.length; i++) {
       const t = T.at(grid, pts[i][0], pts[i][1]);
       if (!T.isLand(t) || t === T.ROAD || t === T.BRIDGE || t === T.DGRASS || t === T.DSAND) return false;
@@ -229,9 +232,16 @@ MQ.ui.map = (function () {
     for (let k = 0; k < placed.length; k++) {
       const p = placed[k];
       const gap = (DECO_W[kind] + DECO_W[p.kind]) / 2 + 4;
-      if (Math.abs(p.x - xPct * 4) < gap && Math.abs(p.y - yPx) < 20) return true;
+      // 家は たてにも あける（3D の 家は 40px の 高さ。20 だと 上下の 列が かさなる）
+      const dy = (kind === 'house' || p.kind === 'house') ? 44 : 20;
+      if (Math.abs(p.x - xPct * 4) < gap && Math.abs(p.y - yPx) < dy) return true;
     }
     return false;
+  }
+  function housesIn(placed, b) {
+    let n = 0;
+    placed.forEach(function (p) { if (p.kind === 'house' && p.y >= b.top && p.y < b.top + b.height + 40) n++; });
+    return n;
   }
 
   /* 大きい かざり（雪山・家）は 入る ところが 少ないので、
@@ -271,6 +281,7 @@ MQ.ui.map = (function () {
     const tries = b.biome === 'forest' ? 104 : 76;
     for (let i = 0; i < tries; i++) {
       const kind = kinds[(i + seed) % kinds.length];
+      if (kind === 'house' && housesIn(placed, b) >= HOUSE_PER_BAND) continue;
       const xPct = 6 + ((i * 41 + seed * 13) % 88);
       const yPx = b.top + PILL_H + 6 + ((i * 67 + seed * 29) % span);
       if (!freeAt(b, xPct, yPx, kind)) continue;
