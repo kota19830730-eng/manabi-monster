@@ -22,6 +22,8 @@ MQ.ui.news = (function () {
     if (it.kind === 'coin') return MQ.ui.coinNode(44);
     // dock：地図の ドックの アイコン（v13.3・js/ui/map.js の DOCK_ICONS）
     if (it.kind === 'dock' && MQ.ui.map && MQ.ui.map.dockIcon) return MQ.ui.map.dockIcon(it.id || 'dice', 44);
+    // prize：おうちの人の マシンの 景品の 絵（v13.12・js/ui/prize.js）
+    if (it.kind === 'prize' && MQ.ui.prize) return MQ.ui.prize.icon(it.id || 'gift', 44);
     if (it.kind === 'hero') return h('img', { class: 'sprite newsrow__hero', src: MQ.hero.sprite(player), alt: '' });
     if (it.kind === 'item') return MQ.treasure.node(it.id, { gold: !!it.gold, size: 44 });
     /* mons：id が 配列なら 小さく よこに ならべる（進化・ごちゃまぜ）。
@@ -64,7 +66,10 @@ MQ.ui.news = (function () {
       list.innerHTML = '';
       pages[page].forEach(function (it) { list.appendChild(row(it, player)); });
       dots.innerHTML = '';
-      if (pages.length > 1) {
+      /* v13.12：ページが 多い（ひさしぶりの 子で 20ページ いじょう）と 点が ならびすぎて「つぎ」が 右に はみ出して いた
+         → 8ページ いじょうは「3 / 23」の 数で 見せる */
+      if (pages.length > 7) dots.appendChild(h('span', { class: 'news__count', text: (page + 1) + ' / ' + pages.length }));
+      else if (pages.length > 1) {
         for (let i = 0; i < pages.length; i++) dots.appendChild(h('i', { class: 'news__dot' + (i === page ? ' is-on' : '') }));
       }
       next.querySelector('.news__nexttx').textContent = (page < pages.length - 1) ? 'つぎ ▶' : 'あそぶ！';

@@ -3476,6 +3476,7 @@ body {
 .news__dots { display: flex; gap: 6px; flex: none; }
 .news__dot { display: block; width: 10px; height: 10px; border-radius: 3px; background: rgba(255,255,255,.22); }
 .news__dot.is-on { background: var(--gold); box-shadow: 0 0 8px rgba(255,212,71,.8); }
+.news__count { padding: 3px 10px; border-radius: 999px; background: #0f1730; color: var(--gold); font-family: var(--f-head); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }   /* v13.12：ページが 多い ときは 点の かわりに 数 */
 .news__next { flex: 1; min-height: 50px; font-size: 19px; }
 
 /* =========================================================

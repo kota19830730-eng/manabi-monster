@@ -56,6 +56,7 @@ const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function 
  'js/core/blocks.js', 'js/core/vox.js'].concat(CONTENT_ORDER).forEach(load);   // vox.js（りったい・v12.0）は chest3d.js より 前
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
 load('js/core/capsule.js');
+load('js/core/prize.js');
 // しゅぎょうば（v13.0）は MQ.content / MQ.lessons を 見るので 教科の あとで 読む
 load('js/core/dojo.js');
 
@@ -2481,6 +2482,64 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   const SFX = fs.readFileSync(path.join(base, 'js/core/sfx.js'), 'utf8');
   check(SFX.indexOf("ctx.state !== 'running'") >= 0, 'sfx: interrupted（iPad の 電話・ほかの アプリ）でも ひらき直す');
 })();
+/* v13.12 おうちの人の マシン（js/core/prize.js）：わりあい・かくてい・数・期限・チケット・番号・読みこみ */
+(function () {
+  const Z = MQ.prize;
+  check(!!Z, 'prize: MQ.prize が 読めて いる');
+  const sw = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  const harness = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  ['./css/prize.css', './js/core/prize.js', './js/ui/prize.js'].forEach(function (f) { check(sw.indexOf("'" + f + "'") >= 0, 'sw.js の FILES に ' + f); });
+  ['../css/prize.css', '../js/core/prize.js', '../js/ui/prize.js'].forEach(function (f) { check(harness.indexOf(f) >= 0, 'harness.html に ' + f); });
+  check(INDEX_HTML.indexOf('js/core/prize.js') > INDEX_HTML.indexOf('js/core/capsule.js') && INDEX_HTML.indexOf('js/ui/prize.js') < INDEX_HTML.indexOf('js/ui/capsule.js'), 'index: prize.js の 読みこみ順');
+  Z.setNow(new Date(2026, 8, 13, 10, 0, 0));
+  const p = { coins: 0 };
+  Z.ensure(p);
+  check(p.prize.price === Z.DEFAULT_PRICE && Z.canPull(p).why === 'じゅんびちゅう', 'prize: 景品が ない ときは じゅんびちゅう（はずれを 作らない）');
+  const game = Z.save(p, { name: 'あたらしい ゲーム', icon: 'game', level: 5, stock: 1, pity: 10, until: null });
+  const snack = Z.save(p, { name: 'おかし 1つ', icon: 'sweets', level: 1, stock: 0, pity: 0, until: null });
+  const trip = Z.save(p, { name: 'こうえん', icon: 'outing', level: 3, stock: 2, pity: 0, until: '2026-09-14' });
+  check(!!game && !!snack && !!trip && Z.items(p).length === 3, 'prize: 景品を 3つ 入れる');
+  check(Z.save(p, { name: '   ' }) === null, 'prize: 名前が からっぽ なら 入れない');
+  const r = Z.rates(p);
+  const sum = Object.keys(r).reduce(function (n, k) { return n + r[k]; }, 0);
+  check(Math.abs(sum - 1) < 1e-9 && Math.abs(r[game.id] - 1 / 51) < 1e-9, 'prize: わりあいの 合計は 100%・ちょうレア 1/51');
+  check(Z.pctText(1 / 51) === '2%' && Z.pctText(0.004) === '0.4%' && Z.pctText(0.0004) === '0.1%', 'prize: % の 出し方（0 に しない）');
+  check(Z.canPull(p).why === 'コインが たりない' && Z.canPull(p).short === 30, 'prize: コインが たりない ときは 引けない');
+  p.coins = 30 * 20;
+  // くじが いつも いちばん 出やすい もの（おかし）を ひいても 10回めで ゲームが かくてい
+  const low = function () { return 0.5; };
+  for (let i = 0; i < 9; i++) { const x = Z.pull(p, low); check(x.ok && x.item.id !== game.id, 'prize: ' + (i + 1) + '回め は ゲームでは ない'); }
+  check(Z.pityLeft(Z.find(p, game.id)) === 1, 'prize: あと 1回で かくてい');
+  const hit = Z.pull(p, low);
+  check(hit.ok && hit.item.id === game.id && hit.pity === true && hit.rarity === 'sr', 'prize: 10回めで かくてい（げきレアの 演出）');
+  check(!Z.isLive(Z.find(p, game.id)) && Z.soldOut(Z.find(p, game.id)) && !(game.id in Z.rates(p)), 'prize: 1回だけの 景品は 当たったら マシンから 消える');
+  check(p.coins === 30 * 10 && p.prize.pulls === 10, 'prize: 1回 30まいずつ へる');
+  check(Z.waiting(p).length === 10 && Z.tickets(p)[0].itemId === game.id, 'prize: 当たる たびに チケットが ふえる（新しい 順）');
+  check(Z.give(p, Z.tickets(p)[0].id) === true && Z.give(p, Z.tickets(p)[0].id) === false && Z.waiting(p).length === 9, 'prize: わたした（2回は ない）');
+  // 期限：こうえんは 9/14 まで。9/15 に なると 消える
+  Z.setNow(new Date(2026, 8, 15, 10, 0, 0));
+  check(Z.expired(Z.find(p, trip.id)) && Z.live(p).length === 1, 'prize: 期限が すぎた 景品は 出ない');
+  check(Z.endOfMonth() === '2026-09-30' && Z.endOfWeek(new Date(2026, 8, 15)) === '2026-09-20', 'prize: 今月・今週（日曜）の おわり');
+  // 重みの くじ：まん中の 値で まん中の 景品
+  const q = { coins: 999 };
+  const a = Z.save(q, { name: 'A', icon: 'gift', level: 1, stock: 0, pity: 0 });
+  const b = Z.save(q, { name: 'B', icon: 'book', level: 2, stock: 0, pity: 0 });
+  check(Z.choose(q, function () { return 0.5; }).item.id === a.id && Z.choose(q, function () { return 0.9; }).item.id === b.id, 'prize: 重みで えらぶ（40：20）');
+  for (let i = 0; i < 8; i++) Z.save(q, { name: 'x' + i, icon: 'star', level: 2, stock: 0, pity: 0 });
+  check(Z.items(q).length === Z.MAX_ITEMS, 'prize: 景品は ' + Z.MAX_ITEMS + 'こまで');
+  check(Z.setPrice(q, 50) && q.prize.price === 50 && !Z.setPrice(q, 7), 'prize: ねだんは えらべる 数だけ');
+  // 番号（家に 1つ）
+  check(Z.setPin('12a4') === false && Z.setPin('2468') === true && Z.hasPin() && Z.checkPin('2468') && !Z.checkPin('2469'), 'prize: 4けたの 番号');
+  check(String(MQ.save.getSetting('prizePin', '')).indexOf('2468') === -1, 'prize: 番号は そのまま しまわない');
+  MQ.save.update(function (pl) { Z.save(pl, { name: 'テスト', icon: 'gift', level: 2, stock: 1, pity: 0 }); });
+  Z.forgetPin();
+  check(!Z.hasPin() && Z.items(MQ.save.current()).length === 0, 'prize: 番号を わすれた＝番号と 景品を 消す');
+  check(!!Z.resetAt(), 'prize: 作り直した しるしが のこる（おうちの人の 画面に 出る）');
+  Z.ackReset();
+  check(!Z.resetAt(), 'prize: 「確認した」で しるしが 消える');
+  Z.setNow(null);
+  console.log('おうちの人の マシン: わりあい・かくてい・数・期限・チケット・番号 OK');
+})();
 check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょうごうが 入る');
 
 /* ---- 学期（v2.6）：ならった 単元だけ 出る ---- */
@@ -3555,7 +3614,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   const N = MQ.news;
   check(!!N, 'MQ.news が 読めて いる');
   if (!N) return;
-  const KINDS = ['mons', 'item', 'coin', 'hero', 'dock'];   // dock＝地図の ドックの アイコン（v13.3）
+  const KINDS = ['mons', 'item', 'coin', 'hero', 'dock', 'prize'];   // dock＝地図の ドックの アイコン（v13.3）・prize＝おうちの人の マシンの 景品の 絵（v13.12）
   const ids = {}; MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) { ids[e.id] = 1; });
   const tids = {}; MQ.treasure.list.forEach(function (t) { tids[t.id] = 1; });
   let itemN = 0;
@@ -3576,6 +3635,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
         check(!Array.isArray(it.id) || it.id.length <= 3, w + ': ならべるのは 3体まで');
       }
       if (it.kind === 'item') check(!!tids[it.id], w + ': たからもの ' + it.id + ' が ある');
+      if (it.kind === 'prize') check(MQ.prize.ICON_IDS.indexOf(it.id) !== -1, w + ': 景品の 絵 ' + it.id + ' が ある');
       if (it.kind === 'dock') check(['dice', 'scroll', 'hourglass', 'book'].indexOf(it.id) !== -1, w + ': ドックの アイコン ' + it.id + ' が ある');
       // 文は ひらがな＋小1の かん字だけ（どの 学年の 子も 読める）
       check(typeof it.title === 'string' && it.title.length > 0 && it.title.length <= 18, w + ': みだしは 18字まで（' + it.title + '）');

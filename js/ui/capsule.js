@@ -31,7 +31,18 @@ MQ.ui.capsule = (function () {
 
   // 引いた あと 中身が 出るまで。**レアなほど 長い**（期待度）。どれも タップで とばせる
   const ROLL_MS = { n: 1500, r: 2100, sr: 2900 };
-  const KIND_NAME = { mon: 'なかま', gear: 'そうび', look: 'すがた' };
+  const KIND_NAME = { mon: 'なかま', gear: 'そうび', look: 'すがた', home: 'おうち' };
+
+  /* v13.12 おうちの人の マシン（しゅるい 'home'）。ルールは js/core/prize.js。
+     おうちの人が 景品を 入れた ときだけ 4つめの チップが 出る。
+     カプセルマシンを かくして いる（capsuleOff）ときは おうちの マシンだけ。 */
+  function homeOn(p) { return !!(MQ.prize && MQ.prize.hasAny(p)); }
+  function kinds() {
+    const p = MQ.save.current();
+    const list = p && p.capsuleOff === true ? [] : MQ.capsule.KIND_IDS.slice();
+    if (homeOn(p)) list.push('home');
+    return list.length ? list : MQ.capsule.KIND_IDS.slice();
+  }
   // レアさの 名前（画面に 出す ことば。v10.2 で「ふつう」→「ノーマル」＝ユーザー指定）
   const RARE_NAME = { n: 'ノーマル', r: 'レア', sr: 'げきレア' };
 
@@ -54,8 +65,8 @@ MQ.ui.capsule = (function () {
   }
 
   /* ---- マシンの 絵（CSS の div だけ。画像ファイルは 使わない）---- */
-  function machine() {
-    return h('div', { class: 'capmc' }, [
+  function machine(variant) {
+    return h('div', { class: 'capmc' + (variant ? ' capmc--' + variant : '') }, [
       h('span', { class: 'capmc__dome' }),
       h('span', { class: 'capmc__ball capmc__ball--1' }),
       h('span', { class: 'capmc__ball capmc__ball--2' }),
@@ -70,6 +81,7 @@ MQ.ui.capsule = (function () {
   function paint() {
     if (!root) return;
     const p = MQ.save.current();
+    if (kind === 'home') { paintHome(p); return; }
     const pool = MQ.capsule.pool(kind);
     const prog = MQ.capsule.progress(p, kind);
     const left = MQ.capsule.pityLeft(p, kind);
@@ -80,13 +92,7 @@ MQ.ui.capsule = (function () {
     body.textContent = '';
 
     // ① しゅるいの チップ
-    body.appendChild(h('div', { class: 'capchips' }, MQ.capsule.KIND_IDS.map(function (k) {
-      return h('button', {
-        class: 'capchip' + (k === kind ? ' is-on' : ''), type: 'button',
-        text: KIND_NAME[k],
-        onclick: function () { if (rolling) return; MQ.sfx.tap(); kind = k; paint(); }
-      });
-    })));
+    body.appendChild(chips());
 
     // ② マシン
     body.appendChild(h('div', { class: 'capstage' }, [machine()]));
@@ -127,15 +133,72 @@ MQ.ui.capsule = (function () {
     body.appendChild(h('p', { class: 'capcoins', text: 'もっている コイン ' + (p.coins || 0) }));
   }
 
+  /* ---- しゅるいの チップ（おうちの マシンは 金の チップ）---- */
+  function chips() {
+    const list = kinds();
+    if (list.length < 2) return h('div', { class: 'capchips capchips--one' });
+    return h('div', { class: 'capchips' }, list.map(function (k) {
+      return h('button', {
+        class: 'capchip' + (k === 'home' ? ' capchip--home' : '') + (k === kind ? ' is-on' : ''), type: 'button',
+        text: KIND_NAME[k],
+        onclick: function () { if (rolling) return; MQ.sfx.tap(); kind = k; paint(); }
+      });
+    }));
+  }
+
+  /* ---- おうちの人の マシン（v13.12）----
+     景品ごとに 絵・名前・%・「あと 〇回で かくてい」・のこり・期限を 引く 前から 見せる（うそを つかない） */
+  function paintHome(p) {
+    const Z = MQ.prize;
+    const z = Z.ensure(p);
+    const L = Z.live(p);
+    const rates = Z.rates(p);
+    const can = Z.canPull(p);
+    const body = root.querySelector('.capsule__body');
+    body.textContent = '';
+    body.appendChild(chips());
+    body.appendChild(h('div', { class: 'capstage capstage--home' }, [machine('home')]));
+    body.appendChild(h('p', { class: 'caphome__lead', text: 'おうちの人が 入れて くれた ごほうび' }));
+    body.appendChild(h('div', { class: 'caphome__list' }, L.length ? L.map(function (it) {
+      const left = Z.pityLeft(it);
+      const notes = [];
+      if (left) notes.push(left <= 1 ? 'つぎは かならず 出る！' : 'あと ' + left + 'かいで かくてい');
+      if (it.stock > 0) notes.push('のこり ' + Math.max(0, it.stock - it.got) + 'こ');
+      if (it.until) { const a = it.until.split('-'); notes.push(Number(a[1]) + 'がつ ' + Number(a[2]) + 'にち まで'); }
+      return h('div', { class: 'caphome__one lv--' + it.level + (left && left <= 1 ? ' is-due' : '') }, [
+        MQ.ui.prize.icon(it.icon, 38),
+        h('div', { class: 'caphome__txt' }, [
+          h('span', { class: 'caphome__name', raw: true, text: it.name }),
+          notes.length ? h('span', { class: 'caphome__note', text: notes.join('・') }) : null
+        ]),
+        h('span', { class: 'caphome__pct', text: Z.pctText(rates[it.id] || 0) })
+      ]);
+    }) : [h('p', { class: 'caphome__none', text: 'いまは じゅんびちゅう。おうちの人に きいてみてね' })]));
+
+    const btn = h('button', {
+      class: 'btn capgo capgo--home', type: 'button',
+      onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); pull(); }   // stopPropagation を 外さない（上の まわす と 同じ）
+    }, [
+      h('span', { class: 'capgo__t', text: can.ok ? 'まわす' : (L.length ? 'あと ' + (can.short || 0) + 'まい' : 'じゅんびちゅう') }),
+      h('span', { class: 'capgo__c', text: 'コイン ' + z.price })
+    ]);
+    if (!can.ok) btn.disabled = true;
+    body.appendChild(btn);
+    const wait = Z.waiting(p).length;
+    body.appendChild(h('p', { class: 'capcoins', text: 'もっている コイン ' + (p.coins || 0) + (wait ? '　ごほうび チケット ' + wait + 'まい' : '') }));
+  }
+
   /* ---- 引く ---- */
   function pull() {
     if (rolling || !root) return;
     const p = MQ.save.current();
-    if (!MQ.capsule.canPull(p, kind).ok) return;
+    const home = kind === 'home';
+    if (home ? !MQ.prize.canPull(p).ok : !MQ.capsule.canPull(p, kind).ok) return;
 
     let res = null;
-    MQ.save.update(function (pl) { res = MQ.capsule.pull(pl, kind); });
+    MQ.save.update(function (pl) { res = home ? MQ.prize.pull(pl) : MQ.capsule.pull(pl, kind); });
     if (!res || !res.ok) return;
+    if (home) res.home = true;
 
     /* ---- 期待度で 演出を 変える（2026-09-07・ユーザー「期待度で演出ちょっと変えて下さい」）----
        レアなほど **長く・はでに**。ただし ウソは つかない
@@ -200,7 +263,23 @@ MQ.ui.capsule = (function () {
     const box = root.querySelector('.capsule__result');
     box.textContent = '';
     box.hidden = false;
-    box.className = 'capsule__result r--' + res.rarity;
+    box.className = 'capsule__result r--' + res.rarity + (res.home ? ' capsule__result--home' : '');
+    if (res.home) {   // v13.12 おうちの人の マシン：ごほうび チケット
+      box.appendChild(h('span', { class: 'capres__rare', text: res.pity ? 'かくてい！' : 'ごほうび！' }));
+      box.appendChild(h('div', { class: 'capres__art' }, [MQ.ui.prize.icon(it.icon, 96)]));
+      box.appendChild(h('p', { class: 'capres__name', raw: true, text: it.name }));
+      box.appendChild(h('div', { class: 'capticket' }, [
+        h('span', { class: 'capticket__t', text: 'ごほうび チケット' }),
+        h('span', { class: 'capticket__s', text: 'おうちの人に 見せてね' })
+      ]));
+      box.appendChild(h('p', { class: 'capres__msg', text: 'もちもの に 入ったよ' }));
+      box.appendChild(h('button', {
+        class: 'btn btn--cream capres__ok', type: 'button', text: 'つぎへ',
+        onclick: function () { MQ.sfx.tap(); box.hidden = true; paint(); }
+      }));
+      paint();
+      return;
+    }
 
     box.appendChild(h('span', { class: 'capres__rare', text: RARE_NAME[res.rarity] }));
     box.appendChild(h('div', { class: 'capres__art' }, [artOf(it, 96)]));
@@ -221,7 +300,8 @@ MQ.ui.capsule = (function () {
   function open(opts) {
     opts = opts || {};
     onClose = opts.onClose || null;
-    kind = opts.kind && MQ.capsule.KIND_IDS.indexOf(opts.kind) >= 0 ? opts.kind : 'mon';
+    const ks = kinds();
+    kind = opts.kind && ks.indexOf(opts.kind) >= 0 ? opts.kind : ks[0];
     rolling = false; skip = null;
     close(true);
 
@@ -239,7 +319,7 @@ MQ.ui.capsule = (function () {
         h('div', { class: 'bagcard__head' }, [
           h('h3', { class: 'bagcard__title', text: 'カプセルマシン' }),
           h('div', { class: 'bagcard__subrow' }, [
-            h('span', { class: 'bagcard__sub', text: 'ここでしか 手に 入らない ものが 出る' })
+            h('span', { class: 'bagcard__sub', text: kinds().indexOf('home') >= 0 && kinds().length === 1 ? 'おうちの人が 入れた ごほうびが 出る' : 'ここでしか 手に 入らない ものが 出る' })
           ])
         ]),
         h('div', { class: 'capsule__body' }),

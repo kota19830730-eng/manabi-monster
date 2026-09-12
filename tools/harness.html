@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="stylesheet" href="../css/motion3d.css">
 <link rel="stylesheet" href="../css/scenery.css">
+<link rel="stylesheet" href="../css/prize.css">
 <link rel="stylesheet" href="../css/specialfx.css">
 </head>
 <body>
@@ -139,6 +140,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/news.js"></script>
 <script src="../js/core/dojo.js"></script>
 <script src="../js/core/capsule.js"></script>
+<script src="../js/core/prize.js"></script>
 <!-- 3D の 試作（デモ用・v12 で ゲームに 入る まで tools/3d に おく） -->
 <script src="3d/demo3d.js"></script>   <!-- 3D の デモ（vox・chest3d・motion3d.css は ゲームの ファイルを 読む） -->
 <script src="../js/ui/common.js"></script>
@@ -156,6 +158,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/parent.js"></script>
 <script src="../js/ui/photo.js"></script>
 <script src="../js/ui/pixedit.js"></script>
+<script src="../js/ui/prize.js"></script>
 <script src="../js/ui/capsule.js"></script>
 
 <script>
@@ -963,6 +966,82 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
          #capsule:pity   … 天井が あと 1回
          #capsule:poor   … コインが たりない
          #menu           … タブの 名前と ならびが 変わった メニュー */
+    /* v13.12 おうちの人の マシン
+         #prize            … おうちの人ページ：はじめて（番号を 決める）
+         #prize:pin        … 番号を 入れる 画面（番号は 1234）→ ほんとうに キーを click() して ひらく
+         #prize:edit       … 景品 4つ・チケットつきの 設定画面
+         #prize:form       … 景品を 入れる 書きかけ
+         #prize:home       … レポートの ホームの カード
+         #prizemc          … 子どもの マシン（おうち）
+         #prizemc:win      … まわして 当たった（とばす）
+         #prizemc:pity     … あと 1回で かくてい の 表示
+         #prizemc:only     … カプセルマシンを かくして おうちの マシンだけ
+         #prizetix         … もちものの ごほうび チケット */
+    if (mode.indexOf('prize') === 0) {
+      const parts = mode.split(':');
+      const what = parts[1] || '';
+      fresh();
+      MQ.prize.setNow(new Date(2026, 8, 13, 10, 0, 0));
+      const sample = function (pl) {
+        pl.coins = 84;
+        MQ.prize.save(pl, { name: 'あたらしい ゲーム', icon: 'game', level: 5, stock: 1, pity: 30, until: null });
+        MQ.prize.save(pl, { name: 'すきな おかし 1つ', icon: 'sweets', level: 1, stock: 0, pity: 0, until: null });
+        MQ.prize.save(pl, { name: 'こうえんで あそぶ', icon: 'outing', level: 3, stock: 2, pity: 0, until: '2026-09-20' });
+        MQ.prize.save(pl, { name: 'ゲーム 30分 のばし', icon: 'time', level: 2, stock: 0, pity: 0, until: null });
+        const z = MQ.prize.ensure(pl);
+        z.items[0].miss = what === 'pity' ? 29 : 12;
+      };
+      const withTickets = function (pl) {
+        const z = MQ.prize.ensure(pl);
+        z.tickets = [
+          { id: 't91', itemId: z.items[1].id, name: z.items[1].name, icon: 'sweets', level: 1, at: '2026-09-12T18:00:00', pity: false, given: false, givenAt: null },
+          { id: 't90', itemId: z.items[3].id, name: z.items[3].name, icon: 'time', level: 2, at: '2026-09-10T18:00:00', pity: false, given: true, givenAt: '2026-09-10T19:00:00' }
+        ];
+      };
+      if (mode.indexOf('prizemc') === 0 || mode === 'prizetix') {
+        MQ.save.update(function (pl) { sample(pl); withTickets(pl); if (what === 'only') pl.capsuleOff = true; });
+        if (mode === 'prizetix') {
+          MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); await wait(120);
+          say('prizetix: チケット ' + $$('.tix__one').length + 'まい / まだ ' + $$('.tix__one:not(.is-given)').length);
+          return;
+        }
+        MQ.ui.dex.render('pals'); MQ.ui.show('screen-dex'); await wait(80);
+        const cb = document.querySelector('.capbtn');
+        say('prizemc: なかまタブの ボタン ' + (cb ? cb.textContent : 'ない'));
+        cb.click(); await wait(150);
+        if (MQ.ui.capsule.kind() !== 'home') { const hb = document.querySelector('.capchip--home'); if (hb) hb.click(); await wait(80); }
+        say('prizemc: しゅるい=' + MQ.ui.capsule.kind() + ' チップ=' + $$('.capchip').map(function (e) { return e.textContent; }).join('/'));
+        say('prizemc: 景品 = ' + $$('.caphome__one').map(function (e) { return e.textContent; }).join(' | '));
+        if (what === 'win') {
+          document.querySelector('.capgo').click();
+          await wait(200);
+          MQ.ui.capsule.skip();
+          await wait(200);
+          const box = document.querySelector('.capsule__result');
+          say('prizemc: 結果 ' + (box && !box.hidden ? box.textContent : 'まだ') + ' / コイン ' + MQ.save.current().coins + ' / チケット ' + MQ.prize.waiting(MQ.save.current()).length);
+        }
+        return;
+      }
+      // おうちの人ページ
+      if (what === 'pin' || what === 'edit' || what === 'form' || what === 'home' || what === 'reset') {
+        MQ.prize.setPin('1234');
+        MQ.save.update(function (pl) { sample(pl); withTickets(pl); });
+      }
+      // #prize:reset … 「番号を忘れた」で 作り直された しるし（あとから 番号を 決め直して 景品を 入れた）
+      if (what === 'reset') { MQ.prize.forgetPin(); MQ.prize.setPin('9999'); MQ.save.update(function (pl) { sample(pl); }); }
+      MQ.ui.parent.open(what === 'home' ? 'home' : 'prize', { from: 'title' });
+      await wait(120);
+      if (what === 'pin') {
+        ['1', '2', '3', '4'].forEach(function (k) { const b = $$('.przpin__k').filter(function (e) { return e.textContent === k; })[0]; if (b) b.click(); });
+        await wait(300);
+        say('prize:pin: ひらいた ' + (MQ.ui.prize.isUnlocked() ? 'yes' : 'no') + ' / 景品の 行 ' + $$('.przitem').length);
+      }
+      if (what === 'edit' || what === 'form' || what === 'reset') { MQ.ui.prize.unlock(); MQ.ui.parent.refresh(); await wait(80); }
+      if (what === 'form') { MQ.ui.prize.startEdit(null); MQ.ui.parent.refresh(); await wait(80); const fm = document.querySelector('.przform'); if (fm) fm.scrollIntoView(); }
+      if (what === 'home') { const c = document.getElementById('pp-prize'); if (c) c.scrollIntoView(); }
+      say('prize: 鍵 ' + (MQ.ui.prize.isUnlocked() ? 'あいた' : 'かかって いる') + ' / 番号 ' + (MQ.prize.hasPin() ? 'あり' : 'なし') + ' / キー ' + $$('.przpin__k').length);
+      return;
+    }
     if (mode.indexOf('capsule') === 0 || mode === 'menu') {
       const what = mode.split(':')[1] || '';
       fresh();

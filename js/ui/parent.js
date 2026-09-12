@@ -26,6 +26,7 @@ MQ.ui.parent = (function () {
   /* ---- 入口 ---- */
   function open(v, opts) {
     opts = opts || {};
+    if (!opened && MQ.ui.prize) MQ.ui.prize.lock();   // v13.12：おうちの人ページに 入る たびに ごほうびマシンの 鍵を かけ直す
     view = v || 'home';
     if (opts.stageId) stageId = opts.stageId;
     if (opts.from) from = opts.from;
@@ -41,6 +42,7 @@ MQ.ui.parent = (function () {
   /* もどる 先（v7.8）：タイトルから 来たら タイトル、子どもの 画面から 来たら 地図 */
   function back() {
     opened = false;
+    if (MQ.ui.prize) MQ.ui.prize.lock();
     if (from === 'title') { MQ.ui.start.render(); MQ.ui.show('screen-start'); return; }
     MQ.ui.goMap();
   }
@@ -61,6 +63,7 @@ MQ.ui.parent = (function () {
     if (view === 'detail' && stageId) body = detailView(p);
     else if (view === 'settings') body = settingsView(p);
     else if (view === 'report') body = reportView(p);
+    else if (view === 'prize' && MQ.ui.prize) body = MQ.ui.prize.view(p, { render: render, open: open, backLink: backLink });   // v13.12 ごほうびマシン
     else { view = 'home'; body = homeView(p); }
     const scr = document.getElementById('screen-parent');
     const oldBody = scr && scr.querySelector('.pp__body');
@@ -264,6 +267,7 @@ MQ.ui.parent = (function () {
     }
 
     main.push(letterSection(p));
+    if (MQ.ui.prize && MQ.prize) main.push(MQ.ui.prize.homeCard(p, { open: open }));   // v13.12 ごほうびマシン（中は 番号で 鍵）
 
     /* アクション */
     main.push(h('section', { class: 'pp-actions' }, [

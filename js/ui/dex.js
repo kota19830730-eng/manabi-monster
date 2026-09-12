@@ -247,6 +247,22 @@ MQ.ui.dex = (function () {
         ]));
       }
     }
+    // ---- ごほうび チケット（v13.12・おうちの人の マシンで 当たった もの）----
+    const tix = MQ.prize ? MQ.prize.tickets(player).slice(0, 8) : [];
+    const tixBox = tix.length ? h('div', { class: 'tix' }, [
+      h('div', { class: 'inv__head' }, [
+        h('span', { class: 'inv__t', text: 'ごほうび チケット' }),
+        h('span', { class: 'inv__sub', text: 'おうちの人に 見せてね' }),
+        h('span', { class: 'inv__n', text: MQ.prize.waiting(player).length + 'まい' })
+      ]),
+      h('div', { class: 'tix__list' }, tix.map(function (t) {
+        return h('div', { class: 'tix__one' + (t.given ? ' is-given' : '') }, [
+          MQ.ui.prize ? MQ.ui.prize.icon(t.icon, 40) : null,
+          h('span', { class: 'tix__name', raw: true, text: t.name }),
+          h('span', { class: 'tix__st', text: t.given ? 'もらった' : 'まだ' })
+        ]);
+      }))
+    ]) : null;
     const inv = h('div', { class: 'inv' }, [
       h('div', { class: 'inv__head' }, [
         h('span', { class: 'inv__t', text: 'もちもの' }),
@@ -333,6 +349,7 @@ MQ.ui.dex = (function () {
     });
 
     return h('div', {}, [
+      tixBox,
       inv,
       h('p', { class: 'note', text: 'たからものは たたかいの 中で 使える アイテム。下の たなから えらんで「もっていく」を おしてね。' }),
       dexHead('たからもの', owned, mine.length, gold ? 'ぴかぴか ' + gold : ''),
@@ -415,15 +432,19 @@ MQ.ui.dex = (function () {
 
     /* ①b カプセルマシン（v9.0）
        6つめの タブに せず「なかま」の 中に 置く。相棒を えらぶ・買う・引く が 1か所に そろう */
-    if (MQ.ui.capsule && MQ.capsule && player.capsuleOff !== true) {
+    /* v13.12：おうちの人が ごほうびを 入れて いれば、カプセルマシンを かくして いても 出す（その ときは おうちの マシンだけ） */
+    const homeOn = !!(MQ.prize && MQ.prize.hasAny(player));
+    if (MQ.ui.capsule && MQ.capsule && (player.capsuleOff !== true || homeOn)) {
       const got = MQ.capsule.KIND_IDS.reduce(function (n, k) { return n + MQ.capsule.progress(player, k).have; }, 0);
       const all = MQ.capsule.KIND_IDS.reduce(function (n, k) { return n + MQ.capsule.progress(player, k).total; }, 0);
+      const sub = player.capsuleOff === true ? 'おうちの人の マシンで ごほうびが 当たる'
+        : 'コイン ' + MQ.capsule.COST + 'まいで 1回　あつめた ' + got + ' / ' + all + (homeOn ? '　おうちの人の マシンも あるよ' : '');
       kids.push(h('button', {
-        class: 'btn capbtn', type: 'button',
-        onclick: function () { MQ.sfx.tap(); MQ.ui.capsule.open({ onClose: function () { render('pals'); } }); }
+        class: 'btn capbtn' + (homeOn ? ' capbtn--home' : ''), type: 'button',
+        onclick: function () { MQ.sfx.tap(); MQ.ui.capsule.open({ kind: player.capsuleOff === true ? 'home' : undefined, onClose: function () { render('pals'); } }); }
       }, [
         h('span', { class: 'capbtn__t', text: 'カプセルマシン' }),
-        h('span', { class: 'capbtn__s', text: 'コイン ' + MQ.capsule.COST + 'まいで 1回　あつめた ' + got + ' / ' + all })
+        h('span', { class: 'capbtn__s', text: sub })
       ]));
     }
 
@@ -698,6 +719,7 @@ MQ.ui.dex = (function () {
       h('p', { class: 'note', text: '・コインは 勉強でしか たまりません（たからばこ・ボス・★3・ミッション）。' }),
       h('p', { class: 'note', text: '・はずれは ありません。同じ ものが 出た ときは コインが 半分（5まい）もどります。' }),
       h('p', { class: 'note', text: '・10回 引くと かならず いちばん いい ものが 出ます。' }),
+      h('p', { class: 'note', text: '・おうちの人ページの「ごほうびマシン」で、本物の ごほうび（ゲーム・おかし など）を 入れた マシンも 作れます（v13.12・4けたの 番号で 鍵）。' }),
       h('button', {
         class: 'btn btn--small ' + (on ? 'btn--stone' : 'btn--cream'), type: 'button',
         text: on ? '子どもの 画面から かくす' : '子どもの 画面に 出す',
