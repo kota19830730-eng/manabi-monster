@@ -187,7 +187,11 @@ MQ.ui.map = (function () {
   const DECO_H = { mt: 42, tree: 32, house: 26, rock: 15, flower: 7 };
 
   function decoEl(kind, xPct, yPx) {
-    return h('div', { class: 'deco deco--' + kind, style: { left: xPct + '%', top: yPx + 'px' } },
+    return { kind: kind, xPct: xPct, x: xPct * 4, y: yPx };
+  }
+  // いままでの かざり（ぼかしが 使えない ブラウザ＝ブロックの 地図の とき）
+  function decoDom(d) {
+    return h('div', { class: 'deco deco--' + d.kind, style: { left: d.xPct + '%', top: d.y + 'px' } },
       [h('i'), h('i'), h('i')]);
   }
 
@@ -289,19 +293,80 @@ MQ.ui.map = (function () {
   }
 
   // 塔の 小島の かざり（枯れ木と 光る 紫の クリスタル）
+  let decoList = [];            // なめらかな 地図に 描く かざり（paint() で 描き直す）
   function towerDeco(t) {
     const out = [];
     const set = [
       ['dead', -24, -18], ['dead', -14, 16], ['crystal', -20, 30],
       ['dead', 22, -14], ['crystal', 19, 22], ['crystal', 7, 34], ['crystal', -6, 40]
     ];
-    set.forEach(function (s) {
-      out.push(h('div', {
-        class: 'deco deco--' + s[0],
-        style: { left: (t.xPct + s[1]) + '%', top: (t.y + s[2]) + 'px' }
-      }, [h('i'), h('i'), h('i')]));
-    });
+    set.forEach(function (s) { out.push(decoEl(s[0], t.xPct + s[1], t.y + s[2])); });
     return out;
+  }
+
+  /* =======================================================
+     地図の 建物を 本物の 3D に（v13.4）
+     家と さいごの塔の 城だけ（もともと 四角い もの）。木・岩は tiles.js の paintDecos が 地面に 描く
+     （四角い 箱で 木を 作ると ブロックの 木に もどる）。
+     奥ゆきは はばと 同じ くらい（家 36・天守 46・塔 30）。v12.0 の 自動の 厚み（上限 18）では
+     「薄っぺらい」と 言われた。カメラは 横 32°・上から 22° 見おろす（下から だと 建物の うらが 見えた）。
+     城は 部品ごとに 組み、左右の 塔を 天守より 手まえに 出す。
+     **3D の 図に filter を かけない**（平らに なる）→ まだ 開いて いない 城は 暗い 色で 作る。
+     りったいを 切った ときは いままでの 絵（家＝地面に 描く・城＝TOWER_B）。
+     ======================================================= */
+  const BLD_RX = -22, BLD_RY = -32;
+  function bldScene(v, size, from) {
+    const sc = h('div', { class: 'v3scene mapbld__scene', style: { width: size + 'px', height: size + 'px', perspective: '900px' } });
+    const fig = h('div', { class: 'v3fig', style: { width: size + 'px', height: size + 'px', transform: 'rotateX(' + BLD_RX + 'deg) rotateY(' + BLD_RY + 'deg)' } });
+    const k = size / from;
+    const hold = h('div', { class: 'v3hold', style: { left: ((size - from) / 2) + 'px', top: (size - from) + 'px', width: from + 'px', height: from + 'px', transform: 'scale3d(' + k + ',' + k + ',' + k + ')' } });
+    hold.appendChild(v); fig.appendChild(hold); sc.appendChild(fig);
+    return sc;
+  }
+  function bldBx(rects, pal, base) {
+    return MQ.blocks.el(rects, MQ.blocks.fill(pal), { raw: true, base: base, plain: true });
+  }
+  function use3d() { return !!(MQ.tiles.smooth() && MQ.vox && MQ.ui.v3 && MQ.ui.v3.on()); }
+  const HOUSE3D = [[4, 6, 40, 12, 'r'], [8, 18, 32, 22, 'w'], [20, 28, 8, 12, 'd', 'n'], [11, 22, 6, 6, 'y', 'g'], [31, 22, 6, 6, 'y', 'g']];
+  const HOUSE3D_PAL = { r: '#e0604e', w: '#f6efdc', d: '#6d4726', y: '#ffd86b' };
+  function house3d(d) {
+    const v = MQ.vox.fromBx(bldBx(HOUSE3D, HOUSE3D_PAL, 48), { unit: 2, max: 36 });
+    return h('div', { class: 'mapbld', style: { left: d.xPct + '%', top: (d.y + 6) + 'px' } }, [bldScene(v, 50, 96)]);
+  }
+  const CASTLE_PAL = { s: '#6b5a96', t: '#7f6db0', d: '#3e3266', g: '#1e1638', a: '#a2385e', p: '#3a2d5e', f: '#d93a58', w: '#ff8a4d', e: '#ff5a5a' };
+  const CASTLE_LOCK = { s: '#4d4760', t: '#5a5470', d: '#2c2840', g: '#16131f', a: '#6a3a4c', p: '#2a2538', f: '#8a3a4c', w: '#a86a4d', e: '#b85a5a' };
+  function castle3d(locked) {
+    const P = locked ? CASTLE_LOCK : CASTLE_PAL;
+    const G = function (rects) { return bldBx(rects, P, 116); };
+    const KEEP_D = 46, TOWER_D = 30, TOWER_Z = 12, CREN_D = 6;
+    const keep = [[34, 38, 48, 78, 't'], [31, 29, 54, 9, 's'], [48, 86, 20, 30, 'g', 'n'], [51, 87, 14, 5, 'a', 'n'], [43, 58, 10, 12, 'e', 'g'], [63, 58, 10, 12, 'e', 'g']];
+    const tL = [[10, 54, 22, 62, 's'], [8, 46, 26, 8, 't'], [16, 71, 8, 11, 'w', 'g']];
+    const tR = [[84, 54, 22, 62, 's'], [82, 46, 26, 8, 't'], [90, 71, 8, 11, 'w', 'g']];
+    const cK = [[31, 21, 8, 8, 'd'], [42, 21, 8, 8, 'd'], [53, 21, 8, 8, 'd'], [64, 21, 8, 8, 'd'], [77, 21, 8, 8, 'd']];
+    const cL = [[8, 39, 7, 7, 'd'], [17, 39, 7, 7, 'd'], [27, 39, 7, 7, 'd']];
+    const cR = [[82, 39, 7, 7, 'd'], [91, 39, 7, 7, 'd'], [101, 39, 7, 7, 'd']];
+    const flag = [[56, 11, 4, 10, 'p'], [60, 8, 16, 9, 'f']];
+    const v = MQ.vox.fromGroups([
+      { cls: 'keep', bx: G(keep), joint: [58, 116], thick: KEEP_D },
+      { cls: 'towerL', bx: G(tL), joint: [21, 116], thick: TOWER_D },
+      { cls: 'towerR', bx: G(tR), joint: [95, 116], thick: TOWER_D },
+      { cls: 'crenK', bx: G(cK), joint: [58, 29], thick: CREN_D, floor: false },
+      { cls: 'crenKb', bx: G(cK), joint: [58, 29], thick: CREN_D, floor: false },
+      { cls: 'crenL', bx: G(cL), joint: [21, 46], thick: CREN_D, floor: false },
+      { cls: 'crenLb', bx: G(cL), joint: [21, 46], thick: CREN_D, floor: false },
+      { cls: 'crenR', bx: G(cR), joint: [95, 46], thick: CREN_D, floor: false },
+      { cls: 'crenRb', bx: G(cR), joint: [95, 46], thick: CREN_D, floor: false },
+      { cls: 'flag', bx: G(flag), joint: [58, 21], thick: 3, floor: false }
+    ], { unit: 1 });
+    // 手まえ（+）・奥（−）へ ずらす。箱は 奥ゆきの まん中ぞろえ なので へりに そろえる
+    const z = {
+      towerL: TOWER_Z, towerR: TOWER_Z,
+      crenK: KEEP_D / 2 - CREN_D / 2, crenKb: -(KEEP_D / 2 - CREN_D / 2),
+      crenL: TOWER_Z + TOWER_D / 2 - CREN_D / 2, crenLb: TOWER_Z - TOWER_D / 2 + CREN_D / 2,
+      crenR: TOWER_Z + TOWER_D / 2 - CREN_D / 2, crenRb: TOWER_Z - TOWER_D / 2 + CREN_D / 2
+    };
+    Object.keys(z).forEach(function (key) { const n = v.querySelector('.p--' + key); if (n) n.style.transform = 'translateZ(' + z[key] + 'px)'; });
+    return h('span', { class: 'tower__art tower__art--3d' }, [bldScene(v, 116, 116)]);
   }
 
   /* =======================================================
@@ -327,7 +392,7 @@ MQ.ui.map = (function () {
       h('span', { class: 'tower__aura' }),
       h('span', { class: 'tower__sign', text: MQ.content.towerName().replace(' ', '') }),
       h('span', { class: 'tower__sub', text: open ? (beaten ? (kid ? 'もういちど いどむ' : 'もう一度 いどむ') : last.name + (kid ? 'が まって いる！' : 'が 待つ！')) : 'かけら ' + gotN + ' / ' + need }),
-      towerArt()
+      use3d() ? castle3d(!open) : towerArt()
     ]);
   }
 
@@ -362,50 +427,103 @@ MQ.ui.map = (function () {
   ];
 
   /* =======================================================
-     地図の ドックの アイコン（v13.3）
-     モンスター・たからものと 同じ ブロックの ぬり方（js/core/blocks.js）で 40マス。
-     [x, y, よこ, たて, 色の キー, フラグ]。色は A を 決めれば B・C・D は 自動。
-       dice      … ごちゃまぜ。3つの 面が 算数・国語・理科の 色（まざる・何が 出るか わからない）
-       scroll    … しゅぎょうば。金の じくと 赤い ひも（教えて もらう 場所）
-       hourglass … タイムアタック
-       book      … メニュー（ずかん）
-     まえの ごちゃまぜの 4まいの 四角は Windows の マークに にて いた ので やめた。
-     見た目の 正本は docs/STYLE_GUIDE.md の「地図の ドック（v13.3）」
+     地図の ドックの アイコン（v13.4・ジオラマ仕上げ）
+     v13.3 の ブロックの アイコンは「荒い・汚く 見える」→ デザインの キャンバスで 3つの 仕上げ
+     （ジオラマ／つやつや／フラット）を 作り、地図の B案と 同じ 光の **ジオラマ**を 使う。
+     64×64 の SVG。面ごとに 平らな 3色（上＝明るい・前・横＝暗い）＋ 足もとの やわらかい かげ。光は 左上。
+       book … メニュー／scroll … しゅぎょうば／dice … ごちゃまぜ（3つの 面が 算数・国語・理科の 色）
+       hourglass … タイムアタック／coin … コイン
+     まえの ごちゃまぜの 4まいの 四角は Windows の マークに にて いた ので 使わない。
+     見た目の 正本は docs/STYLE_GUIDE.md の「地図の ドック（v13.3）」「地図を なめらかに（v13.4）」
      ======================================================= */
-  const DOCK_ICONS = {
-    dice: { pal: { A: '#ff8f5e', G: '#7fe36a', L: '#3fa8ee', w: '#ffffff' }, s: [
-      // 右の 面（青）… 2マスずつ 上へ ずらして ななめの 面に 見せる
-      [28, 11, 3, 24, 'L', 'n'], [30, 9, 3, 24, 'L', 'n'], [32, 7, 3, 24, 'L', 'n'], [34, 5, 3, 24, 'L', 'n'],
-      // 上の 面（みどり）
-      [12, 3, 25, 3, 'G', 'n'], [10, 5, 25, 3, 'G', 'n'], [8, 7, 25, 3, 'G', 'n'], [6, 9, 25, 3, 'G', 'n'],
-      // 前の 面（オレンジ）と 目
-      [4, 12, 26, 25, 'A', 'h'],
-      [8, 16, 5, 5, 'w', 'n'], [21, 16, 5, 5, 'w', 'n'], [14, 22, 5, 5, 'w', 'n'], [8, 28, 5, 5, 'w', 'n'], [21, 28, 5, 5, 'w', 'n'],
-      [18, 6, 5, 3, 'w', 'n'], [31, 17, 3, 5, 'w', 'n'], [31, 25, 3, 4, 'w', 'n']
-    ] },
-    scroll: { pal: { A: '#e0a83a', B: '#b9791f', w: '#fff3cf', k: '#8a6a3a', r: '#e0463c' }, s: [
-      [6, 12, 28, 17, 'w', 'n'],
-      [10, 16, 16, 2, 'k', 'n'], [10, 20, 18, 2, 'k', 'n'], [10, 24, 12, 2, 'k', 'n'],
-      [2, 6, 36, 7, 'A', 'h'], [2, 28, 36, 7, 'A', 'h'],
-      [0, 7, 3, 5, 'B'], [37, 7, 3, 5, 'B'], [0, 29, 3, 5, 'B'], [37, 29, 3, 5, 'B'],
-      [29, 12, 3, 16, 'r', 'n'], [27, 26, 7, 6, 'r']
-    ] },
-    hourglass: { pal: { A: '#ffd66b', C: '#9b6a3c', w: '#fff8e0' }, s: [
-      [4, 2, 32, 6, 'C'], [4, 32, 32, 6, 'C'],
-      [10, 8, 20, 11, 'A', 'h'], [17, 17, 6, 6, 'A'], [10, 21, 20, 11, 'A'],
-      [15, 24, 10, 6, 'w', 'n']
-    ] },
-    book: { pal: { A: '#4f7de0', w: '#fff6d8' }, s: [
-      [4, 5, 32, 30, 'A', 'h'],
-      [18, 5, 4, 30, 'B', 'n'],
-      [7, 10, 9, 3, 'w', 'n'], [7, 16, 9, 3, 'w', 'n'],
-      [24, 10, 9, 3, 'w', 'n'], [24, 16, 9, 3, 'w', 'n'],
-      [4, 32, 32, 4, 'B', 'n']
-    ] }
+  const ICON_MAT = {
+    gold: ['#ffe9a3', '#f3c545', '#b8801d'], gold2: ['#fff3c4', '#ffd447', '#d59a1b'],
+    paper: ['#fffdf3', '#f6ebc9', '#d8c79a'], ink: ['#9c8a6a', '#8a7757', '#6d5c40'],
+    red: ['#ff8a7a', '#e0463c', '#9f2b25'], wood: ['#c99263', '#9a6a3c', '#6b4526'],
+    blue: ['#7ea8ff', '#4f7de0', '#2f4f9e'], bluedk: ['#5a7ad0', '#3457b0', '#1f3776'],
+    cream: ['#fffdf5', '#f4ecd8', '#d9cdb4'], glass: ['#e9f7ff', '#bfe4f7', '#8fc6e6'],
+    sand: ['#ffe6a8', '#f2c76a', '#c99a3c'], orange: ['#ffb08a', '#ff8f5e', '#c9562b'],
+    green: ['#a7ee7b', '#63d94f', '#3c9a33'], sky: ['#a6e9ff', '#4fd3ff', '#2a9cc9'],
+    white: ['#ffffff', '#ffffff', '#e6e6e6']
   };
+  // [材料, 面（top／front／side／detail）, かたち]
+  const DOCK_ICONS = {
+    dice: [
+      ['green', 'top', 'M32 6 L58 19 L32 32 L6 19 Z'],
+      ['orange', 'front', 'M6 19 L32 32 L32 60 L6 47 Z'],
+      ['sky', 'side', 'M32 32 L58 19 L58 47 L32 60 Z'],
+      ['white', 'detail', 'M32 19 m-4 0 a4 2.2 0 1 0 8 0 a4 2.2 0 1 0 -8 0'],
+      ['white', 'detail', 'M14 33 a2.6 3.2 0 1 0 5.2 0 a2.6 3.2 0 1 0 -5.2 0 M19 40 a2.6 3.2 0 1 0 5.2 0 a2.6 3.2 0 1 0 -5.2 0 M24 47 a2.6 3.2 0 1 0 5.2 0 a2.6 3.2 0 1 0 -5.2 0'],
+      ['white', 'detail', 'M39 36 a2.6 3.2 0 1 0 5.2 0 a2.6 3.2 0 1 0 -5.2 0 M47 46 a2.6 3.2 0 1 0 5.2 0 a2.6 3.2 0 1 0 -5.2 0']
+    ],
+    book: [
+      ['cream', 'side', 'M50 12 L56 16 L56 58 L50 54 Z'],
+      ['cream', 'front', 'M16 54 L50 54 L56 58 L22 58 Z'],
+      ['bluedk', 'side', 'M10 12 L16 8 L16 54 L10 50 Z'],
+      ['blue', 'top', 'M10 12 L16 8 L50 8 L44 12 Z'],
+      ['blue', 'front', 'M10 12 L44 12 Q50 12 50 18 L50 54 L10 54 Z'],
+      ['bluedk', 'detail', 'M10 12 L17 12 L17 54 L10 54 Z'],
+      ['paper', 'detail', 'M22 22 L42 22 L42 25 L22 25 Z M22 30 L42 30 L42 33 L22 33 Z M22 38 L36 38 L36 41 L22 41 Z'],
+      ['red', 'detail', 'M36 12 L44 12 L44 32 L40 28 L36 32 Z']
+    ],
+    scroll: [
+      ['paper', 'front', 'M14 16 L50 16 L50 48 L14 48 Z'],
+      ['ink', 'detail', 'M20 24 L42 24 L42 26.5 L20 26.5 Z M20 31 L44 31 L44 33.5 L20 33.5 Z M20 38 L36 38 L36 40.5 L20 40.5 Z'],
+      ['red', 'detail', 'M43 16 L47 16 L47 44 L45 41 L43 44 Z'],
+      ['gold', 'top', 'M8 10 Q8 6 12 6 L52 6 Q56 6 56 10 L56 12 L8 12 Z'],
+      ['gold', 'front', 'M8 12 L56 12 L56 16 Q56 20 52 20 L12 20 Q8 20 8 16 Z'],
+      ['gold', 'side', 'M52 6 Q58 6 58 13 Q58 20 52 20 Q55 20 55 13 Q55 6 52 6 Z'],
+      ['gold', 'top', 'M8 46 Q8 42 12 42 L52 42 Q56 42 56 46 L56 48 L8 48 Z'],
+      ['gold', 'front', 'M8 48 L56 48 L56 52 Q56 56 52 56 L12 56 Q8 56 8 52 Z'],
+      ['gold', 'side', 'M52 42 Q58 42 58 49 Q58 56 52 56 Q55 56 55 49 Q55 42 52 42 Z'],
+      ['wood', 'detail', 'M4 10 L8 8 L8 18 L4 16 Z M4 46 L8 44 L8 54 L4 52 Z M56 8 L60 10 L60 16 L56 18 Z M56 44 L60 46 L60 52 L56 54 Z']
+    ],
+    hourglass: [
+      ['wood', 'side', 'M16 12 L19 12 L19 52 L16 52 Z M45 12 L48 12 L48 52 L45 52 Z'],
+      ['glass', 'front', 'M19 12 L45 12 Q45 26 34 32 Q45 38 45 52 L19 52 Q19 38 30 32 Q19 26 19 12 Z'],
+      ['sand', 'front', 'M22 44 Q32 34 42 44 L45 52 L19 52 Z'],
+      ['sand', 'detail', 'M23 12 L41 12 Q41 21 33 26 L31 26 Q23 21 23 12 Z'],
+      ['sand', 'detail', 'M31.4 30 L32.6 30 L32.6 46 L31.4 46 Z'],
+      ['white', 'detail', 'M22 15 Q23 22 27 26 L24 27 Q21 22 21 15 Z'],
+      ['wood', 'top', 'M12 6 Q12 4 14 4 L50 4 Q52 4 52 6 L52 8 L12 8 Z'],
+      ['wood', 'front', 'M12 8 L52 8 L52 12 L12 12 Z'],
+      ['wood', 'top', 'M12 52 L52 52 L52 55 L12 55 Z'],
+      ['wood', 'front', 'M12 55 L52 55 L52 58 Q52 60 50 60 L14 60 Q12 60 12 58 Z']
+    ],
+    coin: [
+      ['gold', 'side', 'M32 8 a24 24 0 1 0 0.1 0 Z'],
+      ['gold2', 'front', 'M32 6 a24 24 0 1 0 0.1 0 Z'],
+      ['gold', 'detail', 'M32 12 a18 18 0 1 0 0.1 0 Z'],
+      ['gold2', 'top', 'M32 14 a16 16 0 1 0 0.1 0 Z'],
+      ['gold', 'side', 'M32 18 L35.5 26.5 L44.5 27.2 L37.6 33.1 L39.8 42 L32 37.2 L24.2 42 L26.4 33.1 L19.5 27.2 L28.5 26.5 Z']
+    ]
+  };
+  function dockSvg(name, size) {
+    const shapes = DOCK_ICONS[name] || DOCK_ICONS.dice;
+    const body = shapes.map(function (p) {
+      const t = ICON_MAT[p[0]];
+      const fill = p[1] === 'top' ? t[0] : p[1] === 'side' ? t[2] : t[1];
+      const edge = p[1] === 'top' ? ' stroke="rgba(255,255,255,.35)" stroke-width=".8" stroke-linejoin="round"' : '';
+      return '<path d="' + p[2] + '" fill="' + fill + '"' + edge + '/>';
+    }).join('');
+    const shadow = name === 'coin' ? '' : '<ellipse cx="34" cy="60" rx="24" ry="4" fill="rgba(10,20,40,.28)"/>';
+    return '<svg viewBox="0 0 64 64" width="' + size + '" height="' + size + '" aria-hidden="true" focusable="false">' + shadow + body + '</svg>';
+  }
   function dockIcon(name, size) {
-    const d = DOCK_ICONS[name];
-    return MQ.blocks.box(d.s, MQ.blocks.fill(d.pal), { size: size, base: 40, raw: true, cls: 'dockico' });
+    const el = document.createElement('span');
+    el.className = 'dockico';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.innerHTML = dockSvg(name, size);
+    return el;
+  }
+
+  /* 地図の 下の あき（ドックの ぶん）と スクロールの すきまを 海と 同じ 色に（v13.4）。
+     なめらかな 地図は 海が まん中 明るく はしが ふかい ので、1色だと 帯に 見える */
+  function seaBg() {
+    if (!grid || !MQ.tiles.smooth()) return '';
+    const c = MQ.tiles.smoothColors(grid.colors);
+    return 'linear-gradient(90deg, ' + c.seaDeep + ', ' + c.sea + ' 50%, ' + c.seaDeep + ')';
   }
 
   function towerArt() {
@@ -456,8 +574,17 @@ MQ.ui.map = (function () {
     // 背景（v12.6）：海の 向こうの うすい 山なみ（A）と 時間帯の 光（C）。島・道・マス目は さわらない
     if (MQ.ui.scenery) { layer.appendChild(MQ.ui.scenery.mapFar(plan.theme)); sheet.appendChild(MQ.ui.scenery.mapTint()); }
 
-    // 木の 板の 橋（マスの 中の もようだけは CSS で かさねる）
-    grid.bridges.forEach(function (r) {
+    // 木の 板の 橋（ブロックの 地図の とき だけ。なめらかな 地図は tiles.js が 板を 描く）
+    const smooth = MQ.tiles.smooth();
+    const bld3d = use3d();
+    decoList = [];
+    function addDeco(d) {
+      if (d && d.nodeType) { if (!smooth) layer.appendChild(d); return; }      // 波（ブロックの 地図だけ）
+      if (!smooth) { layer.appendChild(decoDom(d)); return; }
+      if (d.kind === 'house') { d.flat = !bld3d; if (bld3d) layer.appendChild(house3d(d)); }
+      decoList.push(d);
+    }
+    if (!smooth) grid.bridges.forEach(function (r) {
       layer.appendChild(h('div', {
         class: 'bridge',
         style: { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' }
@@ -485,7 +612,7 @@ MQ.ui.map = (function () {
 
     bands.forEach(function (b) {
       /* ---- かざり（ノードより 下の そう） ---- */
-      scatter(b, budget, placed).forEach(function (d) { layer.appendChild(d); });
+      scatter(b, budget, placed).forEach(addDeco);
 
       /* ---- ゾーン見出し（ノードの 行の 上の 余白に おく） ---- */
       const stars = MQ.content.starsIn(player, b.area);
@@ -570,9 +697,11 @@ MQ.ui.map = (function () {
 
     /* ---- さいごの塔の 小島（小1には ない） ---- */
     if (plan.tower) {
-      towerDeco(plan.tower).forEach(function (d) { layer.appendChild(d); });
+      towerDeco(plan.tower).forEach(addDeco);
       layer.appendChild(towerEl(player, plan.tower));
     }
+    // なめらかな 地図：木・岩・花・雪山・枯れ木・クリスタル（と 家の かげ）を 地面に 描く（v13.4）
+    if (smooth) MQ.tiles.paintDecos(canvas, grid, decoList);
 
     /* ---- がくねん えらび（v4.5）------------------------------------------
      予習・復習の ために 学年を いつでも 変えられる。
@@ -697,7 +826,7 @@ MQ.ui.map = (function () {
         }, [
           dockIcon('dice', 42),
           h('b', { class: 'maptab__t', text: 'ごちゃまぜ' }),
-          h('span', { class: 'maptab__coin', 'aria-label': 'コイン +1' }, [h('i', { class: 'maptab__coinico' }), h('span', { text: '+1' })])
+          h('span', { class: 'maptab__coin', 'aria-label': 'コイン +1' }, [dockIcon('coin', 18), h('span', { text: '+1' })])
         ]) : null,
         // タイムアタックは 1回 たたかってから（v11.1）
         firstTime ? null : tab('タイム', 'hourglass', function () { timeAttack(player); }, '', null, 'タイムアタック'),
@@ -714,7 +843,7 @@ MQ.ui.map = (function () {
 
     MQ.ui.mount('screen-map', h('div', { class: 'map map--' + plan.theme }, [
       top,
-      h('div', { class: 'map__scroll' }, [sheet, h('div', { class: 'map__pad' + (hasChips ? ' has-chips' : '') }), h('div', { class: 'map__vig' })]),
+      h('div', { class: 'map__scroll', style: { background: seaBg() } }, [sheet, h('div', { class: 'map__pad' + (hasChips ? ' has-chips' : '') }), h('div', { class: 'map__vig' })]),
       dimEl,
       bottom
     ]));
@@ -989,9 +1118,26 @@ MQ.ui.map = (function () {
   }
 
   function paint() {
-    if (canvas && grid) MQ.tiles.paint(canvas, grid);
+    if (!canvas || !grid) return;
+    MQ.tiles.paint(canvas, grid);
+    if (MQ.tiles.smooth()) MQ.tiles.paintDecos(canvas, grid, decoList);
+  }
+
+  /* 地図の 地面を 先に 描いて おく（v13.4）。なめらかな 地図は 1回 約110ms（PC）かかる ので、
+     タイトル画面の オープニング（1.75秒）が おわった あとの ひまな ときに 描いて tiles.js に とって おく。
+     地図を 開いた ときは とって おいた 絵を 写す だけ（約30ms）。 */
+  function warm() {
+    try {
+      if (!MQ.save || !MQ.save.current() || !MQ.tiles.smooth()) return;
+      MQ.tiles.warm(MQ.tiles.build(Object.assign(layout(), {})));
+    } catch (e) { /* 先に 描けなくても 地図を 開いた ときに 描く */ }
+  }
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('load', function () {
+      setTimeout(function () { (window.requestIdleCallback || function (f) { f(); })(warm, { timeout: 2000 }); }, 2600);
+    });
   }
 
   // unlockPop は harness の 検査用にも 出す（v11.1）
-  return { render: render, paint: paint, unlockPop: unlockPop, isFirstTime: isFirstTime, dockIcon: dockIcon };
+  return { render: render, paint: paint, unlockPop: unlockPop, isFirstTime: isFirstTime, dockIcon: dockIcon, warm: warm };
 })();

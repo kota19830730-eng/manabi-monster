@@ -338,7 +338,7 @@ MQ.tiles = (function () {
 
     return {
       cells: g, cols: COLS, rows: rows, cell: CELL,
-      colors: th.colors,
+      colors: th.colors, theme: THEMES[spec.theme] ? spec.theme : 'g3',
       heightPx: rows * CELL,
       bridges: bridgeRects.map(function (r) {
         return { x: r.x * CELL, y: r.y * CELL, w: r.w * CELL, h: r.h * CELL };
@@ -459,8 +459,9 @@ MQ.tiles = (function () {
     return 0;
   }
 
-  function paint(canvas, grid) {
+  function paintBlocks(canvas, grid) {
     if (!canvas || !grid) return;
+    canvas.classList.remove('map__bg--smooth');
     const cols = grid.cols, rows = grid.rows;
     canvas.width = cols * SUB;
     canvas.height = rows * SUB;
@@ -535,11 +536,375 @@ MQ.tiles = (function () {
 
   function landAt(grid, xPct, yPx) { return isLand(at(grid, xPct, yPx)); }
 
+
+  /* =======================================================
+     地図を なめらかに 描く（v13.4・B案「ジオラマ」）
+
+     ユーザー「ブロック感 なくして 映像を 綺麗に」→ 3案（A 絵本／B ジオラマ／C アニメ）→ **B**。
+     マスの 表（cells）は そのまま。**見た目だけ** 変える：
+       ① マスの 表を 小さな 絵に して ぼかし → しきい値＝なめらかな 海岸線・道・川（maskOf）
+       ② 島に 高さ（南の へりに 2だんの がけ）・海岸の 白い 波・あさせ
+       ③ 草は 大きな やわらかい 明暗（おかの ふくらみ）・森・岩場・道の じゃり
+       ④ 橋は 板の 絵
+     色は 学年ごとの テーマ（grid.colors）から 作る＝春・夏・秋・冬・闇 が そのまま 出る。
+     マスクは 画面と 同じ はば（400）で 作り、2ばいの canvas に なめらかに 引きのばす
+     （800 で 作ると 1回 300ms を こえた。400 なら 1/4）。
+     **ctx.filter（ぼかし）が ない ブラウザは いままでの paint（ブロック）**に もどる。
+     かざり（木・岩・花）は paintDecos、家と 城は js/ui/map.js が 本物の 3D（vox）で おく。
+     見た目の 正本は docs/STYLE_GUIDE.md の「地図を なめらかに（v13.4）」
+     ======================================================= */
+  const SK = 2;                 // 画面の 何ばいで 描くか
+  const MK = 1;                 // マスクは 画面と 同じ
+  function hexMix(hex, to, k) {
+    const a = rgbOf(hex), b = rgbOf(to);
+    return '#' + a.map(function (v, i) { return ('0' + Math.round(v + (b[i] - v) * k).toString(16)).slice(-2); }).join('');
+  }
+  function lit(hex, k) { return hexMix(hex, '#ffffff', k); }
+  function drk(hex, k) { return hexMix(hex, '#000000', k); }
+  function rnd(i) { let h = (i * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967295; }
+
+  const smoothCache = [];       // [{ key, canvas }]（同じ 地図を 2回 描かない・学年を 行き来しても 3枚まで）
+  /* しきい値の フィルター（SVG）。ぼかし stdDeviation → 不とうめい度 a を slope·a + intercept に。
+     ctx.filter = 'url(#…)' で canvas に かける（Chrome）。画素の 読み出しが いらない ので 速い */
+  const svgFilters = {};
+  let svgRoot = null;
+  function thresholdFilter(blur, slope, intercept) {
+    const id = 'mqth-' + String(blur).replace('.', '_') + '-' + slope + '-' + String(Math.round(intercept * 1000)).replace('-', 'm');
+    if (svgFilters[id]) return 'url(#' + id + ')';
+    const NS = 'http://www.w3.org/2000/svg';
+    if (!svgRoot) {
+      svgRoot = document.createElementNS(NS, 'svg');
+      svgRoot.setAttribute('width', '0'); svgRoot.setAttribute('height', '0');
+      svgRoot.setAttribute('aria-hidden', 'true');
+      svgRoot.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;';
+      (document.body || document.documentElement).appendChild(svgRoot);
+    }
+    const f = document.createElementNS(NS, 'filter');
+    f.setAttribute('id', id);
+    f.setAttribute('x', '-5%'); f.setAttribute('y', '-5%'); f.setAttribute('width', '110%'); f.setAttribute('height', '110%');
+    f.setAttribute('color-interpolation-filters', 'sRGB');
+    if (blur > 0) { const b = document.createElementNS(NS, 'feGaussianBlur'); b.setAttribute('stdDeviation', String(blur)); f.appendChild(b); }
+    const ct = document.createElementNS(NS, 'feComponentTransfer');
+    const fa = document.createElementNS(NS, 'feFuncA');
+    fa.setAttribute('type', 'linear'); fa.setAttribute('slope', String(slope)); fa.setAttribute('intercept', String(intercept));
+    ct.appendChild(fa); f.appendChild(ct); svgRoot.appendChild(f);
+    svgFilters[id] = true;
+    return 'url(#' + id + ')';
+  }
+  let gpuOK = null;
+  function gpuThreshold() {        // 1回だけ ためす：不とうめい度を 0 に する フィルターで 本当に 消えるか
+    if (gpuOK !== null) return gpuOK;
+    try {
+      const c = document.createElement('canvas'); c.width = 4; c.height = 4;
+      const x = c.getContext('2d');
+      x.filter = thresholdFilter(0, 0, 0);
+      x.fillStyle = '#fff'; x.fillRect(0, 0, 4, 4);
+      x.filter = 'none';
+      gpuOK = x.getImageData(1, 1, 1, 1).data[3] === 0;
+    } catch (e) { gpuOK = false; }
+    return gpuOK;
+  }
+  function canSmooth() {
+    try {
+      const c = document.createElement('canvas').getContext('2d');
+      return !!c && typeof c.filter === 'string';
+    } catch (e) { return false; }
+  }
+  // テーマの 色 → なめらかな 地図の 色（テスト用にも 出す）
+  function smoothColors(colors) {
+    const c = colors || COLOR;
+    const g = c[GRASS][0];
+    return {
+      sea: c[SEA][0], seaDeep: drk(c[SEA][0], 0.28), shal: c[SHAL][0], sand: c[SAND][0],
+      grass: [lit(g, 0.12), drk(g, 0.14)], forest: c[FOREST][0], rock: c[ROCK][0],
+      road: c[ROAD][0], roadEdge: drk(c[ROAD][0], 0.2), river: c[RIVER][0], bridge: c[BRIDGE][0],
+      cliff: drk(g, 0.32), cliffDeep: drk(g, 0.55), dgrass: c[DGRASS][0], dsand: c[DSAND][0]
+    };
+  }
+  function cellsKey(grid) {
+    let h = 2166136261;
+    for (let y = 0; y < grid.rows; y++) for (let x = 0; x < grid.cols; x++) { h ^= grid.cells[y][x]; h = Math.imul(h, 16777619); }
+    return (grid.theme || '') + ':' + grid.rows + ':' + (h >>> 0);
+  }
+
+  function paintSmooth(canvas, grid) {
+    const W = 400 * SK, Hh = Math.round(grid.heightPx * SK);
+    canvas.width = W; canvas.height = Hh;
+    canvas.classList.add('map__bg--smooth');
+    const ctx = canvas.getContext('2d');
+    const key = cellsKey(grid);
+    const hit = smoothCache.filter(function (c) { return c.key === key; })[0];
+    if (hit) { ctx.drawImage(hit.canvas, 0, 0); return; }
+    const gpu = gpuThreshold();
+
+    const P = smoothColors(grid.colors);
+    const MW = 400 * MK, MH = Math.round(grid.heightPx * MK);
+    const dark = grid.theme === 'g6';
+    // マスの 表 → なめらかな 形（ぼかして しきい値）。MW×MH で 作る
+    function maskOf(pred, blur, thresh, offY) {
+      const small = document.createElement('canvas'); small.width = grid.cols; small.height = grid.rows;
+      const sc = small.getContext('2d');
+      sc.fillStyle = '#fff';
+      for (let y = 0; y < grid.rows; y++) for (let x = 0; x < grid.cols; x++) if (pred(grid.cells[y][x])) sc.fillRect(x, y, 1, 1);
+      const m = document.createElement('canvas'); m.width = MW; m.height = MH;
+      const mc = m.getContext('2d');
+      mc.imageSmoothingEnabled = true;
+      const t0 = (thresh == null ? 0.5 : thresh);
+      if (gpu) {         // (a·255 − t)·6 + 128 ＝ a·6 + (128/255 − 6t)
+        mc.filter = thresholdFilter(blur * MK, 6, 128 / 255 - 6 * t0);
+        mc.drawImage(small, 0, (offY || 0) * MK, MW, MH);
+        mc.filter = 'none';
+        return m;
+      }
+      mc.filter = 'blur(' + (blur * MK) + 'px)';
+      mc.drawImage(small, 0, (offY || 0) * MK, MW, MH);
+      mc.filter = 'none';
+      const img = mc.getImageData(0, 0, MW, MH), d = img.data, t = (thresh == null ? 0.5 : thresh) * 255;
+      // きっちり 0/255 に 切ると 2ばいに した とき 階段に なる → しきい値の まわり 1px だけ なだらかに（ふちの ぼかし）
+      for (let i = 3; i < d.length; i += 4) { const a = (d[i] - t) * 6 + 128; d[i] = a < 0 ? 0 : a > 255 ? 255 : a; }
+      mc.putImageData(img, 0, 0);
+      return m;
+    }
+    // マスクの ふち（外がわ／内がわ に px）
+    function edgeOf(mask, px, inside) {
+      const t = document.createElement('canvas'); t.width = MW; t.height = MH;
+      const c = t.getContext('2d');
+      if (gpu) {         // (a·255 − 8)·10 ＝ a·10 − 80/255
+        c.filter = thresholdFilter(px * MK, 10, -80 / 255);
+        c.drawImage(mask, 0, 0);
+        c.filter = 'none';
+      } else {
+        c.filter = 'blur(' + (px * MK) + 'px)';
+        c.drawImage(mask, 0, 0);
+        c.filter = 'none';
+        const img = c.getImageData(0, 0, MW, MH), d = img.data;
+        for (let i = 3; i < d.length; i += 4) { const a = (d[i] - 8) * 10; d[i] = a < 0 ? 0 : a > 255 ? 255 : a; }
+        c.putImageData(img, 0, 0);
+      }
+      c.globalCompositeOperation = inside ? 'destination-in' : 'destination-out';
+      c.drawImage(mask, 0, 0);
+      return t;
+    }
+    // マスクの 形に ぬる（2ばいに なめらかに 引きのばす）
+    const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = Hh;
+    const tc = tmp.getContext('2d');
+    function fill(mask, paintFn, offY) {
+      tc.globalCompositeOperation = 'source-over';
+      tc.globalAlpha = 1;
+      tc.clearRect(0, 0, W, Hh);
+      paintFn(tc);
+      tc.globalAlpha = 1;
+      tc.globalCompositeOperation = 'destination-in';
+      tc.imageSmoothingEnabled = true;
+      tc.drawImage(mask, 0, (offY || 0) * SK, W, Hh);
+      tc.globalCompositeOperation = 'source-over';
+      ctx.drawImage(tmp, 0, 0);
+    }
+    function flat(color, a) { return function (c) { c.globalAlpha = a == null ? 1 : a; c.fillStyle = color; c.fillRect(0, 0, W, Hh); }; }
+
+    const bl = 2.6;   // ぼかし（マスが 12.5px なので その 2わり）
+    // 海：まん中が 明るく、はしが ふかい
+    const sg = ctx.createLinearGradient(0, 0, W, 0);
+    sg.addColorStop(0, P.seaDeep); sg.addColorStop(0.5, P.sea); sg.addColorStop(1, P.seaDeep);
+    ctx.fillStyle = sg; ctx.fillRect(0, 0, W, Hh);
+    ctx.globalAlpha = dark ? 0.06 : 0.12; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 * SK;
+    for (let i = 0; i < Math.round(Hh / 70); i++) {
+      const y = rnd(i) * Hh, x = rnd(i + 99) * W, w = (30 + rnd(i + 7) * 90) * SK / 2;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + w / 2, y - 3 * SK, x + w, y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    const land = maskOf(function (v) { return v >= SAND; }, bl);
+    fill(maskOf(function (v) { return v >= SAND || v === SHAL; }, bl * 2.2, 0.35), flat(P.shal, 0.55));
+    fill(edgeOf(land, 5, false), flat('#ffffff', dark ? 0.18 : 0.35));
+    // 島の 高さ（南の へりに 2だんの がけ）
+    fill(land, flat(P.cliffDeep), 3.5);
+    fill(land, flat(P.cliff), 1.75);
+    // 砂 → 草
+    fill(land, flat(P.sand));
+    const grass = maskOf(function (v) { return v === GRASS || v === FOREST || v === ROCK || v === ROAD; }, bl);
+    fill(grass, function (c) {
+      const gg = c.createLinearGradient(0, 0, W, Hh); gg.addColorStop(0, P.grass[0]); gg.addColorStop(1, P.grass[1]);
+      c.fillStyle = gg; c.fillRect(0, 0, W, Hh);
+      const n = Math.round(Hh / 48);
+      for (let i = 0; i < n; i++) {           // おかの ふくらみ（やわらかい 明暗）
+        const x = rnd(i + 300) * W, y = rnd(i + 400) * Hh, r = (40 + rnd(i + 500) * 70) * SK;
+        const a = c.createRadialGradient(x - r * .3, y - r * .3, 0, x, y, r);
+        a.addColorStop(0, 'rgba(255,255,220,.05)'); a.addColorStop(1, 'rgba(255,255,220,0)');
+        c.fillStyle = a; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+        const b = c.createRadialGradient(x + r * .5, y + r * .6, 0, x + r * .5, y + r * .6, r * .9);
+        b.addColorStop(0, 'rgba(20,60,30,.035)'); b.addColorStop(1, 'rgba(20,60,30,0)');
+        c.fillStyle = b; c.beginPath(); c.arc(x + r * .5, y + r * .6, r * .9, 0, Math.PI * 2); c.fill();
+      }
+    });
+    fill(edgeOf(grass, 2, true), flat(lit(P.grass[0], 0.4), 0.35));
+    // 塔の 小島（こい 草・むらさきの 砂）
+    fill(maskOf(function (v) { return v === DSAND || v === DGRASS; }, bl), flat(P.dsand));
+    fill(maskOf(function (v) { return v === DGRASS; }, bl), flat(P.dgrass));
+    // 森
+    const forest = maskOf(function (v) { return v === FOREST; }, bl * 1.2);
+    fill(forest, flat(P.forest));
+    fill(edgeOf(forest, 3, true), flat(lit(P.forest, 0.35), 0.3));
+    // 岩場（まるい 石の まだら）
+    fill(maskOf(function (v) { return v === ROCK || v === DSAND; }, bl * 1.1), function (c) {
+      c.fillStyle = P.rock; c.fillRect(0, 0, W, Hh);
+      const n = Math.round(Hh / 10);
+      for (let i = 0; i < n; i++) {
+        const x = rnd(i + 900) * W, y = rnd(i + 950) * Hh, r = (3 + rnd(i + 970) * 6) * SK;
+        c.fillStyle = i % 2 ? 'rgba(255,255,255,.22)' : 'rgba(0,0,0,.13)';
+        c.beginPath(); c.ellipse(x, y, r, r * .7, 0, 0, Math.PI * 2); c.fill();
+      }
+    });
+    // 川（砂の 岸 → 水）
+    const river = maskOf(function (v) { return v === RIVER; }, bl);
+    fill(edgeOf(river, 3, false), flat(P.sand));
+    fill(river, flat(P.river));
+    // 道（ふち → じゃり）
+    const road = maskOf(function (v) { return v === ROAD || v === BRIDGE; }, bl * 0.9);
+    fill(edgeOf(road, 2, false), flat(P.roadEdge, 0.55));
+    fill(road, function (c) {
+      c.fillStyle = P.road; c.fillRect(0, 0, W, Hh);
+      const n = Math.round(Hh / 6);
+      for (let i = 0; i < n; i++) {
+        c.fillStyle = 'rgba(120,80,30,.16)';
+        c.beginPath(); c.arc(rnd(i + 1300) * W, rnd(i + 1350) * Hh, (1 + rnd(i + 1370) * 1.6) * SK, 0, Math.PI * 2); c.fill();
+      }
+    });
+    // 橋（板）
+    (grid.bridges || []).forEach(function (r) {
+      const x = r.x * SK, y = r.y * SK, w = r.w * SK, h = r.h * SK;
+      ctx.fillStyle = drk(P.bridge, 0.25); ctx.fillRect(x - 2 * SK, y - 2 * SK, w + 4 * SK, h + 4 * SK);
+      ctx.fillStyle = lit(P.bridge, 0.1); ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = 'rgba(80,40,10,.35)';
+      for (let yy = y; yy < y + h; yy += 5 * SK) ctx.fillRect(x, yy, w, 1.2 * SK);
+    });
+    // 光（左上 明るく・右下 すこし 暗く）
+    const lg = ctx.createLinearGradient(0, 0, W, Hh * 0.6);
+    lg.addColorStop(0, 'rgba(255,245,200,.12)'); lg.addColorStop(1, 'rgba(30,20,60,.1)');
+    ctx.fillStyle = lg; ctx.fillRect(0, 0, W, Hh);
+
+    const keep = document.createElement('canvas'); keep.width = W; keep.height = Hh;
+    keep.getContext('2d').drawImage(canvas, 0, 0);
+    smoothCache.unshift({ key: key, canvas: keep });
+    if (smoothCache.length > 3) smoothCache.length = 3;
+  }
+
+  /* ---- かざり（木・岩・花・雪山・枯れ木・クリスタル・家の 絵）を 描いた 3D で ----
+     光は 左上から。面を 3つ（光・まん中・かげ）に 分けて、右下へ 長い かげ。
+     家と 城は ふだん 本物の 3D（map.js）。りったいを 切った ときだけ ここで 家を 描く。 */
+  const DECO_PAL = {
+    g1: { tree: ['#9be07a', '#62c153', '#3c8832'], flower: ['#ff9ec4', '#ffc2da', '#ffffff'] },
+    g2: { tree: ['#55c060', '#2f9a3f', '#175f23'], flower: ['#fffbe8', '#ffffff', '#ffe36b'] },
+    g3: { tree: ['#7fd05a', '#4fae44', '#2c7a34'], flower: ['#ffd84a', '#ff8fb0', '#ffffff', '#ffb04a'] },
+    g4: { tree: ['#f0a650', '#cf7330', '#96421c'], flower: ['#ffcf6b', '#ffb04a'] },
+    g5: { tree: ['#4f8f70', '#2f6b4f', '#1c4030'], snow: true, flower: ['#9fe3ff', '#ffffff'] },
+    g6: { tree: ['#4a3d66', '#2a2140', '#171227'], flower: ['#c07bff'], glow: true }
+  };
+  function paintDecos(canvas, grid, decos) {
+    if (!canvas || !decos || !decos.length) return;
+    const ctx = canvas.getContext('2d');
+    const k = canvas.width / 400;
+    const pal = DECO_PAL[grid && grid.theme] || DECO_PAL.g3;
+    const rockC = (grid && grid.colors ? grid.colors[ROCK][0] : COLOR[ROCK][0]);
+    const trunk = grid && grid.theme === 'g6' ? '#4a3a2c' : '#6a4a2c';
+    const shadowA = grid && grid.theme === 'g6' ? 0.4 : 0.3;
+    function longShadow(x, y, w, hgt) {
+      ctx.fillStyle = 'rgba(15,30,20,' + shadowA + ')';
+      ctx.beginPath(); ctx.moveTo(x - w * .6, y); ctx.lineTo(x + w * .6, y); ctx.lineTo(x + w * .6 + hgt * .9, y + hgt * .5); ctx.lineTo(x - w * .6 + hgt * .9, y + hgt * .5); ctx.closePath(); ctx.fill();
+    }
+    function cone(cx, by, hh, ww, c3) {
+      ctx.fillStyle = c3[0]; ctx.beginPath(); ctx.moveTo(cx, by - hh); ctx.lineTo(cx - ww * .35, by); ctx.lineTo(cx - ww, by); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = c3[1]; ctx.beginPath(); ctx.moveTo(cx, by - hh); ctx.lineTo(cx + ww * .3, by); ctx.lineTo(cx - ww * .35, by); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = c3[2]; ctx.beginPath(); ctx.moveTo(cx, by - hh); ctx.lineTo(cx + ww, by); ctx.lineTo(cx + ww * .3, by); ctx.closePath(); ctx.fill();
+    }
+    function tree(x, y, i) {
+      const s = k * (0.9 + rnd(i + 77) * 0.3), cx = x * k, by0 = y * k;
+      longShadow(cx, by0, 8 * s, 26 * s);
+      ctx.fillStyle = trunk; ctx.fillRect(cx - 2 * s, by0 - 8 * s, 4 * s, 8 * s);
+      [[0, 24, 14], [9, 18, 11], [17, 12, 7]].forEach(function (t, j) {
+        const c3 = (pal.snow && j === 2) ? ['#ffffff', '#e8f1f7', '#b9c9d6'] : pal.tree;
+        cone(cx, by0 - t[0] * s, t[1] * s, t[2] * s, c3);
+        ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(cx - t[2] * s, by0 - t[0] * s - 1.2 * s, t[2] * 2 * s, 1.2 * s);
+      });
+    }
+    function rock(x, y, i) {
+      const s = k * (0.9 + rnd(i + 5) * 0.4), cx = x * k, by = y * k;
+      longShadow(cx, by, 7 * s, 9 * s);
+      ctx.fillStyle = lit(rockC, 0.25); ctx.beginPath(); ctx.moveTo(cx - 9 * s, by); ctx.lineTo(cx - 4 * s, by - 9 * s); ctx.lineTo(cx + 3 * s, by - 8 * s); ctx.lineTo(cx, by); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = rockC; ctx.beginPath(); ctx.moveTo(cx, by); ctx.lineTo(cx + 3 * s, by - 8 * s); ctx.lineTo(cx + 9 * s, by); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = drk(rockC, 0.28); ctx.beginPath(); ctx.moveTo(cx + 3 * s, by - 8 * s); ctx.lineTo(cx + 9 * s, by); ctx.lineTo(cx + 5 * s, by); ctx.closePath(); ctx.fill();
+    }
+    function flower(x, y, i) {
+      const col = pal.flower[i % pal.flower.length], cx = x * k, cy = (y - 3) * k;
+      if (pal.glow) {
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 8 * k);
+        g.addColorStop(0, 'rgba(192,123,255,.55)'); g.addColorStop(1, 'rgba(192,123,255,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 8 * k, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = col;
+      for (let a = 0; a < 5; a++) { ctx.beginPath(); ctx.arc(cx + Math.cos(a * 1.257) * 2.2 * k, cy + Math.sin(a * 1.257) * 2.2 * k, 1.4 * k, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(cx, cy, 1.1 * k, 0, Math.PI * 2); ctx.fill();
+    }
+    function mountain(x, y) {
+      const cx = x * k, by = y * k, m = k;
+      longShadow(cx, by, 26 * m, 34 * m);
+      const base = lit(rockC, 0.05);
+      ctx.fillStyle = lit(base, 0.15); ctx.beginPath(); ctx.moveTo(cx - 28 * m, by); ctx.lineTo(cx - 4 * m, by - 42 * m); ctx.lineTo(cx - 2 * m, by); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = base; ctx.beginPath(); ctx.moveTo(cx - 2 * m, by); ctx.lineTo(cx - 4 * m, by - 42 * m); ctx.lineTo(cx + 10 * m, by); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = drk(base, 0.3); ctx.beginPath(); ctx.moveTo(cx - 4 * m, by - 42 * m); ctx.lineTo(cx + 28 * m, by); ctx.lineTo(cx + 10 * m, by); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#f7fbff'; ctx.beginPath(); ctx.moveTo(cx - 4 * m, by - 42 * m); ctx.lineTo(cx - 12 * m, by - 28 * m); ctx.lineTo(cx - 7 * m, by - 30 * m); ctx.lineTo(cx - 3 * m, by - 26 * m); ctx.lineTo(cx + 2 * m, by - 31 * m); ctx.lineTo(cx + 7 * m, by - 27 * m); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#d6e2ef'; ctx.beginPath(); ctx.moveTo(cx - 4 * m, by - 42 * m); ctx.lineTo(cx + 7 * m, by - 27 * m); ctx.lineTo(cx + 2 * m, by - 31 * m); ctx.closePath(); ctx.fill();
+    }
+    function house(x, y) {        // りったいを 切った ときだけ
+      const cx = x * k, by = y * k, m = k;
+      longShadow(cx, by, 14 * m, 18 * m);
+      ctx.fillStyle = '#f4ead8'; ctx.fillRect(cx - 12 * m, by - 16 * m, 24 * m, 16 * m);
+      ctx.fillStyle = '#d9cdb4'; ctx.fillRect(cx + 6 * m, by - 16 * m, 6 * m, 16 * m);
+      ctx.fillStyle = '#6d4726'; ctx.fillRect(cx - 3 * m, by - 9 * m, 6 * m, 9 * m);
+      ctx.fillStyle = '#ffd86b'; ctx.fillRect(cx - 10 * m, by - 13 * m, 4 * m, 4 * m);
+      ctx.fillStyle = '#d9483a'; ctx.beginPath(); ctx.moveTo(cx - 15 * m, by - 16 * m); ctx.lineTo(cx, by - 27 * m); ctx.lineTo(cx + 15 * m, by - 16 * m); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#a8322a'; ctx.beginPath(); ctx.moveTo(cx, by - 27 * m); ctx.lineTo(cx + 15 * m, by - 16 * m); ctx.lineTo(cx + 6 * m, by - 16 * m); ctx.closePath(); ctx.fill();
+    }
+    function houseShadow(x, y) { longShadow(x * k, y * k, 15 * k, 20 * k); }
+    function dead(x, y) {
+      const cx = x * k, by = y * k;
+      longShadow(cx, by, 4 * k, 14 * k);
+      ctx.fillStyle = '#3a2a45'; ctx.fillRect(cx - 1.5 * k, by - 14 * k, 3 * k, 14 * k); ctx.fillRect(cx - 6 * k, by - 10 * k, 6 * k, 2 * k); ctx.fillRect(cx, by - 7 * k, 6 * k, 2 * k);
+    }
+    function crystal(x, y) {
+      const cx = x * k, by = y * k;
+      const g = ctx.createRadialGradient(cx, by - 6 * k, 1, cx, by - 6 * k, 14 * k); g.addColorStop(0, 'rgba(200,140,255,.45)'); g.addColorStop(1, 'rgba(200,140,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, by - 6 * k, 14 * k, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c48bff'; ctx.beginPath(); ctx.moveTo(cx, by - 16 * k); ctx.lineTo(cx + 5 * k, by - 4 * k); ctx.lineTo(cx, by); ctx.lineTo(cx - 5 * k, by - 4 * k); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ecd8ff'; ctx.beginPath(); ctx.moveTo(cx, by - 16 * k); ctx.lineTo(cx - 5 * k, by - 4 * k); ctx.lineTo(cx - 1 * k, by - 4 * k); ctx.closePath(); ctx.fill();
+    }
+    decos.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (d, i) {
+      if (d.kind === 'tree') tree(d.x, d.y, i);
+      else if (d.kind === 'rock') rock(d.x, d.y, i);
+      else if (d.kind === 'flower') flower(d.x, d.y, i);
+      else if (d.kind === 'mt') mountain(d.x, d.y);
+      else if (d.kind === 'house') { if (d.flat) house(d.x, d.y); else houseShadow(d.x, d.y + 4); }
+      else if (d.kind === 'dead') dead(d.x, d.y);
+      else if (d.kind === 'crystal') crystal(d.x, d.y);
+    });
+  }
+
+  let smoothOK = null;
+  function paint(canvas, grid) {
+    if (!canvas || !grid) return;
+    if (smoothOK === null) smoothOK = canSmooth();
+    if (smoothOK) paintSmooth(canvas, grid); else paintBlocks(canvas, grid);
+  }
+  function smooth() { if (smoothOK === null) smoothOK = canSmooth(); return smoothOK; }
+  // 先に 描いて とって おく（見えない canvas。タイトル画面の ひまな ときに 呼ぶ）
+  function warm(grid) { if (!grid || !smooth()) return; paintSmooth(document.createElement('canvas'), grid); }
+
   return {
     COLS: COLS, CELL: CELL, COLOR: COLOR, THEMES: THEMES,
     SEA: SEA, SHAL: SHAL, RIVER: RIVER, SAND: SAND, GRASS: GRASS,
     FOREST: FOREST, ROCK: ROCK, ROAD: ROAD, BRIDGE: BRIDGE,
     DGRASS: DGRASS, DSAND: DSAND,
-    build: build, paint: paint, at: at, landAt: landAt, isLand: isLand, isWater: isWater
+    build: build, paint: paint, paintBlocks: paintBlocks, paintDecos: paintDecos, smooth: smooth, warm: warm, smoothColors: smoothColors, DECO_PAL: DECO_PAL,
+    at: at, landAt: landAt, isLand: isLand, isWater: isWater
   };
 })();

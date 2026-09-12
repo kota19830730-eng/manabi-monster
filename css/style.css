@@ -3989,3 +3989,17 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .gradesheet__go { font-style: normal; font-size: 11px; }
 /* ごちゃまぜの ボタンは ドックより 上に 飛び出す（26px＋コインの ふだ）ので、その ぶん あけて「プレイヤーを かえる」に かぶらない ように */
 .has-mix .gradesheet { padding-bottom: 32px; }
+
+/* =========================================================
+   地図を なめらかに（v13.4・B案「ジオラマ」）
+   地面・木・岩・花は js/core/tiles.js の paintSmooth / paintDecos が canvas に 描く（2ばい・なめらか）。
+   家と さいごの塔の 城は 本物の 3D（js/ui/map.js の house3d / castle3d）。
+   **3D の 図に filter を かけない**（平らに なる）。まだ 開いて いない 城は 暗い 色で 作る。
+   ドックの アイコンは SVG（ジオラマ仕上げ・js/ui/map.js の DOCK_ICONS）。
+   見た目の 正本は docs/STYLE_GUIDE.md の「地図を なめらかに（v13.4）」
+   ========================================================= */
+.map__bg--smooth { image-rendering: auto; }
+.mapbld { position: absolute; z-index: 2; pointer-events: none; transform: translate(-50%, -100%); }
+.tower__art--3d, .tower--lock .tower__art--3d { width: 116px; height: 116px; margin-bottom: -30px; filter: none; }
+.dockico { display: block; flex: none; }
+.dockico svg { display: block; }

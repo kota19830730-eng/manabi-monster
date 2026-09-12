@@ -895,6 +895,25 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
   check(water >= 12, '理科の 湖に 水の マスが ある: ' + water);
 })();
 
+/* ---- 地図を なめらかに（v13.4・B案ジオラマ）---- */
+(function () {
+  const T = MQ.tiles;
+  check(typeof T.paint === 'function' && typeof T.paintBlocks === 'function' && typeof T.paintDecos === 'function' && typeof T.warm === 'function',
+    'なめらかな 地図の 道具（paint／ブロックに もどす paintBlocks／かざり paintDecos／先に 描く warm）');
+  const hex = /^#[0-9a-f]{6}$/;
+  ['g1', 'g2', 'g3', 'g4', 'g5', 'g6'].forEach(function (k) {
+    const c = T.smoothColors(T.THEMES[k].colors);
+    const bad = ['sea', 'seaDeep', 'shal', 'sand', 'forest', 'rock', 'road', 'roadEdge', 'river', 'cliff', 'cliffDeep', 'dgrass', 'dsand']
+      .filter(function (n) { return !hex.test(c[n]); }).concat(c.grass.filter(function (g) { return !hex.test(g); }));
+    check(bad.length === 0, k + ' の なめらかな 地図の 色が そろって いる' + (bad.length ? '（' + bad.join(',') + '）' : ''));
+    const p = T.DECO_PAL[k];
+    check(!!p && p.tree.length === 3 && p.flower.length >= 1, k + ' の 木（光・まん中・かげ）と 花の 色');
+  });
+  const g = T.build({ height: 300, island: { top: 20, bottom: 280 }, bands: [], path: [], theme: 'g5' });
+  check(g.theme === 'g5', 'grid に テーマの 名前が 入る（かざりの 色に つかう）');
+  check(T.build({ height: 300, island: { top: 20, bottom: 280 }, bands: [], path: [], theme: 'nope' }).theme === 'g3', 'ない テーマは 小3');
+})();
+
 /* ---- たからもの ---- */
 check(MQ.treasure.total() === 168, 'たからもの 168個（小3 32＋小1 18＋小2 19＋小4 32＋小5 35＋小6 32）: ' + MQ.treasure.total());
 check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 35, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 35');
