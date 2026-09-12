@@ -4003,6 +4003,7 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
    ========================================================= */
 .map__bg--smooth { image-rendering: auto; }
 .mapbld { position: absolute; z-index: 2; pointer-events: none; transform: translate(-50%, -100%); }
-.tower__art--3d, .tower--lock .tower__art--3d { width: 116px; height: 116px; margin-bottom: -30px; filter: none; }
+/* v13.4.3：城の 足もとを 島の まん中（＋28px）に。-30 だと 城が 島の 南の へりに 立って 上に はみ出し、島が ほとんど 見えなかった（ユーザー「建物を 真ん中の バランス いい 位置に」）。実測：島は t.y−57〜+43・城の 3D の 高さ 131 */
+.tower__art--3d, .tower--lock .tower__art--3d { width: 116px; height: 116px; margin-bottom: -13px; filter: none; }
 .dockico { display: block; flex: none; }
 .dockico svg { display: block; }
