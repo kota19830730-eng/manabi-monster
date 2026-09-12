@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="out">wait</pre>
+<script>
+// ?src=bgm_new.js&song=title&sec=14&lv=0&enrage=0
+const Q = new URLSearchParams(location.search);
+const SRC = Q.get('src'), SONG = Q.get('song'), SEC = Number(Q.get('sec') || 12);
+const LV = Number(Q.get('lv') || 0), ENRAGE = Q.get('enrage') === '1';
+const SR = 44100;
+let fakeT = 0, tickFn = null, theCtx = null;
+window.setInterval = function (fn) { tickFn = fn; return 1; };
+window.AudioContext = function () {
+  const c = new OfflineAudioContext(2, SR * SEC, SR);
+  Object.defineProperty(c, 'state', { get: function () { return 'running'; } });
+  Object.defineProperty(c, 'currentTime', { get: function () { return fakeT; } });
+  c.realResume = c.resume.bind(c);
+  c.resume = function () { return Promise.resolve(); };
+  theCtx = c;
+  return c;
+};
+const s = document.createElement('script');
+s.src = SRC;
+s.onload = function () {
+  try {
+    MQ.bgm.play(SONG);
+    if (LV) MQ.bgm.setIntensity(LV);
+    if (ENRAGE) MQ.bgm.setEnrage(true);
+    // 本番と 同じく 少し 先の ぶんだけ 作る（ぜんぶ 先に 作ると 長い 曲で 書き出しが おわらない）
+    fakeT = 0; tickFn && tickFn();
+    const Q128 = 128 / SR;
+    for (let t = 0.2; t < SEC; t += 0.2) {
+      const at = Math.round(t / Q128) * Q128;
+      theCtx.suspend(at).then(function () { fakeT = at; tickFn && tickFn(); theCtx.realResume(); });
+    }
+    const r0 = performance.now();
+    theCtx.startRendering().then(function (buf) {
+      const renderSec = (performance.now() - r0) / 1000;
+      const L = buf.getChannelData(0), R = buf.getChannelData(1);
+      let peak = 0, sum = 0, side = 0, mid = 0, lo = 0, hi = 0, prev = 0, prevHi = 0;
+      for (let i = 0; i < L.length; i++) {
+        const m = (L[i] + R[i]) / 2, sd = (L[i] - R[i]) / 2;
+        peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
+        sum += m * m; mid += m * m; side += sd * sd;
+        // ざっくりの 低い・高い 成分（1次の フィルタ）
+        prev += 0.02 * (m - prev); lo += prev * prev;
+        const h = m - prevHi; prevHi = m; hi += h * h;
+      }
+      const n = L.length;
+      const db = function (x) { return (10 * Math.log10(x / n + 1e-12)).toFixed(1); };
+      const stats = 'peak=' + peak.toFixed(3) + ' rms=' + db(sum) + 'dB low=' + db(lo) + 'dB high=' + db(hi) +
+        'dB width(side/mid)=' + Math.sqrt(side / (mid + 1e-12)).toFixed(3) +
+        ' render=' + renderSec.toFixed(1) + 's(' + (renderSec / SEC * 100).toFixed(0) + '%)';
+      // 16bit WAV
+      const bytes = 44 + n * 4, ab = new ArrayBuffer(bytes), dv = new DataView(ab);
+      const w = function (o, str) { for (let i = 0; i < str.length; i++) dv.setUint8(o + i, str.charCodeAt(i)); };
+      w(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); w(8, 'WAVE'); w(12, 'fmt ');
+      dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 2, true);
+      dv.setUint32(24, SR, true); dv.setUint32(28, SR * 4, true); dv.setUint16(32, 4, true); dv.setUint16(34, 16, true);
+      w(36, 'data'); dv.setUint32(40, n * 4, true);
+      let o = 44;
+      for (let i = 0; i < n; i++) {
+        dv.setInt16(o, Math.max(-1, Math.min(1, L[i])) * 32767, true); o += 2;
+        dv.setInt16(o, Math.max(-1, Math.min(1, R[i])) * 32767, true); o += 2;
+      }
+      const u8 = new Uint8Array(ab);
+      let bin = '';
+      for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+      window.__wav = btoa(bin);
+      document.getElementById('out').textContent = 'STATS ' + stats + '\nREADY ' + window.__wav.length;
+    }).catch(function (e) { document.getElementById('out').textContent = 'ERR ' + e; });
+  } catch (e) { document.getElementById('out').textContent = 'ERR ' + e.stack; }
+};
+document.head.appendChild(s);
+</script>

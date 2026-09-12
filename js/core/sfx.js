@@ -100,7 +100,31 @@ MQ.sfx = (function () {
     key:     function () { tone(700, 0.03, 'square', 0.05); },
     appear:  function () { tone(220, 0.12, 'sawtooth', 0.1, 0, 440); tone(440, 0.1, 'square', 0.08, 0.12); },
     hit:     function () { noise(0.18, 0.35); tone(160, 0.15, 'square', 0.18, 0, 60); },
-    crit:    function () { noise(0.2, 0.4); tone(1568, 0.09, 'square', 0.16); tone(2093, 0.18, 'square', 0.14, 0.07); tone(120, 0.18, 'square', 0.2, 0, 50); },
+    // こうげきが 当たった（v13.5）：しゅっ（空気を 切る 音）→ ばしっ（当たった 衝撃）
+    slash:   function () {
+      sweep(0.11, 0.55, 0, 9000, 1400, 'bandpass');     // しゅっ（空を 切る）
+      noise(0.03, 0.4, 0.08, 6000, 'highpass');         // パシッ（当たった 瞬間の かわいた 音）
+      tone(5200, 0.14, 'sine', 0.12, 0.08, 2400);       // キン（けんの 金ぞくの ひびき）
+      noise(0.14, 0.5, 0.08, 900, 'lowpass');           // ばしっ の 芯
+      tone(150, 0.18, 'square', 0.3, 0.085, 40);        // ドッ（ひくい 衝撃）
+    },
+    crit:    function () {
+      sweep(0.09, 0.4, 0, 9000, 1600, 'bandpass');
+      noise(0.03, 0.45, 0.07, 6000, 'highpass');
+      noise(0.24, 0.5, 0.07);
+      tone(120, 0.22, 'square', 0.28, 0.075, 40);
+      [2093, 2637, 3136].forEach(function (f, i) { tone(f, 0.22 - i * 0.03, 'sine', 0.14, 0.09 + i * 0.03); });   // キラーン
+      noise(0.3, 0.12, 0.12, 7000, 'highpass');
+    },
+    /* ---- しゅぎょうば（v14.0）：クイズの「ピンポーン」と「ブブー」 ---- */
+    correct: function () {
+      [[1319, 0], [1047, 0.2]].forEach(function (p) {
+        tone(p[0], 0.5, 'sine', 0.2, p[1]);
+        tone(p[0] * 2, 0.28, 'sine', 0.06, p[1]);
+        tone(p[0], 0.5, 'triangle', 0.07, p[1]);
+      });
+    },
+    wrong:   function () { tone(196, 0.16, 'square', 0.14, 0, 180); tone(165, 0.42, 'square', 0.14, 0.2, 150); },
     defeat:  function () { tone(523, 0.1, 'square', 0.13, 0.05); tone(659, 0.1, 'square', 0.13, 0.15); tone(784, 0.22, 'square', 0.13, 0.25); },
     dodge:   function () { tone(500, 0.08, 'triangle', 0.12, 0, 900); },
     // 相棒の 追い打ち（v4.3）：ぴょんと とんで コツンと あてる

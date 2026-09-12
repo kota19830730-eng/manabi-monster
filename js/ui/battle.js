@@ -2484,7 +2484,7 @@ MQ.ui.battle = (function () {
       d.hero.classList.add('is-special');
       playSpecial(sp, !!o.withPal);          // ⑧ 相棒と いっしょ
       setTimeout(function () { d.hero.classList.remove('is-special'); }, 900);
-    } else if (crit) { MQ.sfx.crit(); flash(false); } else { MQ.sfx.hit(); }
+    } else if (crit) { MQ.sfx.crit(); flash(false); } else { MQ.sfx.slash(); }
     if (!d.cur) return;
     d.cur.classList.remove('is-appear', 'is-enrage');
     d.cur.classList.add('is-hit');

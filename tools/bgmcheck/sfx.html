@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="out">wait</pre>
+<script>
+// ?src=sfx_old.js&names=hit,hit,hit,crit
+const Q = new URLSearchParams(location.search);
+const SRC = Q.get('src'), NAMES = Q.get('names').split(',');
+const SR = 44100, SEC = 0.6 * NAMES.length + 0.8;
+let fakeT = 0, theCtx = null;
+window.AudioContext = function () {
+  const c = new OfflineAudioContext(2, Math.floor(SR * SEC), SR);
+  Object.defineProperty(c, 'state', { get: function () { return 'running'; } });
+  Object.defineProperty(c, 'currentTime', { get: function () { return fakeT; } });
+  c.resume = function () { return Promise.resolve(); };
+  theCtx = c;
+  return c;
+};
+const s = document.createElement('script');
+s.src = SRC;
+s.onload = function () {
+  MQ.sfx.unlock();
+  NAMES.forEach(function (n, i) { fakeT = 0.2 + i * 0.6; MQ.sfx[n](); });
+  fakeT = 0;
+  theCtx.startRendering().then(function (buf) {
+    const L = buf.getChannelData(0), R = buf.getChannelData(1), n = L.length;
+    const bytes = 44 + n * 4, ab = new ArrayBuffer(bytes), dv = new DataView(ab);
+    const w = function (o, str) { for (let i = 0; i < str.length; i++) dv.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); w(8, 'WAVE'); w(12, 'fmt ');
+    dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 2, true);
+    dv.setUint32(24, SR, true); dv.setUint32(28, SR * 4, true); dv.setUint16(32, 4, true); dv.setUint16(34, 16, true);
+    w(36, 'data'); dv.setUint32(40, n * 4, true);
+    let o = 44, peak = 0;
+    for (let i = 0; i < n; i++) {
+      peak = Math.max(peak, Math.abs(L[i]));
+      dv.setInt16(o, Math.max(-1, Math.min(1, L[i])) * 32767, true); o += 2;
+      dv.setInt16(o, Math.max(-1, Math.min(1, R[i])) * 32767, true); o += 2;
+    }
+    const u8 = new Uint8Array(ab);
+    let bin = '';
+    for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+    document.getElementById('out').textContent = 'STATS peak=' + peak.toFixed(3) + '\nWAV ' + btoa(bin) + '\nEND';
+  });
+};
+document.head.appendChild(s);
+</script>

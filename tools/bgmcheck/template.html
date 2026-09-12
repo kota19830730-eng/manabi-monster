@@ -1,0 +1,125 @@
+<title>まなびモンスター BGM 聞きくらべ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+  :root {
+    --navy: #17203d;
+    --navy2: #222d52;
+    --line: #34406e;
+    --gold: #f5c542;
+    --gold2: #ffe28a;
+    --cream: #fff6dc;
+    --mute: #aab3d6;
+    --after: #6ee7a8;
+    --f-head: "Mochiy Pop One", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+    --f-body: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--navy); color: var(--cream); font: 500 15px/1.75 var(--f-body); }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 20px 56px; display: grid; gap: 22px; }
+  header { display: grid; gap: 10px; }
+  .eyebrow { font: 700 12px/1 var(--f-body); letter-spacing: .12em; color: var(--gold); }
+  h1 { margin: 0; font: 400 clamp(26px, 5vw, 36px)/1.3 var(--f-head); color: var(--gold2); text-wrap: balance; }
+  .lead { margin: 0; color: var(--mute); max-width: 62ch; }
+  .lead b { color: var(--cream); }
+  .changes { margin: 0; padding: 14px 18px; list-style: none; display: grid; gap: 6px;
+    border-left: 3px solid var(--gold); background: rgba(245,197,66,.07); border-radius: 0 10px 10px 0; font-size: 14px; }
+  .changes b { color: var(--gold2); }
+  section { background: var(--navy2); border: 2px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 12px; }
+  section.hero { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(245,197,66,.25), 0 10px 30px rgba(0,0,0,.35); }
+  h2 { margin: 0; font: 400 19px/1.35 var(--f-head); color: var(--cream); text-wrap: balance; }
+  .what { margin: -4px 0 0; color: var(--mute); font-size: 14px; max-width: 64ch; }
+  .what b { color: var(--cream); }
+  .pair { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; }
+  @media (max-width: 560px) { .pair { grid-template-columns: 1fr; } }
+  .take { display: grid; gap: 8px; padding: 12px; border-radius: 10px; background: rgba(0,0,0,.18); }
+  .take--after { background: rgba(110,231,168,.08); outline: 1px solid rgba(110,231,168,.35); }
+  .tag { font: 700 13px/1 var(--f-body); letter-spacing: .06em; color: var(--mute); }
+  .take--after .tag { color: var(--after); }
+  audio { width: 100%; height: 40px; }
+  footer { color: var(--mute); font-size: 13px; display: grid; gap: 6px; }
+  footer p { margin: 0; max-width: 64ch; }
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">まなびモンスター・音の 作り直し v14</div>
+    <h1>BGMを「今どきの ゲーム音楽」に</h1>
+    <p class="lead">前（いま公開中）と 後（作り直した版）を 並べました。アプリの中で実際に鳴る音を そのまま書き出しています。<b>イヤホン</b>だと 左右の広がりまで分かります。</p>
+    <ul class="changes">
+      <li><b>楽器</b>… ピコピコの四角い音をやめ、のこぎり波5本を左右に広げた太いリード・コードを支える広い音・16分のキラキラしたアルペジオに</li>
+      <li><b>ドラム</b>… クラップ・シンバル・スネアのロールを追加。バスドラのたびに伴奏が「うねる」今どきの鳴らし方</li>
+      <li><b>曲</b>… 8曲ぜんぶ新しいメロディ。イントロで「ため」て、サビでシンバルと全部の楽器が一気に入る</li>
+    </ul>
+  </header>
+
+  <section class="hero">
+    <h2>タイトル曲：ぼうけんの はじまり</h2>
+    <p class="what">静かな曲 → イントロで ため、<b>19秒ごろから サビ</b>（シンバルで全部の楽器が入る）。</p>
+    <div class="pair">
+      <div class="take"><div class="tag">前</div><audio controls preload="none" src="{{title_old}}"></audio></div>
+      <div class="take take--after"><div class="tag">後</div><audio controls preload="none" src="{{title_new}}"></audio></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>ザコ戦</h2>
+    <p class="what">「デデン！」から入って、ノリのいい速い曲に。</p>
+    <div class="pair">
+      <div class="take"><div class="tag">前</div><audio controls preload="none" src="{{battle_old}}"></audio></div>
+      <div class="take take--after"><div class="tag">後</div><audio controls preload="none" src="{{battle_new}}"></audio></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>ボス戦（おこった時・コンボMAX）</h2>
+    <p class="what">低くうなるベースと重いドラムで、緊迫感を。</p>
+    <div class="pair">
+      <div class="take"><div class="tag">前</div><audio controls preload="none" src="{{boss_old}}"></audio></div>
+      <div class="take take--after"><div class="tag">後</div><audio controls preload="none" src="{{boss_new}}"></audio></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>さいごの塔（ラスボス戦）</h2>
+    <p class="what">いちばん速くて壮大な曲に。</p>
+    <div class="pair">
+      <div class="take"><div class="tag">前</div><audio controls preload="none" src="{{maou_old}}"></audio></div>
+      <div class="take take--after"><div class="tag">後</div><audio controls preload="none" src="{{maou_new}}"></audio></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>マップ</h2>
+    <p class="what">ゆったり・うきうき。はじくような音のメロディで。</p>
+    <div class="pair">
+      <div class="take"><div class="tag">前</div><audio controls preload="none" src="{{map_old}}"></audio></div>
+      <div class="take take--after"><div class="tag">後</div><audio controls preload="none" src="{{map_new}}"></audio></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>攻撃の音：「しゅっ・パシッ・キン・ドッ」</h2>
+    <p class="what">ふつうの攻撃 3回 → 会心の一撃（キラーン）1回。</p>
+    <div class="pair">
+      <div class="take"><div class="tag">前</div><audio controls preload="none" src="{{atk_old}}"></audio></div>
+      <div class="take take--after"><div class="tag">後</div><audio controls preload="none" src="{{atk_new}}"></audio></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>しゅぎょうば：正解「ピンポーン」・まちがい「ブブー」</h2>
+    <p class="what">正解 2回 → まちがい 1回。前はバトルの攻撃音をそのまま使っていました。</p>
+    <div class="pair">
+      <div class="take"><div class="tag">前</div><audio controls preload="none" src="{{dojo_old}}"></audio></div>
+      <div class="take take--after"><div class="tag">後</div><audio controls preload="none" src="{{dojo_new}}"></audio></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>音声ファイルは使わず、アプリの中でその場で合成しています（オフラインでも鳴ります）。タブレットでも途切れないよう、重さを測って軽くしてあります。このページの音は、ページに収めるため少し音質を落としています。</p>
+    <p>まだ公開していません。聞いてみて「もっと〇〇」があれば教えてください。</p>
+  </footer>
+</main>

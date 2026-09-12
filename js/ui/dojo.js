@@ -186,8 +186,8 @@ MQ.ui.dojo = (function () {
         return h('button', {
           class: 'dojo__step', type: 'button', text: o.text, 'data-ok': o.ok ? '1' : '0',
           onclick: function () {
-            if (o.ok) { MQ.sfx.crit(); guided(i, 'step-ok', k); }
-            else { MQ.sfx.miss(); guided(i, 'step-ng', k); }
+            if (o.ok) { MQ.sfx.correct(); guided(i, 'step-ok', k); }
+            else { MQ.sfx.wrong(); guided(i, 'step-ng', k); }
           }
         });
       }));
@@ -247,12 +247,12 @@ MQ.ui.dojo = (function () {
   function submit(i, value) {
     const q = S.ses.practice[i];
     if (MQ.dojo.judge(q, value)) {
-      MQ.sfx.hit();
+      MQ.sfx.correct();
       practice(i, 'ok');
       return;
     }
     q.__tries = (q.__tries || 0) + 1;
-    MQ.sfx.miss();
+    MQ.sfx.wrong();
     if (q.__tries >= 2) { S.misses++; practice(i, 'reveal'); }
     else practice(i, 'retry', value);
   }
