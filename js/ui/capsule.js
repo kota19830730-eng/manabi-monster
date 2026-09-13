@@ -130,13 +130,16 @@ MQ.ui.capsule = (function () {
          （2026-09-07 に ユーザーが「こんな演出なかったけど」で 見つけた バグ）。 */
       onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); pull(); }
     }, [
-      h('span', { class: 'capgo__t', text: can.ok ? 'まわす' : (pool.length ? 'あと ' + (can.short || 0) + 'まい' : 'じゅんびちゅう') }),
-      h('span', { class: 'capgo__c', text: 'コイン ' + MQ.capsule.COST })
+      h('span', { class: 'capgo__t', text: can.ok ? (can.ticket ? 'むりょうで まわす' : 'まわす') : (pool.length ? 'あと ' + (can.short || 0) + 'まい' : 'じゅんびちゅう') }),
+      h('span', { class: 'capgo__c', text: can.ticket ? 'むりょうけん 1まい' : 'コイン ' + MQ.capsule.COST })
     ]);
     if (!can.ok) btn.disabled = true;
+    if (can.ticket) btn.classList.add('capgo--ticket');
     body.appendChild(btn);
 
-    body.appendChild(h('p', { class: 'capcoins', text: 'もっている コイン ' + (p.coins || 0) }));
+    // むりょうけん（v13.15・レベルの ごほうび）
+    const tk = MQ.capsule.tickets ? MQ.capsule.tickets(p) : 0;
+    body.appendChild(h('p', { class: 'capcoins', text: 'もっている コイン ' + (p.coins || 0) + (tk ? '　むりょうけん ' + tk + 'まい' : '') }));
   }
 
   /* ---- しゅるいの チップ（おうちの マシンは 金の チップ）---- */

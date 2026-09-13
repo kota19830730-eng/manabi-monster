@@ -40,6 +40,18 @@ MQ.ui.result = (function () {
     ]);
   }
 
+  /* レベルの ごほうび（v13.15）。レベルが 上がった ときだけ 1行：
+       ごほうび　（コイン）+3　（券）むりょうけん ×1　（バッジ）シルバー バッジ */
+  function lvGiftRow(g) {
+    if (!g || !g.levels || !g.levels.length) return null;
+    return h('div', { class: 'rs__lvgift' }, [
+      h('span', { class: 'rs__lvgiftk', text: 'ごほうび' }),
+      g.coins ? h('span', { class: 'rs__lvgiftv' }, [MQ.ui.coinNode(18), h('b', { text: '+' + g.coins })]) : null,
+      g.tickets ? h('span', { class: 'rs__lvgiftv' }, [MQ.ui.ticketNode(22), h('b', { text: 'むりょうけん ×' + g.tickets })]) : null,
+      g.badge ? h('span', { class: 'rs__lvgiftv rs__lvgiftv--badge lvb lvb--' + g.badge.id, text: g.badge.name + ' バッジ' }) : null
+    ]);
+  }
+
   // つぎの ステージ（開いていて、あそべる もの）
   function nextStageOf(player, stage) {
     const f = MQ.content.findStage(stage.id);
@@ -119,7 +131,8 @@ MQ.ui.result = (function () {
           : h('span', { class: 'rs__lvnum' }, [h('span', { class: 'rs__lvto', text: 'Lv.' + pr.level })]),
         h('span', { class: 'rs__exp', text: '+' + sum.xp + ' EXP' })
       ]),
-      h('div', { class: 'rs__bar' }, [h('div', { class: 'rs__barfill', style: { width: Math.round(pr.ratio * 100) + '%' } })])
+      h('div', { class: 'rs__bar' }, [h('div', { class: 'rs__barfill', style: { width: Math.round(pr.ratio * 100) + '%' } })]),
+      lvGiftRow(rw.lvGift)
     ]);
 
     /* ---- むかしの じぶんと くらべる（あるときだけ） ---- */
@@ -281,6 +294,7 @@ MQ.ui.result = (function () {
     /* ---- 音 ---- */
     if (!sum.bossBeaten) MQ.sfx.clear();          // ボスの ときは ファンファーレが 鳴っている
     if (rw.leveledUp) setTimeout(MQ.sfx.levelup, 700);
+    if (rw.lvGift && rw.lvGift.coins) setTimeout(MQ.sfx.coin, 1300);
     if (rw.pal && rw.pal.evolved) setTimeout(MQ.sfx.levelup, 1100);
     if (rw.palOffer) setTimeout(MQ.sfx.appear, 900);
     if (rw.treasure) setTimeout(MQ.sfx.treasure, 1000);

@@ -101,6 +101,9 @@ MQ.capsule = (function () {
   }
 
   /* ---- もっている か ---- */
+  // レベルの ごほうびの むりょう券（v13.15・js/core/levelup.js が 入れる）
+  function tickets(p) { return (p && p.capsule && p.capsule.tickets) || 0; }
+
   function has(p, id) {
     const c = ensure(p);
     return !!(c && c.got[id]);
@@ -121,6 +124,8 @@ MQ.capsule = (function () {
   function canPull(p, kind) {
     if (!p || KIND_IDS.indexOf(kind) === -1) return { ok: false, why: 'ない マシン' };
     if (!pool(kind).length) return { ok: false, why: 'じゅんびちゅう' };
+    // レベルの ごほうびの むりょう券（v13.15）が あれば コインは いらない
+    if (tickets(p) > 0) return { ok: true, ticket: true };
     const coins = p.coins || 0;
     if (coins < COST) return { ok: false, why: 'コインが たりない', short: COST - coins };
     return { ok: true };
@@ -183,12 +188,16 @@ MQ.capsule = (function () {
     if (!can.ok) return { ok: false, why: can.why, short: can.short || 0 };
 
     const c = ensure(p);
-    p.coins = Math.max(0, (p.coins || 0) - COST);
+    // むりょう券（v13.15）を 先に つかう。なければ コイン
+    const useTicket = !!can.ticket;
+    if (useTicket) c.tickets = Math.max(0, (c.tickets || 0) - 1);
+    else p.coins = Math.max(0, (p.coins || 0) - COST);
 
     const rarity = rollRarity(kind, p, r);
     const item = pick(kind, rarity, p, r);
     if (!item) {                       // ここには 来ない はず（canPull で 見て いる）
-      p.coins += COST;                 // 出せないなら コインを もどす
+      if (useTicket) c.tickets = (c.tickets || 0) + 1;
+      else p.coins += COST;            // 出せないなら コインを もどす
       return { ok: false, why: 'じゅんびちゅう' };
     }
 
@@ -209,13 +218,13 @@ MQ.capsule = (function () {
 
     return {
       ok: true, kind: kind, item: item, rarity: item.rarity,
-      dup: dup, refund: refund, spent: COST, coins: p.coins,
+      dup: dup, refund: refund, spent: useTicket ? 0 : COST, ticket: useTicket, tickets: c.tickets || 0, coins: p.coins,
       pity: c.pity[kind], pityLeft: pityLeft(p, kind), progress: progress(p, kind)
     };
   }
 
   return {
-    COST: COST, REFUND: REFUND, PITY: PITY, RATES: RATES,
+    COST: COST, REFUND: REFUND, PITY: PITY, RATES: RATES, tickets: tickets,
     KINDS: KINDS, KIND_IDS: KIND_IDS, RARITY: RARITY,
     ensure: ensure, pool: pool, byRarity: byRarity, rates: rates, has: has,
     progress: progress, pityLeft: pityLeft, canPull: canPull, pull: pull

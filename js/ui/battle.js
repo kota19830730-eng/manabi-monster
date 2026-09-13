@@ -2631,6 +2631,8 @@ MQ.ui.battle = (function () {
     };
 
     MQ.save.update(function (p) {
+      // レベルの ごほうび（v13.15）：けいけんちを 足す 前に「どこまで はらったか」を そろえる
+      if (MQ.levelup) MQ.levelup.init(p);
       p.xp += sum.xp;
       p.battles = (p.battles || 0) + 1;
       p.defeated = (p.defeated || 0) + sum.defeated.length;
@@ -2765,6 +2767,15 @@ MQ.ui.battle = (function () {
       }
 
       out.fullSet = MQ.hero.equippedSetOf(p);
+
+      /* ---- レベルの ごほうび（v13.15）：ミッションの けいけんちも 入った あとで ---- */
+      if (MQ.levelup) {
+        out.lvGift = MQ.levelup.claim(p);
+        if (out.lvGift.levels.length) {
+          const last = out.lvGift.levels[out.lvGift.levels.length - 1].lv;
+          MQ.save.addLog(p, 'Lv.' + last + ' の ごほうび：コイン +' + out.lvGift.coins + (out.lvGift.tickets ? '・むりょうけん ' + out.lvGift.tickets + 'まい' : ''));
+        }
+      }
 
       /* ---- しょうごう ---- */
       out.titles = MQ.hero.checkTitles(p);

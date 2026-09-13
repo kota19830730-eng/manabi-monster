@@ -896,13 +896,16 @@ MQ.hero = (function () {
     ORDER.forEach(function (slot) {
       const g = eq[slot] && gearById[eq[slot]];
       if (!g) return;
-      out[GEAR_POWER[slot].key] += g.power;
+      // きたえた ぶん（v13.15）。場所ごとに 足す（べつの そうびに かえても のこる）
+      out[GEAR_POWER[slot].key] += g.power + forgeBonus(player, slot);
       if (!g.aurora) return;
       const ex = AURORA_POWER[slot];
       if (ex.key === 'palPlus') out.palPlus += 1;        // なかまゲージ 2ばい
       else if (ex.key === 'bossCoin') out.bossCoin += 2;  // ボスを たおすと コイン ＋2
       else out[ex.key] = true;
     });
+    // かぶと（ひっさつが 早く 出る）は 3まで（v13.15。4に すると 1コンボめから わざが 出て しまう）
+    if (MQ.forge) out.special = Math.min(out.special, Math.max(MQ.forge.SPECIAL_CAP, 0));
     const set = equippedSetOf(player);
     if (set) {
       out.setName = set.name;
@@ -913,6 +916,37 @@ MQ.hero = (function () {
       else if (!set.setCoins) out.setMul = setMulFor(set.no);
     }
     return out;
+  }
+
+  /* きたえた ぶん（v13.15・js/core/forge.js）。forge.js が ない ときは 0 */
+  function forgeBonus(player, slot) {
+    return (MQ.forge && MQ.forge.bonusOf) ? MQ.forge.bonusOf(player, slot) : 0;
+  }
+
+  /* 1つの 場所の いまの 力（メニューの かじや・バトルの ちからの 表示用）
+     { slot, item, lv（きたえた +いくつ）, base, bonus, value, short, text, next（つぎの +の 数字）} */
+  function slotPower(player, slot) {
+    const eq = (player && player.equipped) || {};
+    const item = eq[slot] ? gearById[eq[slot]] : null;
+    const lv = (MQ.forge && MQ.forge.level) ? MQ.forge.level(player, slot) : 0;
+    const base = item ? item.power : 0;
+    const bonus = item ? forgeBonus(player, slot) : 0;
+    let value = base + bonus;
+    if (slot === 'helm' && MQ.forge) value = Math.min(value, Math.max(base, MQ.forge.SPECIAL_CAP));
+    const P = GEAR_POWER[slot];
+    let next = null;
+    if (item && MQ.forge && lv < MQ.forge.MAX) {
+      const at = MQ.forge.nextGain(slot, lv);
+      if (at) {
+        let v2 = base + MQ.forge.bonus(slot, at);
+        if (slot === 'helm') v2 = Math.min(v2, Math.max(base, MQ.forge.SPECIAL_CAP));
+        if (v2 > value) next = { at: at, value: v2, short: P.short(v2) };
+      }
+    }
+    return {
+      slot: slot, item: item, lv: lv, base: base, bonus: bonus, value: value,
+      short: item ? P.short(value) : 'なし', text: item ? P.text(value) : '', next: next
+    };
   }
 
   // 一式の コインの ごほうび（カプセル ＋3／オーロラ ＋6。ほかの グレードは 0）
@@ -1313,7 +1347,14 @@ MQ.hero = (function () {
         return n >= 3;
       } },
     // しゅぎょうば（v13.0）：5つの ステージに 合格
-    { id: 't-dojo5', name: 'しゅぎょうの たつじん', how: 'しゅぎょうばで 5つの ステージに 合格', test: function (p) { return (p.dojoDone || 0) >= 5; } }
+    { id: 't-dojo5', name: 'しゅぎょうの たつじん', how: 'しゅぎょうばで 5つの ステージに 合格', test: function (p) { return (p.dojoDone || 0) >= 5; } },
+    /* レベルの ごほうび・そうびを きたえる（v13.15）。
+       Lv20 の あとも しょうごうが つづく ように Lv30・40・50 を 足した */
+    { id: 't-forge1',  name: 'かじやの でし',       how: 'そうびを 1回 きたえる',      test: function (p) { return (p.forgeCount || 0) >= 1; } },
+    { id: 't-lv30',    name: 'にじいろの けんし',   how: 'Lv30',                       test: function (p) { return levelOf(p.xp) >= 30; } },
+    { id: 't-forgeall', name: 'きたえの たつじん',  how: '5つの そうびを ぜんぶ +5 に', test: function (p) { return !!(MQ.forge && MQ.forge.allMax(p)); } },
+    { id: 't-lv40',    name: 'たいようの けんし',   how: 'Lv40',                       test: function (p) { return levelOf(p.xp) >= 40; } },
+    { id: 't-lv50',    name: 'えいゆう',            how: 'Lv50',                       test: function (p) { return levelOf(p.xp) >= 50; } }
   ];
   const titleById = {};
   titles.forEach(function (t) { titleById[t.id] = t; });
@@ -1353,7 +1394,7 @@ MQ.hero = (function () {
     getGear: getGear, nextGear: nextGear, nextDensetsu: nextDensetsu, isDensetsu: isDensetsu,
     nextHoshi: nextHoshi, nextYami: nextYami, isSpecial: isSpecial, hoshiStars: HOSHI_STARS,
     capsuleGear: capsuleGear, isCapsuleGear: isCapsuleGear, hasAuroraSet: hasAuroraSet, setCoinsOf: setCoinsOf,
-    gearPower: gearPower, gearSlotPower: GEAR_POWER, auroraPower: AURORA_POWER, setMulFor: setMulFor,
+    gearPower: gearPower, slotPower: slotPower, gearSlotPower: GEAR_POWER, auroraPower: AURORA_POWER, setMulFor: setMulFor,
     fullSetOf: fullSetOf, hasSet: hasSet, equippedSetOf: equippedSetOf,
     sprite: sprite, faceSprite: faceSprite, bodySprite: bodySprite, partSprite: partSprite, poster: poster,
     gearSprite: gearSprite, gearShadow: gearShadow, layersFor: layersFor,

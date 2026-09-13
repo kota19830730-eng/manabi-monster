@@ -146,6 +146,13 @@ MQ.save = (function () {
     if (!p.capsule || typeof p.capsule !== 'object' || Array.isArray(p.capsule)) p.capsule = {};
     if (MQ.capsule && MQ.capsule.ensure) MQ.capsule.ensure(p);
     if (!p.parts || typeof p.parts !== 'object' || Array.isArray(p.parts)) p.parts = {};
+    /* そうびを きたえる（v13.15）：{ weapon: 0〜5, ... }。古い セーブは ぜんぶ 0 */
+    if (MQ.forge && MQ.forge.ensure) MQ.forge.ensure(p);
+    if (typeof p.forgeCount !== 'number') p.forgeCount = 0;
+    /* レベルの ごほうび（v13.15）：はらった レベル p.lvPaid。
+       もう たたかって いる 子は いまの レベルまで はらった ことに して、
+       「これまでの ぶん」の むりょう券を わたす（js/core/levelup.js の init） */
+    if (MQ.levelup && MQ.levelup.init) MQ.levelup.init(p);
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {

@@ -20,6 +20,9 @@ MQ.ui.news = (function () {
   /* お知らせ 1つぶんの 絵。ゲームに ある 部品だけを つかう */
   function art(it, player) {
     if (it.kind === 'coin') return MQ.ui.coinNode(44);
+    // ticket：カプセルの むりょう券／gear：そうびの 絵（v13.15）
+    if (it.kind === 'ticket' && MQ.ui.ticketNode) return MQ.ui.ticketNode(52);
+    if (it.kind === 'gear' && MQ.hero.gearSprite) return h('img', { class: 'sprite newsrow__gear', src: MQ.hero.gearSprite(it.id), alt: '' });
     // dock：地図の ドックの アイコン（v13.3・js/ui/map.js の DOCK_ICONS）
     if (it.kind === 'dock' && MQ.ui.map && MQ.ui.map.dockIcon) return MQ.ui.map.dockIcon(it.id || 'dice', 44);
     // prize：おうちの人の マシンの 景品の 絵（v13.12・js/ui/prize.js）

@@ -91,6 +91,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/missions.js"></script>
 <script src="../js/core/fever.js"></script>
 <script src="../js/core/pals.js"></script>
+<script src="../js/core/levelup.js"></script>
+<script src="../js/core/forge.js"></script>
 <script src="../js/core/streak.js"></script>
 <script src="../js/core/letter.js"></script>
 <script src="../js/core/review.js"></script>
@@ -3787,6 +3789,89 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
 
+    /* レベルの ごほうび・そうびを きたえる（v13.15）
+         #forge        … メニュー「じぶん」の レベルの みち＋かじや（けん +3・マント +5）
+         #forge:hit    … 「きたえる」ボタンを 本当に click() した あと（光る・コインが へる）
+         #forge:poor   … コインが たりない
+         #lvgift       … けっか画面：Lv9 → Lv10（コイン・むりょう券・ブロンズ バッジ）
+         #lvgift:50    … Lv49 → Lv50（レインボー）の HUD と けっか画面
+         #capticket    … カプセル：むりょう券 2まい・コイン 3まい → 「むりょうで まわす」を click() */
+    if (mode.indexOf('forge') === 0) {
+      const what = mode.split(':')[1] || '';
+      fresh();
+      MQ.save.update(function (pl) {
+        pl.coins = what === 'poor' ? 3 : 84;
+        if (what === 'top') { pl.xp = MQ.hero.xpForLevel(23) + 50; pl.lvPaid = 23; }
+        pl.forge = { weapon: 3, shield: 1, helm: 0, armor: 2, cape: 5 };
+        pl.capsule.tickets = 1;
+      });
+      MQ.ui.dex.render('hero'); MQ.ui.show('screen-dex');
+      await wait(120);
+      const wrap = $('#screen-dex .wrap');
+      const road = $('.lvroad');
+      if (road && wrap && what !== 'top') wrap.scrollTop = road.offsetTop - 60;
+      const before = MQ.save.current();
+      say('forge: road ' + $$('.lvroad__one').length + ' / rows ' + $$('.forge__row').length + ' / max ' + $$('.forge__row.is-max').length + ' / coins ' + before.coins);
+      $$('.forge__row').forEach(function (r) { say('  ' + r.getAttribute('data-slot') + ': ' + r.textContent.replace(/\s+/g, ' ')); });
+      if (what === 'hit') {
+        const btn = $('.forge__row[data-slot="weapon"] .forge__btn');
+        btn.click();
+        await wait(60);
+        const p2 = MQ.save.current();
+        const row = $('.forge__row[data-slot="weapon"]');
+        say('hit: weapon +' + MQ.forge.level(p2, 'weapon') + ' / coins ' + p2.coins + ' / is-forged ' + (row && row.classList.contains('is-forged') ? 'yes' : 'no') + ' / title ' + ((p2.titles || []).indexOf('t-forge1') >= 0 ? 'かじやの でし' : 'なし'));
+        // 光る ところを 撮る（アニメの まんなかで 止める）
+        freeze();
+        const fw = $('#screen-dex .wrap'), fr = $('.forge');
+        if (fr && fw) fw.scrollTop = fr.offsetTop - 60;
+        document.getAnimations().forEach(function (a) { try { a.currentTime = 160; a.pause(); } catch (e) {} });
+      }
+      if (what === 'poor') {
+        const btns = $$('.forge__btn');
+        say('poor: 暗い ボタン ' + btns.filter(function (b) { return b.classList.contains('is-short'); }).length + ' / ' + btns.length);
+        btns[0].click(); await wait(40);
+        say('poor: 押すと ' + (document.getElementById('toast') ? document.getElementById('toast').textContent : 'トーストなし') + ' / コイン ' + MQ.save.current().coins);
+        const fr = $('.forge');
+        if (fr && wrap) wrap.scrollTop = fr.offsetTop - 60;
+      }
+      return;
+    }
+    if (mode.indexOf('lvgift') === 0) {
+      const to = Number(mode.split(':')[1]) || 10;
+      fresh();
+      MQ.save.update(function (pl) {
+        pl.xp = MQ.hero.xpForLevel(to) - 30;          // つぎの 1戦で かならず Lv が 上がる
+        pl.lvPaid = to - 1;
+        pl.capsule.tickets = 0;
+      });
+      MQ.ui.battle.start('sansu3-6');
+      await wait(400);
+      await playBattle('lvgift');
+      await wait(900);
+      const p3 = MQ.save.current();
+      say('lvgift: ' + ($('.rs__lvgift') ? $('.rs__lvgift').textContent.replace(/\s+/g, ' ') : 'MISSING') + ' / Lv' + MQ.hero.progress(p3.xp).level + ' / 券 ' + MQ.levelup.tickets(p3) + ' / lvPaid ' + p3.lvPaid);
+      freeze();
+      $$('.rs__in').forEach(function (el) { el.classList.add('is-in'); });
+      document.getAnimations().forEach(function (a) { try { a.finish(); } catch (e) {} });
+      return;
+    }
+    if (mode === 'capticket' || mode === 'capticket:see') {
+      fresh();
+      MQ.save.update(function (pl) { pl.coins = 3; pl.capsule.tickets = 2; });
+      MQ.ui.capsule.open({ kind: 'mon' });
+      await wait(150);
+      const b = $('.capgo');
+      say('capticket: ' + (b ? b.textContent.replace(/\s+/g, ' ') : 'MISSING') + ' / ticket-class ' + (b && b.classList.contains('capgo--ticket') ? 'yes' : 'no') + ' / disabled ' + (b ? b.disabled : '-'));
+      if (mode === 'capticket:see') return;
+      b.click();
+      await wait(80);
+      const p4 = MQ.save.current();
+      say('after: 券 ' + MQ.levelup.tickets(p4) + ' / coins ' + p4.coins + ' / pulls ' + p4.capsule.pulls);
+      if (MQ.ui.capsule.skip) MQ.ui.capsule.skip();
+      await wait(200);
+      return;
+    }
+
     /* ---- #flow: ぜんぶ 通す ---- */
     fresh();
     say('--- タイトル ---');
@@ -3874,6 +3959,15 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     });
     MQ.ui.photo.render();
     say('photo: ' + ($('.photo__stage') ? 'ok' : 'MISSING'));
+    // レベルの ごほうび・きたえる（v13.15）：「きたえる」を 本当に click() する
+    MQ.save.update(function (pl) { pl.coins = Math.max(pl.coins || 0, 20); });
+    MQ.ui.dex.render('hero'); MQ.ui.show('screen-dex');
+    await wait(60);
+    const fBefore = MQ.forge.level(MQ.save.current(), 'weapon');
+    const fBtn = $('.forge__row[data-slot="weapon"] .forge__btn');
+    if (fBtn) fBtn.click();
+    await wait(60);
+    say('forge: road ' + $$('.lvroad__one').length + ' / けん +' + fBefore + ' → +' + MQ.forge.level(MQ.save.current(), 'weapon') + (MQ.forge.level(MQ.save.current(), 'weapon') === fBefore + 1 ? ' OK' : ' MISSING'));
 
     say('--- 小4ワールド（v4.4・算数だけ） ---');
     fresh({ stars: { 'sansu4-1': 3, 'sansu4-2': 2 }, frags: {} });

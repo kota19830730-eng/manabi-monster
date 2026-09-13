@@ -4016,3 +4016,109 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .tower__art--3d, .tower--lock .tower__art--3d { width: 116px; height: 116px; margin-bottom: -13px; filter: none; transform: translate(9px, -7px); }   /* v13.4.4：ユーザー「もう少し 右上に」。島の かたまりが 右下に ふくらんで いる ので 城を 右上へ 9・7 */
 .dockico { display: block; flex: none; }
 .dockico svg { display: block; }
+
+/* =========================================================
+   レベルの ごほうび・そうびを きたえる（v13.15）
+   ルールは js/core/levelup.js と js/core/forge.js。
+   見た目の 正本は docs/STYLE_GUIDE.md の「レベルの ごほうびと かじや（v13.15）」
+   動かすのは transform と opacity だけ（v13.10 の きまり）
+   ========================================================= */
+/* レベルの バッジ（Lv10 ブロンズ → 20 シルバー → 30 ゴールド → 40 プラチナ → 50 レインボー） */
+.lvb { display: inline-block; padding: 1px 7px; border-radius: 8px; color: #2a1a04; text-shadow: none; box-shadow: 0 3px 0 rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.55); }
+.lvb--bronze  { background: linear-gradient(#f3c08a, #c98a4b 60%, #9a6232); }
+.lvb--silver  { background: linear-gradient(#ffffff, #cfd8e6 55%, #9aa8bf); }
+.lvb--gold    { background: linear-gradient(#fff3b0, #ffd447 55%, #e0a01c); }
+.lvb--plat    { background: linear-gradient(#f2fdff, #b9f3ff 50%, #7fc9e6); }
+.lvb--rainbow { background: linear-gradient(90deg, #ff8a8a, #ffd447, #7cf9a4, #6fc8ff, #c9a2ff); }
+.hud__lv.lvb { font-size: 20px; color: #2a1a04; margin-bottom: 2px; }
+.hud--slim .hud__lv.lvb { font-size: 17px; }
+.dexcard__lvn { font-family: var(--f-head); color: var(--gold); }
+.dexcard__lvn.lvb { font-size: 13px; color: #2a1a04; }
+
+/* カプセルの むりょう券（金の 券＋まん中に カプセル） */
+.tkt {
+  position: relative; display: inline-block; flex: none; border-radius: 4px;
+  background: radial-gradient(circle at 0 50%, transparent 22%, #ffd447 23%) left / 51% 100% no-repeat,
+              radial-gradient(circle at 100% 50%, transparent 22%, #ffd447 23%) right / 51% 100% no-repeat;
+  box-shadow: 0 2px 0 rgba(120,70,8,.7);
+  vertical-align: middle;
+}
+.tkt::before { content: ''; position: absolute; inset: 18% 22%; border: 1px dashed rgba(106,66,8,.55); border-radius: 2px; }
+.tkt__cap {
+  position: absolute; left: 50%; top: 50%; width: 42%; height: 62%; border-radius: 999px;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  background: linear-gradient(#ff8f5e 50%, #fff 50%); box-shadow: 0 0 0 1px rgba(106,66,8,.6);
+}
+
+/* けっか画面：レベルの 帯の 下の ごほうび 1行 */
+.rs__lvgift { display: flex; align-items: center; gap: 8px; margin-top: 7px; white-space: nowrap; }
+.rs__lvgiftk { padding: 2px 7px; border-radius: 6px; background: var(--gold); color: #3a2606; font-family: var(--f-head); font-size: 12px; }
+.rs__lvgiftv { display: inline-flex; align-items: center; gap: 4px; font-family: var(--f-head); font-size: 14px; color: var(--gold); }
+.rs__lvgiftv b { font-weight: normal; }
+.rs__lvgiftv--badge { font-size: 12px; color: #2a1a04; }
+.rs--tight .rs__lvgift { margin-top: 4px; }
+
+/* メニュー「じぶん」：レベルの みち */
+.lvroad {
+  margin: 0 0 10px; padding: 9px 10px 8px; border-radius: 12px;
+  background: linear-gradient(var(--hd-1), var(--hd-2));
+  box-shadow: 0 3px 0 var(--hd-edge), inset 0 0 0 2px var(--gold);
+}
+.lvroad__list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.lvroad__one {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px;
+  min-height: 86px; padding: 6px 2px 5px; border-radius: 10px; background: rgba(0,0,0,.28); text-align: center;
+}
+.lvroad__one.is-big { background: rgba(255,212,71,.14); }
+.lvroad__one.is-next { box-shadow: inset 0 0 0 2px var(--gold); }
+.lvroad__lv { font-family: var(--f-head); font-size: 13px; color: #fff; }
+.lvroad__what { font-size: 11px; color: var(--gold); line-height: 1.2; }
+.lvroad__sub { font-size: 9px; color: var(--tx-sub); line-height: 1.1; }
+.lvroad__badge { font-family: var(--f-head); font-size: 11px; padding: 4px 6px; margin: 2px 0; }
+.lvroad__note { margin: 7px 2px 0; font-size: 11px; color: var(--tx-sub); }
+
+/* メニュー「じぶん」：かじや（そうびを きたえる） */
+.forge {
+  margin: 0 0 10px; padding: 9px 10px 8px; border-radius: 12px;
+  background: linear-gradient(var(--hd-1), var(--hd-2));
+  box-shadow: 0 3px 0 var(--hd-edge), inset 0 0 0 2px var(--gold);
+}
+.forge__lead { margin: 0 2px 7px; font-size: 11px; color: var(--tx-sub); line-height: 1.4; }
+.forge__rows { display: flex; flex-direction: column; gap: 5px; }
+.forge__row {
+  display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 8px;
+  padding: 5px 6px; border-radius: 10px; background: rgba(0,0,0,.28);
+}
+.forge__row.is-off { opacity: .6; }
+.forge__row.is-max { background: linear-gradient(90deg, rgba(255,212,71,.22), rgba(0,0,0,.28)); }
+.forge__icon { position: relative; width: 44px; height: 44px; border-radius: 9px; background: rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; }
+.forge__icon .sprite { width: 40px; height: 40px; }
+.forge__icon.is-max { box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(255,212,71,.75); }
+.forge__empty { width: 22px; height: 22px; border-radius: 6px; border: 2px dashed rgba(255,255,255,.25); }
+.forge__plus {
+  position: absolute; right: -5px; bottom: -5px; padding: 0 5px; border-radius: 7px;
+  font-family: var(--f-head); font-size: 12px; line-height: 17px; color: #3a2606;
+  background: linear-gradient(#fff0b0, var(--gold)); box-shadow: 0 2px 0 var(--gold-sh);
+}
+.forge__icon.is-max .forge__plus { background: linear-gradient(90deg, #ff8a8a, #ffd447, #7cf9a4, #6fc8ff); }
+.forge__mid { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.forge__name { font-size: 11px; color: var(--tx-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.forge__now { font-family: var(--f-head); font-size: 14px; color: #fff; }
+.forge__next { font-size: 11px; color: #7cf9c4; }
+.forge__next.is-max { color: var(--gold); }
+.forge__btn { flex-direction: column; gap: 0; min-width: 84px; padding: 4px 8px; }
+.forge__bt { font-family: var(--f-head); font-size: 14px; line-height: 1.15; }
+.forge__bc { font-size: 10px; opacity: .9; }
+.forge__done { min-width: 84px; text-align: center; font-family: var(--f-head); font-size: 22px; color: var(--gold); text-shadow: 0 2px 0 rgba(0,0,0,.4); }
+.forge__coins { display: flex; align-items: center; gap: 5px; margin: 7px 2px 0; font-size: 12px; color: var(--gold); }
+.forge__row.is-forged .forge__icon { animation: forgeHit .55s ease-out both; }
+.forge__row.is-forged .forge__plus { animation: forgePlus .6s ease-out .1s both; }
+@keyframes forgeHit { 0% { transform: scale(1); } 25% { transform: scale(1.25) rotate(-6deg); } 55% { transform: scale(.94) rotate(3deg); } 100% { transform: scale(1); } }
+@keyframes forgePlus { 0% { transform: scale(.2); opacity: 0; } 60% { transform: scale(1.4); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .forge__row.is-forged .forge__icon, .forge__row.is-forged .forge__plus { animation: none; } }
+
+/* カプセル：むりょう券で まわす ときの ボタン（みどり＝ただ） */
+.capgo--ticket { color: #0f3a1e; background: linear-gradient(#d4ffe0, #7cf0a0 55%, #34b866); box-shadow: 0 7px 0 #1f7a41, 0 12px 20px rgba(0,0,0,.35), inset 0 3px 0 rgba(255,255,255,.6); }
+.capgo--ticket:active:not(:disabled) { box-shadow: 0 3px 0 #1f7a41, inset 0 3px 0 rgba(255,255,255,.6); }
+.newsrow__gear { width: 46px; height: 46px; image-rendering: pixelated; }
+.forge__btn.is-short { filter: grayscale(.55) brightness(.75); }

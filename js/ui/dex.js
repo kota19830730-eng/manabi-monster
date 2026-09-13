@@ -76,7 +76,10 @@ MQ.ui.dex = (function () {
       h('div', { class: 'dexcard__body' }, [
         h('h2', { class: 'dexcard__name', text: player.name }),
         h('p', { class: 'dexcard__title', text: MQ.hero.titleName(player) }),
-        h('p', { class: 'dexcard__lv', text: 'Lv.' + pr.level + '　つぎまで ' + (pr.need - pr.into) }),
+        h('p', { class: 'dexcard__lv' }, [
+          h('span', { class: 'dexcard__lvn' + MQ.ui.lvBadgeCls(pr.level), text: 'Lv.' + pr.level }),
+          h('span', { text: '　つぎまで ' + (pr.need - pr.into) })
+        ]),
         h('div', { class: 'xpbar' }, [h('div', { class: 'xpbar__fill', style: { width: Math.round(pr.ratio * 100) + '%' } })]),
         h('p', { class: 'dexcard__stats', text: 'たたかい ' + (player.battles || 0) + '回　たおした モンスター ' + (player.defeated || 0) + '体　コイン ' + (player.coins || 0) }),
         h('div', { class: 'dexcard__btns' }, [
@@ -142,17 +145,11 @@ MQ.ui.dex = (function () {
       ]);
     }));
 
-    // いま つけている そうびの 効果（v5.4）
+    // いま つけている そうびの 効果（v5.4）→ かじや（v13.15）で 場所ごとに きたえる
     const gp = MQ.hero.gearPower(player);
     const gearNow = h('div', { class: 'gearnow' }, [
       h('span', { class: 'gearnow__t', text: 'いまの そうびの ちから' }),
-      h('div', { class: 'gearnow__chips' }, MQ.hero.slots.map(function (slot) {
-        const item = player.equipped[slot] && MQ.hero.getGear(player.equipped[slot]);
-        return h('span', { class: 'gearnow__chip' + (item ? '' : ' is-off') }, [
-          h('b', { text: MQ.hero.slotName[slot] }),
-          h('i', { text: item ? item.powerShort : 'なし' })
-        ]);
-      }).concat(gp.setName ? [
+      h('div', { class: 'gearnow__chips' }, [].concat(gp.setName ? [
         // 一式の ごほうび。カプセルの 一式は けいけんちの 倍率が ない ので コインで 書く（v9.0）
         h('span', { class: 'gearnow__chip gearnow__chip--set' }, [
           h('b', { text: gp.setName + ' 一式' }),
@@ -194,11 +191,107 @@ MQ.ui.dex = (function () {
     return h('div', {}, [
       card,
       renameBox,
+      h('h2', { class: 'label', text: 'レベルの ごほうび' }),
+      lvRoad(player),
+      h('h2', { class: 'label', text: 'そうびを きたえる' }),
+      forgePanel(player),
+      gp.setName ? gearNow : null,
       h('h2', { class: 'label', text: 'しょうごう（すきなものを えらべる）' }),
       titleGrid,
-      h('h2', { class: 'label', text: 'そうび（けん・たて・かぶと・よろい・マント × 6しゅるい）' }),
-      gearNow
+      h('h2', { class: 'label', text: 'そうび（けん・たて・かぶと・よろい・マント）' })
     ].concat(gearBlocks));
+  }
+
+  /* =======================================================
+     レベルの ごほうび（v13.15・js/core/levelup.js）
+     つぎの 4つを ならべる。むりょうけん・バッジの レベルは かならず 入る
+     ======================================================= */
+  function lvRoad(player) {
+    const L = MQ.levelup;
+    if (!L) return null;
+    const lv = MQ.hero.progress(player.xp).level;
+    const badge = L.badgeOf(lv);
+    const tk = L.tickets(player);
+    return h('div', { class: 'lvroad' }, [
+      h('div', { class: 'lvroad__list' }, L.road(player, 4).map(function (r, i) {
+        const kids = [h('span', { class: 'lvroad__lv', text: 'Lv.' + r.lv })];
+        if (r.badge) kids.push(h('span', { class: 'lvroad__badge lvb lvb--' + r.badge.id, text: r.badge.name }));
+        else if (r.ticket) kids.push(MQ.ui.ticketNode(34));
+        else kids.push(MQ.ui.coinNode(26));
+        kids.push(h('span', { class: 'lvroad__what', text: r.badge ? 'バッジ' : r.ticket ? 'むりょうけん' : 'コイン +' + r.coins }));
+        if (r.badge || r.ticket) kids.push(h('span', { class: 'lvroad__sub', text: (r.ticket ? (r.badge ? 'むりょうけん・' : '') : '') + 'コイン +' + r.coins }));
+        return h('div', { class: 'lvroad__one' + (i === 0 ? ' is-next' : '') + (r.badge || r.ticket ? ' is-big' : '') }, kids);
+      })),
+      h('p', { class: 'lvroad__note', text: (badge ? 'いまの バッジ：' + badge.name + '　' : '') + (tk ? 'むりょうけん ' + tk + 'まい（なかま → カプセルマシン）' : 'レベルが 上がる たびに ごほうびが もらえる') })
+    ]);
+  }
+
+  /* =======================================================
+     かじや（そうびを きたえる・v13.15・js/core/forge.js）
+     場所ごとに +1〜+5。べつの そうびに かえても きたえた ぶんは のこる
+     ======================================================= */
+  let forged = null;   // いま きたえた 場所（光らせる）
+  function forgePanel(player) {
+    const F = MQ.forge;
+    if (!F) return null;
+    const rows = MQ.hero.slots.map(function (slot) {
+      const sp = MQ.hero.slotPower(player, slot);
+      const can = F.canForge(player, slot);
+      const lv = sp.lv;
+      const max = lv >= F.MAX;
+      const icon = h('div', { class: 'forge__icon' + (max ? ' is-max' : '') }, [
+        sp.item ? h('img', { class: 'sprite', src: MQ.hero.gearSprite(sp.item.id), alt: '' }) : h('span', { class: 'forge__empty' }),
+        lv ? h('span', { class: 'forge__plus', text: '+' + lv }) : null
+      ]);
+      const now = sp.item ? sp.short : 'そうびを つけてね';
+      const nextTxt = max ? 'さいだい！'
+        : !sp.item ? ''
+        : sp.next ? '+' + sp.next.at + 'で ' + sp.next.short
+        : '';
+      const mid = h('div', { class: 'forge__mid' }, [
+        h('span', { class: 'forge__name', text: MQ.hero.slotName[slot] + (sp.item ? '　' + sp.item.name : '') }),
+        h('span', { class: 'forge__now', text: now }),
+        nextTxt ? h('span', { class: 'forge__next' + (max ? ' is-max' : ''), text: nextTxt }) : null
+      ]);
+      const btn = max ? h('span', { class: 'forge__done', text: '+5' })
+        : h('button', {
+            // 押せない ときも 押せる ように して、押したら 理由（あと 何まい）を 出す（暗く する だけ）
+            class: 'btn btn--small forge__btn' + (can.ok ? '' : ' is-short'), type: 'button',
+            onclick: function () { doForge(slot); }
+          }, [
+            h('span', { class: 'forge__bt', text: 'きたえる' }),
+            h('span', { class: 'forge__bc', text: 'コイン ' + F.cost(lv) })
+          ]);
+      return h('div', { class: 'forge__row' + (max ? ' is-max' : '') + (sp.item ? '' : ' is-off') + (forged === slot ? ' is-forged' : ''), 'data-slot': slot }, [icon, mid, btn]);
+    });
+    forged = null;
+    return h('div', { class: 'forge' }, [
+      h('p', { class: 'forge__lead', text: 'コインで そうびを つよく できる。べつの そうびに かえても きたえた ぶんは のこるよ' }),
+      h('div', { class: 'forge__rows' }, rows),
+      h('p', { class: 'forge__coins' }, [MQ.ui.coinNode(18), h('span', { text: 'もっている コイン ' + (player.coins || 0) })])
+    ]);
+  }
+
+  function doForge(slot) {
+    let res = null, titles = [];
+    MQ.save.update(function (p) {
+      res = MQ.forge.forge(p, slot);
+      if (res && res.ok) titles = MQ.hero.checkTitles(p);
+    });
+    if (!res || !res.ok) {
+      MQ.sfx.tap();
+      MQ.ui.toast(res && res.short ? 'コインが あと ' + res.short + 'まい たりない' : (res && res.why) || 'きたえられない');
+      return;
+    }
+    MQ.sfx.crit();
+    if (res.max) setTimeout(MQ.sfx.levelup, 260);
+    forged = slot;
+    const P = MQ.save.current();
+    MQ.ui.toast(res.max ? MQ.hero.slotName[slot] + 'が +5 に なった！ さいだいだ！'
+      : res.gained ? MQ.hero.slotName[slot] + 'が +' + res.to + ' に！ ' + MQ.hero.slotPower(P, slot).short
+      : MQ.hero.slotName[slot] + 'が +' + res.to + ' に なった！');
+    if (titles.length) setTimeout(function () { MQ.ui.toast('しょうごう GET：' + titles[titles.length - 1].name); }, 1500);
+    render('hero');
   }
 
   /* 見出し ＋ あつめぐあいの バー ＋ かず */
@@ -437,7 +530,9 @@ MQ.ui.dex = (function () {
     if (MQ.ui.capsule && MQ.capsule && (player.capsuleOff !== true || homeOn)) {
       const got = MQ.capsule.KIND_IDS.reduce(function (n, k) { return n + MQ.capsule.progress(player, k).have; }, 0);
       const all = MQ.capsule.KIND_IDS.reduce(function (n, k) { return n + MQ.capsule.progress(player, k).total; }, 0);
+      const tkN = MQ.capsule.tickets ? MQ.capsule.tickets(player) : 0;
       const sub = player.capsuleOff === true ? 'おうちの人の マシンで ごほうびが 当たる'
+        : tkN ? 'むりょうけんが ' + tkN + 'まい あるよ！　あつめた ' + got + ' / ' + all
         : 'コイン ' + MQ.capsule.COST + 'まいで 1回　あつめた ' + got + ' / ' + all + (homeOn ? '　おうちの人の マシンも あるよ' : '');
       kids.push(h('button', {
         class: 'btn capbtn' + (homeOn ? ' capbtn--home' : ''), type: 'button',

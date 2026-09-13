@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/guard.js', 'js/core/util.js', 'js/core/text.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/levelup.js', 'js/core/forge.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/core/vox.js'].concat(CONTENT_ORDER).forEach(load);   // vox.js（りったい・v12.0）は chest3d.js より 前
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
 load('js/core/capsule.js');
@@ -1038,6 +1038,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     missionsDone: 12, revengeWins: 6,  // v3.1 の しょうごう
     counters: 10,                      // v7.7 カウンターの たつじん
     dojoDone: 5,                       // v13.0 しゅぎょうの たつじん
+    forgeCount: 25, forge: { weapon: 5, shield: 5, helm: 5, armor: 5, cape: 5 },   // v13.15 きたえる
     elites: 10, weakHits: 10,          // v8.1 中ボス ハンター・弱点を つく 者
     // v9.0 カプセル コレクター（30回）・げきレアの もちぬし（げきレア 3つ）
     capsule: (function () {
@@ -3447,7 +3448,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
   // しょうごう
   check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
-  check(MQ.hero.titles.length === 52, 'しょうごう 52（v13.0 で しゅぎょうの たつじん）: ' + MQ.hero.titles.length);
+  check(MQ.hero.titles.length === 57, 'しょうごう 57（v13.15 で Lv30・40・50 と きたえる 2つ）: ' + MQ.hero.titles.length);
   // 古い セーブ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
   check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');
@@ -3614,7 +3615,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   const N = MQ.news;
   check(!!N, 'MQ.news が 読めて いる');
   if (!N) return;
-  const KINDS = ['mons', 'item', 'coin', 'hero', 'dock', 'prize'];   // dock＝地図の ドックの アイコン（v13.3）・prize＝おうちの人の マシンの 景品の 絵（v13.12）
+  const KINDS = ['mons', 'item', 'coin', 'hero', 'dock', 'prize', 'ticket', 'gear'];   // ticket＝むりょう券・gear＝そうびの 絵（v13.15）   // dock＝地図の ドックの アイコン（v13.3）・prize＝おうちの人の マシンの 景品の 絵（v13.12）
   const ids = {}; MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) { ids[e.id] = 1; });
   const tids = {}; MQ.treasure.list.forEach(function (t) { tids[t.id] = 1; });
   let itemN = 0;
@@ -4442,6 +4443,97 @@ function stripComments(src) {
   const swD = fs.readFileSync(path.join(base, 'sw.js'), 'utf8'), hD = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
   ['./js/content/lesson3.js', './js/core/dojo.js', './js/ui/dojo.js'].forEach(function (f) { check(swD.indexOf("'" + f + "'") >= 0, 'sw.js の FILES に ' + f); });
   ['../js/content/lesson3.js', '../js/core/dojo.js', '../js/ui/dojo.js', 'id="screen-dojo"'].forEach(function (f) { check(hD.indexOf(f) >= 0, 'harness.html に ' + f); });
+})();
+
+/* =======================================================
+   レベルの ごほうび・そうびを きたえる（v13.15）
+   ======================================================= */
+(function () {
+  const L = MQ.levelup, F = MQ.forge, H = MQ.hero;
+  check(!!L && !!F, 'v13.15: MQ.levelup と MQ.forge が 読める');
+  // 読みこみ順：pals.js の あと・save.js の migrate より 前に 読めて いれば よい（index の じゅん）
+  check(INDEX_HTML.indexOf('js/core/levelup.js') > INDEX_HTML.indexOf('js/core/pals.js') && INDEX_HTML.indexOf('js/core/forge.js') > 0, 'v13.15: index に levelup.js・forge.js');
+  const swL = fs.readFileSync(path.join(base, 'sw.js'), 'utf8'), hL = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  ['levelup', 'forge'].forEach(function (n) {
+    check(swL.indexOf("'./js/core/" + n + ".js'") >= 0, 'v13.15: sw.js の FILES に ' + n + '.js');
+    check(hL.indexOf('../js/core/' + n + '.js') >= 0, 'v13.15: harness.html に ' + n + '.js');
+  });
+
+  // ---- ごほうびの 表 ----
+  check(L.coinsFor(2) === 2 && L.coinsFor(9) === 2 && L.coinsFor(10) === 3 && L.coinsFor(20) === 4 && L.coinsFor(30) === 5 && L.coinsFor(77) === 5, 'v13.15: コインは 2/3/4/5');
+  check(L.rewardFor(5, {}).ticket === 1 && L.rewardFor(6, {}).ticket === 0 && L.rewardFor(50, {}).ticket === 1, 'v13.15: 5の ばいすうで むりょう券');
+  check(L.rewardFor(5, { capsuleOff: true }).ticket === 0 && L.rewardFor(5, { capsuleOff: true }).coins === 2 + L.TICKET_COINS, 'v13.15: カプセルを かくして いる 子は コイン 10まい');
+  check(L.badgeAt(10).id === 'bronze' && L.badgeAt(50).id === 'rainbow' && !L.badgeAt(15) && L.badgeOf(9) === null && L.badgeOf(57).id === 'rainbow', 'v13.15: バッジ');
+  check(L.road({ xp: 0 }, 4).length === 4 && L.road({ xp: 0 }, 4)[0].lv === 2, 'v13.15: レベルの みちは つぎから 4つ');
+
+  // ---- はらう（2回 もらわない）----
+  const p = { xp: 0, battles: 0, coins: 0, capsule: {} };
+  check(L.init(p) === 0 && p.lvPaid === 1, 'v13.15: はじめての 子は Lv1 から・プレゼントなし');
+  p.xp = H.xpForLevel(11);                       // Lv1 → Lv11
+  const g = L.claim(p);
+  // Lv2〜9：2×8=16 ＋ Lv10・11：3×2=6 ＝ 22。むりょう券は Lv5・Lv10 の 2まい。バッジは ブロンズ
+  check(g.levels.length === 10 && g.coins === 22 && g.tickets === 2 && g.badge && g.badge.id === 'bronze', 'v13.15: Lv1→11 の ごほうび ' + JSON.stringify({ n: g.levels.length, c: g.coins, t: g.tickets }));
+  check(p.coins === 22 && p.capsule.tickets === 2 && p.lvPaid === 11, 'v13.15: コインと むりょう券が 入る');
+  check(L.claim(p).levels.length === 0 && p.coins === 22, 'v13.15: 2回めは もらえない');
+
+  // もう あそんで いる 子（古い セーブ）：いまの レベルまでは はらった ことに して、むりょう券を これまでの ぶん（さいだい 5まい）
+  const old = { xp: H.xpForLevel(23), battles: 60, coins: 5, capsule: {} };
+  check(L.init(old) === 4 && old.lvPaid === 23 && old.capsule.tickets === 4 && old.coins === 5, 'v13.15: Lv23 の 子は むりょう券 4まい・コインは そのまま');
+  const old2 = { xp: H.xpForLevel(60), battles: 300, coins: 0, capsule: {} };
+  check(L.init(old2) === 5 && old2.capsule.tickets === 5, 'v13.15: これまでの ぶんは 5まいまで');
+  check(L.init(old2) === 0 && old2.capsule.tickets === 5, 'v13.15: init は 1回だけ');
+
+  // セーブの 引きつぎ（importText → migrate）
+  const prevCur = MQ.save.current() ? MQ.save.current().id : null;
+  MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'lv', name: 'lv', grade: 3, xp: H.xpForLevel(12), battles: 30 }], currentId: 'lv', settings: {} }));
+  const mig = MQ.save.current();
+  check(mig.lvPaid === 12 && mig.capsule.tickets === 2 && mig.forge && mig.forge.weapon === 0 && mig.forgeCount === 0, 'v13.15: 古い セーブに lvPaid・むりょう券・forge が 入る');
+  MQ.save.load();
+  if (prevCur) MQ.save.setCurrent(prevCur);
+
+  // ---- カプセル：むりょう券が 先 ----
+  const cp = { coins: 0, dex: {}, pals: {}, gear: [], parts: {}, capsule: { tickets: 1 } };
+  check(MQ.capsule.canPull(cp, 'mon').ok && MQ.capsule.canPull(cp, 'mon').ticket, 'v13.15: コイン 0 でも むりょう券で 引ける');
+  const pr = MQ.capsule.pull(cp, 'mon');
+  check(pr.ok && pr.ticket && pr.spent === 0 && cp.capsule.tickets === 0 && cp.coins === 0, 'v13.15: むりょう券が へって コインは そのまま');
+  check(!MQ.capsule.canPull(cp, 'mon').ok, 'v13.15: むりょう券も コインも ない ときは 引けない');
+  cp.coins = 25;
+  const pr2 = MQ.capsule.pull(cp, 'mon');
+  check(pr2.ok && !pr2.ticket && pr2.spent === MQ.capsule.COST, 'v13.15: むりょう券が ない ときは コイン');
+
+  // ---- きたえる ----
+  check(F.COST.join(',') === '5,10,20,30,40' && F.MAX === 5, 'v13.15: ねだん 5/10/20/30/40');
+  const q = { coins: 200, equipped: { weapon: 'kihon-weapon', shield: null, helm: 'yami-helm', armor: 'kihon-armor', cape: 'kihon-cape' }, gear: ['kihon-weapon', 'yami-helm', 'kihon-armor', 'kihon-cape'] };
+  F.ensure(q);
+  check(!F.canForge(q, 'shield').ok && F.canForge(q, 'shield').why === 'そうびを つけてね', 'v13.15: つけて いない 場所は きたえられない');
+  const gp0 = H.gearPower(q);
+  for (let i = 0; i < 5; i++) F.forge(q, 'weapon');
+  check(F.level(q, 'weapon') === 5 && q.coins === 200 - 105 && q.forgeCount === 5, 'v13.15: けんを +5（105まい）');
+  check(!F.canForge(q, 'weapon').ok && F.canForge(q, 'weapon').max, 'v13.15: +5 で おわり');
+  check(H.gearPower(q).xpAdd === gp0.xpAdd + 5, 'v13.15: けん +5 で けいけんち ＋5');
+  // べつの けんに かえても のこる
+  q.equipped.weapon = 'yami-weapon'; q.gear.push('yami-weapon');
+  check(H.gearPower(q).xpAdd === H.getGear('yami-weapon').power + 5, 'v13.15: そうびを かえても +5 は のこる');
+  // よろい・マント：+2 と +4 で 1つずつ
+  const a0 = H.gearPower(q).keep;
+  F.forge(q, 'armor'); check(H.gearPower(q).keep === a0, 'v13.15: よろい +1 では まだ');
+  F.forge(q, 'armor'); check(H.gearPower(q).keep === a0 + 1, 'v13.15: よろい +2 で コンボ まもり ＋1');
+  // かぶとは +5 で 1つ・合計 3まで（やみの かぶと 2 ＋ 1 ＝ 3）
+  q.coins = 999;
+  for (let i = 0; i < 5; i++) F.forge(q, 'helm');
+  check(H.gearPower(q).special === 3, 'v13.15: かぶと +5 で ひっさつ 3早い（上限 3）');
+  check(H.slotPower(q, 'helm').value === 3 && H.slotPower(q, 'weapon').lv === 5 && !H.slotPower(q, 'weapon').next, 'v13.15: slotPower');
+  check(H.slotPower(q, 'cape').next && H.slotPower(q, 'cape').next.at === 2, 'v13.15: マントの つぎは +2');
+  // たりない とき
+  const poor = { coins: 3, equipped: { weapon: 'kihon-weapon' } };
+  check(!F.forge(poor, 'weapon').ok && poor.coins === 3, 'v13.15: コインが たりないと きたえられない（へらない）');
+  // しょうごう
+  check(H.getTitle('t-forge1').test({ forgeCount: 1 }) && !H.getTitle('t-forge1').test({ forgeCount: 0 }), 'v13.15: かじやの でし');
+  check(H.getTitle('t-lv50').test({ xp: H.xpForLevel(50) }) && !H.getTitle('t-lv50').test({ xp: H.xpForLevel(49) }), 'v13.15: Lv50 の しょうごう');
+  // たたかいの つよさは 正解した とき だけ（core に わたす 形は いままで どおり）
+  const gp = H.gearPower(q);
+  ['xpAdd', 'safe', 'special', 'keep', 'coins'].forEach(function (k) { check(typeof gp[k] === 'number', 'v13.15: gearPower.' + k); });
+  console.log('レベルの ごほうび・きたえる: Lv1→11 コイン ' + g.coins + '・券 ' + g.tickets + '・けん+5 で ＋5 OK');
 })();
 
 /* ===== カプセルを まわす 演出（v13.14）：期待度の はしごは うそを つかない ===== */

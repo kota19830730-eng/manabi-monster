@@ -106,6 +106,21 @@ MQ.ui = MQ.ui || {};
     }));
   };
 
+  /* レベルの バッジ（v13.15）：Lv10 ブロンズ → 20 シルバー → 30 ゴールド → 40 プラチナ → 50 レインボー */
+  function lvBadgeCls(lv) {
+    const b = MQ.levelup ? MQ.levelup.badgeOf(lv) : null;
+    return b ? ' lvb lvb--' + b.id : '';
+  }
+  MQ.ui.lvBadgeCls = lvBadgeCls;
+
+  /* カプセルの むりょう券（v13.15）。CSS の div だけ（金の 券＋まん中に カプセル） */
+  MQ.ui.ticketNode = function (size) {
+    const s = size || 24;
+    return h('span', { class: 'tkt', style: { width: s + 'px', height: Math.round(s * 0.66) + 'px' } }, [
+      h('i', { class: 'tkt__cap' })
+    ]);
+  };
+
   /* 名前・しょうごう・レベル・けいけんちの バー
      opts.slim … 1行に つめた かたち（地図の 上・v8.0。80px → 60px） */
   MQ.ui.hud = function (player, opts) {
@@ -121,7 +136,7 @@ MQ.ui = MQ.ui || {};
         h('div', { class: 'xpbar' }, [h('div', { class: 'xpbar__fill', style: { width: Math.round(pr.ratio * 100) + '%' } })])
       ]),
       h('div', { class: 'hud__right' }, [
-        h('span', { class: 'hud__lv', text: 'Lv.' + pr.level }),
+        h('span', { class: 'hud__lv' + lvBadgeCls(pr.level), text: 'Lv.' + pr.level }),
         h('span', { class: 'hud__xp', text: pr.into + ' / ' + pr.need }),
         MQ.ui.frags(player)
       ])
