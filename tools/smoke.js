@@ -4444,6 +4444,56 @@ function stripComments(src) {
   ['../js/content/lesson3.js', '../js/core/dojo.js', '../js/ui/dojo.js', 'id="screen-dojo"'].forEach(function (f) { check(hD.indexOf(f) >= 0, 'harness.html に ' + f); });
 })();
 
+/* ===== カプセルを まわす 演出（v13.14）：期待度の はしごは うそを つかない ===== */
+(function () {
+  global.MQ.ui = global.MQ.ui || {};
+  load('js/ui/capsulefx.js');
+  const F = MQ.ui.capsuleFx;
+  check(!!F && typeof F.play === 'function' && typeof F.plan === 'function' && typeof F.warm === 'function', 'capsulefx.js が 読めて いる');
+  let bad = 0;
+  const seen = { r: {}, sr: {} };
+  for (let i = 0; i < 3000; i++) {
+    ['n', 'r', 'sr'].forEach(function (r) {
+      const p = F.plan(r);
+      const up = p.length === 4 && p.every(function (v, k) { return k === 0 || v >= p[k - 1]; });
+      if (!up) bad++;                                                                      // 色は 上がるだけ
+      if (r === 'n' && p.some(function (v) { return v > 0; })) bad++;                     // ノーマルに 金を 見せない
+      if (r === 'r' && (p[3] !== 1 || p.some(function (v) { return v > 1; }))) bad++;     // レアは 金まで（むらさき・にじ なし）
+      if (r === 'sr' && p[3] !== 3) bad++;                                                 // げきレアは さいごに にじ
+      if (r !== 'n') seen[r][p.join('')] = 1;
+    });
+  }
+  check(bad === 0, 'v13.14: 期待度の はしご＝上がるだけ・ノーマルは 金に ならない・むらさきと にじは げきレア だけ');
+  check(Object.keys(seen.r).length === 3 && Object.keys(seen.sr).length === 4, 'v13.14: はしごの ならびが ぜんぶ 出る（レア 3・げきレア 4）');
+  let bo = 0, bn = 0;
+  for (let i = 0; i < 4000; i++) { if (F.bonusOf('r') || F.bonusOf('sr')) bo++; if (F.bonusOf('n')) bn++; }
+  check(bo === 0, 'v13.14: おまけ（くしゃみ など）は ノーマル だけ');
+  check(bn > 4000 * 0.14 && bn < 4000 * 0.28, 'v13.14: ノーマルの おまけは 5回に 1回 くらい（' + (bn / 40).toFixed(0) + '%）');
+  // 読みこみ順と 登録
+  check(INDEX_HTML.indexOf('js/content/capsule3d.js') > INDEX_HTML.indexOf('js/content/chest3d.js') && INDEX_HTML.indexOf('js/content/chest3d.js') > INDEX_HTML.indexOf('js/core/vox.js'), 'index: capsule3d.js は chest3d.js（vox.js）の あと');
+  check(INDEX_HTML.indexOf('js/ui/capsulefx.js') > INDEX_HTML.indexOf('js/ui/three.js') && INDEX_HTML.indexOf('js/ui/capsulefx.js') < INDEX_HTML.indexOf('js/ui/capsule.js'), 'index: capsulefx.js は three.js の あと・capsule.js の 前');
+  check(INDEX_HTML.indexOf('css/capsulefx.css') >= 0, 'index: capsulefx.css');
+  const swX = fs.readFileSync(path.join(base, 'sw.js'), 'utf8'), hX = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  ['./css/capsulefx.css', './js/content/capsule3d.js', './js/ui/capsulefx.js'].forEach(function (f) { check(swX.indexOf("'" + f + "'") >= 0, 'sw.js の FILES に ' + f); });
+  ['../css/capsulefx.css', '../js/content/capsule3d.js', '../js/ui/capsulefx.js'].forEach(function (f) { check(hX.indexOf(f) >= 0, 'harness.html に ' + f); });
+  // 動かすのは transform と opacity だけ（v13.10）。translate／rotate／scale も transform の なかま
+  const cssX = fs.readFileSync(path.join(base, 'css/capsulefx.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const OKP = ['transform', 'opacity', 'translate', 'rotate', 'scale'];
+  let at = 0, badKf = [];
+  while ((at = cssX.indexOf('@keyframes', at)) >= 0) {
+    const name = cssX.slice(at + 10, cssX.indexOf('{', at)).trim();
+    let i = cssX.indexOf('{', at) + 1, depth = 1;
+    const start = i;
+    while (depth > 0 && i < cssX.length) { if (cssX[i] === '{') depth++; else if (cssX[i] === '}') depth--; i++; }
+    const body = cssX.slice(start, i - 1);
+    (body.match(/[{;]\s*([a-z-]+)\s*:/g) || []).forEach(function (m) { const p = m.replace(/[{;:\s]/g, ''); if (OKP.indexOf(p) < 0) badKf.push(name + '.' + p); });
+    at = i;
+  }
+  check(badKf.length === 0, 'v13.14: capsulefx.css の keyframes は transform・opacity だけ' + (badKf.length ? '（' + badKf.join(' ') + '）' : ''));
+  check(stripComments(fs.readFileSync(path.join(base, 'js/ui/capsulefx.js'), 'utf8')).indexOf('ガチャ') === -1, 'v13.14: 演出の 画面に「ガチャ」と 書かない');
+  console.log('カプセルの 演出: はしご・おまけ・読みこみ順・keyframes OK（おまけ ' + (bn / 40).toFixed(0) + '%）');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

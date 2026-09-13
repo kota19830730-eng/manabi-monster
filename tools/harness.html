@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="../css/motion3d.css">
 <link rel="stylesheet" href="../css/scenery.css">
 <link rel="stylesheet" href="../css/prize.css">
+<link rel="stylesheet" href="../css/capsulefx.css">
 <link rel="stylesheet" href="../css/specialfx.css">
 </head>
 <body>
@@ -105,6 +106,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/art.js"></script>
 <script src="../js/content/treasure.js"></script>
 <script src="../js/content/chest3d.js"></script>
+<script src="../js/content/capsule3d.js"></script>
 <script src="../js/content/zu.js"></script>
 <script src="../js/content/sansu3.js"></script>
 <script src="../js/content/lesson3.js"></script>
@@ -159,6 +161,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/photo.js"></script>
 <script src="../js/ui/pixedit.js"></script>
 <script src="../js/ui/prize.js"></script>
+<script src="../js/ui/capsulefx.js"></script>
 <script src="../js/ui/capsule.js"></script>
 
 <script>
@@ -1080,18 +1083,24 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         const go = document.querySelector('.capgo');
         go.click();                                   // ← ほんものの クリック（バブリングも おきる）
         Math.random = rnd;
+        /* v13.14：まわすと 全画面の 夜空（capsulefx.js）。とちゅうの 見た目は virtual-time では 進まない ので
+           tools/3d/capfxrt.js（本当の 時計）で 撮る。ここでは 場面の じゅんばんと 結果を 見る */
+        const FX = MQ.ui.capsuleFx;
         await wait(300);
-        say('roll: 300ms → ゆれ ' + (document.querySelector('.capmc.is-roll') ? 'ok' : 'MISSING')
+        say('roll: 300ms → 夜空 ' + (document.querySelector('.capfx') ? 'ok' : 'MISSING')
           + ' / 結果は まだ ' + (document.querySelector('.capsule__result').hidden ? 'ok' : 'MISSING（すぐ 出た）'));
-        await wait(800);
-        say('roll: 1100ms → ためる ' + (document.querySelector('.capmc.is-hot') ? 'あり' : 'なし')
-          + ' / 光の すじ ' + (document.querySelector('.capray') ? 'あり' : 'なし')
-          + ' / カプセル ' + (document.querySelector('.capdrop') ? document.querySelector('.capdrop').className : 'まだ'));
-        // :shot … ためて いる ところで 止めて 撮る
-        if (mode.split(':')[3] === 'shot') { MQ.ui.capsule.hold(); freeze(); return; }
-        await wait(2200);
+        await wait(3400);
+        say('roll: 3.7s → 場面 ' + FX.phase() + ' / はしご ' + (FX.levels() || []).join('') + ' / ハンドルが 自動で 回った ' + (FX.phase() !== 'turn' ? 'ok' : 'MISSING'));
+        // :shot … ここで 止めて 撮る
+        if (mode.split(':')[3] === 'shot') { freeze(); return; }
+        MQ.ui.capsule.skip();
+        await wait(200);
         const b = document.querySelector('.capsule__result');
-        say('roll: おわり → ' + (b.hidden ? 'MISSING（出て いない）' : b.className + ' / ' + b.querySelector('.capres__name').textContent));
+        say('roll: とばす → 場面 ' + FX.phase() + ' / 登場 ' + (document.querySelector('.capfx__name') ? document.querySelector('.capfx__name').textContent : 'MISSING')
+          + ' / うらの 結果 ' + (b.hidden ? 'MISSING' : b.querySelector('.capres__name').textContent));
+        FX.next();
+        await wait(120);
+        say('roll: つぎへ → 夜空 ' + (document.querySelector('.capfx') ? 'MISSING（のこって いる）' : 'とじた') + ' / 結果の カード ' + (b.hidden ? 'かくれた' : 'MISSING（のこって いる）'));
         dump();
         return;
       }
@@ -4070,14 +4079,14 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
        タップで とばす に 届いて 演出が 消える」バグを 見のがす（2026-09-07） */
     if ($('.capgo')) $('.capgo').click();
     await wait(300);
-    say('カプセル: 演出 ' + ($('.capmc.is-roll') ? 'ok' : 'MISSING（すぐ 消えた）')
+    say('カプセル: 演出 ' + ($('.capfx') ? 'ok' : 'MISSING（すぐ 消えた）')
       + ' / 結果は まだ ' + ($('.capsule__result').hidden ? 'ok' : 'MISSING（とばされた）'));
     MQ.ui.capsule.skip();
     await wait(150);
     say('カプセル: 出た ' + ($('.capres__name') ? $('.capres__name').textContent + ' / コイン ' + MQ.save.current().coins : 'MISSING'));
     MQ.ui.capsule.close();
     await wait(80);
-    say('カプセル: とじた ' + ($('.capsule') ? 'MISSING（のこって いる）' : 'ok'));
+    say('カプセル: とじた ' + ($('.capsule') ? 'MISSING（のこって いる）' : 'ok') + ' / 夜空 ' + ($('.capfx') ? 'MISSING（のこって いる）' : 'とじた'));
 
     /* しゅぎょうば（v13.0）：一覧 → せつめい → いっしょに → ひとりで まで 通す */
     MQ.save.setPlayGrade(3);   // ここまでの 検査で 学年が 小6 などに なって いる（指導は いま 小3 だけ）

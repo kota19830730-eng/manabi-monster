@@ -211,6 +211,24 @@ MQ.ui.capsule = (function () {
 
        どの だんかいでも **タップで すぐ 結果へ**（毎日 引く ものなので）。 */
     rolling = true;
+    /* v13.14：まわす 演出は capsulefx.js（全画面の 夜空・3D の マシン・期待度の はしご・タップで 割る・登場）。
+       出た ものの 中身は revealOf が 決める。うらでは いつもの 結果（showResult）も 作る（テストと 保険）。 */
+    if (MQ.ui.capsuleFx) {
+      skip = function () { MQ.ui.capsuleFx.skip(); };
+      MQ.ui.capsuleFx.play({
+        rarity: res.rarity,
+        reveal: revealOf(res),
+        onReveal: function () { skip = null; showResult(res); },
+        onNext: function () {
+          rolling = false; skip = null;
+          if (!root) return;
+          const box = root.querySelector('.capsule__result');
+          if (box) box.hidden = true;
+          paint();
+        }
+      });
+      return;
+    }
     MQ.sfx.capsuleLever();
     const mc = root.querySelector('.capmc');
     const stage = root.querySelector('.capstage');
@@ -254,6 +272,30 @@ MQ.ui.capsule = (function () {
       if (rare === 'sr') MQ.sfx.capsuleSr(); else MQ.sfx.capsuleOpen();
       showResult(res);
     }
+  }
+
+  /* ---- 演出の ⑤ 登場に わたす 中身（v13.14）。ことばと 絵は showResult と 同じ ---- */
+  function revealOf(res) {
+    const it = res.item;
+    if (res.home) {
+      return {
+        badge: res.pity ? 'かくてい！' : 'ごほうび！',
+        art: function (s) { return MQ.ui.prize.icon(it.icon, s); },
+        name: it.name, nameRaw: true, msg: 'もちもの に 入ったよ',
+        extra: h('div', { class: 'capticket' }, [
+          h('span', { class: 'capticket__t', text: 'ごほうび チケット' }),
+          h('span', { class: 'capticket__s', text: 'おうちの人に 見せてね' })
+        ])
+      };
+    }
+    return {
+      badge: RARE_NAME[res.rarity],
+      art: function (s) { return artOf(it, s); },
+      name: it.name,
+      msg: res.dup ? 'コインが ' + res.refund + 'まい もどって きた！'
+        : (it.kind === 'mon' ? 'あたらしい なかま！' : it.kind === 'gear' ? 'あたらしい そうび！' : 'あたらしい すがた！'),
+      isNew: !res.dup, dup: !!res.dup, refund: res.refund
+    };
   }
 
   /* ---- 出た ものを 見せる ---- */
@@ -332,9 +374,12 @@ MQ.ui.capsule = (function () {
     ]);
     stage.appendChild(root);
     paint();
+    /* v13.14：3D の マシンと カプセルを 先に 組んで おく（まわした 1コマめが 重く ならない ように） */
+    if (MQ.ui.capsuleFx && MQ.ui.capsuleFx.warm) setTimeout(MQ.ui.capsuleFx.warm, 120);
   }
 
   function close(quiet) {
+    if (MQ.ui.capsuleFx) MQ.ui.capsuleFx.close();
     if (root && root.parentNode) root.parentNode.removeChild(root);
     root = null; rolling = false; skip = null;
     if (!quiet && onClose) { const f = onClose; onClose = null; f(); }

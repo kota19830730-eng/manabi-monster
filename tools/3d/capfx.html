@@ -1,0 +1,131 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>カプセルの 演出の 検査</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&amp;family=Zen+Maru+Gothic:wght@500;700&amp;family=Zen+Kaku+Gothic+New:wght@500;700;900&amp;family=BIZ+UDPGothic:wght@400;700&amp;display=swap">
+<link rel="stylesheet" href="../../css/style.css">
+<link rel="stylesheet" href="../../css/motion3d.css">
+<link rel="stylesheet" href="../../css/scenery.css">
+<link rel="stylesheet" href="../../css/prize.css">
+<link rel="stylesheet" href="../../css/capsulefx.css">
+<link rel="stylesheet" href="../../css/specialfx.css">
+</head><body>
+<div id="stage" class="stage">
+  <main id="screen-start" class="screen is-active"></main>
+  <div id="toast" class="toast" role="status"></div>
+</div>
+<script src="../../js/core/guard.js"></script>
+<script src="../../js/core/util.js"></script>
+<script src="../../js/core/text.js"></script>
+<script src="../../js/core/stage.js"></script>
+<script src="../../js/core/pixel.js"></script>
+<script src="../../js/core/blocks.js"></script>
+<script src="../../js/core/vox.js"></script>
+<script src="../../js/core/tiles.js"></script>
+<script src="../../js/core/sfx.js"></script>
+<script src="../../js/core/bgm.js"></script>
+<script src="../../js/core/save.js"></script>
+<script src="../../js/core/stats.js"></script>
+<script src="../../js/core/ai.js"></script>
+<script src="../../js/core/handwrite.js"></script>
+<script src="../../js/core/missions.js"></script>
+<script src="../../js/core/fever.js"></script>
+<script src="../../js/core/pals.js"></script>
+<script src="../../js/core/streak.js"></script>
+<script src="../../js/core/letter.js"></script>
+<script src="../../js/core/review.js"></script>
+<script src="../../js/core/speech.js"></script>
+<script src="../../js/core/battle.js"></script>
+<script src="../../js/content/monsterart.js"></script>
+<script src="../../js/content/monstergen.js"></script>
+<script src="../../js/content/face.js"></script>
+<script src="../../js/content/enemies.js"></script>
+<script src="../../js/content/hero.js"></script>
+<script src="../../js/content/art.js"></script>
+<script src="../../js/content/treasure.js"></script>
+<script src="../../js/content/chest3d.js"></script>
+<script src="../../js/content/capsule3d.js"></script>
+<script src="../../js/content/zu.js"></script>
+<script src="../../js/content/sansu3.js"></script>
+<script src="../../js/content/lesson3.js"></script>
+<script src="../../js/content/kokugo3.js"></script>
+<script src="../../js/content/sansu1.js"></script>
+<script src="../../js/content/kanjiq.js"></script>
+<script src="../../js/content/kakusu.js"></script>
+<script src="../../js/content/kotoba.js"></script>
+<script src="../../js/content/kokugo1.js"></script>
+<script src="../../js/content/sansu2.js"></script>
+<script src="../../js/content/kokugo2.js"></script>
+<script src="../../js/content/sansu4.js"></script>
+<script src="../../js/content/sansu5.js"></script>
+<script src="../../js/content/kokugo5.js"></script>
+<script src="../../js/content/rika5.js"></script>
+<script src="../../js/content/shakai5.js"></script>
+<script src="../../js/content/eigo5.js"></script>
+<script src="../../js/content/sansu6.js"></script>
+<script src="../../js/content/kokugo6.js"></script>
+<script src="../../js/content/rika6.js"></script>
+<script src="../../js/content/shakai6.js"></script>
+<script src="../../js/content/eigo6.js"></script>
+<script src="../../js/content/kokugo4.js"></script>
+<script src="../../js/content/rika4.js"></script>
+<script src="../../js/content/shakai4.js"></script>
+<script src="../../js/content/eigo4.js"></script>
+<script src="../../js/content/rikashakai3.js"></script>
+<script src="../../js/content/eigo3.js"></script>
+<script src="../../js/content/romaji3.js"></script>
+<script src="../../js/content/textbooks.js"></script>
+<script src="../../js/content/terms.js"></script>
+<script src="../../js/content/world3.js"></script>
+<script src="../../js/content/news.js"></script>
+<script src="../../js/core/dojo.js"></script>
+<script src="../../js/core/capsule.js"></script>
+<script src="../../js/core/prize.js"></script>
+<script src="../../js/ui/common.js"></script>
+<script src="../../js/ui/three.js"></script>
+<script src="../../js/ui/scenery.js"></script>
+<script src="../../js/ui/fxcanvas.js"></script>
+<script src="../../js/ui/news.js"></script>
+<script src="../../js/ui/look.js"></script>
+<script src="../../js/ui/start.js"></script>
+<script src="../../js/ui/map.js"></script>
+<script src="../../js/ui/dojo.js"></script>
+<script src="../../js/ui/battle.js"></script>
+<script src="../../js/ui/result.js"></script>
+<script src="../../js/ui/dex.js"></script>
+<script src="../../js/ui/parent.js"></script>
+<script src="../../js/ui/photo.js"></script>
+<script src="../../js/ui/pixedit.js"></script>
+<script src="../../js/ui/prize.js"></script>
+<script src="../../js/ui/capsulefx.js"></script>
+<script src="../../js/ui/capsule.js"></script>
+<script>
+/* #<n|r|sr>[:<はしご 4けた>][:<おまけ>][:nopal][:2d][:cold] */
+(function () {
+  const q = (location.hash || '#sr').slice(1).split(':');
+  const rar = ['n', 'r', 'sr'].indexOf(q[0]) >= 0 ? q[0] : 'sr';
+  const plan = q[1] && /^[0-3]{4}$/.test(q[1]) ? q[1].split('').map(Number) : undefined;
+  const bonus = q[2] && q[2] !== '-' ? (q[2] === 'none' ? null : q[2]) : null;
+  try { localStorage.clear(); } catch (e) {}
+  MQ.stage.fit();
+  MQ.save.load();
+  MQ.save.setSetting('sfx', false); MQ.save.setSetting('bgm', false);
+  if (q.indexOf('2d') >= 0) MQ.save.setSetting('v3', false);
+  MQ.save.createPlayer('こうた', { hair: 'gold', skin: 'mid', style: 'short' });
+  if (q.indexOf('nopal') < 0) MQ.save.update(function (pl) { MQ.pals.add(pl, 'slime-green'); });
+  const item = rar === 'sr' ? ['cap-phoenix', 'フェニクス'] : rar === 'r' ? ['cap-starcat', 'ホシネコ'] : ['cap-knight', 'ミニナイト'];
+  /* ゲームと 同じ：カプセルの 画面を ひらいた ときに 先に 組んで おいて（warm）、すこし あとで まわす。:cold は 組まずに すぐ */
+  const cold = q.indexOf('cold') >= 0;
+  if (!cold) MQ.ui.capsuleFx.warm();
+  setTimeout(function () { MQ.ui.capsuleFx.play({
+    rarity: rar, plan: plan, bonus: bonus,
+    reveal: {
+      badge: { n: 'ノーマル', r: 'レア', sr: 'げきレア' }[rar],
+      art: function (s) { return MQ.ui.v3.on() ? MQ.ui.v3.monster(item[0], s, { ry: -14, mo: 'mo-title' }) : MQ.enemies.node(item[0], { size: s }); },
+      name: item[1], msg: q.indexOf('dup') >= 0 ? 'コインが 5まい もどって きた！' : 'あたらしい なかま！',
+      isNew: q.indexOf('dup') < 0, dup: q.indexOf('dup') >= 0, refund: 5
+    },
+    onNext: function () { document.title = 'next'; }
+  }); }, cold ? 0 : 700);
+  window.__fx = MQ.ui.capsuleFx;
+})();
+</script>
+</body></html>
