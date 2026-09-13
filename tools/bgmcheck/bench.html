@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="out">wait</pre>
+<script>
+// ?src=<file url>&song=title&sec=14&lv=0&enrage=0&off=pad,reverb&wav=1
+const Q = new URLSearchParams(location.search);
+const SRC = Q.get('src'), SONG = Q.get('song'), SEC = Number(Q.get('sec') || 12);
+const LV = Number(Q.get('lv') || 0), ENRAGE = Q.get('enrage') === '1', WAV = Q.get('wav') === '1';
+window.__off = {};
+(Q.get('off') || '').split(',').filter(Boolean).forEach(function (k) { window.__off[k] = true; });
+// 同じ 乱数に する（前と 後の 差を くらべる ため）
+let seed = Number(Q.get("seed") || 12345);
+Math.random = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+const SR = 44100;
+let fakeT = 0, tickFn = null, theCtx = null;
+window.setInterval = function (fn) { tickFn = fn; return 1; };
+window.AudioContext = function () {
+  const c = new OfflineAudioContext(2, SR * SEC, SR);
+  Object.defineProperty(c, 'state', { get: function () { return 'running'; } });
+  Object.defineProperty(c, 'currentTime', { get: function () { return fakeT; } });
+  c.realResume = c.resume.bind(c);
+  c.resume = function () { return Promise.resolve(); };
+  theCtx = c;
+  return c;
+};
+let jsMs = 0;
+const s = document.createElement('script');
+s.src = SRC;
+s.onload = function () {
+  try {
+    if (Q.get('nosmp') === '1' && MQ.bgm.setSampler) MQ.bgm.setSampler(false);
+    if (Q.get('at')) MQ.bgm.play(SONG, { at: Number(Q.get('at')) }); else MQ.bgm.play(SONG);
+    if (LV) MQ.bgm.setIntensity(LV);
+    if (ENRAGE) MQ.bgm.setEnrage(true);
+    const pr = MQ.bgm.prepare ? Promise.all(Object.keys(MQ.bgm.songs).map(function (n) { return MQ.bgm.prepare(n); })) : Promise.resolve();
+    const p0 = performance.now();
+    pr.then(function () { window.__prepMs = performance.now() - p0; go(); });
+  } catch (e) { document.getElementById('out').textContent = 'ERR ' + e.stack; }
+};
+function go() {
+  try {
+    fakeT = 0; tickFn && tickFn();
+    const Q128 = 128 / SR;
+    for (let t = 0.2; t < SEC; t += 0.2) {
+      const at = Math.round(t / Q128) * Q128;
+      theCtx.suspend(at).then(function () { fakeT = at; const j0 = performance.now(); tickFn && tickFn(); jsMs += performance.now() - j0; theCtx.realResume(); });
+    }
+    const r0 = performance.now();
+    theCtx.startRendering().then(function (buf) {
+      const renderSec = (performance.now() - r0) / 1000;
+      const L = buf.getChannelData(0), R = buf.getChannelData(1);
+      let peak = 0, sum = 0;
+      for (let i = 0; i < L.length; i++) { peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i])); sum += (L[i] * L[i] + R[i] * R[i]) / 2; }
+      const stats = 'prep=' + Math.round(window.__prepMs||0) + 'ms render=' + (renderSec / SEC * 100).toFixed(1) + '% js=' + (jsMs / 1000 / SEC * 100).toFixed(1) + '% peak=' + peak.toFixed(3) +
+        ' rms=' + (10 * Math.log10(sum / L.length + 1e-12)).toFixed(1);
+      if (!WAV) { document.getElementById('out').textContent = 'STATS ' + stats; return; }
+      const n = L.length, bytes = 44 + n * 8, ab = new ArrayBuffer(bytes), dv = new DataView(ab);
+      // float32 の まま（差を はかる ため）
+      const w = function (o, str) { for (let i = 0; i < str.length; i++) dv.setUint8(o + i, str.charCodeAt(i)); };
+      w(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); w(8, 'WAVE'); w(12, 'fmt ');
+      dv.setUint32(16, 16, true); dv.setUint16(20, 3, true); dv.setUint16(22, 2, true);
+      dv.setUint32(24, SR, true); dv.setUint32(28, SR * 8, true); dv.setUint16(32, 8, true); dv.setUint16(34, 32, true);
+      w(36, 'data'); dv.setUint32(40, n * 8, true);
+      let o = 44;
+      for (let i = 0; i < n; i++) { dv.setFloat32(o, L[i], true); o += 4; dv.setFloat32(o, R[i], true); o += 4; }
+      const u8 = new Uint8Array(ab);
+      let bin = '';
+      for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+      window.__wav = btoa(bin);
+      document.getElementById('out').textContent = 'STATS ' + stats + '\nREADY ' + window.__wav.length;
+    }).catch(function (e) { document.getElementById('out').textContent = 'ERR ' + e; });
+  } catch (e) { document.getElementById('out').textContent = 'ERR ' + e.stack; }
+};
+document.head.appendChild(s);
+</script>

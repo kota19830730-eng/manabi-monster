@@ -12,6 +12,11 @@
      ・もりあがり（setIntensity）… 1：arp と ハイハットが 入る／2：メロディが 1オクターブ下でも 重なり テンポ↑
        ボスが おこったら（setEnrage）… さらに 速く・バスドラ 2倍
 
+   v14.1（2026-09-13）音は そのまま 軽く した（タブレットで もたつかない ように・docs/v14.1BGMを軽くするメモ.md）。
+     ・音を はじめに 1回だけ 録音して おき、あとは 再生するだけ（BANK・DRUM）。録音が まだの ときは その場で 作る
+     ・同じ 動きの フィルターは 1つに まとめる・フィルターの 動きは k-rate
+     ・先読み 0.6秒（LOOKAHEAD）・曲を かえる ときは 予約ずみの 音を 消す（outs）
+
    曲は 文字で 書く（1セクション ＝ 2小節 ＝ 16分音符 32こ）：
      "e5 - - . g5 - a5 -"  … e5 を 3つぶん のばす・「.」は おやすみ・「-」は 前の 音を のばす
      コードは "F G Em Am" の ように 4つ（1つ ＝ 2はく）
@@ -302,10 +307,15 @@ MQ.bgm = (function () {
     }
     trash = keep;
   }
+  function panner(c, pan) {
+    if (!c.createStereoPanner) return c.createGain();
+    const p = c.createStereoPanner();
+    p.pan.value = pan;
+    return p;
+  }
   function panned(node, pan) {
     if (!ctx.createStereoPanner) return node;
-    const p = ctx.createStereoPanner();
-    p.pan.value = pan;
+    const p = panner(ctx, pan);
     node.connect(p);
     return p;
   }
@@ -316,17 +326,30 @@ MQ.bgm = (function () {
     gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol * (sus || 0.7)), t + Math.min(dur * 0.5, a + 0.08));
     gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   }
+  /* フィルターの 動きは 128サンプルに 1回（k-rate）。
+     まいサンプル 係数を 計算しなくて よく なる（耳では 同じ・v14.1） */
+  function lowpass(q) {
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    if (q) f.Q.value = q;
+    try { if ('automationRate' in f.frequency) { f.frequency.automationRate = 'k-rate'; f.Q.automationRate = 'k-rate'; } } catch (e) {}
+    return f;
+  }
   // ゆれ（ビブラート）。1つの 音に 1つだけ 作って、重ねた 波 ぜんぶに つなぐ（タブレットで 重く しない）
   function vibrato(oscs, t, dur, depth) {
     if (dur < 0.24) return;
+    const lg = lfoGain(t, dur, depth || 10);
+    (oscs.length ? oscs : [oscs]).forEach(function (o) { lg.connect(o.detune); });
+  }
+  function lfoGain(t, dur, amount) {
     const lfo = ctx.createOscillator();
     const lg = ctx.createGain();
     lfo.frequency.value = 5.6;
     lg.gain.setValueAtTime(0, t);
-    lg.gain.linearRampToValueAtTime(depth || 10, t + Math.min(0.3, dur * 0.5));
+    lg.gain.linearRampToValueAtTime(amount, t + Math.min(0.3, dur * 0.5));
     lfo.connect(lg);
-    (oscs.length ? oscs : [oscs]).forEach(function (o) { lg.connect(o.detune); });
     lfo.start(t); lfo.stop(t + dur + 0.05);
+    return lg;
   }
   function osc(type, midi, t, dur, detune) {
     const o = ctx.createOscillator();
@@ -337,94 +360,252 @@ MQ.bgm = (function () {
     return o;
   }
 
+  /* =======================================================
+     録音して おく 音（サンプラー・v14.1）
+       同じ 高さの 音を 毎回 波 5〜6本で 作ると タブレットで 重い。
+       はじめに 1回だけ おなじ しくみ（OfflineAudioContext）で 録音して おき、あとは 再生するだけ。
+       フィルター・音量の 形・ビブラートは 1音ごとに かけるので、音は 前と 同じ。
+       録音が まだ できて いない（または できない）ときは いままでどおり その場で 作る。
+     ======================================================= */
+  const SAW5 = [[-18, -0.65], [-9, -0.65], [0, 0], [9, 0.65], [18, 0.65]];   // [detune, 左右]
+  const BANK = {
+    // supersaw の のこぎり 5本（左右に ひろげた まま・フィルターの 前）。0.9秒で 音の 98%
+    lead: { len: 0.9, ch: 2, make: function (oc, m, t, len) {
+      SAW5.forEach(function (v) { bankOsc(oc, 'sawtooth', m, t, len, v[0], 1, panner(oc, v[1])); });
+    } },
+    pad:   { len: 1.3, ch: 1, make: function (oc, m, t, len) { [-10, 10].forEach(function (d) { bankOsc(oc, 'sawtooth', m, t, len, d, 1); }); } },
+    pluck: { len: 0.4, ch: 1, make: function (oc, m, t, len) { [-6, 6].forEach(function (d) { bankOsc(oc, 'sawtooth', m, t, len, d, 1); }); } },
+    bsaw:  { len: 0.55, ch: 1, make: function (oc, m, t, len) { bankOsc(oc, 'sawtooth', m, t, len, 0, 1); } },
+    // ベースの 芯（1オクターブ下の 四角×0.35 ＋ サイン×0.9。フィルターを 通らない ぶん）
+    bbody: { len: 0.55, ch: 1, make: function (oc, m, t, len) {
+      bankOsc(oc, 'square', m - 12, t, len, 0, 0.35);
+      bankOsc(oc, 'sine', m - 12, t, len, 0, 0.9);
+    } }
+  };
+  function bankOsc(oc, type, midi, t, len, det, gain, via) {
+    const o = oc.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(freq(midi), t);
+    if (det) o.detune.setValueAtTime(det, t);
+    let out = o;
+    if (gain !== 1) { const g = oc.createGain(); g.gain.value = gain; o.connect(g); out = g; }
+    if (via) { out.connect(via); out = via; }
+    out.connect(oc.destination);
+    o.start(t); o.stop(t + len);
+  }
+  let useSamples = true;
+  const samples = {};           // 'lead:69' → { buf, off } ／ { p: Promise } ／ { fail: true }
+  let bankChain = Promise.resolve();
+  function sample(kind, midi, dur) {
+    if (!useSamples || dur + 0.06 > BANK[kind].len) return null;
+    const s = samples[kind + ':' + midi];
+    return s && s.buf ? s : null;
+  }
+  /* 再生の はじまりは サンプルの さかいめに そろえる。
+     さかいめの あいだから 始めると となりの 点を まぜて 読む ので 高い 音が 少し こもる（実測 8k〜13kHz で −2dB） */
+  function onFrame(t) { return Math.round(t * ctx.sampleRate) / ctx.sampleRate; }
+  function sampleSrc(s, t, dur) {
+    const src = ctx.createBufferSource();
+    src.buffer = s.buf;
+    src.start(onFrame(t), s.off, dur + 0.05);
+    return src;
+  }
+  // 1つの OfflineAudioContext に ならべて 録音し、あとは 場所（off）で 切り出して 使う（コピーしない）
+  function renderBank(kind, midis) {
+    const B = BANK[kind];
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const done = function (buf) {
+      midis.forEach(function (m, k) {
+        samples[kind + ':' + m] = buf ? { buf: buf, off: k * seg / sr } : { fail: true };
+      });
+    };
+    if (!OAC || !ctx) { done(null); return Promise.resolve(); }
+    const sr = ctx.sampleRate, seg = Math.ceil(B.len * sr);
+    let oc;
+    try {
+      oc = new OAC(B.ch, seg * midis.length, sr);
+      midis.forEach(function (m, k) { B.make(oc, m, k * seg / sr, B.len); });
+    } catch (e) { done(null); return Promise.resolve(); }
+    return new Promise(function (res) {
+      let fin = false;
+      const end = function (buf) { if (fin) return; fin = true; done(buf); res(); };
+      oc.oncomplete = function (e) { end(e.renderedBuffer); };
+      try {
+        const p = oc.startRendering();
+        if (p && p.then) p.then(end, function () { end(null); });
+      } catch (e) { end(null); }
+    });
+  }
+  function queueBank(kind, midis) {
+    const out = [];
+    const need = [];
+    midis.forEach(function (m) {
+      const s = samples[kind + ':' + m];
+      if (!s) need.push(m); else if (s.p) out.push(s.p);
+    });
+    // 8つずつ（1回の 録音を 小さく して、タブレットで 音楽の じゃまを しない）
+    for (let i = 0; i < need.length; i += 8) {
+      const part = need.slice(i, i + 8);
+      const p = bankChain.then(function () { return renderBank(kind, part); });
+      bankChain = p.then(function () { return new Promise(function (r) { setTimeout(r, 100); }); });
+      part.forEach(function (m) { samples[kind + ':' + m] = { p: p }; });
+      out.push(p);
+    }
+    return out;
+  }
+  // この 曲で 使う 高さを ぜんぶ 録音して おく
+  function prepare(name) {
+    if (!ctx || !useSamples || !SONGS[name]) return Promise.resolve();
+    const ex = expand(name), song = ex.song;
+    const want = { lead: {}, pad: {}, pluck: {}, bsaw: {}, bbody: {} };
+    const add = function (k, m) { if (m > 0) want[k][m] = true; };
+    for (let i = 0; i < ex.len; i++) {
+      const m = ex.mel[i];
+      if (m) {
+        if (song.lead === 'supersaw') add('lead', m);
+        if (song.lead === 'pluck') add('pluck', m);
+        if (song.lead !== 'pluck') add('lead', m - 12);      // もりあがり 2 の 重ね
+      }
+      if (ex.bass[i]) { add('bsaw', ex.bass[i]); add('bbody', ex.bass[i]); }
+      if (i % 2 === 0) add('pluck', ex.arp[i]);
+      const ch = ex.chords[i];
+      const sec = ex.flags[Math.floor(i / 32) * 32];
+      if (ch) {
+        ch.notes.forEach(function (n) {
+          if (sec.pad) add('pad', ch.root + 12 + n);
+          if (sec.stab) add('lead', ch.root + 12 + n);           // コードの ジャーン
+        });
+        if (sec.stab) { add('bsaw', ch.root - 12); add('bbody', ch.root - 12); }
+      }
+    }
+    let ps = queueDrums();
+    ['lead', 'pad', 'bass', 'pluck'].forEach(function (k) {
+      if (k === 'bass') { ps = ps.concat(queueBank('bsaw', Object.keys(want.bsaw).map(Number)), queueBank('bbody', Object.keys(want.bbody).map(Number))); }
+      else ps = ps.concat(queueBank(k, Object.keys(want[k]).map(Number)));
+    });
+    return Promise.all(ps);
+  }
+  // さいしょの 曲の あとで、ほかの 曲も 少しずつ 録音して おく（たたかいが 始まった しゅんかんに 重く ならない）
+  let warmed = false;
+  function warmAll(first) {
+    if (warmed) return;
+    warmed = true;
+    prepare(first).then(function () {
+      // 画面を 作る 仕事と ぶつからない ように 少し 待ってから
+      setTimeout(function () { Object.keys(SONGS).forEach(function (n) { if (n !== first) prepare(n); }); }, 1000);
+    });
+  }
+
   /* ---- 楽器 ---- */
   // supersaw：のこぎり 5本を 左右に ひろげる。今どきの ゲームの リード
-  function supersaw(t, midi, dur, vol) {
+  //   more … 同じ 時に 同じ 長さで 鳴らす 音（[高さ, 音量の 割合]）。フィルターと 音量の 形を 分けあう
+  //          （もりあがり 2 の 1オクターブ下の 重ね・コードの ジャーン）
+  function supersaw(t, midi, dur, vol, more) {
     const g = ctx.createGain();
-    // 左・右の 2つの フィルターに まとめる（波は 5本・フィルターは 3つ）
-    const sides = [-0.65, 0, 0.65].map(function (pan) {
-      const f = ctx.createBiquadFilter();
-      f.type = 'lowpass'; f.Q.value = 0.8;
-      f.frequency.setValueAtTime(9000, t);
-      f.frequency.exponentialRampToValueAtTime(3200, t + Math.max(0.12, dur));
-      panned(f, pan).connect(g);
-      return f;
+    // フィルターは 1つに まとめる（左・まん中・右とも 同じ 動き → まとめても 音は 同じ）
+    const f = lowpass(0.8);
+    f.frequency.setValueAtTime(9000, t);
+    f.frequency.exponentialRampToValueAtTime(3200, t + Math.max(0.12, dur));
+    f.connect(g);
+    let lg = null;   // 録音した 音の ゆれ（再生の はやさ に かける。重ねた 音で 分けあう）
+    [[midi, 1]].concat(more || []).forEach(function (vc) {
+      const m = vc[0], k = vc[1];
+      let into = f;
+      if (k !== 1) { into = ctx.createGain(); into.gain.value = k; into.connect(f); }
+      const s = sample('lead', m, dur);
+      if (s) {
+        const src = sampleSrc(s, t, dur);
+        src.connect(into);
+        if (dur >= 0.24) {
+          if (!lg) lg = lfoGain(t, dur, src.detune ? 8 : Math.pow(2, 8 / 1200) - 1);   // detune が ない ブラウザは はやさで
+          lg.connect(src.detune || src.playbackRate);
+        }
+      } else {
+        const sides = [-0.65, 0, 0.65].map(function (pan) { const p = panner(ctx, pan); p.connect(into); return p; });
+        const saws = SAW5.map(function (v) {
+          const o = osc('sawtooth', m, t, dur, v[0]);
+          o.connect(sides[v[1] < 0 ? 0 : v[1] > 0 ? 2 : 1]);
+          return o;
+        });
+        vibrato(saws, t, dur, 8);
+      }
+      // まん中に 1オクターブ下の 四角（芯）
+      const sub = osc('square', m - 12, t, dur);
+      const sg = ctx.createGain(); sg.gain.value = 0.3 * k;
+      sub.connect(sg); sg.connect(g);
     });
-    const saws = [[-18, 0], [-9, 0], [0, 1], [9, 2], [18, 2]].map(function (v) {
-      const o = osc('sawtooth', midi, t, dur, v[0]);
-      o.connect(sides[v[1]]);
-      return o;
-    });
-    vibrato(saws, t, dur, 8);
-    // まん中に 1オクターブ下の 四角（芯）
-    const sub = osc('square', midi - 12, t, dur);
-    const sg = ctx.createGain(); sg.gain.value = 0.3;
-    sub.connect(sg); sg.connect(g);
     env(g, t, dur, vol * volume * 0.42, 0.012, 0.8);
-    g.connect(leadBus);
+    g.connect(outs.lead);
     retire(g, t + dur + 0.05);
   }
   // pluck：みじかく はじく。アルペジオと マップの メロディ
   function pluck(t, midi, dur, vol) {
     const g = ctx.createGain();
     const d = Math.min(dur, 0.32);
-    const f = ctx.createBiquadFilter();
-    f.type = 'lowpass'; f.Q.value = 3;
+    const f = lowpass(3);
     f.frequency.setValueAtTime(7000, t);
     f.frequency.exponentialRampToValueAtTime(700, t + d);
-    osc('sawtooth', midi, t, d, -6).connect(f);
-    osc('sawtooth', midi, t, d, 6).connect(f);
+    const s = sample('pluck', midi, d);
+    if (s) sampleSrc(s, t, d).connect(f);
+    else { osc('sawtooth', midi, t, d, -6).connect(f); osc('sawtooth', midi, t, d, 6).connect(f); }
     f.connect(g);
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(vol * volume, t + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0001, t + d);
     const out = panned(g, ((midi % 12) / 11 - 0.5) * 0.9);   // 音の 高さで 左右に ちらす
-    out.connect(duckBus);
+    out.connect(outs.duck);
     retire(out, t + d + 0.05);
   }
   // pad：コードを ささえる ひろい 音（ゆっくり 立ち上がる）
   function pad(t, root, notes, dur, vol) {
+    // 1つの コードの 音は フィルターも 音量の 形も 同じ → 1つに まとめる（音は 同じ）
+    const f = lowpass();
+    f.frequency.setValueAtTime(900, t);
+    f.frequency.exponentialRampToValueAtTime(2400, t + dur * 0.5);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol * volume, t + dur * 0.3);
+    g.gain.setValueAtTime(vol * volume, t + dur * 0.8);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
+    f.connect(g);
     notes.forEach(function (n, i) {
-      const g = ctx.createGain();
-      const pan = (i / Math.max(1, notes.length - 1) - 0.5) * 1.2;
-      const f = ctx.createBiquadFilter();
-      f.type = 'lowpass';
-      f.frequency.setValueAtTime(900, t);
-      f.frequency.exponentialRampToValueAtTime(2400, t + dur * 0.5);
-      osc('sawtooth', root + 12 + n, t, dur, -10).connect(f);
-      osc('sawtooth', root + 12 + n, t, dur, 10).connect(f);
-      panned(f, pan).connect(g);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(vol * volume, t + dur * 0.3);
-      g.gain.setValueAtTime(vol * volume, t + dur * 0.8);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
-      g.connect(duckBus);
-      retire(g, t + dur + 0.1);
+      const p = panner(ctx, (i / Math.max(1, notes.length - 1) - 0.5) * 1.2);
+      const m = root + 12 + n;
+      const s = sample('pad', m, dur);
+      if (s) sampleSrc(s, t, dur).connect(p);
+      else { osc('sawtooth', m, t, dur, -10).connect(p); osc('sawtooth', m, t, dur, 10).connect(p); }
+      p.connect(f);
     });
+    g.connect(outs.duck);
+    retire(g, t + dur + 0.1);
   }
   // bass：のこぎり（フィルター）＋ 1オクターブ下の 四角 ＋ サイン
   function bass(t, midi, dur, vol) {
     const g = ctx.createGain();
-    const f = ctx.createBiquadFilter();
-    f.type = 'lowpass'; f.Q.value = 2;
+    const f = lowpass(2);
     f.frequency.setValueAtTime(1600, t);
     f.frequency.exponentialRampToValueAtTime(300, t + dur);
-    osc('sawtooth', midi, t, dur).connect(f);
     f.connect(g);
-    const sq = osc('square', midi - 12, t, dur);
-    const sqg = ctx.createGain(); sqg.gain.value = 0.35; sq.connect(sqg); sqg.connect(g);
-    const sn = osc('sine', midi - 12, t, dur);
-    const sng = ctx.createGain(); sng.gain.value = 0.9; sn.connect(sng); sng.connect(g);
+    const sw = sample('bsaw', midi, dur), sb = sample('bbody', midi, dur);
+    if (sw && sb) {
+      sampleSrc(sw, t, dur).connect(f);
+      sampleSrc(sb, t, dur).connect(g);
+    } else {
+      osc('sawtooth', midi, t, dur).connect(f);
+      const sq = osc('square', midi - 12, t, dur);
+      const sqg = ctx.createGain(); sqg.gain.value = 0.35; sq.connect(sqg); sqg.connect(g);
+      const sn = osc('sine', midi - 12, t, dur);
+      const sng = ctx.createGain(); sng.gain.value = 0.9; sn.connect(sng); sng.connect(g);
+    }
     env(g, t, dur, vol * volume, 0.006, 0.75);
-    g.connect(duckBus);
+    g.connect(outs.duck);
     retire(g, t + dur + 0.05);
   }
   // chip：レトロの 四角（1オクターブ下に 三角）
   function chip(t, midi, dur, vol) {
     const g = ctx.createGain();
     const sq = [[-7, -0.3], [7, 0.3]].map(function (v) {
-      const f = ctx.createBiquadFilter();
-      f.type = 'lowpass';
+      const f = lowpass();
       f.frequency.setValueAtTime(6400, t);
       f.frequency.exponentialRampToValueAtTime(3400, t + dur);
       const o = osc('square', midi, t, dur, v[0]);
@@ -436,15 +617,14 @@ MQ.bgm = (function () {
     const b = osc('triangle', midi - 12, t, dur);
     const bg = ctx.createGain(); bg.gain.value = 0.45; b.connect(bg); bg.connect(g);
     env(g, t, dur, vol * volume, 0.006);
-    g.connect(leadBus);
+    g.connect(outs.lead);
     retire(g, t + dur + 0.05);
   }
   // brass：ラッパ（のこぎり 2本 左右 ＋ 四角）
   function brass(t, midi, dur, vol) {
     const g = ctx.createGain();
     const os = [[-8, 'sawtooth', -0.3, 1], [8, 'sawtooth', 0.3, 1], [0, 'square', 0, 0.35]].map(function (v) {
-      const f = ctx.createBiquadFilter();
-      f.type = 'lowpass'; f.Q.value = 2.2;
+      const f = lowpass(2.2);
       f.frequency.setValueAtTime(1500, t);
       f.frequency.exponentialRampToValueAtTime(4400, t + 0.06);
       f.frequency.exponentialRampToValueAtTime(2000, t + dur);
@@ -456,19 +636,21 @@ MQ.bgm = (function () {
     });
     vibrato(os, t, dur, 10);
     env(g, t, dur, vol * volume, 0.02, 0.8);
-    g.connect(leadBus);
+    g.connect(outs.lead);
     retire(g, t + dur + 0.05);
   }
   const LEADS = { supersaw: supersaw, pluck: pluck, chip: chip, brass: brass };
 
   // コードの ジャーン（イントロ・ファンファーレ）
   function stab(t, ch, dur, vol) {
-    ch.notes.forEach(function (n) { supersaw(t, ch.root + 12 + n, dur, vol * 0.6); });
+    const vs = ch.notes.map(function (n) { return [ch.root + 12 + n, 1]; });
+    supersaw(t, vs[0][0], dur, vol * 0.6, vs.slice(1));     // 3〜4つの 音で フィルターと 音量の 形を 分けあう
     bass(t, ch.root - 12, dur, vol * 0.9);
   }
 
   /* ---- ドラム ---- */
   // ノイズは 長さごとに 1回だけ 作って 使いまわす（毎回 作ると タブレットで 音が とぎれる）
+  // 乱数は 長さごとに きまった たね（録音した 音と その場の 音が 同じに なる）
   const noiseCache = {};
   function noiseBuf(dur) {
     const key = Math.round(dur * 1000);
@@ -476,22 +658,129 @@ MQ.bgm = (function () {
     const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    let seed = (key * 2654435761) >>> 0 || 1;
+    for (let i = 0; i < len; i++) {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      d[i] = (seed / 2147483648 - 1) * (1 - i / len);
+    }
     noiseCache[key] = buf;
     return buf;
   }
-  function noiseHit(t, dur, vol, type, fq, q, pan) {
-    const src = ctx.createBufferSource();
+  // ドラムの 音の 作り方（c＝どの AudioContext か・dest＝出口・v＝音量）。出口の ノードを かえす
+  function noiseHitG(c, dest, t, dur, vol, type, fq, q, pan) {
+    const src = c.createBufferSource();
     src.buffer = noiseBuf(dur);
-    const f = ctx.createBiquadFilter();
+    const f = c.createBiquadFilter();
     f.type = type; f.frequency.value = fq; if (q) f.Q.value = q;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(vol * volume, t);
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    const out = panned(g, pan || 0);
-    src.connect(f); f.connect(g); out.connect(master);
+    let out = g;
+    if (c.createStereoPanner) { out = panner(c, pan || 0); g.connect(out); }
+    src.connect(f); f.connect(g); out.connect(dest);
     src.start(t);
-    retire(out, t + dur + 0.02);
+    return out;
+  }
+  function kickG(c, dest, t, v, big) {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(big ? 190 : 165, t);
+    o.frequency.exponentialRampToValueAtTime(42, t + 0.11);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime((big ? 0.3 : 0.24) * v, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+    o.connect(g); g.connect(dest);
+    o.start(t); o.stop(t + 0.26);
+    return [g, noiseHitG(c, dest, t, 0.018, 0.06 * v, 'bandpass', 3400, 1)];   // ドン＋カッ
+  }
+  function snareG(c, dest, t, v, soft) {
+    const s = soft ? 0.5 : 1;
+    const a = noiseHitG(c, dest, t, 0.2, 0.11 * s * v, 'bandpass', 2400, 0.6);
+    const b = noiseHitG(c, dest, t, 0.05, 0.07 * s * v, 'highpass', 6000);
+    const o = c.createOscillator();
+    const og = c.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(230, t);
+    o.frequency.exponentialRampToValueAtTime(140, t + 0.1);
+    og.gain.setValueAtTime(0.09 * s * v, t);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+    o.connect(og); og.connect(dest);
+    o.start(t); o.stop(t + 0.15);
+    return [a, b, og];
+  }
+  function clapG(c, dest, t, v) {
+    const out = [0, 0.011, 0.022].map(function (d) { return noiseHitG(c, dest, t + d, 0.03, 0.05 * v, 'bandpass', 1800, 1.2, d * 20 - 0.2); });
+    out.push(noiseHitG(c, dest, t + 0.03, 0.16, 0.05 * v, 'bandpass', 1600, 0.9, 0.1));
+    return out;
+  }
+  function hatG(c, dest, t, v, open) {
+    return [noiseHitG(c, dest, t, open ? 0.14 : 0.03, (open ? 0.03 : 0.022) * v, 'highpass', 7600, 0, 0.25)];
+  }
+  function crashG(c, dest, t, v) {
+    return [noiseHitG(c, dest, t, 1.4, 0.075 * v, 'highpass', 4200, 0, -0.2),
+            noiseHitG(c, dest, t, 0.5, 0.05 * v, 'bandpass', 9000, 0.5, 0.2)];
+  }
+  // ドラムも 1回だけ 録音して おく（ハイハットは 16分ごとに 鳴る ので、その場で 作ると 数が 多い）
+  const DRUM = {
+    kick:   { len: 0.27, make: function (c, d, t, v) { return kickG(c, d, t, v, false); } },
+    kickB:  { len: 0.27, make: function (c, d, t, v) { return kickG(c, d, t, v, true); } },
+    snare:  { len: 0.22, make: function (c, d, t, v) { return snareG(c, d, t, v, false); } },
+    snareS: { len: 0.22, make: function (c, d, t, v) { return snareG(c, d, t, v, true); } },
+    clap:   { len: 0.21, make: clapG },
+    hat:    { len: 0.05, make: function (c, d, t, v) { return hatG(c, d, t, v, false); } },
+    hatO:   { len: 0.16, make: function (c, d, t, v) { return hatG(c, d, t, v, true); } },
+    crash:  { len: 1.42, make: crashG }
+  };
+  function queueDrums() {
+    if (samples.drums) return samples.drums.p ? [samples.drums.p] : [];
+    const p = bankChain.then(function () {
+      const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const keys = Object.keys(DRUM);
+      const fail = function () { samples.drums = { fail: true }; };
+      if (!OAC || !ctx) { fail(); return; }
+      const sr = ctx.sampleRate;
+      const offs = {};
+      let total = 0;
+      keys.forEach(function (k) { offs[k] = total; total += Math.ceil(DRUM[k].len * sr); });
+      let oc;
+      try {
+        oc = new OAC(2, total, sr);
+        keys.forEach(function (k) { DRUM[k].make(oc, oc.destination, offs[k] / sr, 1); });
+      } catch (e) { fail(); return; }
+      return new Promise(function (res) {
+        let fin = false;
+        const end = function (buf) {
+          if (fin) return; fin = true;
+          if (!buf) fail();
+          else { keys.forEach(function (k) { samples['drum:' + k] = { buf: buf, off: offs[k] / sr }; }); samples.drums = { ok: true }; }
+          res();
+        };
+        oc.oncomplete = function (e) { end(e.renderedBuffer); };
+        try {
+          const r = oc.startRendering();
+          if (r && r.then) r.then(end, function () { end(null); });
+        } catch (e) { end(null); }
+      });
+    });
+    samples.drums = { p: p };
+    bankChain = p.then(function () { return new Promise(function (r) { setTimeout(r, 100); }); });
+    return [p];
+  }
+  function drum(key, t) {
+    const D = DRUM[key];
+    const s = useSamples ? samples['drum:' + key] : null;
+    if (s && s.buf) {
+      const src = ctx.createBufferSource();
+      src.buffer = s.buf;
+      let out = src;
+      if (volume !== 1) { out = ctx.createGain(); out.gain.value = volume; src.connect(out); }
+      out.connect(outs.dry);
+      src.start(onFrame(t), s.off, D.len);
+      retire(out, t + D.len);
+      return;
+    }
+    D.make(ctx, outs.dry, t, volume).forEach(function (n) { retire(n, t + D.len); });
   }
   function duck(t) {
     if (!duckGain) return;
@@ -502,46 +791,13 @@ MQ.bgm = (function () {
     p.exponentialRampToValueAtTime(1, t + 0.24);
   }
   function kick(t, big) {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(big ? 190 : 165, t);
-    o.frequency.exponentialRampToValueAtTime(42, t + 0.11);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime((big ? 0.3 : 0.24) * volume, t + 0.004);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
-    o.connect(g); g.connect(master);
-    o.start(t); o.stop(t + 0.26);
-    retire(g, t + 0.26);
-    noiseHit(t, 0.018, 0.06, 'bandpass', 3400, 1);   // カッ
+    drum(big ? 'kickB' : 'kick', t);
     duck(t);
   }
-  function snare(t, soft) {
-    const v = soft ? 0.5 : 1;
-    noiseHit(t, 0.2, 0.11 * v, 'bandpass', 2400, 0.6);
-    noiseHit(t, 0.05, 0.07 * v, 'highpass', 6000);
-    const o = ctx.createOscillator();
-    const og = ctx.createGain();
-    o.type = 'triangle';
-    o.frequency.setValueAtTime(230, t);
-    o.frequency.exponentialRampToValueAtTime(140, t + 0.1);
-    og.gain.setValueAtTime(0.09 * v * volume, t);
-    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
-    o.connect(og); og.connect(master);
-    o.start(t); o.stop(t + 0.15);
-    retire(og, t + 0.15);
-  }
-  function clap(t) {
-    [0, 0.011, 0.022].forEach(function (d) { noiseHit(t + d, 0.03, 0.05, 'bandpass', 1800, 1.2, d * 20 - 0.2); });
-    noiseHit(t + 0.03, 0.16, 0.05, 'bandpass', 1600, 0.9, 0.1);
-  }
-  function hat(t, open) {
-    noiseHit(t, open ? 0.14 : 0.03, open ? 0.03 : 0.022, 'highpass', 7600, 0, 0.25);
-  }
-  function crash(t) {
-    noiseHit(t, 1.4, 0.075, 'highpass', 4200, 0, -0.2);
-    noiseHit(t, 0.5, 0.05, 'bandpass', 9000, 0.5, 0.2);
-  }
+  function snare(t, soft) { drum(soft ? 'snareS' : 'snare', t); }
+  function clap(t) { drum('clap', t); }
+  function hat(t, open) { drum(open ? 'hatO' : 'hat', t); }
+  function crash(t) { drum('crash', t); }
   // ライザー：ノイズの 高さが 上がって いく（サビの 前の「ため」）
   function riser(t, dur) {
     const src = ctx.createBufferSource();
@@ -552,13 +808,14 @@ MQ.bgm = (function () {
     src.buffer = buf;
     const f = ctx.createBiquadFilter();
     f.type = 'bandpass'; f.Q.value = 1.4;
+    try { if ('automationRate' in f.frequency) f.frequency.automationRate = 'k-rate'; } catch (e) {}
     f.frequency.setValueAtTime(300, t);
     f.frequency.exponentialRampToValueAtTime(7000, t + dur);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.09 * volume, t + dur);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.06);
-    src.connect(f); f.connect(g); g.connect(master);
+    src.connect(f); f.connect(g); g.connect(outs.dry);
     src.start(t); src.stop(t + dur + 0.1);
     retire(g, t + dur + 0.1);
   }
@@ -657,6 +914,25 @@ MQ.bgm = (function () {
     return (level >= 2 ? 1.05 : 1) * (enrage ? 1.06 : 1);
   }
 
+  /* 先読み：この 秒数ぶん 先まで 音を 予約して おく。
+     タブレットでは たたかいの 画面を 作る あいだ（約0.4秒）ほかの 仕事が 止まる ので、0.3秒では 音楽が つまずいた（v14.1） */
+  const LOOKAHEAD = 0.6;
+  let outs = null;              // この 曲の 出口（曲を かえた とき 予約ずみの 音を まとめて 消す）
+  function newOuts() {
+    const o = { lead: ctx.createGain(), duck: ctx.createGain(), dry: ctx.createGain() };
+    o.lead.connect(leadBus); o.duck.connect(duckBus); o.dry.connect(master);
+    return o;
+  }
+  function cutOuts() {
+    if (!outs || !ctx) return;
+    const o = outs, t = ctx.currentTime;
+    outs = null;
+    [o.lead, o.duck, o.dry].forEach(function (g) {
+      try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(1, t); g.gain.linearRampToValueAtTime(0, t + 0.06); } catch (e) {}
+    });
+    setTimeout(function () { [o.lead, o.duck, o.dry].forEach(function (g) { try { g.disconnect(); } catch (e) {} }); }, 400);
+  }
+
   function tick() {
     if (!ctx || !playing || ctx.state !== 'running') return;
     sweepTrash();
@@ -665,14 +941,14 @@ MQ.bgm = (function () {
     const leadFn = LEADS[song.lead] || supersaw;
     const V = song.vol;
     let curSec = null;
-    while (nextTime < ctx.currentTime + 0.3) {
+    while (nextTime < ctx.currentTime + LOOKAHEAD) {
       if (step >= ex.len) {
         if (song.once) {
           const nx = queued || song.then || null;
           queued = null;
           const at = nextTime;
           playing = null;
-          if (nx) play(nx, at); else stop();
+          if (nx) play(nx, at); else halt();
           return;
         }
         step = ex.loopStart;
@@ -694,8 +970,11 @@ MQ.bgm = (function () {
       }
       if (ex.mel[i]) {
         const dur = stepDur * Math.max(1, ex.melLen[i]) * 0.95;
-        leadFn(nextTime, ex.mel[i], dur, V.lead);
-        if (level >= 2 && song.lead !== 'pluck') supersaw(nextTime, ex.mel[i] - 12, dur, V.lead * 0.5);
+        if (level >= 2 && song.lead === 'supersaw') supersaw(nextTime, ex.mel[i], dur, V.lead, [[ex.mel[i] - 12, 0.5]]);
+        else {
+          leadFn(nextTime, ex.mel[i], dur, V.lead);
+          if (level >= 2 && song.lead !== 'pluck') supersaw(nextTime, ex.mel[i] - 12, dur, V.lead * 0.5);
+        }
       }
       if (ex.bass[i] && V.bass) bass(nextTime, ex.bass[i], stepDur * Math.max(1, ex.bassLen[i]) * 0.9, V.bass);
       const arpOn = (curSec.arp || level >= 1) && V.arp;
@@ -719,10 +998,15 @@ MQ.bgm = (function () {
     timer = setInterval(tick, 100);
   }
 
-  function stop() {
+  function halt() {
     playing = null;
     queued = null;
     if (timer) { clearInterval(timer); timer = null; }
+  }
+  // ゲームが 止めた とき：先読みで 予約ずみの 音も 消す
+  function stop() {
+    halt();
+    cutOuts();
   }
 
   function play(name, opts) {
@@ -741,7 +1025,11 @@ MQ.bgm = (function () {
     if (!c) return;
     if (c.state !== 'running') return;
     if (playing === name && !song.once) return;
+    // 曲を かえる ときは 前の 曲の 予約を 消す（ファンファーレ → 勝利曲 の つなぎ（at あり）は そのまま）
+    if (!opts.at || !outs) { cutOuts(); outs = newOuts(); }
     playing = name;
+    prepare(name);
+    warmAll(name);
     step = 0;
     level = 0;
     enrage = false;
@@ -785,6 +1073,9 @@ MQ.bgm = (function () {
     setEnabled: setEnabled, isEnabled: function () { return enabled; },
     setVolume: setVolume, validate: validate,
     songs: SONGS, current: function () { return playing; },
-    parseLine: parseLine, parseChords: parseChords
+    parseLine: parseLine, parseChords: parseChords,
+    // テスト用：録音を 待つ／録音を 使わない
+    prepare: function (name) { return context() ? prepare(name) : Promise.resolve(); },
+    setSampler: function (on) { useSamples = !!on; }
   };
 })();
