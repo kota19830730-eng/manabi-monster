@@ -153,6 +153,11 @@ MQ.save = (function () {
        もう たたかって いる 子は いまの レベルまで はらった ことに して、
        「これまでの ぶん」の むりょう券を わたす（js/core/levelup.js の init） */
     if (MQ.levelup && MQ.levelup.init) MQ.levelup.init(p);
+    /* ぴかぴか あつめ（v13.16）：はらった 数 p.pikaPaid（いまの 数までは はらった ことに する）。
+       しゅうまつ イベント（v13.16）：おうちの人の 切りかえ p.weekendOff・ポップを 見た 週 p.weekendSeen */
+    if (MQ.pika && MQ.pika.init) MQ.pika.init(p);
+    if (typeof p.weekendOff !== 'boolean') p.weekendOff = false;
+    if (typeof p.weekendSeen !== 'string') p.weekendSeen = null;
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）
     p.gear = p.gear.filter(function (id) { return MQ.hero && MQ.hero.getGear(id); });
     Object.keys(p.equipped).forEach(function (slot) {

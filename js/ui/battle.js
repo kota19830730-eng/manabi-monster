@@ -177,6 +177,10 @@ MQ.ui.battle = (function () {
     const atk = player.attacks !== false;   // てきの ため → カウンター（v7.7・おうちの人ページで 切れる）
     ctx = { player: player, world: found.world, area: found.area, stage: found.stage, timeAttack: opts.timeAttack || 0, mix: isMix };
     d.root.classList.toggle('battle--tower', isTower);
+    /* しゅうまつ イベント（v13.16）：ふつうの たたかいと ごちゃまぜ だけ（塔・タイムアタックは なし）。
+       ゴールデン まつりは ゴールデンスライムを かならず 1体 出す（ここ）。コイン・たからばこは core が */
+    const wk = (MQ.weekend && !isTower && !ctx.timeAttack) ? MQ.weekend.battleOpts(player) : null;
+    ctx.weekend = wk;
 
     let mixBiome = null;
     if (isMix) {
@@ -193,7 +197,7 @@ MQ.ui.battle = (function () {
       MQ.battle.start({
         stage: found.stage, mode: 'normal', mix: true, bossArea: bossArea.id,
         escaped: [], enemies: [], bossId: boss.id,
-        rareId: Math.random() < RARE_CHANCE ? MQ.enemies.goldenId() : null, trioIds: null, chest: true, mobs: MOBS,
+        rareId: ((wk && wk.golden) || Math.random() < RARE_CHANCE) ? MQ.enemies.goldenId() : null, trioIds: null, chest: true, mobs: MOBS, weekend: wk,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
         gear: MQ.hero.gearPower(player), attacks: atk,
         elite: true, summon: true, areaId: bossArea.id,     // 中ボス・なかまを よぶ（v8.1）
@@ -242,6 +246,7 @@ MQ.ui.battle = (function () {
       let trioIds = null;
       const trio = MQ.enemies.trioFor(ctx.area.id);
       if (trio && Math.random() < TRIO_CHANCE) { trioIds = trio; rareId = null; }
+      if (wk && wk.golden) { rareId = MQ.enemies.goldenId(); trioIds = null; }   // ゴールデン まつり（v13.16）
       const boss = MQ.enemies.bossFor(ctx.area.id);
       ctx.first = first;
       /* ボスを 強く（v12.7）：HP5・最大8問（はじめての たたかいは HP3 の まま）。
@@ -259,6 +264,7 @@ MQ.ui.battle = (function () {
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
         gear: MQ.hero.gearPower(player),
         fever: fs.fever, support: fs.support, attacks: first ? false : atk,
+        weekend: wk,                                          // しゅうまつ イベント（v13.16）
         elite: !first, summon: !first, areaId: ctx.area.id   // 中ボス・なかまを よぶ（v8.1）
       });
     }
@@ -298,8 +304,14 @@ MQ.ui.battle = (function () {
     const fv = MQ.battle.fever ? MQ.battle.fever() : null;
     const sp = MQ.battle.support ? MQ.battle.support() : null;
     const mx = !!(ctx && ctx.mix);
-    if (!fv && !sp && !mx) return;
+    const wk = ctx && ctx.weekend ? ctx.weekend : null;   // しゅうまつ イベント（v13.16）
+    if (!fv && !sp && !mx && !wk) return;
     const lines = [];
+    if (wk) {
+      const ev = MQ.weekend ? MQ.weekend.EVENTS.filter(function (e) { return e.id === wk.id; })[0] : null;
+      lines.push(h('b', { class: 'modebanner__wk', text: 'しゅうまつ ' + wk.name + '！' }));
+      if (ev) lines.push(h('span', { text: ev.line }));
+    }
     if (mx) {
       const ba = ctx.bossArea ? MQ.content.areaOf(ctx.bossArea) : null;
       lines.push(h('b', { text: 'ごちゃまぜ バトル！' }));
@@ -308,7 +320,7 @@ MQ.ui.battle = (function () {
     if (fv) lines.push(h('b', { text: 'フィーバー教科！ けいけんち ' + (fv.xpMul || 2) + 'ばい' }));
     if (fv && palNow) lines.push(h('span', { text: palNow.name + 'も はりきって いる！ なかまゲージ 2ばい' }));
     if (sp) lines.push(h('span', { text: MQ.fever ? MQ.fever.supportText(sp.level) : 'やさしく スタート！' }));
-    const b = h('div', { class: 'modebanner' + (fv ? ' modebanner--fever' : '') }, lines);
+    const b = h('div', { class: 'modebanner' + (fv ? ' modebanner--fever' : wk ? ' modebanner--wk' : '') }, lines);
     d.fx.appendChild(b);
     if (d.msg) d.msg.classList.add('is-quiet');
     setTimeout(function () {
@@ -2662,8 +2674,10 @@ MQ.ui.battle = (function () {
       // なかま（v4.3）：けいけんちの 半分が 相棒にも 入る／たおした 中から「なかまに なりたい」1体
       if (MQ.pals) {
         // なかまの くすり（v5.4）で 相棒の けいけんちが ばいに なる
-        out.pal = MQ.pals.gain(p, Math.round(sum.xp * (sum.palXpMul || 1)));
-        out.palOffer = MQ.pals.offerFrom(p, sum.defeated);
+        // なかま まつり（v13.16・しゅうまつ イベント）：相棒の けいけんち 2ばい・なかまに なりたがる 見こみ 2ばい
+        const wkp = (!ctx.tokkun && ctx.weekend) ? ctx.weekend : null;
+        out.pal = MQ.pals.gain(p, Math.round(sum.xp * (sum.palXpMul || 1) * ((wkp && wkp.palXp) || 1)));
+        out.palOffer = MQ.pals.offerFrom(p, sum.defeated, null, (wkp && wkp.palOffer) || 1);
       }
 
       /* ---- ★ と じぶんの さいこう記ろく（ごちゃまぜ バトルには つかない・v7.3） ---- */
@@ -2735,6 +2749,13 @@ MQ.ui.battle = (function () {
             if (!had && p.bag.length < MQ.save.BAG_MAX && p.bag.indexOf(tr.id) === -1) p.bag.push(tr.id);
           }
         }
+      }
+
+      /* ---- ぴかぴか あつめ（v13.16）：ぴかぴかを 5こ あつめる たびに カプセルの むりょうけん ---- */
+      if (MQ.pika) {
+        out.pika = MQ.pika.claim(p);
+        if (out.pika.tickets || out.pika.coins) MQ.save.addLog(p, 'ぴかぴかを ' + out.pika.count + 'こ あつめた！' + (out.pika.tickets ? ' むりょうけん ' + out.pika.tickets + 'まい' : ' コイン +' + out.pika.coins));
+        out.pikaTr = (!ctx.tokkun && !ctx.mix) ? MQ.pika.stageTreasure(p, ctx.stage.id) : null;
       }
 
       /* ---- まなびの かけら（エリアで ★8） ---- */

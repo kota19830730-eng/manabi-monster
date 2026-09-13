@@ -392,6 +392,15 @@ MQ.news = (function () {
         { kind: 'gear', id: 'ryu-weapon', title: 'そうびを きたえよう',
           text: 'メニューの「じぶん」で、コインを つかって そうびを ＋5まで つよく できるよ' }
       ]
+    },
+    {
+      v: 'v13.16', date: '2026-09-14', sw: 161,
+      items: [
+        { kind: 'item', id: 'tr-graph', gold: true, title: 'ぴかぴか あつめ',
+          text: 'パーフェクトで たからものが ぴかぴかに。5こ あつめる たびに カプセルの むりょうけん！' },
+        { kind: 'mons', id: 'slime-golden', title: 'しゅうまつ イベント',
+          text: 'どようびと にちようびは まつり！ しゅうごとに ちがう まつりが くるよ' }
+      ]
     }
   ];
 

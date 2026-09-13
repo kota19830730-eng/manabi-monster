@@ -411,12 +411,23 @@ MQ.battle = (function () {
       if (e && e.rare) q.rare = true;
     });
 
+    /* しゅうまつ イベント（v13.16）：ふつうの たたかい（ごちゃまぜ こみ）だけ。タイムアタックでは なし。
+       { goldenCoins, chests, chestCoins, coins } … ui/battle.js が MQ.weekend.battleOpts を わたす */
+    const weekend = (opts.weekend && mode === 'normal' && !opts.timeAttack) ? opts.weekend : null;
+
     // たからばこ（まちがえても 罰なし）。中ボス（v8.1）は さいごに おく ので その 前まで
+    // たからばこ まつり（v13.16）の ときは 2こ（1こ あたりの コインも ふえる）
     if (opts.chest && mode === 'normal' && mobs.length >= 3) {
-      let limit = mobs.length - 1;
-      for (let i = 0; i < mobs.length; i++) if (mobs[i].elite) { limit = i; break; }
-      const at = MQ.util.randInt(2, Math.max(2, limit));
-      mobs.splice(at, 0, makeChestQuestion(stage));
+      const nChest = Math.max(1, (weekend && weekend.chests) || 1);
+      for (let c = 0; c < nChest; c++) {
+        let limit = mobs.length - 1;
+        for (let i = 0; i < mobs.length; i++) if (mobs[i].elite) { limit = i; break; }
+        const at = MQ.util.randInt(2, Math.max(2, limit));
+        const cq = makeChestQuestion(stage);
+        if (weekend && weekend.chestCoins) cq.coins = weekend.chestCoins;
+        if (c > 0) cq.id = cq.id + ':' + c;       // 2こめは id を かえる（1問ごとの きろくが かさならない ように）
+        mobs.splice(at, 0, cq);
+      }
     }
 
     const hasBoss = mode !== 'tokkun';
@@ -447,6 +458,9 @@ MQ.battle = (function () {
       fever: fever,
       support: support,
       feverXp: 0,                  // フィーバーで ふえた ぶんの けいけんち
+      weekend: weekend,            // しゅうまつ イベント（v13.16）
+      weekendGold: 0,              // ゴールデン まつりで もらった コイン
+      chestCount: 0,               // あけた たからばこの 数（v13.16）
       mix: !!opts.mix,             // ごちゃまぜ バトル（v7.3）
       bossArea: opts.bossArea || null,   // ごちゃまぜ の ボスの 教科
       // てきの ため → カウンター（v7.7）。画面がわ（ui/battle.js）が おうちの人の せっていを 見て true を わたす。
@@ -725,6 +739,7 @@ MQ.battle = (function () {
         const coins = q.coins || 1;        // たからばこ よび（金色）は 2まい
         s.coins += coins;
         s.chestOpened = true;
+        s.chestCount++;
         return { outcome: 'chest', xp: xp, coins: coins, combo: s.combo, crit: crit, note: q.note, palHit: palHit };
       }
 
@@ -874,7 +889,12 @@ MQ.battle = (function () {
       s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
       // ゴールデンスライムは コインを 落とす
       let coins = 0;
-      if (q.enemyId === goldenId()) { coins = 1; s.coins += 1; }
+      // ゴールデン まつり（v13.16）の ときは 3まい
+      if (q.enemyId === goldenId()) {
+        coins = (s.weekend && s.weekend.goldenCoins) || 1;
+        s.coins += coins;
+        if (s.weekend && s.weekend.goldenCoins) s.weekendGold += coins;
+      }
       s.defeated.push(q.enemyId);
       if (q.revenge) s.revengeBeaten.push(q.id);
       noteReview(q, wasRetry);
@@ -1195,9 +1215,15 @@ MQ.battle = (function () {
     const feverCoins = s.fever && s.answered > 0 ? (s.fever.coins || 0) : 0;
     // ごちゃまぜ バトル（v7.3）：★の かわりに コイン +1
     const mixCoins = s.mix && s.answered > 0 ? 1 : 0;
+    // しゅうまつ イベントの コイン まつり（v13.16）
+    const weekendCoins = s.weekend && s.answered > 0 ? (s.weekend.coins || 0) : 0;
     return {
       mix: s.mix,
       mixCoins: mixCoins,
+      weekend: s.weekend ? (s.weekend.id || 'on') : null,   // しゅうまつ イベント（v13.16）
+      weekendCoins: weekendCoins,
+      weekendGold: s.weekendGold,
+      chestCount: s.chestCount,
       counters: s.counters,            // カウンターを 決めた 数（v7.7）
       elites: s.elites,                // たおした 中ボス（v8.1）
       weakHits: s.weakHits,            // 弱点を ついた 数（v8.1）
@@ -1214,7 +1240,7 @@ MQ.battle = (function () {
       baseXp: s.xp,
       fastBonus: fastBonus,
       time: time,
-      coins: s.coins + starCoins + gearCoins + feverCoins + mixCoins,
+      coins: s.coins + starCoins + gearCoins + feverCoins + mixCoins + weekendCoins,
       starCoins: starCoins,
       gearCoins: gearCoins,
       gearSet: s.gear.setName || '',
@@ -1274,6 +1300,7 @@ MQ.battle = (function () {
     // テスト用：ボスの わざの 予定を 決めうちに する（harness / smoke）
     _setBossPlan: function (plan) { if (s) s.bossPlan = plan || {}; },
     fever: function () { return s ? s.fever : null; },
+    weekend: function () { return s ? s.weekend : null; },   // v13.16
     support: function () { return s ? s.support : null; },
     recharge: recharge, canRecharge: canRecharge, rechargeCost: RECHARGE_COST, coinsLeft: coinsLeft,
     phase: function () { return s.phase; },

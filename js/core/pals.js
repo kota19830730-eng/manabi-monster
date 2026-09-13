@@ -219,7 +219,8 @@ MQ.pals = (function () {
 
   /* たおした 中から「なかまに なりたい」1体を えらぶ（1回の たたかいで 1体まで）。
      もう なかまの もの・たからばこ・ボスは えらばない */
-  function offerFrom(p, defeated, rnd) {
+  /* mul … なかま まつり（v13.16・しゅうまつ イベント）で 2。見こみを ばいに する（上は 6わり） */
+  function offerFrom(p, defeated, rnd, mul) {
     if (!p || !defeated || !defeated.length) return null;
     const r = rnd || Math.random;
     const seen = {};
@@ -233,7 +234,7 @@ MQ.pals = (function () {
       if (!e) continue;
       // 3回 たおした 相手は かならず なかまに なりたがる（v5.2）
       if (((p.dex && p.dex[id]) || 0) >= SURE_KILLS) return id;
-      const rate = e.rare || e.by === 'photo' ? 0.2 : (OFFER[e.rank || 2] || 0.1);
+      const rate = Math.min(0.6, (e.rare || e.by === 'photo' ? 0.2 : (OFFER[e.rank || 2] || 0.1)) * (mul || 1));
       if (r() < rate) return id;
     }
     return null;

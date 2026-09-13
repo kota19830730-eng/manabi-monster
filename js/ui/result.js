@@ -52,6 +52,49 @@ MQ.ui.result = (function () {
     ]);
   }
 
+  /* しゅうまつ イベント（v13.16）：その まつりで ふえた ものが ある ときだけ 1行 */
+  function weekendText(sum, rw) {
+    const id = sum.weekend;
+    if (id === 'golden') return sum.weekendGold ? 'ゴールデン まつり！　ゴールデンスライムから コイン +' + sum.weekendGold : null;
+    if (id === 'chest') return sum.chestCount ? 'たからばこ まつり！　たからばこを ' + sum.chestCount + 'こ あけた' : null;
+    if (id === 'pal') return rw.pal ? 'なかま まつり！　' + rw.pal.name + 'の けいけんち 2ばい' : (rw.palOffer ? 'なかま まつり！　なかまが 来やすい' : null);
+    if (id === 'coin') return sum.weekendCoins ? 'コイン まつり！　コイン +' + sum.weekendCoins : null;
+    return null;
+  }
+
+  /* ぴかぴか あつめ（v13.16）。1行だけ：
+       ・5こ たまった → 「ぴかぴか 10こ！（券）むりょうけん ×1」
+       ・ぴかぴかが ふえた → 「ぴかぴか 7こめ！ あと 3こで むりょうけん」
+       ・ボスは たおしたが まだ ふつうの たからもの → 「パーフェクトで この たからものが ぴかぴかに！」 */
+  function pikaRow(sum, rw, tokkun, mix, player) {
+    if (tokkun || !MQ.pika) return null;
+    const pk = rw.pika;
+    const off = !!(player && player.capsuleOff === true);
+    if (pk && (pk.tickets || pk.coins)) {
+      return h('div', { class: 'rs__pika rs__pika--gift' }, [
+        h('span', { class: 'rs__pikak', text: 'ぴかぴか ' + pk.count + 'こ！' }),
+        pk.tickets
+          ? h('span', { class: 'rs__pikav' }, [MQ.ui.ticketNode(22), h('b', { text: 'むりょうけん ×' + pk.tickets })])
+          : h('span', { class: 'rs__pikav' }, [MQ.ui.coinNode(18), h('b', { text: '+' + pk.coins })])
+      ]);
+    }
+    if (rw.gold && pk) {
+      const nx = MQ.pika.next(player);
+      return h('div', { class: 'rs__pika' }, [
+        h('span', { class: 'rs__pikak', text: 'ぴかぴか ' + pk.count + 'こめ！' }),
+        h('span', { class: 'rs__pikas', text: 'あと ' + nx.left + 'こで ' + (off ? 'コイン +' + MQ.pika.TICKET_COINS : 'むりょうけん') })
+      ]);
+    }
+    const st = rw.pikaTr;
+    if (!mix && sum.bossBeaten && st && st.lv === 1 && sum.stars < 3) {
+      return h('div', { class: 'rs__pika rs__pika--hint' }, [
+        MQ.treasure.node(st.tr.id, { gold: true, size: 22 }),
+        h('span', { class: 'rs__pikas', text: 'パーフェクトで この たからものが ぴかぴかに！' })
+      ]);
+    }
+    return null;
+  }
+
   // つぎの ステージ（開いていて、あそべる もの）
   function nextStageOf(player, stage) {
     const f = MQ.content.findStage(stage.id);
@@ -160,6 +203,11 @@ MQ.ui.result = (function () {
       // ごちゃまぜ バトル（v7.3）：★の かわりに コイン
       fever = h('p', { class: 'rs__fever', text: 'ごちゃまぜ バトル！　ぜんぶの 教科で たたかった　コイン +' + sum.mixCoins });
     }
+
+    /* ---- しゅうまつ イベント・ぴかぴか あつめ（v13.16） ---- */
+    const wkText = (sum.weekend && !tokkun) ? weekendText(sum, rw) : null;
+    const wkLine = wkText ? h('p', { class: 'rs__fever rs__wk', text: wkText }) : null;
+    const pikaLine = pikaRow(sum, rw, tokkun, mix, player);
 
     /* ---- 3b. なかま（v4.3）：そだった ぶんと、なかまに なりたい 子 ---- */
     let palRow = null;
@@ -278,7 +326,7 @@ MQ.ui.result = (function () {
 
     const panel = h('div', { class: 'rs ' + mood }, [
       h('div', { class: 'rs__fx' }),
-      banner, bossCard, lvBand, fever, palRow, palOffer, best, mission, chips, items, ttl, btns
+      banner, bossCard, lvBand, fever, wkLine, pikaLine, palRow, palOffer, best, mission, chips, items, ttl, btns
     ]);
     MQ.ui.mount('screen-result', panel);
     requestAnimationFrame(function () { fit(panel); });
@@ -295,6 +343,7 @@ MQ.ui.result = (function () {
     if (!sum.bossBeaten) MQ.sfx.clear();          // ボスの ときは ファンファーレが 鳴っている
     if (rw.leveledUp) setTimeout(MQ.sfx.levelup, 700);
     if (rw.lvGift && rw.lvGift.coins) setTimeout(MQ.sfx.coin, 1300);
+    if (rw.pika && (rw.pika.tickets || rw.pika.coins)) setTimeout(MQ.sfx.coin, 1500);   // ぴかぴか あつめ（v13.16）
     if (rw.pal && rw.pal.evolved) setTimeout(MQ.sfx.levelup, 1100);
     if (rw.palOffer) setTimeout(MQ.sfx.appear, 900);
     if (rw.treasure) setTimeout(MQ.sfx.treasure, 1000);

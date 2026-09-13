@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/guard.js', 'js/core/util.js', 'js/core/text.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/levelup.js', 'js/core/forge.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/levelup.js', 'js/core/forge.js', 'js/core/pika.js', 'js/core/weekend.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/core/vox.js'].concat(CONTENT_ORDER).forEach(load);   // vox.js（りったい・v12.0）は chest3d.js より 前
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
 load('js/core/capsule.js');
@@ -3448,7 +3448,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
   // しょうごう
   check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
-  check(MQ.hero.titles.length === 57, 'しょうごう 57（v13.15 で Lv30・40・50 と きたえる 2つ）: ' + MQ.hero.titles.length);
+  check(MQ.hero.titles.length === 58, 'しょうごう 58（v13.15 で Lv30・40・50 と きたえる 2つ・v13.16 で ぴかぴか マスター）: ' + MQ.hero.titles.length);
   // 古い セーブ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
   check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');
@@ -4584,6 +4584,166 @@ function stripComments(src) {
   check(badKf.length === 0, 'v13.14: capsulefx.css の keyframes は transform・opacity だけ' + (badKf.length ? '（' + badKf.join(' ') + '）' : ''));
   check(stripComments(fs.readFileSync(path.join(base, 'js/ui/capsulefx.js'), 'utf8')).indexOf('ガチャ') === -1, 'v13.14: 演出の 画面に「ガチャ」と 書かない');
   console.log('カプセルの 演出: はしご・おまけ・読みこみ順・keyframes OK（おまけ ' + (bn / 40).toFixed(0) + '%）');
+})();
+
+/* =======================================================
+   ぴかぴか あつめ・しゅうまつ イベント（v13.16）
+   ======================================================= */
+(function () {
+  const P = MQ.pika, W = MQ.weekend, B = MQ.battle;
+  check(!!P && !!W, 'v13.16: MQ.pika と MQ.weekend が 読める');
+  check(INDEX_HTML.indexOf('js/core/pika.js') > INDEX_HTML.indexOf('js/core/levelup.js') && INDEX_HTML.indexOf('js/core/weekend.js') > 0 && INDEX_HTML.indexOf('js/core/pika.js') < INDEX_HTML.indexOf('js/core/battle.js'), 'v13.16: index に pika.js（levelup の あと）・weekend.js');
+  const swW = fs.readFileSync(path.join(base, 'sw.js'), 'utf8'), hW = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  ['pika', 'weekend'].forEach(function (n) {
+    check(swW.indexOf("'./js/core/" + n + ".js'") >= 0, 'v13.16: sw.js の FILES に ' + n + '.js');
+    check(hW.indexOf('../js/core/' + n + '.js') >= 0, 'v13.16: harness.html に ' + n + '.js');
+  });
+
+  // ---- ぴかぴか：5こ ごとに むりょうけん ----
+  const trs = MQ.treasure.list.slice(0, 12).map(function (t) { return t.id; });
+  const p = { treasure: {}, capsule: {}, coins: 0 };
+  P.init(p);
+  check(p.pikaPaid === 0, 'v13.16: はじめは 0');
+  trs.slice(0, 4).forEach(function (id) { p.treasure[id] = 2; });
+  p.treasure[trs[4]] = 1;                                  // ふつうの たからものは 数えない
+  check(P.claim(p).tickets === 0 && P.goldCount(p) === 4, 'v13.16: 4こでは まだ');
+  p.treasure[trs[5]] = 2;
+  const c5 = P.claim(p);
+  check(c5.tickets === 1 && c5.count === 5 && p.capsule.tickets === 1 && p.pikaPaid === 1, 'v13.16: 5こめで むりょうけん 1まい ' + JSON.stringify(c5));
+  check(P.claim(p).tickets === 0 && p.capsule.tickets === 1, 'v13.16: 2回めは もらえない');
+  const nx = P.next(p);
+  check(nx.have === 5 && nx.at === 10 && nx.left === 5 && nx.ratio === 0, 'v13.16: つぎは 10こ ' + JSON.stringify(nx));
+  // いっきに 10こ ふえても まとめて 2まい
+  trs.slice(6, 12).forEach(function (id) { p.treasure[id] = 2; });
+  p.treasure[trs[4]] = 2;
+  check(P.goldCount(p) === 12 && P.claim(p).tickets === 1 && p.pikaPaid === 2, 'v13.16: 12こ → 2つめの むりょうけん');
+  // カプセルを かくして いる 子は コイン 10
+  const off = { treasure: {}, capsule: {}, coins: 0, capsuleOff: true };
+  P.init(off);
+  trs.slice(0, 5).forEach(function (id) { off.treasure[id] = 2; });
+  const co = P.claim(off);
+  check(co.tickets === 0 && co.coins === P.TICKET_COINS && off.coins === P.TICKET_COINS && !(off.capsule.tickets > 0), 'v13.16: カプセルを かくして いる 子は コイン 10');
+  // もう あそんで いる 子：いまの 数までは はらった ことに する（これまでの ぶんは なし）
+  const old = { treasure: {}, capsule: {}, coins: 0 };
+  trs.slice(0, 7).forEach(function (id) { old.treasure[id] = 2; });
+  P.init(old);
+  check(old.pikaPaid === 1 && P.claim(old).tickets === 0, 'v13.16: ぴかぴか 7この 子は つぎの 10こから');
+  // セーブの 引きつぎ
+  const prevCur = MQ.save.current() ? MQ.save.current().id : null;
+  const ot = {}; trs.slice(0, 6).forEach(function (id) { ot[id] = 2; });
+  MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'pk', name: 'pk', grade: 3, xp: 0, battles: 10, treasure: ot }], currentId: 'pk', settings: {} }));
+  const mig = MQ.save.current();
+  check(mig.pikaPaid === 1 && mig.weekendOff === false && mig.weekendSeen === null, 'v13.16: 古い セーブに pikaPaid・weekendOff・weekendSeen');
+  MQ.save.load();
+  if (prevCur) MQ.save.setCurrent(prevCur);
+
+  // エリアの ようす（開いて いる ステージだけ・ぜんぶ 金なら complete）
+  const area = MQ.content.subjectAreas()[0];
+  const ap = { treasure: {} };
+  const open = area.stages.filter(function (st) { return MQ.content.isAvailable(st) && MQ.treasure.forStage(st.id); });
+  open.forEach(function (st) { ap.treasure[MQ.treasure.forStage(st.id).id] = 2; });
+  const ai = P.areaInfo(ap, area);
+  check(ai.total === open.length && ai.gold === open.length && ai.complete, 'v13.16: ぜんぶ 金 → complete ' + ai.gold + '/' + ai.total);
+  ap.treasure[MQ.treasure.forStage(open[0].id).id] = 1;
+  const ai2 = P.areaInfo(ap, area);
+  check(!ai2.complete && ai2.got === open.length && ai2.gold === open.length - 1, 'v13.16: 1つ ふつう → complete では ない');
+  check(P.stageTreasure(ap, open[0].id).lv === 1 && P.stageTreasure(ap, 'nope') === null, 'v13.16: stageTreasure');
+  check(MQ.hero.titles.some(function (t) { return t.id === 't-pika20'; }), 'v13.16: しょうごう ぴかぴか マスター');
+
+  // ---- しゅうまつ イベント ----
+  const wp = {};
+  W.setNow(new Date(2026, 8, 19, 10));                     // 土
+  check(W.today(wp) && W.today(wp).id === 'golden' && !W.today(wp).sunday && W.upcoming(wp) === null, 'v13.16: 2026-09-19（土）は ゴールデン');
+  W.setNow(new Date(2026, 8, 20, 22));                     // 日
+  check(W.today(wp).id === 'golden' && W.today(wp).sunday, 'v13.16: 日よう日も 同じ まつり');
+  W.setNow(new Date(2026, 8, 26, 9)); const e1 = W.today(wp).id;
+  W.setNow(new Date(2026, 9, 3, 9));  const e2 = W.today(wp).id;
+  W.setNow(new Date(2026, 9, 10, 9)); const e3 = W.today(wp).id;
+  W.setNow(new Date(2026, 9, 17, 9)); const e4 = W.today(wp).id;
+  check([e1, e2, e3, e4].join(',') === 'chest,pal,coin,golden', 'v13.16: 週ごとに かわる ' + [e1, e2, e3, e4].join(','));
+  W.setNow(new Date(2026, 8, 21, 9));                      // 月
+  check(W.today(wp) === null && W.upcoming(wp).ev.id === 'chest' && W.upcoming(wp).days === 5, 'v13.16: 月よう日は 予告（あと 5日）');
+  W.setNow(new Date(2026, 8, 25, 21));                     // 金
+  check(W.upcoming(wp).days === 1, 'v13.16: 金よう日は「あしたから」');
+  // 予告は かならず あたる（120日ぶん・年を またいでも）
+  let bad = 0;
+  for (let i = 0; i < 400; i++) {
+    const d = new Date(2026, 8, 1 + i, 12);
+    W.setNow(d);
+    const u = W.upcoming(wp);
+    if (!u) continue;
+    W.setNow(new Date(d.getFullYear(), d.getMonth(), d.getDate() + u.days, 12));
+    const t = W.today(wp);
+    if (!t || t.id !== u.ev.id) bad++;
+  }
+  check(bad === 0, 'v13.16: 平日の 予告は かならず その とおりに なる（ちがい ' + bad + '）');
+  // おうちの人が なしに した
+  W.setNow(new Date(2026, 8, 19, 10));
+  check(W.today({ weekendOff: true }) === null && W.upcoming({ weekendOff: true }) === null && W.battleOpts({ weekendOff: true }) === null, 'v13.16: なしに すると 何も 出ない');
+  // ポップは しゅうまつごとに 1回
+  const sp = {};
+  check(W.shouldPop(sp), 'v13.16: はじめは ポップ');
+  W.markSeen(sp);
+  check(!W.shouldPop(sp), 'v13.16: 見たら もう 出ない');
+  W.setNow(new Date(2026, 8, 20, 10));
+  check(!W.shouldPop(sp), 'v13.16: 日よう日も 出ない（同じ しゅうまつ）');
+  W.setNow(new Date(2026, 8, 26, 10));
+  check(W.shouldPop(sp), 'v13.16: つぎの しゅうまつは また 出る');
+  // たたかいに わたす もの
+  const bo = {};
+  [['2026-09-19', 'golden'], ['2026-09-26', 'chest'], ['2026-10-03', 'pal'], ['2026-10-10', 'coin']].forEach(function (x) {
+    const a = x[0].split('-').map(Number);
+    W.setNow(new Date(a[0], a[1] - 1, a[2], 10));
+    bo[x[1]] = W.battleOpts({});
+  });
+  check(bo.golden.golden && bo.golden.goldenCoins === 3 && !bo.golden.chests, 'v13.16: ゴールデン まつり');
+  check(bo.chest.chests === 2 && bo.chest.chestCoins === 2 && !bo.chest.golden, 'v13.16: たからばこ まつり');
+  check(bo.pal.palOffer === 2 && bo.pal.palXp === 2 && !bo.pal.coins, 'v13.16: なかま まつり');
+  check(bo.coin.coins === 3, 'v13.16: コイン まつり');
+  W.setNow(null);
+
+  // ---- core：たからばこ 2こ・ゴールデンの コイン・コイン まつり ----
+  function ans(q) { return q.type === 'choice' || q.type === 'number' || q.type === 'roma' ? q.answer : q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : { q: q.answer.q, r: q.answer.r }; }
+  const st = MQ.content.findStage('sansu3-1').stage;
+  function play(opts) {
+    B.start(Object.assign({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: true }, opts));
+    const chests = [];
+    let gold = 0;
+    while (!B.isOver()) {
+      const q = B.current();
+      const r = B.answer(ans(q));
+      if (r.outcome === 'chest') chests.push(r.coins);
+      if (q.enemyId === MQ.enemies.goldenId() && r.coins) gold += r.coins;
+      B.next();
+    }
+    return { sum: B.summary(), chests: chests, gold: gold };
+  }
+  const r0 = play({});
+  check(r0.chests.length === 1 && r0.chests[0] === 1 && r0.sum.chestCount === 1 && r0.sum.weekend === null && r0.sum.weekendCoins === 0, 'v13.16: ふだんは たからばこ 1こ・コイン 1');
+  const r1 = play({ weekend: { id: 'chest', chests: 2, chestCoins: 2 } });
+  check(r1.chests.length === 2 && r1.chests.every(function (c) { return c === 2; }) && r1.sum.chestCount === 2 && r1.sum.weekend === 'chest', 'v13.16: たからばこ まつりは 2こ・2まいずつ ' + JSON.stringify(r1.chests));
+  const r2 = play({ rareId: MQ.enemies.goldenId(), weekend: { id: 'golden', goldenCoins: 3 } });
+  check(r2.gold === 3 && r2.sum.weekendGold === 3, 'v13.16: ゴールデン まつりは コイン 3まい ' + r2.gold);
+  const r3 = play({ rareId: MQ.enemies.goldenId() });
+  check(r3.gold === 1 && r3.sum.weekendGold === 0, 'v13.16: ふだんの ゴールデンは 1まい');
+  const r4 = play({ weekend: { id: 'coin', coins: 3 } });
+  check(r4.sum.weekendCoins === 3 && r4.sum.weekend === 'coin', 'v13.16: コイン まつりは おわりに +3');
+  check(r4.sum.coins >= 3 + r4.chests.length, 'v13.16: コインの 合計に 入る');
+  const r5 = play({ timeAttack: 20, weekend: { id: 'coin', coins: 3, chests: 2 } });
+  check(r5.sum.weekendCoins === 0 && r5.sum.weekend === null && r5.chests.length <= 1, 'v13.16: タイムアタックでは なし');
+  B.start({ stage: MQ.content.findStage('tower3').stage, mode: 'tower', bossId: 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3, weekend: { id: 'coin', coins: 3 } });
+  while (!B.isOver()) { const q = B.current(); B.answer(ans(q)); B.next(); }
+  check(B.summary().weekendCoins === 0, 'v13.16: さいごの塔では なし');
+
+  // ---- なかま まつり：なりたがる 見こみ 2ばい ----
+  const cand = MQ.enemies.list.filter(function (e) { return (e.rank || 2) === 2 && !e.rare && !e.boss && !e.mid && !e.evoOnly && !e.capsuleOnly && e.by !== 'photo'; })[0];
+  const pp = { pals: {}, dex: {} };
+  const rnd = function () { return 0.15; };                 // rank2 は 0.10 → なし／2ばいの 0.20 → なりたがる
+  check(!!cand && MQ.pals.offerFrom(pp, [cand.id], rnd) === null && MQ.pals.offerFrom(pp, [cand.id], rnd, 2) === cand.id, 'v13.16: なかま まつりは 見こみ 2ばい');
+  check(MQ.pals.offerFrom(pp, [cand.id], function () { return 0.59; }, 100) === cand.id && MQ.pals.offerFrom(pp, [cand.id], function () { return 0.61; }, 100) === null, 'v13.16: 上は 6わり');
+
+  check(MQ.news.latest() === 'v13.16', 'v13.16: お知らせ');
+  console.log('v13.16: ぴかぴか あつめ・しゅうまつ イベント OK');
 })();
 
 Promise.all(global.__pending || []).then(function () {

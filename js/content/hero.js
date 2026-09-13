@@ -1297,6 +1297,7 @@ MQ.hero = (function () {
     { id: 't-battle30',  name: 'たたかいの たつじん',    how: '30回 たたかう',             test: function (p) { return (p.battles || 0) >= 30; } },
     { id: 't-star30',    name: 'ほしの チャンピオン',    how: '★を 30こ あつめる',         test: function (p) { return starSum(p) >= 30; } },
     { id: 't-pika5',     name: 'ぴかぴか コレクター',    how: 'ぴかぴかを 5こ あつめる',    test: function (p) { return goldCount(p) >= 5; } },
+    { id: 't-pika20',    name: 'ぴかぴか マスター',      how: 'ぴかぴかを 20こ あつめる',   test: function (p) { return goldCount(p) >= 20; } },   // v13.16
     { id: 't-meteo',     name: 'メテオ つかい',          how: '12コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 12; } },
     { id: 't-bigbang',   name: 'ぎんがの ゆうしゃ',      how: '16コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 16; } },
     { id: 't-frag',      name: 'かけらの もちぬし',      how: 'かけらを 4つ あつめる',      test: function (p) {

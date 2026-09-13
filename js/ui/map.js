@@ -635,7 +635,8 @@ MQ.ui.map = (function () {
       }, [
         isFever ? h('span', { class: 'biome__fever', text: 'フィーバー' }) : null,
         h('span', { class: 'biome__name', text: b.area.name }),
-        h('span', { class: 'biome__stars', text: got ? '★' + stars + ' ✓' : '★' + stars + ' / ' + need })
+        h('span', { class: 'biome__stars', text: got ? '★' + stars + ' ✓' : '★' + stars + ' / ' + need }),
+        firstTime ? null : pikaChip(player, b.area)          // ぴかぴか あつめ（v13.16）
       ]));
 
       /* ---- ステージ ---- */
@@ -671,6 +672,13 @@ MQ.ui.map = (function () {
 
         const dot = h('span', { class: 'node__dot', text: unlocked ? String(n.idx || st.no) : '?' });
         if (isNow) dot.appendChild(h('span', { class: 'node__here', text: 'いま ここ' }));
+        // ぴかぴか あつめ（v13.16）：ボスから もらった たからものを ブロックの すみに（金色＝ぴかぴか）
+        const trHere = (!firstTime && MQ.pika) ? MQ.pika.stageTreasure(player, st.id) : null;
+        if (trHere && trHere.lv >= 1) {
+          dot.appendChild(h('span', { class: 'node__tr' + (trHere.lv >= 2 ? ' is-gold' : '') }, [
+            MQ.treasure.node(trHere.tr.id, { gold: trHere.lv >= 2, size: 20 })
+          ]));
+        }
 
         /* はじめての 子には 指さしの ふきだし（v11.1）
            **ノードの 下**に 出す。実測（harness #firstplay:measure）で
@@ -756,6 +764,7 @@ MQ.ui.map = (function () {
        -------------------------------------------------------------------- */
     panelEl = h('div', { class: 'mappanel', hidden: true }, [
       stampPanel(player),
+      weekendPanel(player),          // しゅうまつ イベント（v13.16）
       feverPanel(player, feverNow),
       missionsPanel(player)
     ]);
@@ -785,7 +794,9 @@ MQ.ui.map = (function () {
     const revFirst = hasRevenge ? (MQ.save.allEscaped(player)[0] || {}).entry : null;
     const dojoOn = !!(!firstTime && MQ.dojo && MQ.ui.dojo);
     const mixOn = !firstTime && MQ.content.mixOpen(player);
-    const hasChips = hasLetter || hasRevenge;
+    // しゅうまつ イベント（v13.16）：土・日だけ 地図の すみに まつりの ふだ
+    const wkNow = (!firstTime && MQ.weekend) ? MQ.weekend.today(player) : null;
+    const hasChips = hasLetter || hasRevenge || !!wkNow;
     function tab(label, ico, onclick, cls, extra, aria) {
       return h('button', {
         class: 'maptab' + (cls ? ' ' + cls : ''), type: 'button', 'aria-label': aria || label,
@@ -802,6 +813,13 @@ MQ.ui.map = (function () {
           h('span', { class: 'tegamibtn__env' }, [h('i', { class: 'flap' }), h('i', { class: 'seal' })]),
           h('b', { class: 'tegamibtn__t', text: 'てがみ' })
         ]) : h('span'),
+        wkNow ? h('button', {
+          class: 'mapchip wkchip wkchip--' + wkNow.id, type: 'button', 'aria-label': 'しゅうまつ イベント',
+          onclick: function () { MQ.sfx.tap(); weekendPop(true); }
+        }, [
+          h('span', { class: 'wkchip__ico' }, [wkIcon(wkNow.id, 28, player)]),
+          h('span', { class: 'wkchip__t' }, [h('i', { text: 'しゅうまつ' }), h('b', { text: wkNow.name })])
+        ]) : null,
         hasRevenge ? h('button', {
           class: 'mapchip revenge', type: 'button', 'aria-label': 'にげた敵と とっくん',
           onclick: function () { MQ.sfx.tap(); MQ.ui.battle.startTokkun(); }
@@ -1025,6 +1043,124 @@ MQ.ui.map = (function () {
   }
 
   /* =======================================================
+     ぴかぴか あつめ（v13.16）：ゾーン見出しの よこに ✦ と「ぴかぴかの 数 / 開いて いる ステージ」。
+       ぜんぶ ぴかぴか → 金の かんむり。ルールは js/core/pika.js
+     ======================================================= */
+  function pikaChip(player, area) {
+    if (!MQ.pika) return null;
+    const pi = MQ.pika.areaInfo(player, area);
+    if (!pi.total || !pi.gold) return null;
+    return h('span', { class: 'biome__pika' + (pi.complete ? ' is-all' : '') }, [
+      pi.complete ? h('i', { class: 'biome__crown' }) : h('i', { class: 'biome__spark', text: '✦' }),
+      h('b', { text: pi.gold + '/' + pi.total })
+    ]);
+  }
+
+  /* =======================================================
+     しゅうまつ イベント（v13.16）：土よう日と 日よう日の まつり。
+       地図の すみの ふだ（wkchip）・帯の パネルの 1まい（平日は 予告）・しゅうまつ はじめの ポップ。
+       絵は ゲームに ある 部品だけ（ゴールデンスライム・たからばこ・相棒・コイン）。
+       ルールは js/core/weekend.js
+     ======================================================= */
+  function wkIcon(id, size, player) {
+    if (id === 'coin') return MQ.ui.coinNode(Math.round(size * 0.85));
+    if (id === 'chest') return MQ.enemies.node('chest', { size: size });
+    if (id === 'pal') {
+      const pal = (player && MQ.pals) ? MQ.pals.active(player) : null;
+      return MQ.enemies.node(pal ? pal.id : 'slime-green', { size: size });
+    }
+    return MQ.enemies.node(MQ.enemies.goldenId(), { size: size });
+  }
+
+  function weekendPanel(player) {
+    if (!MQ.weekend) return null;
+    const t = MQ.weekend.today(player);
+    if (t) {
+      return h('button', {
+        class: 'wkpanel wkpanel--' + t.id, type: 'button',
+        onclick: function () { MQ.sfx.tap(); closeAll(); weekendPop(true); }
+      }, [
+        h('span', { class: 'wkpanel__ico' }, [wkIcon(t.id, 34, player)]),
+        h('span', { class: 'wkpanel__body' }, [
+          h('span', { class: 'wkpanel__lbl', text: t.sunday ? 'しゅうまつ イベント・きょうまで' : 'しゅうまつ イベント・あしたまで' }),
+          h('b', { class: 'wkpanel__name', text: t.name }),
+          h('span', { class: 'wkpanel__sub', text: t.line })
+        ])
+      ]);
+    }
+    // 平日は 予告（日づけで 決まる ので かならず その とおりに なる）
+    const u = MQ.weekend.upcoming(player);
+    if (!u) return null;
+    return h('div', { class: 'wkpanel wkpanel--pre' }, [
+      h('span', { class: 'wkpanel__ico' }, [wkIcon(u.ev.id, 28, player)]),
+      h('span', { class: 'wkpanel__body' }, [
+        h('span', { class: 'wkpanel__lbl', text: u.days === 1 ? 'あしたから しゅうまつ イベント！' : 'こんどの しゅうまつ（あと ' + u.days + '日）' }),
+        h('b', { class: 'wkpanel__name', text: u.ev.name })
+      ])
+    ]);
+  }
+
+  /* しゅうまつ はじめの ポップ。しゅうまつごとに 1回（p.weekendSeen）。
+     force … 地図の ふだ・パネルから 開く とき（何回でも）
+     はじめての 子（battles 2 みまん）には 出さない（「できる ことが ふえた」が 先）。
+     わくは .bagcard（.newscard は 借りない＝お知らせ画面の 検査と ぶつかる・v9.3） */
+  let wkEl = null;
+  function weekendPop(force) {
+    if (wkEl) return null;
+    const player = MQ.save.current();
+    if (!player || !MQ.weekend) return null;
+    const t = MQ.weekend.today(player);
+    if (!t) return null;
+    if (!force) {
+      if ((player.battles || 0) < 2) return null;
+      if (!MQ.weekend.shouldPop(player)) return null;
+    }
+    MQ.save.update(function (p) { MQ.weekend.markSeen(p); });
+    function close() {
+      if (!wkEl) return;
+      const gone = wkEl;
+      wkEl = null;
+      if (gone.parentNode) gone.parentNode.removeChild(gone);
+    }
+    // 絵（transform の アニメは つつみ（.wkpop__bob）に つける＝ブロックの 絵の transform を こわさない）
+    function bob(node, i) { return h('span', { class: 'wkpop__bob', style: { animationDelay: (i * 0.25) + 's' } }, [node]); }
+    let art;
+    if (t.id === 'chest') art = [bob(MQ.enemies.node('chest', { size: 76 }), 0), bob(MQ.enemies.node('chest', { size: 76 }), 1)];
+    else if (t.id === 'coin') art = [bob(MQ.ui.coinNode(46), 0), bob(MQ.ui.coinNode(56), 1), bob(MQ.ui.coinNode(46), 2)];
+    else if (t.id === 'pal') {
+      const pal = MQ.pals ? MQ.pals.active(player) : null;
+      art = [bob(MQ.enemies.node(pal ? pal.id : 'slime-green', { size: 92 }), 0)];
+    } else art = [bob(MQ.enemies.node(MQ.enemies.goldenId(), { size: 96 }), 0)];
+
+    wkEl = h('div', {
+      class: 'news wkpop', onclick: function (e) { if (e.target === wkEl) close(); }
+    }, [
+      h('div', { class: 'bagcard wkpop__card wkpop--' + t.id }, [
+        h('span', { class: 'bagcard__star bagcard__star--l' }),
+        h('span', { class: 'bagcard__star bagcard__star--r' }),
+        h('div', { class: 'bagcard__head' }, [
+          h('h3', { class: 'bagcard__title', text: 'しゅうまつ イベント！' }),
+          h('div', { class: 'bagcard__subrow' }, [
+            h('span', { class: 'bagcard__sub', text: t.sunday ? 'きょうが さいごの 日' : 'どようびと にちようび' })
+          ])
+        ]),
+        h('div', { class: 'wkpop__art' }, art),
+        h('p', { class: 'wkpop__name', text: t.name }),
+        h('p', { class: 'wkpop__line', text: t.line }),
+        h('p', { class: 'wkpop__sub', text: t.sub }),
+        h('p', { class: 'wkpop__note', text: 'しゅうごとに ちがう まつりが くるよ' }),
+        h('button', {
+          class: 'btn btn--big', type: 'button',
+          onclick: function () { MQ.sfx.tap(); close(); }
+        }, [h('span', { text: 'あそぶ！' }), h('span', { class: 'btn__shine' })])
+      ])
+    ]);
+    (document.getElementById('stage') || document.body).appendChild(wkEl);
+    if (MQ.sfx.rare) MQ.sfx.rare();
+    return wkEl;
+  }
+
+  /* =======================================================
      きょうの フィーバー教科（v7.2）：HUD の すぐ 下の オレンジの 帯。
        いちばん やって いない 教科が「きょうは おトク」に なる
        （けいけんち 2ばい・コイン +1・レアが 出やすい・なかまゲージ 2ばい）。
@@ -1155,5 +1291,6 @@ MQ.ui.map = (function () {
   }
 
   // unlockPop は harness の 検査用にも 出す（v11.1）
-  return { render: render, paint: paint, unlockPop: unlockPop, isFirstTime: isFirstTime, dockIcon: dockIcon, warm: warm };
+  return { render: render, paint: paint, unlockPop: unlockPop, isFirstTime: isFirstTime, dockIcon: dockIcon, warm: warm,
+    weekendPop: weekendPop, wkIcon: wkIcon, weekendOpen: function () { return !!wkEl; } };
 })();

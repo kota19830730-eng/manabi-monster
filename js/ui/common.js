@@ -301,6 +301,8 @@ MQ.ui = MQ.ui || {};
     if (MQ.ui.news) MQ.ui.news.maybeShow();
     // さいごの塔が ひらいた お知らせ（v9.3）。お知らせ画面が 出て いる ときは 出さない
     if (!MQ.ui.news || !MQ.ui.news.isOpen()) MQ.ui.towerPop();
+    // しゅうまつ イベント（v13.16）：土・日の はじめての 地図で 1回。ほかの ポップが 出て いる ときは つぎに まわす
+    if (MQ.ui.map.weekendPop && !(MQ.ui.news && MQ.ui.news.isOpen()) && !(MQ.ui.towerPopOpen && MQ.ui.towerPopOpen())) MQ.ui.map.weekendPop();
   };
 
   /* =======================================================

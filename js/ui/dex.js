@@ -445,6 +445,7 @@ MQ.ui.dex = (function () {
       tixBox,
       inv,
       h('p', { class: 'note', text: 'たからものは たたかいの 中で 使える アイテム。下の たなから えらんで「もっていく」を おしてね。' }),
+      pikaCard(player),                 // ぴかぴか あつめ（v13.16）
       dexHead('たからもの', owned, mine.length, gold ? 'ぴかぴか ' + gold : ''),
       h('p', { class: 'note', text: 'ステージの ボスを たおすと 1つ もらえるよ。★3で クリアすると 金色（ぴかぴか）に なって 効果アップ！' }),
       h('div', { class: 'dexgrid dexgrid--tr' }, cells),
@@ -458,6 +459,41 @@ MQ.ui.dex = (function () {
       panel
     ]);
   }
+  /* ぴかぴか あつめ（v13.16）：たからものの たなの 上の カード。
+       ・ぜんぶの 学年の ぴかぴかの 数と、つぎの むりょうけんまで（5こ ごと）
+       ・教科ごとの ならび（金＝ぴかぴか・白＝ふつう・かげ＝まだ）。ぜんぶ 金なら かんむり
+     ルールは js/core/pika.js */
+  function pikaCard(player) {
+    if (!MQ.pika) return null;
+    const nx = MQ.pika.next(player);
+    const off = player.capsuleOff === true;
+    const rows = MQ.pika.overview(player).map(function (a) {
+      return h('div', { class: 'pika__row' + (a.complete ? ' is-all' : '') }, [
+        h('span', { class: 'pika__area', text: a.area.short || a.area.name }),
+        h('span', { class: 'pika__dots' }, a.rows.map(function (r) {
+          return h('i', { class: 'pika__dot' + (r.lv >= 2 ? ' is-gold' : r.lv ? ' is-got' : '') });
+        })),
+        h('span', { class: 'pika__n' }, [
+          a.complete ? h('i', { class: 'pika__crown' }) : null,
+          h('b', { text: String(a.gold) }), h('span', { text: '/' + a.total })
+        ])
+      ]);
+    });
+    return h('div', { class: 'pika' }, [
+      h('div', { class: 'pika__head' }, [
+        h('span', { class: 'pika__t', text: 'ぴかぴか あつめ' }),
+        h('span', { class: 'pika__have' }, [h('b', { text: String(nx.have) }), h('span', { text: 'こ' })])
+      ]),
+      h('div', { class: 'pika__next' }, [
+        off ? MQ.ui.coinNode(20) : MQ.ui.ticketNode(26),
+        h('span', { class: 'pika__nexts', text: 'あと ' + nx.left + 'こで ' + (off ? 'コイン +' + MQ.pika.TICKET_COINS : 'むりょうけん') }),
+        h('span', { class: 'pika__bar' }, [h('i', { style: { width: Math.round(nx.ratio * 100) + '%' } })])
+      ]),
+      rows.length ? h('div', { class: 'pika__rows' }, rows) : null,
+      h('p', { class: 'pika__note', text: 'パーフェクト（ぜんもん せいかい）で クリアすると、その ステージの たからものが ぴかぴかに なるよ。' })
+    ]);
+  }
+
   /* =======================================================
      モンスター図かん
      ======================================================= */
@@ -875,6 +911,21 @@ MQ.ui.dex = (function () {
             MQ.sfx.tap();
             MQ.save.update(function (pl) { pl.attacks = t[0]; });
             MQ.ui.toast(t[0] ? 'てきが こうげきして きます（カウンターの チャンス）' : 'てきの こうげきは なしに しました');
+            render('parent');
+          }
+        });
+      })),
+      // しゅうまつ イベント（v13.16）：週末に ゲームを しない ご家庭は 切れる
+      h('h3', { class: 'label', text: 'しゅうまつ イベント' }),
+      h('p', { class: 'note', text: '土よう日と 日よう日だけ、週ごとに かわる「まつり」が あります（ゴールデンスライムが かならず 出る → たからばこが 2こ → なかまが 来やすい → おわりに コイン +3 の じゅんばん）。もらえる ものが ふえる だけで、平日に なにかが へる ことは ありません。しゅうまつに ゲームを しない ご家庭は「なし」に できます。' }),
+      h('div', { class: 'termrow' }, [[true, 'つける'], [false, 'なし']].map(function (t) {
+        const on = (player.weekendOff !== true) === t[0];
+        return h('button', {
+          class: 'chip' + (on ? ' is-on' : ''), type: 'button', text: t[1],
+          onclick: function () {
+            MQ.sfx.tap();
+            MQ.save.update(function (pl) { pl.weekendOff = !t[0]; });
+            MQ.ui.toast(t[0] ? 'しゅうまつ イベントを つけました' : 'しゅうまつ イベントは なしに しました');
             render('parent');
           }
         });
