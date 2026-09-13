@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>わざの 名前の 字（なめらかな ふち）</title>
+<!-- v14.2：わざの 名前（js/ui/fxtext.js の SVG）を ぜんぶ ならべて 見る。
+     #old＝前の 8方向の 影と ならべる。#z2＝2倍 -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+  body { margin: 0; background: #1b1530; color: #cfc6e6; font: 13px 'Zen Maru Gothic', sans-serif; }
+  .row { position: relative; width: 400px; height: 86px; margin: 0 0 4px; overflow: hidden;
+    background: radial-gradient(ellipse at 70% 30%, #4a2a6a 0%, #1a0f30 60%, #0a0614 100%); }
+  .band { position: absolute; left: -20px; right: -20px; top: 16px; height: 54px; transform: skewX(-12deg);
+    background: linear-gradient(90deg, rgba(10,14,30,0), rgba(10,14,30,.78) 18%, rgba(10,14,30,.78) 82%, rgba(10,14,30,0)); }
+  .fxname { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); font-family: 'Mochiy Pop One'; font-size: 34px; color: #fff; white-space: nowrap; letter-spacing: 1px; }
+  .fxname--svg { width: 400px; line-height: 0; }
+  .fxname__svg { display: block; overflow: visible; }
+  .lab { position: absolute; left: 4px; bottom: 2px; font-size: 10px; color: #8a80a8; }
+  .z2 .row { width: 800px; height: 172px; }
+  .z2 .inner { transform: scale(2); transform-origin: 0 0; width: 400px; height: 86px; position: relative; }
+  .old { text-shadow: -3px 0 0 var(--k), 3px 0 0 var(--k), 0 -3px 0 var(--k), 0 3px 0 var(--k), -3px -3px 0 var(--k), 3px 3px 0 var(--k), 3px -3px 0 var(--k), -3px 3px 0 var(--k), 0 6px 0 rgba(0,0,0,.5), 0 0 26px var(--g); }
+</style>
+<div id="rows"></div>
+<script>window.MQ = { ui: {} };</script>
+<script src="../../js/ui/fxtext.js"></script>
+<script>
+  const LIST = [
+    ['fire', 'ほのお ギリ！', 34], ['leaf', 'はっぱ カッター！', 34], ['ice', 'こおりの やいば！', 34], ['wind', 'かぜの たつまき！', 34],
+    ['bolt', 'いなずま おとし！', 34], ['star', 'ひかりの メテオ！', 38], ['nova', 'ぎんがの ビッグバン！', 30], ['starburst', 'スターバースト ストライク！', 26],
+    ['atk', 'ばくれつ こうげき！', 26], ['def', 'てっぺき まもり！', 26], ['wis', 'みちしるべ！', 26], ['luck', 'ゴールデンコール！', 26]
+  ];
+  const SETS = [['set-kihon', '翠嵐ノ咆哮', 'エメラルド・テンペスト'], ['set-tetsu', '鋼鉄ノ断罪', 'スチール・ジャッジメント'], ['set-ryu', '煉獄龍皇波', 'インフェルノ・ドラグーン'],
+    ['set-densetsu', '天光ノ聖剣', 'セイクリッド・ブレイド'], ['set-hoshi', '星辰ノ黙示録', 'アストラル・アポカリプス'], ['set-yami', '漆黒ノ終焉', 'エンド・オブ・ダークネス'],
+    ['set-capsule', '禁断ノ匣', 'パンドラ・カプセル'], ['set-aurora', '極光ノ神域', 'オーロラ・サンクチュアリ']];
+  const old = location.hash.indexOf('old') >= 0, z2 = location.hash.indexOf('z2') >= 0;
+  const only = (location.hash.match(/only=([\w,-]+)/) || [])[1];
+  if (z2) document.body.classList.add('z2');
+  const root = document.getElementById('rows');
+  function row(build, lab) {
+    const r = document.createElement('div'); r.className = 'row';
+    const inner = document.createElement('div'); inner.className = 'inner'; inner.style.cssText = z2 ? '' : 'position:relative;width:400px;height:86px';
+    const b = document.createElement('div'); b.className = 'band'; inner.appendChild(b);
+    inner.appendChild(build());
+    const l = document.createElement('div'); l.className = 'lab'; l.textContent = lab; inner.appendChild(l);
+    r.appendChild(inner); root.appendChild(r);
+  }
+  function go() {
+    LIST.forEach(function (w) {
+      if (only && only.split(',').indexOf(w[0]) < 0) return;
+      const st = MQ.ui.fxtext.STYLE[w[0]];
+      if (old) row(function () { const s = document.createElement('span'); s.className = 'fxname old'; s.style.fontSize = w[2] + 'px'; s.style.setProperty('--k', st.ink); s.style.setProperty('--g', st.glow); s.textContent = w[1]; return s; }, w[0] + '（まえ）');
+      row(function () { return MQ.ui.fxtext.name(w[1], w[0], { size: w[2] }); }, w[0]);
+    });
+    SETS.forEach(function (w) {
+      if (only && only.split(',').indexOf(w[0]) < 0) return;
+      row(function () { const e = MQ.ui.fxtext.name(w[1], w[0], { size: 36, ruby: w[2], ls: 2, raw: true }); e.style.top = '6px'; return e; }, w[0]);
+    });
+  }
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(go);
+</script>

@@ -1241,4 +1241,18 @@
 
   MQ.ui.fxc = { attach: attach, ok: ok, play: play, seek: seek, stop: stop, fade: fade, has: function (id) { return !!SCRIPTS[id]; },
     ids: Object.keys(SCRIPTS), state: function () { return job ? { t: job.t, parts: job.parts.length, things: job.things.length, q: job.q } : null; } };
+
+  /* v14.2：ほかの ファイルから わざの 台本を 足す（セットわざ＝js/ui/setwaza.js）。
+     台本は { dur, run(E, F, S, Hr) }。道具は kit（この ファイルの 部品を そのまま 貸す） */
+  MQ.ui.fxc.define = function (id, sc) { if (!SCRIPTS[id]) MQ.ui.fxc.ids.push(id); SCRIPTS[id] = sc; };
+  MQ.ui.fxc.kit = {
+    P: P, n: n, R: R, at: at, during: during, thing: thing, STEP: STEP,
+    burst: burst, chunks: chunks, smoke: smoke, trail: trail, trailPos: trailPos,
+    flash: flash, ring: ring, slash: slash, bolt: bolt, rays: rays, orb: orb, pillar: pillar, glint: glint, aurora: aurora,
+    mesh: mesh, glowOf: glowOf, rgbOf: rgbOf, css: css, ramp: ramp, RAMP: RAMP, RAINBOW: RAINBOW, STARCOL: STARCOL,
+    shapes: { CRYSTAL: CRYSTAL, BOX: BOX, ROCKS: ROCKS, CHIPS: CHIPS, FLAME: FLAME, LEAF: LEAF, BAND: BAND, STAR5: STAR5, GEM: GEM, PRISM6: PRISM6 },
+    flameP: flameP, leafP: leafP, starP: starP, rockP: rockP, starIn: starIn, starOut: starOut,
+    firePillar: firePillar, tornado: tornado, lightPillar: lightPillar, slabs: slabs, bigStar: bigStar, crystalRing: crystalRing, pop: pop,
+    size: function () { return { W: W, H: H }; }
+  };
 })();

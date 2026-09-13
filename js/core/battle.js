@@ -465,6 +465,10 @@ MQ.battle = (function () {
        サポート（v7.2）：にがて・はじめての 教科。やさしい 問題 多め（上）・ヒントを 先に・コンボを まもる */
     const fever = (opts.fever && mode === 'normal' && !opts.timeAttack) ? opts.fever : null;
     const support = (opts.support && mode === 'normal' && !opts.timeAttack) ? opts.support : null;
+    /* セットわざ（v14.2・js/content/setwaza.js）：同じ グレードを 5点 つけて いると、正解で たまる ゲージが
+       いっぱいに なった 正解で その セットの わざ。とっくん・タイムアタックでは なし。opts.setWaza（id）で 決めうちも できる（テスト用） */
+    const setw = (mode === 'tokkun' || opts.timeAttack || !MQ.setwaza) ? null
+      : (opts.setWaza !== undefined ? MQ.setwaza.byId(opts.setWaza) : MQ.setwaza.forGear(gear));
 
     s = {
       items: bag,
@@ -530,6 +534,9 @@ MQ.battle = (function () {
       pal: opts.pal || null,       // いまの 相棒（{ id, name }）。いなければ null
       palHits: 0,
       palGauge: 0,                 // なかまゲージ（正解で たまる・まちがえても へらない・v5.2）
+      setWaza: setw ? setw.id : null,   // セットわざ（v14.2）
+      setGauge: 0,                 // セットゲージ（正解で たまる・まちがえても へらない）
+      setMoves: 0,                 // この たたかいで 出した セットわざの 数
       maxCombo: 0,
       correct: 0,
       answered: 0,
@@ -772,6 +779,15 @@ MQ.battle = (function () {
     if (hit) { s.palGauge = 0; s.palHits++; }
     return hit;
   }
+  /* セットゲージ（v14.2）：正解ごとに 1つ。いっぱいに なった 正解で セットわざ（1たたかい MAX 回まで） */
+  function setHitNow() {
+    if (!s.setWaza || !MQ.setwaza || s.setMoves >= MQ.setwaza.MAX) return false;
+    s.setGauge += 1;
+    if (s.setGauge < MQ.setwaza.NEED) return false;
+    s.setGauge = 0;
+    s.setMoves++;
+    return true;
+  }
 
   function answer(value) {
     const q = current();
@@ -811,12 +827,14 @@ MQ.battle = (function () {
         let xp = wasRetry ? XP.mobRetry : XP.mob;
         if (palHit) xp += palPower().xp;
         if (crit) xp += XP.critBonus;
+        const setHit = setHitNow();          // セットわざ（v14.2）
+        if (setHit) xp += MQ.setwaza.XP;
         xp += s.gear.xpAdd;
         xp = gain(xp);
         s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
         s.defeated.push(q.enemyId);
         noteReview(q, wasRetry);
-        return { outcome: 'correct', called: true, xp: xp, crit: crit, combo: s.combo, palHit: palHit, note: q.note, rare: false };
+        return { outcome: 'correct', called: true, xp: xp, crit: crit, combo: s.combo, palHit: palHit, note: q.note, rare: false, setMove: setHit };
       }
 
       /* ---- ボス ---- */
@@ -840,6 +858,9 @@ MQ.battle = (function () {
         const open = s.bossOpen && !wasRetry;
         if (open) { dmg = Math.min(Math.max(dmg, 2), s.bossHp); s.skillHits++; }
         s.bossOpen = false;
+        // セットわざ（v14.2）：ボスには 2ダメージまで（カウンターと 同じ）。本気で ガードされた 正解では たまらない
+        const setHit = !blocked && setHitNow();
+        if (setHit) dmg = Math.min(Math.max(dmg, MQ.setwaza.BOSS_DMG), s.bossHp);
         const usedBurst = !blocked && s.buff.dmg > 1;   // 相棒の 追い打ちで 2に なった ときは「ばくれつ」と 言わない
         // たての かまえ（v8.1）：1回めで 正解 → ガードブレイク（つぎの 1問が すきだらけ）
         const broke = skill === 'kamae' && !wasRetry;
@@ -881,7 +902,7 @@ MQ.battle = (function () {
         if (!defeated && s.bossAsked >= s.bossMax) { s.phase = 'done'; s.bossFled = true; s.endedAt = now(); }
         return {
           outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note, palHit: palHit,
-          counter: counter,
+          counter: counter, setMove: setHit,
           weakHit: weakHit, skill: skill, clonePos: pl ? pl.pos : 0, broke: broke, open: open, cloneKO: cloneKO,   // v8.1
           dmg: dmg, burst: usedBurst && !counter && !weakHit && !open ? dmg : 0, coins: defeated ? bossCoins : 0,
           hpLeft: s.bossHp, defeated: defeated, last: last,
@@ -919,18 +940,21 @@ MQ.battle = (function () {
       // 弱点（v8.1・ごちゃまぜ）：弱点の 教科の 問題に 1回めで 正解 → けいけんち 1.5ばい
       const weakHit = !!q.weak && !wasRetry;
       if (weakHit) { xp = Math.round(xp * WEAK_MUL); s.weakHits++; }
+      // セットわざ（v14.2）：ザコは けいけんち ボーナス・中ボスは 一発
+      const setHit = setHitNow();
+      if (setHit) xp += MQ.setwaza.XP;
       xp += s.gear.xpAdd;                    // けん（そうび）の 効果
 
       /* ---- 中ボス（v8.1）：HP2。つよい 一発（クリティカル・カウンター・追い打ち・ばくれつ・弱点）なら 2ダメージ ---- */
       if (q.elite) {
         // オーロラの たて（げきレア・v9.0）… 中ボスを 一発で たおせる
-        const dmg = Math.min(s.eliteLeft, (crit || counter || palHit || burst || weakHit || s.gear.pierce) ? 2 : 1);
+        const dmg = Math.min(s.eliteLeft, (crit || counter || palHit || burst || weakHit || setHit || s.gear.pierce) ? 2 : 1);
         s.eliteLeft -= dmg;
         if (s.eliteLeft > 0) {
           xp = gain(xp);
           s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
           return {
-            outcome: 'elitehit', xp: xp, crit: crit, combo: s.combo, palHit: palHit, note: q.note,
+            outcome: 'elitehit', xp: xp, crit: crit, combo: s.combo, palHit: palHit, note: q.note, setMove: setHit,
             burst: burst, counter: counter, weakHit: weakHit, dmg: dmg, hpLeft: s.eliteLeft, hpMax: q.eliteHp || ELITE_HP
           };
         }
@@ -944,7 +968,7 @@ MQ.battle = (function () {
         s.defeated.push(q.enemyId);
         noteReview(q, wasRetry);
         return {
-          outcome: 'correct', elite: true, xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit,
+          outcome: 'correct', elite: true, xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit, setMove: setHit,
           multi: null, note: q.note, burst: burst, coins: 1, revenge: false, counter: counter, weakHit: weakHit, dmg: dmg
         };
       }
@@ -965,7 +989,7 @@ MQ.battle = (function () {
       return {
         outcome: 'correct', xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit,
         multi: multi, note: q.note, burst: burst, coins: coins, revenge: !!q.revenge, counter: counter,
-        weakHit: weakHit, summon: !!q.summon, review: !!q.review, reviewOk: !!q.review && !wasRetry
+        weakHit: weakHit, summon: !!q.summon, review: !!q.review, reviewOk: !!q.review && !wasRetry, setMove: setHit
       };
     }
 
@@ -1309,6 +1333,7 @@ MQ.battle = (function () {
       starCoins: starCoins,
       gearCoins: gearCoins,
       gearSet: s.gear.setName || '',
+      setMoves: s.setMoves || 0,         // セットわざを 出した 数（v14.2）
       palXpMul: s.buff.palXp || 1,
       coinsSpent: s.coinsSpent,
       chestOpened: s.chestOpened,
@@ -1396,6 +1421,11 @@ MQ.battle = (function () {
     combo: function () { return s.combo; },
     palGauge: function () { return s.palGauge; },
     palGaugeNeed: function () { return MQ.pals ? MQ.pals.gaugeNeed() : 3; },
+    // セットわざ（v14.2）：{ id, gauge, need, used, max }。セットわざの ない たたかいは null
+    setInfo: function () {
+      if (!s || !s.setWaza || !MQ.setwaza) return null;
+      return { id: s.setWaza, gauge: s.setGauge, need: MQ.setwaza.NEED, used: s.setMoves, max: MQ.setwaza.MAX };
+    },
     // かぶと（そうび）で ひっさつわざが 何コンボ 早く 出るか（v5.4）
     specialBoost: function () { return (s && s.gear && s.gear.special) || 0; },
     // オーロラの かぶと（げきレア・v9.0）で ひっさつわざが 1つ 上に なるか

@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>漆黒ノ終焉 書体くらべ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Shippori+Mincho+B1:wght@800&family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+  :root { --ground: #0c0816; --line: #241a38; --ink: #ece4f7; --muted: #b3a6c9; --gold: #ffe27a; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.7 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif; }
+  header { padding: 22px 20px 6px; max-width: 760px; }
+  h1 { margin: 0 0 6px; font-size: 20px; color: var(--gold); text-wrap: balance; }
+  header p { margin: 0; color: var(--muted); max-width: 62ch; }
+  .rows { display: grid; gap: 0; }
+  .row { display: grid; grid-template-columns: minmax(150px, 220px) 400px; gap: 18px; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  @media (max-width: 680px) { .row { grid-template-columns: 1fr; } }
+  .lab b { display: block; font-size: 17px; color: var(--gold); margin-bottom: 2px; }
+  .lab span { color: var(--muted); }
+  .stage { position: relative; width: 400px; max-width: 100%; height: 150px; overflow: hidden; border-radius: 6px;
+    background: radial-gradient(ellipse at 70% 30%, #5a1f8a 0%, #1a0630 55%, #06020c 100%); }
+  .band { position: absolute; left: -20px; right: -20px; top: 28px; height: 70px; transform: skewX(-12deg);
+    background: linear-gradient(90deg, rgba(10,14,30,0), rgba(10,14,30,.78) 18%, rgba(10,14,30,.78) 82%, rgba(10,14,30,0)); }
+  .name { position: absolute; left: 0; right: 0; top: 26px; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+  .old .ruby { font-family: 'Mochiy Pop One'; font-size: 12px; letter-spacing: 2px; margin-bottom: 3px; color: #e9d2ff;
+    text-shadow: -2px 0 0 #2a0a4a, 2px 0 0 #2a0a4a, 0 -2px 0 #2a0a4a, 0 2px 0 #2a0a4a, 0 0 10px #b04dff; }
+  .old .kanji { font-family: 'Mochiy Pop One'; font-size: 36px; letter-spacing: 2px; color: #f7eeff;
+    text-shadow: -3px 0 0 #2a0a4a, 3px 0 0 #2a0a4a, 0 -3px 0 #2a0a4a, 0 3px 0 #2a0a4a, -3px -3px 0 #2a0a4a, 3px 3px 0 #2a0a4a, 3px -3px 0 #2a0a4a, -3px 3px 0 #2a0a4a, 0 6px 0 #12031f, 0 0 18px #b04dff, 0 0 34px #ff3d7a; }
+  svg { display: block; overflow: visible; }
+  .chant { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 22px; line-height: 1.2; color: #f3e4ff; }
+  .chant--old { font-family: 'Mochiy Pop One'; text-shadow: -3px 0 0 #14102c, 3px 0 0 #14102c, 0 -3px 0 #14102c, 0 3px 0 #14102c, -3px -3px 0 #14102c, 3px 3px 0 #14102c, 3px -3px 0 #14102c, -3px 3px 0 #14102c, 0 0 22px #b04dff; }
+  .chant--new { font-family: 'Mochiy Pop One'; -webkit-text-stroke: 6px #14102c; paint-order: stroke fill; text-shadow: 0 3px 0 rgba(0,0,0,.5), 0 0 18px #b04dff; }
+  .zoom { grid-column: 2; display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; }
+  .zoom .stage { height: 130px; }
+  .zoom .inner { position: absolute; left: 0; top: 0; width: 400px; height: 150px; transform: scale(1.8); transform-origin: 200px 58px; }
+  @media (max-width: 680px) { .zoom { grid-column: 1; } }
+  footer { padding: 16px 20px 28px; color: var(--muted); max-width: 62ch; }
+</style>
+<header>
+  <h1>漆黒ノ終焉 の 文字を なめらかに</h1>
+  <p>いまの 文字は ふちどりを「8方向に ずらした 影」で 作って いるので、ふちが 階段のように ギザギザに なり、画質が 悪く 見えます。A・B・C は ふちを 本物の 線で 描いて いるので なめらかです。書体を えらんで ください。下の 段は 1.8倍に 大きく した ところです。</p>
+</header>
+<div class="rows" id="rows"></div>
+<footer>おすすめは A です。いまの ゲームの 文字（Mochiy Pop One）と 同じ 書体なので、ほかの 画面と なじみます。B は 中二病らしさが いちばん 強い かわりに、この わざ名だけ 雰囲気が かわります。</footer>
+<script>
+  const NAME = '漆黒ノ終焉', RUBY = 'エンド・オブ・ダークネス', CHANT = 'やみよ、すべてを のみこめ！';
+  function svgName(font, weight, size, fill, id) {
+    return '<svg width="400" height="72" viewBox="0 0 400 72">' +
+      '<defs><linearGradient id="g' + id + '" x1="0" y1="0" x2="0" y2="1">' + fill + '</linearGradient>' +
+      '<filter id="f' + id + '" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="5" result="b"/><feFlood flood-color="#b04dff" flood-opacity=".9"/><feComposite in2="b" operator="in" result="gl"/><feMerge><feMergeNode in="gl"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>' +
+      '<g font-family="' + font + '" text-anchor="middle">' +
+      '<text x="200" y="15" font-size="12" letter-spacing="2" fill="#efdcff" stroke="#2a0a4a" stroke-width="3.5" stroke-linejoin="round" paint-order="stroke">' + RUBY + '</text>' +
+      '<text x="200" y="' + (22 + size * 0.88) + '" font-size="' + size + '" font-weight="' + weight + '" letter-spacing="2" fill="#12031f" stroke="#12031f" stroke-width="8" stroke-linejoin="round" transform="translate(0,4)">' + NAME + '</text>' +
+      '<text x="200" y="' + (22 + size * 0.88) + '" font-size="' + size + '" font-weight="' + weight + '" letter-spacing="2" fill="url(#g' + id + ')" stroke="#2a0a4a" stroke-width="7" stroke-linejoin="round" paint-order="stroke" filter="url(#f' + id + ')">' + NAME + '</text>' +
+      '</g></svg>';
+  }
+  const GRAD = '<stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f1e2ff"/><stop offset="1" stop-color="#c99bff"/>';
+  const SILVER = '<stop offset="0" stop-color="#ffffff"/><stop offset=".48" stop-color="#e6dcf2"/><stop offset=".52" stop-color="#b9a6d6"/><stop offset="1" stop-color="#f3eaff"/>';
+  const rows = [
+    ['いま', 'ふちは 8方向の 影（ギザギザ）', function () { return '<div class="name old"><span class="ruby">' + RUBY + '</span><span class="kanji">' + NAME + '</span></div>'; }, 'old'],
+    ['A　書体は そのまま', 'Mochiy Pop One。ふちを 本物の 線に・うすい むらさきの グラデ', function (k) { return '<div class="name">' + svgName('Mochiy Pop One', 400, 36, GRAD, 'a' + k) + '</div>'; }, 'new'],
+    ['B　太い 明朝', 'Shippori Mincho B1。銀の 金属グラデ・中二病の 王道', function (k) { return '<div class="name">' + svgName('Shippori Mincho B1', 800, 38, SILVER, 'b' + k) + '</div>'; }, 'new'],
+    ['C　太い ゲーム文字', 'Dela Gothic One。いちばん 太くて 目立つ', function (k) { return '<div class="name">' + svgName('Dela Gothic One', 400, 35, GRAD, 'c' + k) + '</div>'; }, 'new']
+  ];
+  document.getElementById('rows').innerHTML = rows.map(function (r) {
+    const scene = function (k) { return '<div class="band"></div>' + r[2](k) + '<div class="chant chant--' + r[3] + '">' + CHANT + '</div>'; };
+    return '<div class="row"><div class="lab"><b>' + r[0] + '</b><span>' + r[1] + '</span></div>' +
+      '<div class="stage">' + scene('1') + '</div>' +
+      '<div class="zoom"><div class="stage"><div class="inner">' + scene('2') + '</div></div></div></div>';
+  }).join('');
+</script>

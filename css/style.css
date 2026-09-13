@@ -1675,14 +1675,10 @@ body {
 .fx .fxname { top: 34px; }   /* アイテムの わざ名（.fx＝アリーナの 中）は いままで どおり 上に */
 .fxname--big { font-size: 38px; top: calc(var(--arena-h, 176px) - 58px); }
 .fxname--max { font-size: 36px; top: calc(var(--arena-h, 176px) - 57px); animation-duration: 1.4s; }
-/* まわりを ふちどって、どんな 背景でも 読めるように */
-.fxscreen--fire .fxname { text-shadow: -3px 0 0 #8f2406, 3px 0 0 #8f2406, 0 -3px 0 #8f2406, 0 3px 0 #8f2406, -3px -3px 0 #8f2406, 3px 3px 0 #8f2406, 0 6px 0 #4d1303, 0 0 26px rgba(255,140,60,1); }
-.fxscreen--leaf .fxname { color: #f2ffe6; text-shadow: -3px 0 0 #1f6b2a, 3px 0 0 #1f6b2a, 0 -3px 0 #1f6b2a, 0 3px 0 #1f6b2a, -3px -3px 0 #1f6b2a, 3px 3px 0 #1f6b2a, 0 6px 0 #0e3a14, 0 0 26px rgba(126,224,106,1); }
-.fxscreen--ice .fxname { color: #f4fcff; text-shadow: -3px 0 0 #1c5f8a, 3px 0 0 #1c5f8a, 0 -3px 0 #1c5f8a, 0 3px 0 #1c5f8a, -3px -3px 0 #1c5f8a, 3px 3px 0 #1c5f8a, 0 6px 0 #0c3450, 0 0 26px rgba(159,230,255,1); }
-.fxscreen--wind .fxname { color: #ffffff; text-shadow: -3px 0 0 #3f5f8a, 3px 0 0 #3f5f8a, 0 -3px 0 #3f5f8a, 0 3px 0 #3f5f8a, -3px -3px 0 #3f5f8a, 3px 3px 0 #3f5f8a, 0 6px 0 #22364f, 0 0 26px rgba(230,246,255,1); }
-.fxscreen--bolt .fxname { text-shadow: -3px 0 0 #123f78, 3px 0 0 #123f78, 0 -3px 0 #123f78, 0 3px 0 #123f78, -3px -3px 0 #123f78, 3px 3px 0 #123f78, 0 6px 0 #0a2246, 0 0 26px rgba(120,200,255,1); }
-.fxscreen--star .fxname { color: #fff8dc; text-shadow: -3px 0 0 #8a5a08, 3px 0 0 #8a5a08, 0 -3px 0 #8a5a08, 0 3px 0 #8a5a08, -3px -3px 0 #8a5a08, 3px 3px 0 #8a5a08, 0 6px 0 #4d3103, 0 0 30px rgba(255,212,71,1); }
-.fxscreen--nova .fxname { font-size: 30px; color: #fff; text-shadow: -3px 0 0 #3a1d6b, 3px 0 0 #3a1d6b, 0 -3px 0 #3a1d6b, 0 3px 0 #3a1d6b, -3px -3px 0 #3a1d6b, 3px 3px 0 #3a1d6b, 0 6px 0 #1c0b3a, 0 0 18px #ff5e7a, 0 0 34px #4fd3ff, 0 0 50px #ffd447; }
+/* v14.2：技名は SVG の 本物の 線で ふちどる（js/ui/fxtext.js・色は MQ.ui.fxtext.STYLE）。
+   ユーザー「文字の カクカク（画質が 悪い）」＝前の 8方向に ずらした text-shadow は ふちが 階段の ギザギザ に なった。もどさない */
+.fxname--svg { width: 400px; line-height: 0; text-shadow: none; }
+.fxname__svg { display: block; overflow: visible; }
 @keyframes fxnamefx {
   0%   { transform: translateX(-50%) scale(.3); opacity: 0; }
   16%  { transform: translateX(-50%) scale(1.35); opacity: 1; }
@@ -2821,10 +2817,7 @@ body {
 
 /* ---- 使った ときの 演出 ---- */
 .fx--item .fxname { font-size: 26px; }
-.fx--atk  .fxname { text-shadow: -3px 0 0 #8f2406, 3px 0 0 #8f2406, 0 -3px 0 #8f2406, 0 3px 0 #8f2406, -3px -3px 0 #8f2406, 3px 3px 0 #8f2406, 0 6px 0 #4d1303, 0 0 22px rgba(255,94,58,1); }
-.fx--def  .fxname { text-shadow: -3px 0 0 #123f78, 3px 0 0 #123f78, 0 -3px 0 #123f78, 0 3px 0 #123f78, -3px -3px 0 #123f78, 3px 3px 0 #123f78, 0 6px 0 #0a2246, 0 0 22px rgba(90,176,255,1); }
-.fx--wis  .fxname { text-shadow: -3px 0 0 #1f6a1c, 3px 0 0 #1f6a1c, 0 -3px 0 #1f6a1c, 0 3px 0 #1f6a1c, -3px -3px 0 #1f6a1c, 3px 3px 0 #1f6a1c, 0 6px 0 #0f3a0e, 0 0 22px rgba(99,217,79,1); }
-.fx--luck .fxname { color: #fff8dc; text-shadow: -3px 0 0 #8a5a08, 3px 0 0 #8a5a08, 0 -3px 0 #8a5a08, 0 3px 0 #8a5a08, -3px -3px 0 #8a5a08, 3px 3px 0 #8a5a08, 0 6px 0 #4d3103, 0 0 26px rgba(255,212,71,1); }
+/* アイテムの わざ名の ふちと 光の 色は js/ui/fxtext.js の STYLE（atk def wis luck）・v14.2 */
 .fx__tint { position: absolute; inset: 0; animation: tintfx .8s ease-out forwards; }
 .fx__tint--atk  { background: radial-gradient(closest-side at 24% 62%, rgba(255,120,80,.6), rgba(255,94,58,0)); }
 .fx__tint--def  { background: radial-gradient(closest-side at 24% 62%, rgba(140,200,255,.6), rgba(90,176,255,0)); }
@@ -3285,7 +3278,6 @@ body {
 @keyframes burstFall { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(220px); opacity: 0; } }
 .fxscreen--starburst { --fs-line: rgba(200,255,240,.9); --fs-ring: #b8ffe6; }
 .fxscreen--starburst .fxscreen__tint { background: radial-gradient(circle at var(--fs-x, 348px) var(--fs-y, 112px), rgba(255,255,255,1), rgba(124,249,196,.7) 26%, rgba(79,211,255,.45) 50%, rgba(10,20,44,.85) 82%); }
-.fxscreen--starburst .fxname { font-size: 26px; color: #fff; text-shadow: -3px 0 0 #12405a, 3px 0 0 #12405a, 0 -3px 0 #12405a, 0 3px 0 #12405a, 0 6px 0 #06202e, 0 0 18px #7cf9c4, 0 0 34px #4fd3ff, 0 0 52px #c48bff; }
 
 @media (prefers-reduced-motion: reduce) {
   .cutin, .cutin__face, .cutin__tx, .fx__curtain i, .fx__pillars i, .fx__fall i { animation-duration: .01s; }

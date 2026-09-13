@@ -56,6 +56,15 @@
     0 6px 0 rgba(0,0,0,.55), 0 0 22px var(--el, #ffd447), 0 0 40px var(--el, #ffd447);
   animation: ciTx var(--ci-ms, 900ms) cubic-bezier(.2,1.4,.4,1) both;
 }
+/* v14.2：せりふの ふちも 本物の 線で（上の 8方向の 影は ふちが 階段の ギザギザ＝「画質が 悪い」）。
+   線を 字の うしろに 描く（paint-order: stroke fill）ので 見える ふちは 線の 半分＝前の 3px と 同じ。
+   paint-order が ない ブラウザは 上の 影の まま */
+@supports (paint-order: stroke fill) {
+  .ci__tx {
+    -webkit-text-stroke: 6px #14102c; paint-order: stroke fill; stroke-linejoin: round;
+    text-shadow: 0 5px 0 rgba(0,0,0,.5), 0 0 22px var(--el, #ffd447), 0 0 40px var(--el, #ffd447);
+  }
+}
 @keyframes ciTx {
   0%, 10% { transform: var(--tx0, translateX(0)) scale(.2) rotate(-8deg); opacity: 0; }
   22%     { transform: var(--tx0, translateX(0)) scale(1.18) rotate(-4deg); opacity: 1; }

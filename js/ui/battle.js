@@ -631,6 +631,7 @@ MQ.ui.battle = (function () {
 
   function comboShow(n) {
     syncPalGauge();                    // なかまゲージ（v5.2）
+    if (MQ.ui.setwaza) MQ.ui.setwaza.sync(d.arena);   // セットゲージ（v14.2）
     // コンボで 曲が もりあがる（3〜 ドラム／5〜 もう1本の メロディ＋テンポ）
     MQ.bgm.setIntensity(n >= 5 ? 2 : (n >= 3 ? 1 : 0));
     d.combo.hidden = n < 2;
@@ -1011,7 +1012,8 @@ MQ.ui.battle = (function () {
     const kind = res.kind || 'atk';
     d.fx.textContent = '';
     d.fx.className = 'fx fx--item fx--' + kind;
-    d.fx.appendChild(h('span', { class: 'fxname', text: res.powerName + '！' }));
+    // v14.2：わざ名も なめらかな ふちの SVG（js/ui/fxtext.js）
+    d.fx.appendChild(MQ.ui.fxtext ? MQ.ui.fxtext.name(res.powerName + '！', kind, { size: 26 }) : h('span', { class: 'fxname', text: res.powerName + '！' }));
     d.fx.appendChild(h('span', { class: 'fx__tint fx__tint--' + kind }));
     const sp = sparks(14, 'fx__sparks--' + kind, 60);
     sp.classList.add('fx__sparks--hero');
@@ -1494,7 +1496,7 @@ MQ.ui.battle = (function () {
     /* ---- 中ボスに ダメージ（まだ たおれない・v8.1） ---- */
     if (res.outcome === 'elitehit') {
       markChoices(q, value);
-      const spc = specialOf(res.combo);
+      const spc = specialFor(res);
       if (res.counter) counterFx();
       if (res.weakHit) weakFx();
       attack(res.crit, true, spc, { combo: res.combo || 0, finish: false, withPal: !!(spc && res.palHit) });
@@ -1512,7 +1514,7 @@ MQ.ui.battle = (function () {
     /* ---- ザコを たおした ---- */
     if (res.outcome === 'correct') {
       markChoices(q, value);
-      const spc = specialOf(res.combo);
+      const spc = specialFor(res);
       if (res.counter) counterFx();          // てきの こうげきを はね返した（v7.7）
       if (res.weakHit) weakFx();             // 弱点を ついた（v8.1）
       attack(res.crit, false, spc, { combo: res.combo || 0, finish: isFinisher(res) || !!res.elite, withPal: !!(spc && res.palHit) });
@@ -1615,10 +1617,11 @@ MQ.ui.battle = (function () {
       else if (res.broke) { MQ.sfx.guardBreak(); flash(false); skillBanner('ガードブレイク！', 'break'); }
       else if (res.open) { flash(true); skillBanner('すきを ついた！', 'open'); }
       else if (res.cloneKO) { flash(true); skillBanner('見やぶった！', 'clone'); }
-      attack(res.crit, true, specialOf(res.combo), { combo: res.combo || 0, finish: !!res.defeated, withPal: !!(specialOf(res.combo) && res.palHit) });
+      const bsp = specialFor(res);
+      attack(res.crit, true, bsp, { combo: res.combo || 0, finish: !!res.defeated, withPal: !!(bsp && res.palHit) });
       if (res.palHit) palAttack();
       if (res.burst) burstHit();
-      popDamage((res.counter ? 'カウンター ' + res.dmg + 'ダメージ ' : res.weakHit || res.open ? res.dmg + 'ダメージ ' : res.burst ? res.dmg + 'ダメージ ' : '') + '+' + res.xp, res.crit || !!res.burst || !!res.counter || !!res.weakHit || !!res.open || !!res.cloneKO || !!res.broke);
+      popDamage((res.counter ? 'カウンター ' + res.dmg + 'ダメージ ' : res.weakHit || res.open || res.setMove ? res.dmg + 'ダメージ ' : res.burst ? res.dmg + 'ダメージ ' : '') + '+' + res.xp, res.crit || !!res.burst || !!res.counter || !!res.weakHit || !!res.open || !!res.cloneKO || !!res.broke || !!res.setMove);
       comboShow(res.combo);
       setTimeout(renderBossHp, 350);
       ok(res.note);
@@ -1670,7 +1673,8 @@ MQ.ui.battle = (function () {
         wait(2600, advanceBoss);
         return;
       }
-      d.msg.textContent = (res.counter ? 'カウンター！ ' + res.dmg + 'ダメージ！ '
+      d.msg.textContent = (res.setMove ? 'セットわざ！ ' + res.dmg + 'ダメージ！ '
+        : res.counter ? 'カウンター！ ' + res.dmg + 'ダメージ！ '
         : res.weakHit ? 'こうかは ばつぐん！ ' + res.dmg + 'ダメージ！ '
         : res.open ? 'すきを ついた！ ' + res.dmg + 'ダメージ！ '
         : res.broke ? 'ガードブレイク！ つぎの 1問は 2ダメージの チャンス！ '
@@ -1679,7 +1683,7 @@ MQ.ui.battle = (function () {
         : res.burst ? 'ばくれつ こうげき！ ' + res.dmg + 'ダメージ！ '
         : res.blocked ? 'ガードされた！ でも なかまの こうげきが 入った！ '   // 本気モード＋相棒（v12.7）
         : 'いいぞ！ ') + 'あと ' + res.hpLeft + 'かい だ！';
-      wait(1700, advanceBoss);
+      wait(1700 + (bsp && bsp.set ? Math.max(0, bsp.ms - 1100) : 0), advanceBoss);   // セットわざ（v14.2）は 見おわるまで まつ
       return;
     }
 
@@ -1939,6 +1943,7 @@ MQ.ui.battle = (function () {
      その あいだ 追い打ち（palAttack）の 2D の ジャンプと mo-attack は 出さない（二重に 動く） */
   let palJoinUntil = 0;
   // 主人公の オーラと コンボの 色
+  const NAME_SIZE = { nova: 30, starburst: 26 };   // 技名の 字の 大きさ（長い 名前だけ 小さく。ほかは tier で 34／38／36）
   const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff', starburst: '#b8ffe6' };
   const NOVA_COLORS = ['#ff5e7a', '#ffd447', '#7cf9c4', '#4fd3ff', '#c48bff', '#ffffff'];
 
@@ -1974,7 +1979,20 @@ MQ.ui.battle = (function () {
     if (c >= TIER1_MIN) return up ? SPECIALS[SPECIALS.length - 1] : ELEMENTS[currentElement()];
     return null;
   }
+  /* セットわざ（v14.2・js/content/setwaza.js）：ゲージが いっぱいに なった 正解は コンボの わざの かわりに これ。
+     色・詠唱・ポーズ・3D の 動きを ここの 表に 入れて、あとは ひっさつわざと 同じ 流れ（playSpecial）で 出す */
+  function setSpecial(id) {
+    const sp = MQ.ui.setwaza && MQ.ui.setwaza.sp(id);
+    if (!sp) return null;
+    FX_COLOR[sp.id] = sp.color; SP_LINES[sp.id] = sp.lines; CI_POSE[sp.id] = sp.pose; SP_MOTION[sp.id] = sp.motion;
+    return sp;
+  }
+  function specialFor(res) {
+    const info = res && res.setMove && MQ.battle.setInfo ? MQ.battle.setInfo() : null;
+    return (info && setSpecial(info.id)) || specialOf(res ? res.combo || 0 : 0);
+  }
   function specialById(id) {
+    if (String(id).indexOf('set-') === 0) { const sw = setSpecial(id); if (sw) return sw; }
     if (ELEMENTS[id]) return ELEMENTS[id];
     for (let i = 0; i < SPECIALS.length; i++) if (SPECIALS[i].id === id) return SPECIALS[i];
     return SPECIALS[0];
@@ -2217,7 +2235,12 @@ MQ.ui.battle = (function () {
     d.fxs.appendChild(h('span', { class: 'fxveil' }));
     // 技名（黒い 帯＋大きな 文字＋星）は いちばん 上に
     d.fxs.appendChild(h('span', { class: 'fxband' }));
-    d.fxs.appendChild(h('span', { class: 'fxname' + (sp.tier >= 4 ? ' fxname--max' : sp.tier === 3 ? ' fxname--big' : ''), text: sp.name }));
+    // v14.2：技名は なめらかな ふちの SVG（js/ui/fxtext.js）。8方向の 影（ギザギザ）に もどさない。
+    // セットわざは 漢字の 名前の 上に カタカナの ルビ
+    const nameCls = sp.set ? 'fxname--set' : sp.tier >= 4 ? 'fxname--max' : sp.tier === 3 ? 'fxname--big' : '';
+    d.fxs.appendChild(MQ.ui.fxtext
+      ? MQ.ui.fxtext.name(sp.name, sp.id, { size: NAME_SIZE[sp.id] || (sp.set ? 36 : sp.tier >= 4 ? 36 : sp.tier === 3 ? 38 : 34), ruby: sp.ruby, cls: nameCls, raw: !!sp.set, ls: sp.set ? 2 : 1 })
+      : h('span', { class: 'fxname ' + nameCls, text: sp.name }));
     const stars = h('span', { class: 'fxstars' });
     [[-150, -6, 0], [148, 2, 0.08], [-112, 26, 0.16], [118, -22, 0.12]].forEach(function (s) {
       stars.appendChild(h('i', { style: { '--x': s[0] + 'px', '--y': s[1] + 'px', animationDelay: s[2] + 's' } }));
@@ -2632,8 +2655,9 @@ MQ.ui.battle = (function () {
     const m = SP_MOTION[sp.id];
     if (!m) { MQ.ui.v3.dashTo(d.hero, foe); MQ.ui.v3.play(d.hero, 'mo-attack', 480); return; }
     if (m.scene) MQ.ui.v3.dashTo(d.hero, foe);
-    MQ.ui.v3.play(d.hero, 'mo-sp-' + sp.id, sp.ms, { scene: m.scene, ms: sp.ms });
-    if (foe) MQ.ui.v3.play(foe, 'mo-hit-' + sp.id, sp.ms);
+    const mo = m.mo || sp.id;   // セットわざ（v14.2）は ひっさつわざの 動きを 借りる
+    MQ.ui.v3.play(d.hero, 'mo-sp-' + mo, sp.ms, { scene: m.scene, ms: sp.ms });
+    if (foe) MQ.ui.v3.play(foe, 'mo-hit-' + mo, sp.ms);
     palJoin(sp, foe, m);
   }
 

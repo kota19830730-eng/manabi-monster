@@ -4840,6 +4840,95 @@ function stripComments(src) {
   console.log('v13.16: ぴかぴか あつめ・しゅうまつ イベント OK');
 })();
 
+/* =======================================================
+   セットわざ（v14.2）：同じ グレードの そうびを 5点 つけると、正解で たまる ゲージが いっぱいで わざ
+   ======================================================= */
+(function () {
+  const SW = MQ.setwaza;
+  check(!!SW && SW.list().length === 8, 'v14.2: セットわざは 8つ');
+  const POSES = ['raise', 'thrust', 'guard', 'sweep', 'sky', 'point', 'spread', 'charge'];
+  const MOS = ['fire', 'leaf', 'ice', 'wind', 'bolt', 'star', 'nova', 'starburst'];
+  const uiSet = fs.readFileSync(path.join(base, 'js/ui/setwaza.js'), 'utf8');
+  const uiTxt = fs.readFileSync(path.join(base, 'js/ui/fxtext.js'), 'utf8');
+  const names = {};
+  SW.list().forEach(function (w) {
+    check(w.ready === true, 'v14.2: ' + w.id + ' は できて いる（ready）');
+    check(POSES.indexOf(w.pose) >= 0 && MOS.indexOf(w.mo) >= 0, 'v14.2: ' + w.id + ' の ポーズと 動き');
+    check(w.hit > 0 && w.hit < w.down && w.down < w.ms && w.tier === 4, 'v14.2: ' + w.id + ' の 時間（当たる < たおれる < 長さ）');
+    check(!names[w.name] && /^[一-龥ノ]+$/.test(w.name) && /^[ァ-ヶー・]+$/.test(w.ruby), 'v14.2: ' + w.id + ' の 名前（漢字）と ルビ（カタカナ）');
+    names[w.name] = true;
+    check(uiSet.indexOf("fxc.define('" + w.id + "'") >= 0, 'v14.2: ' + w.id + ' の 光の 台本');
+    check(uiTxt.indexOf("'" + w.id + "':") >= 0, 'v14.2: ' + w.id + ' の 技名の 色（fxtext.js）');
+    // その グレードを 5点 つけると その わざ
+    const pl = { gear: [], equipped: {} };
+    MQ.hero.gear.forEach(function (g) { if (g.grade === w.grade) { pl.gear.push(g.id); pl.equipped[g.slot] = g.id; } });
+    const gp = MQ.hero.gearPower(pl);
+    check(SW.forGear(gp) === w && SW.forPlayer(pl) === w, 'v14.2: ' + w.gradeName + ' の 5点で ' + w.name);
+  });
+  // 4点では 出ない
+  const pl4 = { gear: [], equipped: {} };
+  MQ.hero.gear.filter(function (g) { return g.grade === 'yami'; }).slice(0, 4).forEach(function (g) { pl4.gear.push(g.id); pl4.equipped[g.slot] = g.id; });
+  check(SW.forPlayer(pl4) === null, 'v14.2: 4点では セットわざ なし');
+
+  // たたかい：正解で たまる・まちがえても へらない・1回の たたかいで MAX 回まで
+  const stS = MQ.content.findStage('sansu3-6').stage;
+  MQ.battle.start({ stage: stS, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 12), bossId: 'boss-dragon', mobs: 12, setWaza: 'set-kihon' });
+  check(MQ.battle.setInfo() && MQ.battle.setInfo().gauge === 0 && MQ.battle.setInfo().need === SW.NEED, 'v14.2: はじめは ゲージ 0');
+  let moves = 0, firstAt = -1, kept = true, n = 0;
+  for (let i = 0; i < 40 && MQ.battle.phase() === 'mob'; i++) {
+    const q = MQ.battle.current();
+    if (q.chest) {   // たからばこの 正解では たまらない
+      const g0 = MQ.battle.setInfo().gauge;
+      MQ.battle.answer(correctValue(q));
+      check(MQ.battle.setInfo().gauge === g0, 'v14.2: たからばこでは たまらない');
+      MQ.battle.next(); continue;
+    }
+    if (i === 2) {   // まちがえても へらない
+      const g0 = MQ.battle.setInfo().gauge;
+      MQ.battle.answer(wrongValue(q));
+      kept = kept && MQ.battle.setInfo().gauge === g0;
+    }
+    const r = MQ.battle.answer(correctValue(q));
+    if (r.setMove) { moves++; if (firstAt < 0) firstAt = n; }
+    n++;
+    MQ.battle.next();
+  }
+  check(kept, 'v14.2: まちがえても ゲージは へらない');
+  check(moves === SW.MAX && MQ.battle.setInfo().used === SW.MAX, 'v14.2: 1回の たたかいで ' + SW.MAX + '回まで（' + moves + '）');
+  check(MQ.battle.summary().setMoves === moves, 'v14.2: summary の setMoves');
+
+  // ボスには BOSS_DMG まで
+  MQ.battle.start({ stage: stS, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 3), bossId: 'boss-dragon', mobs: 3, setWaza: 'set-ryu' });
+  let bossSet = null;
+  for (let i = 0; i < 40 && !MQ.battle.isOver(); i++) {
+    const q = MQ.battle.current();
+    const r = MQ.battle.answer(correctValue(q));
+    if (q.boss && r.setMove) { bossSet = r; break; }
+    if (MQ.battle.isOver()) break;
+    MQ.battle.next();
+  }
+  check(!!bossSet && (bossSet.dmg >= 1 && bossSet.dmg <= SW.BOSS_DMG), 'v14.2: ボスへは ' + SW.BOSS_DMG + ' ダメージまで');
+
+  // とっくん・タイムアタックでは 出ない
+  MQ.battle.start({ stage: stS, mode: 'tokkun', escaped: [], enemies: MQ.enemies.pickIds('sansu', 3), mobs: 3, setWaza: 'set-yami' });
+  check(MQ.battle.setInfo() === null, 'v14.2: とっくんでは なし');
+  MQ.battle.start({ stage: stS, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 3), bossId: 'boss-dragon', mobs: 3, setWaza: 'set-yami', timeAttack: 60 });
+  check(MQ.battle.setInfo() === null, 'v14.2: タイムアタックでは なし');
+
+  // 読みこみ順：setwaza.js（表）は treasure の あと・ui/fxtext.js は ui/setwaza.js の 前
+  check(INDEX_HTML.indexOf('js/content/setwaza.js') > INDEX_HTML.indexOf('js/content/treasure.js'), 'v14.2: index の 読みこみ順（表）');
+  check(INDEX_HTML.indexOf('js/ui/fxtext.js') > 0 && INDEX_HTML.indexOf('js/ui/fxtext.js') < INDEX_HTML.indexOf('js/ui/setwaza.js') && INDEX_HTML.indexOf('js/ui/setwaza.js') > INDEX_HTML.indexOf('js/ui/fxcanvas.js'), 'v14.2: index の 読みこみ順（ui）');
+  const swf = fs.readFileSync(path.join(base, 'sw.js'), 'utf8'), hx = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  ['./css/setwaza.css', './js/content/setwaza.js', './js/ui/setwaza.js', './js/ui/fxtext.js'].forEach(function (x) {
+    check(swf.indexOf("'" + x + "'") >= 0, 'v14.2: sw.js の FILES に ' + x);
+    check(hx.indexOf('.' + x) >= 0, 'v14.2: harness.html に ' + x);
+  });
+  // 技名の 字は 8方向の text-shadow に もどさない（ギザギザ）
+  const css = fs.readFileSync(path.join(base, 'css/style.css'), 'utf8') + fs.readFileSync(path.join(base, 'css/specialfx.css'), 'utf8');
+  check(!/\.fxname \{ [^}]*text-shadow: -3px 0 0/.test(css) && css.indexOf('paint-order: stroke fill') > 0, 'v14.2: 技名・せりふは なめらかな ふち（8方向の 影なし）');
+  console.log('v14.2: セットわざ OK');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

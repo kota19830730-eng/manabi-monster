@@ -1,0 +1,66 @@
+/* =========================================================
+   セットわざ（v14.2）の 見た目
+   ・ゲージ（.setgauge）…… 主人公の 足もと と ふきだしの 帯の あいだ（すき間 約16px）
+   ・技名（.fxname--set）… 漢字を 大きく、上に カタカナの ルビ。帯は ひっさつわざと 同じ（アリーナの いちばん 下）
+   ・動かすのは transform と opacity だけ（v13.10 の きまり）
+   ========================================================= */
+
+/* ---- ゲージ：宝石 1つ ＋ ひし形の マス（正解で たまる・まちがえても へらない） ---- */
+.setgauge {
+  position: absolute; left: 46px; bottom: 47px; z-index: 3;
+  display: flex; align-items: center; gap: 5px;
+  padding: 2px 7px 2px 5px; border-radius: 8px;
+  background: rgba(10,6,24,.74); box-shadow: 0 0 0 1px rgba(255,255,255,.14);
+  pointer-events: none;
+}
+.setgauge__gem {
+  width: 9px; height: 9px; transform: rotate(45deg);
+  background: var(--sw, #b04dff); box-shadow: 0 0 6px var(--sw, #b04dff), inset 2px 2px 0 rgba(255,255,255,.55);
+}
+.setgauge__dots { display: flex; gap: 4px; }
+.setgauge__dots i {
+  display: block; width: 7px; height: 7px; transform: rotate(45deg);
+  background: rgba(255,255,255,.14); box-shadow: 0 0 0 1px rgba(255,255,255,.38);
+}
+.setgauge__dots i.is-on { background: var(--sw, #b04dff); box-shadow: 0 0 0 1px rgba(255,255,255,.8), 0 0 7px var(--sw, #b04dff); }
+/* あと 1つ：宝石が ゆっくり 光る */
+.setgauge.is-near .setgauge__gem { animation: setgaugeNear .9s ease-in-out infinite; }
+@keyframes setgaugeNear { 0%, 100% { transform: rotate(45deg) scale(1); opacity: 1; } 50% { transform: rotate(45deg) scale(1.35); opacity: .75; } }
+/* この たたかいの ぶんは つかいきった */
+.setgauge.is-done { opacity: .42; }
+
+/* ---- 技名：漢字＋カタカナの ルビ（SVG・js/ui/fxtext.js）----
+   ふちは SVG の 本物の 線（ユーザー「文字の カクカク（画質が 悪い）」→ A 書体は そのまま）。
+   8方向の text-shadow に もどさない（ふちが 階段のように ギザギザに なる）。.fxname--svg の きまりは style.css */
+.fxname--set { top: calc(var(--arena-h, 176px) - 68px); animation-duration: 1.6s; }
+.arena__spsky[data-sp="set-yami"] { background: linear-gradient(rgba(2,0,6,.97) 0%, rgba(18,2,34,.93) 55%, rgba(46,8,70,.82) 100%); }
+
+/* ---- カットインの 詠唱：長いので 小さめ・2行まで ---- */
+.ci[class*="ci--set-"] .ci__tx { font-size: 24px; line-height: 1.2; white-space: normal; width: 90%; text-align: center; }
+/* ふちの なめらかな 線は すべての カットインの せりふ 共通（css/specialfx.css の .ci__tx） */
+.ci--set-yami.ci--full .ci__bg { background: radial-gradient(ellipse at 50% 70%, #f0dcff 0%, #8a2be2 16%, rgba(44,6,76,.95) 44%, rgba(3,0,8,.98) 80%); }
+.ci--set-yami .ci__tx { color: #f3e4ff; }
+
+/* ---- のこり 7つの 空と カットイン（v14.2）----
+   空＝わざの あいだ 背景だけ 暗く（.arena__spsky）。カットイン＝画面ぜんたいの 大きな 絵の うしろ */
+.arena__spsky[data-sp="set-kihon"]    { background: linear-gradient(rgba(2,16,8,.96) 0%, rgba(8,52,24,.9) 55%, rgba(24,96,40,.76) 100%); }
+.arena__spsky[data-sp="set-tetsu"]    { background: linear-gradient(rgba(6,8,14,.96) 0%, rgba(26,32,48,.9) 55%, rgba(60,70,92,.76) 100%); }
+.arena__spsky[data-sp="set-ryu"]      { background: linear-gradient(rgba(20,2,0,.96) 0%, rgba(80,12,4,.9) 55%, rgba(150,40,8,.76) 100%); }
+.arena__spsky[data-sp="set-densetsu"] { background: linear-gradient(rgba(20,14,2,.95) 0%, rgba(70,50,10,.86) 55%, rgba(140,104,30,.66) 100%); }
+.arena__spsky[data-sp="set-hoshi"]    { background: linear-gradient(rgba(2,2,14,.97) 0%, rgba(10,12,48,.92) 55%, rgba(30,26,90,.8) 100%); }
+.arena__spsky[data-sp="set-capsule"]  { background: linear-gradient(rgba(6,2,20,.96) 0%, rgba(30,10,60,.9) 55%, rgba(20,60,96,.76) 100%); }
+.arena__spsky[data-sp="set-aurora"]   { background: linear-gradient(rgba(2,8,20,.96) 0%, rgba(8,30,52,.9) 55%, rgba(20,70,80,.76) 100%); }
+.ci--set-kihon.ci--full .ci__bg    { background: radial-gradient(ellipse at 50% 70%, #e2ffd8 0%, #2fbf6a 16%, rgba(6,50,24,.95) 44%, rgba(1,10,4,.98) 80%); }
+.ci--set-tetsu.ci--full .ci__bg    { background: radial-gradient(ellipse at 50% 70%, #ffffff 0%, #9fb2cc 16%, rgba(30,36,52,.95) 44%, rgba(4,6,10,.98) 80%); }
+.ci--set-ryu.ci--full .ci__bg      { background: radial-gradient(ellipse at 50% 70%, #fff0a0 0%, #ff5a1a 16%, rgba(80,10,2,.95) 44%, rgba(10,1,0,.98) 80%); }
+.ci--set-densetsu.ci--full .ci__bg { background: radial-gradient(ellipse at 50% 70%, #ffffff 0%, #ffd24a 16%, rgba(90,62,8,.95) 44%, rgba(12,8,1,.98) 80%); }
+.ci--set-hoshi.ci--full .ci__bg    { background: radial-gradient(ellipse at 50% 70%, #e8f0ff 0%, #6a7cff 16%, rgba(20,16,70,.95) 44%, rgba(2,2,12,.98) 80%); }
+.ci--set-capsule.ci--full .ci__bg  { background: radial-gradient(ellipse at 50% 70%, #ffffff 0%, #ff7ad0 14%, #4fd3ff 28%, rgba(40,14,80,.95) 50%, rgba(4,2,14,.98) 82%); }
+.ci--set-aurora.ci--full .ci__bg   { background: radial-gradient(ellipse at 50% 70%, #ffffff 0%, #7cf9c4 14%, #c48bff 30%, rgba(14,40,60,.95) 52%, rgba(2,6,12,.98) 82%); }
+.ci--set-kihon .ci__tx { color: #eaffe0; }
+.ci--set-tetsu .ci__tx { color: #f2f6fc; }
+.ci--set-ryu .ci__tx { color: #fff0d0; }
+.ci--set-densetsu .ci__tx { color: #fff8dc; }
+.ci--set-hoshi .ci__tx { color: #e8f0ff; }
+.ci--set-capsule .ci__tx { color: #e8faff; }
+.ci--set-aurora .ci__tx { color: #eafff6; }
