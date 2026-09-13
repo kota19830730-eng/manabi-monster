@@ -2322,8 +2322,34 @@ MQ.ui.battle = (function () {
   }
   /* 3D は 見せる 大きさで 作らないと ぼやける（48マス × unit）。大きすぎる unit は 作るのも 描くのも 重いので 4まで（5〜6 は はじめの 1コマが 0.1秒 重く なった） */
   function ciUnit(size) { return Math.max(2, Math.min(4, Math.round(size / 48))); }
+  /* v14.2.1 軽く：わざの 字（技名・ルビ・カットインの せりふ・アイテムの わざ名）の 字の ファイルを
+     たたかいの はじめに 先に よみこんで おく（document.fonts.load）。
+     Google Fonts の 字は 漢字・かなの まとまりごとに 分かれて いて、まだ よみこんで いない 字は
+     わざの 1コマめを べつの 字で 描いて、よみこめたら 画面ぜんたいを 計算し直して いた
+     （はじめての わざの 出だしで PC 0.05秒・タブレット 0.2秒 ひっかかる＋字が 一しゅん かわる）。
+     見た目は 変えない（字の ファイルを 先に 取って おくだけ）。はかり方は tools/fxcheck/fontsdiff.js・whyl.js */
+  const fontWarmed = {};
+  function fxWarm() {
+    if (typeof document === 'undefined' || !document.fonts || !document.fonts.load) return;
+    const fit = function (t) { return MQ.text && MQ.text.fit ? MQ.text.fit(t) : t; };
+    const list = [];
+    SPECIALS.forEach(function (x) { list.push(x.name); });
+    Object.keys(ELEMENTS).forEach(function (k) { list.push(ELEMENTS[k].name); });
+    Object.keys(SP_LINES).forEach(function (k) { SP_LINES[k].forEach(function (x) { list.push(x); }); });
+    PAL_LINES.forEach(function (x) { list.push(x.replace('{p}', palNow ? palNow.name : '')); });
+    if (MQ.setwaza && MQ.setwaza.list) MQ.setwaza.list().forEach(function (w) { list.push(w.name, w.ruby || '', (w.lines || []).join('')); });
+    if (MQ.treasure && MQ.treasure.powers) MQ.treasure.powers.forEach(function (p) { list.push(p.name + '！'); });
+    list.push('0123456789 コンボ！ ひっさつ！カウンター！セットわざ！');
+    const seen = {};
+    let text = '';
+    list.forEach(function (t) { [t, fit(t)].forEach(function (u) { for (const ch of String(u)) { if (!seen[ch] && !fontWarmed[ch]) { seen[ch] = 1; text += ch; } } }); });
+    if (!text) return;
+    for (const ch of text) fontWarmed[ch] = 1;
+    try { document.fonts.load("36px 'Mochiy Pop One'", text).catch(function () {}); } catch (e) { /* 字の ファイルが なくても わざは 出る */ }
+  }
   /* はじめての わざで 1コマ ひっかからない ように、たたかいの はじめに 作って おく（しまって おくだけ） */
   function ciWarm(player) {
+    setTimeout(fxWarm, 600);   // v14.2.1：わざの 字を 先に よみこむ（3D が なくても）
     if (!V3() || !MQ.ui.v3) return;
     setTimeout(function () {
       if (!d || !d.root) return;

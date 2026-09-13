@@ -25,3 +25,14 @@
 
 - **時間は PC の 混みぐあいで 1.6ばい ぶれる**。くらべる ときは 描き直しの 回数（paintwho）か、画素の ちがい（diff）で。
 - 前の 版と くらべる：`git worktree add -f <一時フォルダ> HEAD --detach` → 同じ 道具で 撮る（harness に `|js=` で `Math.random` を 種つきに）。おわったら `git worktree remove`。
+
+
+## わざの 出だしの ひっかかり（v14.2.1）
+
+| ファイル | すること | 使い方 |
+|---|---|---|
+| `fontsdiff.js` | わざの あいだに あとから よみこんだ 字の まとまり（0 が 合格。あると 画面ぜんたいの 計算し直し） | `node fontsdiff.js set-capsule` |
+| `whyl.js` | わざを 出した あとの Style／Layout を 時間じゅんに・なぜ 計算し直したか（要素と 理由と 関数） | `node whyl.js set-capsule`（`NTH=1` で 2回めの わざ）|
+| `startcut.js` | わざの 出だし 0.7秒の 長い 仕事・Layout と Paint の 数（CPU を おそく して タブレットの まね） | `QUIET=1 node startcut.js set-capsule 3 4` |
+
+- 1コマの 時間は この PC では ぶれる ので、**Paint・Layout の 回数、dirty の 数、字の まとまりの 数** で くらべる。
