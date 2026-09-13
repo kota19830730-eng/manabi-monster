@@ -65,7 +65,8 @@ MQ.ui.battle = (function () {
         d.field = h('div', { class: 'arena__field' }, [
           d.hero = h('div', { class: 'hero' }, [
             d.heroImg = h('img', { class: 'sprite hero__img', alt: '主人公' }),
-            h('div', { class: 'shadow shadow--hero' })
+            h('div', { class: 'shadow shadow--hero' }),
+            d.guard = h('div', { class: 'guardrow', hidden: true })   // まもりの アイコン（ガードくだき・2026-09-14）
           ]),
           d.pal = h('div', { class: 'pal', hidden: true }, [
             d.palBox = h('div', { class: 'pal__box' }),
@@ -557,7 +558,7 @@ MQ.ui.battle = (function () {
     if (!ci) return;
     const box = h('div', { class: 'foecharge' });
     for (let i = 0; i < ci.need; i++) box.appendChild(h('span', { class: 'foecharge__dot' + (i < ci.level ? ' is-on' : '') }));
-    if (ci.attacking) box.appendChild(h('span', { class: 'foecharge__label', text: ci.boss ? '大わざ！' : 'こうげき！' }));
+    if (ci.attacking) box.appendChild(h('span', { class: 'foecharge__label', text: ci.boss ? 'ガードくだき！' : 'こうげき！' }));   // ボスの 大わざは ガードくだき（2026-09-14）
     // 1体だけの ボスは 右上の パネルの 2行め（v12.8）。頭の 上だと パネルと ぶつかる
     const host = (!d.bossInfo.hidden && d.bossInfo.querySelector('.bossinfo__row')) || d.cur;
     host.appendChild(box);
@@ -808,7 +809,7 @@ MQ.ui.battle = (function () {
     // てきの こうげき（v7.7）：たまりきった 問題は ふきだしも「正解で カウンター！」に
     const ci = MQ.battle.chargeInfo ? MQ.battle.chargeInfo() : null;
     if (ci && ci.attacking && !q.chest) {
-      d.msg.textContent = ci.boss ? '大わざだ！ 正解で カウンター ' + MQ.battle.COUNTER_DMG + 'ダメージ！'
+      d.msg.textContent = ci.boss ? gbreakLine()
         : e.name + ' が こうげきして きた！ 正解で カウンター！';
     }
 
@@ -1034,6 +1035,7 @@ MQ.ui.battle = (function () {
   function syncBuffs() {
     if (!d.hero) return;
     const b = MQ.battle.buffs();
+    renderGuards();
     d.hero.classList.toggle('has-burst', b.dmg > 1);
     d.hero.classList.toggle('has-shield', b.shield > 0);
     d.hero.classList.toggle('has-freeze', b.freeze > 0);
@@ -1052,6 +1054,89 @@ MQ.ui.battle = (function () {
     const sp = sparks(12, 'fx__sparks--atk', 72);
     d.fx.appendChild(sp);
     setTimeout(function () { if (sp.parentNode) sp.parentNode.removeChild(sp); }, 800);
+  }
+
+  /* ---- ガードくだき（2026-09-14）----
+     まもり（たて・よろい）の アイコンは 主人公の 頭の 左よこ（.guardrow）。
+     頭の 真上は ボスの HP バー（タブレットで 実測：バーの すぐ 下から 主人公）なので、左の あき（相棒の なまえより 上）に。
+     こわれた まもりは 灰色、なおるまでの れんぞく 正解を 点で */
+  const GUARD_NAMES = { shield: 'たて', freeze: 'よろい' };
+  function renderGuards() {
+    if (!d.guard || !MQ.battle.guards) return;
+    const g = MQ.battle.guards();
+    d.guard.textContent = '';
+    let any = false;
+    ['shield', 'freeze'].forEach(function (t) {
+      const n = g[t] || 0;
+      let broken = 0;
+      g.broken.forEach(function (x) { if (x === t) broken++; });
+      if (!n && !broken) return;
+      any = true;
+      d.guard.appendChild(h('span', {
+        class: 'guardico guardico--' + t + (n ? '' : ' is-out') + (broken ? ' has-broken' : ''), 'aria-label': GUARD_NAMES[t] + ' ' + n
+      }, [h('i', { class: 'guardico__shape' }), n > 1 ? h('b', { class: 'guardico__n', text: String(n) }) : null]));
+    });
+    if (g.broken.length) {
+      any = true;
+      const dots = [];
+      for (let i = 0; i < g.need; i++) dots.push(h('i', { class: i < g.streak ? 'is-on' : '' }));
+      d.guard.appendChild(h('span', { class: 'guardfix', 'aria-label': 'なおるまで' }, dots));
+    }
+    d.guard.hidden = !any;
+  }
+  // ボスの 大わざの ふきだし。本気で まもりが ある ときは「こわれる」と 先に 言う（うそを つかない）
+  function gbreakLine() {
+    const g = MQ.battle.guards ? MQ.battle.guards() : { shield: 0, freeze: 0 };
+    if (MQ.battle.bossHard() && (g.shield || g.freeze)) return 'ガードくだきが くる！ まちがえると まもりが こわれる。正解で カウンター！';
+    return 'ガードくだきが くる！ 正解で はね返して カウンター ' + MQ.battle.COUNTER_DMG + 'ダメージ！';
+  }
+  function guardPop(text, kind) {
+    if (!d.guard) return;
+    const p = h('span', { class: 'guardpop guardpop--' + kind, text: text });
+    d.hero.appendChild(p);
+    setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 1400);
+  }
+  function kickCls(el, cls, ms) {
+    if (!el) return;
+    el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+    setTimeout(function () { el.classList.remove(cls); }, ms || 900);
+  }
+  // いまの 答えで おきた ガードくだきの 出来事を 見せる（answer の あと・syncBuffs の あと）。出来事を かえす
+  function guardEventFx() {
+    const ev = MQ.battle.guardEvent ? MQ.battle.guardEvent() : null;
+    if (!ev || !d.guard) return ev;
+    const ico = function (t) { return d.guard.querySelector('.guardico--' + t); };
+    if (ev.kind === 'crack') {
+      kickCls(ico(ev.type), 'is-crack', 900);
+      guardPop('ヒビ！ でも ぶじ', 'ok');
+      setTimeout(function () { MQ.sfx.guard(); }, 260);
+    } else if (ev.kind === 'broke') {
+      const el = ico(ev.type);
+      if (el) {
+        kickCls(el, 'is-break', 900);
+        for (let i = 0; i < 4; i++) {
+          const c = h('i', { class: 'guardshard guardshard--' + ev.type });
+          c.style.setProperty('--dx', (i % 2 ? 1 : -1) * (8 + i * 5) + 'px');
+          c.style.setProperty('--dy', (-10 - i * 4) + 'px');
+          el.appendChild(c);
+          setTimeout(function () { if (c.parentNode) c.parentNode.removeChild(c); }, 800);
+        }
+      }
+      guardPop(GUARD_NAMES[ev.type] + 'が こわれた！', 'bad');
+      setTimeout(function () { MQ.sfx.guardBreak(); }, 260);
+    } else if (ev.kind === 'hit') {
+      if (ev.repaired) {
+        kickCls(ico(ev.repaired), 'is-fix', 1000);
+        guardPop(GUARD_NAMES[ev.repaired] + 'が なおった！ ＋' + MQ.battle.GB_REPAIR_XP, 'fix');
+        MQ.sfx.guard();
+      } else if (ev.gain) {
+        kickCls(ico(ev.gain), 'is-gain', 900);
+        guardPop('はね返した！ たて ＋1', 'gain');
+      } else if (ev.block) {
+        guardPop('はね返した！', 'gain');
+      }
+    }
+    return ev;
   }
 
   // たてが まもった
@@ -1381,6 +1466,7 @@ MQ.ui.battle = (function () {
     const res = MQ.battle.answer(value);
     closeBag();
     syncBuffs();
+    const gbe = guardEventFx();   // ガードくだき（2026-09-14）：ヒビ・こわれた・はね返した・なおった
 
     /* ---- たからばこ ---- */
     if (res.outcome === 'chest') {
@@ -1489,6 +1575,9 @@ MQ.ui.battle = (function () {
         : res.skill === 'kamae' ? 'たてで ふせがれた！ でも だいじょうぶ。もう1回！'
         : res.elite ? 'おしい！ 中ボスは 手ごわい。もう1回！'
         : q.boss ? 'おしい！ ふせがれた。もう1回！' : 'おしい！ ' + e.name + ' に よけられた。もう1回！';
+      // ガードくだき（2026-09-14）：ボスの 大わざで まちがえた
+      if (gbe && gbe.kind === 'broke') d.msg.textContent = 'ガードくだき！ ' + GUARD_NAMES[gbe.type] + 'が こわれた…　1回めで ' + gbe.need + 'もん れんぞく 正解すると なおる！';
+      else if (gbe && gbe.kind === 'crack') d.msg.textContent = 'ガードくだき！ でも ' + GUARD_NAMES[gbe.type] + 'は ぶじ！ もう1回 こたえよう！';
       if (res.skill === 'kamae') MQ.sfx.kamae();
       if (q.type === 'write' && writeMsg) { d.msg.textContent = writeMsg; writeMsg = ''; }
       showHint(res.hint, q, value);

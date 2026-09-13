@@ -968,6 +968,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     /* カプセルマシン（v9.0）
          #capsule        … マシンの 画面（なかま）
+         #menu:cap       … メニューの「カプセル」タブ（2026-09-13）を click()。#menu:tk＝むりょうけん 2まい（タブに 赤い 数）
+         #hudhome        … 地図の 上の「タイトル」ボタン（2026-09-13）。#hudhome:go＝押して タイトルへ
          #capsule:gear   #capsule:look  … しゅるいを かえる
          #capsule:mon    … 1回 引いた ところ
          #capsule:sr     … げきレアが 出た ところ（むらさきの 光）
@@ -1015,8 +1017,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
           return;
         }
         MQ.ui.dex.render('pals'); MQ.ui.show('screen-dex'); await wait(80);
-        const cb = document.querySelector('.capbtn');
-        say('prizemc: なかまタブの ボタン ' + (cb ? cb.textContent : 'ない'));
+        const cb = document.querySelector('.tab--capsule');
+        say('prizemc: カプセルの タブ ' + (cb ? cb.textContent : 'ない') + ' / なかまタブの 古い ボタン ' + (document.querySelector('.capbtn') ? 'MISSING（のこって いる）' : 'なし'));
         cb.click(); await wait(150);
         if (MQ.ui.capsule.kind() !== 'home') { const hb = document.querySelector('.capchip--home'); if (hb) hb.click(); await wait(80); }
         say('prizemc: しゅるい=' + MQ.ui.capsule.kind() + ' チップ=' + $$('.capchip').map(function (e) { return e.textContent; }).join('/'));
@@ -1051,15 +1053,32 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('prize: 鍵 ' + (MQ.ui.prize.isUnlocked() ? 'あいた' : 'かかって いる') + ' / 番号 ' + (MQ.prize.hasPin() ? 'あり' : 'なし') + ' / キー ' + $$('.przpin__k').length);
       return;
     }
-    if (mode.indexOf('capsule') === 0 || mode === 'menu') {
+    if (mode === 'hudhome' || mode === 'hudhome:go') {
+      fresh(); MQ.ui.goMap(); await wait(250);
+      const hb = $('#screen-map .hud__home');
+      const r = hb ? hb.getBoundingClientRect() : null;
+      const hud = $('#screen-map .hud');
+      say('hudhome: ボタン ' + (hb ? 'ok ' + Math.round(r.width) + 'x' + Math.round(r.height) : 'MISSING') + ' / HUD の 高さ ' + (hud ? Math.round(hud.getBoundingClientRect().height) : '-'));
+      if (mode === 'hudhome:go' && hb) { hb.click(); await wait(250); say('hudhome: タイトル ' + (document.getElementById('screen-start').classList.contains('is-active') ? 'ok' : 'MISSING')); }
+      return;
+    }
+    if (mode.indexOf('capsule') === 0 || mode.indexOf('menu') === 0) {
       const what = mode.split(':')[1] || '';
       fresh();
-      MQ.save.update(function (pl) { pl.coins = what === 'poor' ? 3 : 400; });
-      if (mode === 'menu') {
+      MQ.save.update(function (pl) { pl.coins = what === 'poor' ? 3 : 400; if (what === 'tk') pl.capsule.tickets = 2; if (what === 'g1') { pl.grade = 1; pl.playGrade = 1; } });
+      if (mode.indexOf('menu') === 0) {
         MQ.ui.dex.render('pals'); MQ.ui.show('screen-dex'); await wait(80);
         const tabs = [].map.call(document.querySelectorAll('#screen-dex .tab'), function (b) { return b.textContent; });
         say('menu: タブ = ' + tabs.join(' / '));
-        say('menu: カプセルの ボタン = ' + (document.querySelector('.capbtn') ? 'ある' : 'ない'));
+        say('menu: なかまタブの 古い ボタン = ' + (document.querySelector('.capbtn') ? 'ある' : 'ない'));
+        /* #menu:cap … カプセルの タブを click() して 中身を 見る（2026-09-13） */
+        if (what === 'cap' || what === 'capsule') {
+          $('.tab--capsule').click(); await wait(150);
+          say('menu: カプセルの タブ ' + ($('.tab--capsule.is-on') ? 'えらばれた' : 'MISSING') + ' / 中身 ' + ($('#screen-dex .capsule--tab .capgo') ? 'ok' : 'MISSING') + ' / 3D ' + ($('#screen-dex .capmc3d') ? 'yes' : 'no'));
+          $$('#screen-dex .tab')[0].click(); await wait(120);
+          say('menu: ほかの タブへ → カプセル ' + (MQ.ui.capsule.isOpen() ? 'MISSING（のこって いる）' : 'はなれた'));
+          $('.tab--capsule').click(); await wait(150);
+        }
         dump(); return;
       }
       // 天井を あと 1回に する（:sr は これで かならず げきレアを 出す）
@@ -2468,6 +2487,64 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
       say('fever: panel=' + ($('.fever') ? $('.fever').textContent.replace(/\s+/g, ' ') : 'MISSING') + ' biome=' + $$('.biome--fever').length + ' nodes=' + $$('.node--fever').length +
           ' pal=' + ($('.fever__bubble') ? $('.fever__bubble').textContent : 'MISSING') + ' today=' + JSON.stringify(MQ.save.current().fever));
+      dump(); return;
+    }
+    /* ガードくだき（2026-09-14）：ボスの 大わざが 子どもの まもり（たて・よろい）を ねらう
+       #gbreak        … ボスの ガードくだきの 問題（ラベル・ふきだし・頭の 左よこの まもりの アイコン）
+       #gbreak:hard   … 本気モードで 同じ ところ（ふきだしが「まちがえると こわれる」）
+       #gbreak:crack  … ふつう：まちがえる → ヒビ（まもりは へらない）
+       #gbreak:broke  … 本気：まちがえる → たてが こわれる
+       #gbreak:block  … 1回めで 正解 → はね返した・たて ＋1
+       #gbreak:fix    … 本気で こわれた あと 2問 れんぞく 正解 → なおる
+       #gbreak:pal    … 相棒と いっしょ（アイコンと 相棒の なまえが かさならないか） */
+    if (mode.indexOf('gbreak') === 0) {
+      const what = mode.split(':')[1] || '';
+      const hard = what === 'hard' || what === 'broke' || what === 'fix';
+      fresh();
+      MQ.save.update(function (pl) {
+        pl.equipped.helm = null;                      // かぶとで ひっさつが 早く 出ない ように
+        if (what === 'pal' && MQ.pals) { MQ.pals.add(pl, 'slime-green', 0); MQ.pals.setActive(pl, 'slime-green'); }
+      });
+      window.__pickHard = hard;
+      MQ.ui.battle.start('sansu3-1'); await wait(150);
+      let guard = 0, fixed = false;
+      while (guard++ < 40 && !(MQ.battle.phase() === 'boss' && MQ.battle.attacking())) {
+        if (MQ.battle.phase() === 'boss' && !fixed) { MQ.battle._setBossPlan({}); MQ.battle._setBossHp(12); fixed = true; }
+        answerViaUI(true); await wait(60);
+        if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+        await wait(3300);
+      }
+      const g0 = MQ.battle.guards();
+      say('gbreak: phase=' + MQ.battle.phase() + ' hard=' + MQ.battle.bossHard() + ' ラベル=' + ($('.foecharge__label') ? $('.foecharge__label').textContent : 'MISSING')
+        + ' まもり たて' + g0.shield + '・よろい' + g0.freeze + ' アイコン ' + $$('.guardico').length + (($('.guardrow') || {}).hidden ? '（かくれて いる）' : '') + ' / ' + $('.arena__msg').textContent);
+      const freezeFx = function () {
+        // 一瞬の ものは 写しを とって 止める（予約ずみの 消す タイマーでは 消えない ように）
+        $$('.guardpop').forEach(function (p) { const c = p.cloneNode(true); c.style.animation = 'none'; c.style.opacity = '1'; p.parentNode.appendChild(c); });
+        $$('.guardico').forEach(function (i) { i.style.animationPlayState = 'paused'; });
+        freeze();
+      };
+      if (!what || what === 'hard' || what === 'pal') { dump(); return; }
+      if (what === 'crack' || what === 'broke') {
+        answerViaUI(false); await wait(420);
+        const g = MQ.battle.guards();
+        say('gbreak:' + what + ' 出来事=' + JSON.stringify(MQ.battle.guardEvent()) + ' たて' + g.shield + ' こわれた=' + g.broken.join() + ' ふだ=' + ($('.guardpop') ? $('.guardpop').textContent : 'MISSING') + ' / ' + $('.arena__msg').textContent);
+        freezeFx(); dump(); return;
+      }
+      if (what === 'block') {
+        const s0 = MQ.battle.guards().shield;
+        answerViaUI(true); await wait(420);
+        say('gbreak:block 出来事=' + JSON.stringify(MQ.battle.guardEvent()) + ' たて ' + s0 + '→' + MQ.battle.guards().shield + ' ふだ=' + ($('.guardpop') ? $('.guardpop').textContent : 'MISSING'));
+        freezeFx(); dump(); return;
+      }
+      if (what === 'fix') {
+        answerViaUI(false); await wait(900);            // まちがえた あとは 0.5秒 ロック
+        answerViaUI(true); await wait(3300);            // 2回めの 正解（本気は ガード）
+        answerViaUI(true); await wait(3300);            // れんぞく 1
+        say('gbreak:fix れんぞく ' + MQ.battle.guards().streak + ' / 点 ' + $$('.guardfix i.is-on').length + '/' + $$('.guardfix i').length);
+        answerViaUI(true); await wait(420);             // れんぞく 2 → なおる
+        say('gbreak:fix 出来事=' + JSON.stringify(MQ.battle.guardEvent()) + ' こわれた=' + MQ.battle.guards().broken.join() + ' ふだ=' + ($('.guardpop') ? $('.guardpop').textContent : 'MISSING'));
+        freezeFx(); dump(); return;
+      }
       dump(); return;
     }
     /* てきの ため → カウンター（v7.7）
@@ -4278,19 +4355,19 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     await wait(300);
     say('あたらしい こと: モーダル ' + ($('.newscard') ? 'ok' : 'MISSING') + ' / お知らせ ' + $$('.newsrow').length + 'こ / ページ ' + MQ.news.pages(MQ.save.current()).length);
     let ng = 0;
-    while ($('.news__next') && ng++ < 24) { $('.news__next').click(); await wait(120); }   // 版が ふえる たびに ページも ふえる（v12.0 で 13ページ）
+    while ($('.news__next') && ng++ < 60) { $('.news__next').click(); await wait(120); }   // 版が ふえる たびに ページも ふえる（v12.0 で 13ページ・v13.17 で 25ページ）
     MQ.ui.news.reset();
     MQ.ui.goMap();
     await wait(200);
     say('あたらしい こと: とじた あと ' + ($('.newscard') ? 'MISSING（また 出る）' : 'ok（出ない）') + ' / seenNews ' + MQ.save.current().seenNews);
 
-    // カプセルマシン（v9.0）：メニュー →「なかま」→ 金の ボタン → 1回 引く
+    // カプセルマシン（v9.0 → 2026-09-13 から メニューの「カプセル」タブ）：タブ → 1回 引く
     MQ.save.update(function (pl) { pl.coins = 40; });
     MQ.ui.dex.render('pals'); MQ.ui.show('screen-dex');
     await wait(150);
     say('カプセル: タブ ' + [].map.call($$('#screen-dex .tab'), function (b) { return b.textContent; }).join('/')
-      + ' / ボタン ' + ($('.capbtn') ? 'ok' : 'MISSING'));
-    if ($('.capbtn')) $('.capbtn').click();
+      + ' / カプセルの タブ ' + ($('.tab--capsule') ? 'ok' : 'MISSING'));
+    if ($('.tab--capsule')) $('.tab--capsule').click();
     await wait(150);
     say('カプセル: 画面 ' + ($('.capsule') ? 'ok' : 'MISSING') + ' / ' + ($('.capline') ? $('.capline').textContent : 'MISSING'));
     /* **ボタンを ほんとうに click() する。** `MQ.ui.capsule.pull()` を 直に 呼ぶと
@@ -4303,9 +4380,18 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     MQ.ui.capsule.skip();
     await wait(150);
     say('カプセル: 出た ' + ($('.capres__name') ? $('.capres__name').textContent + ' / コイン ' + MQ.save.current().coins : 'MISSING'));
-    MQ.ui.capsule.close();
+    // タブを はなれる（ほかの タブを click()）
+    $$('#screen-dex .tab')[0].click();
     await wait(80);
     say('カプセル: とじた ' + ($('.capsule') ? 'MISSING（のこって いる）' : 'ok') + ' / 夜空 ' + ($('.capfx') ? 'MISSING（のこって いる）' : 'とじた'));
+
+    // 地図の 上の「タイトル」ボタン（2026-09-13）→ タイトル → つづき で 地図へ
+    MQ.ui.goMap(); await wait(200);
+    say('タイトルへ: ボタン ' + ($('#screen-map .hud__home') ? 'ok' : 'MISSING'));
+    if ($('#screen-map .hud__home')) $('#screen-map .hud__home').click();
+    await wait(200);
+    say('タイトルへ: 画面 ' + (document.getElementById('screen-start').classList.contains('is-active') ? 'タイトル ok' : 'MISSING'));
+    MQ.ui.goMap(); await wait(200);
 
     /* しゅぎょうば（v13.0）：一覧 → せつめい → いっしょに → ひとりで まで 通す */
     MQ.save.setPlayGrade(3);   // ここまでの 検査で 学年が 小6 などに なって いる（指導は いま 小3 だけ）

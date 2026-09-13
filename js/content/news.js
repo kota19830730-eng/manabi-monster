@@ -401,6 +401,17 @@ MQ.news = (function () {
         { kind: 'mons', id: 'slime-golden', title: 'しゅうまつ イベント',
           text: 'どようびと にちようびは まつり！ しゅうごとに ちがう まつりが くるよ' }
       ]
+    },
+    {
+      v: 'v13.17', date: '2026-09-14', sw: 162,
+      items: [
+        { kind: 'mons', id: 'cap-phoenix', title: 'カプセルが メニューに',
+          text: 'メニューの タブに カプセルマシンが ふえたよ。いつでも まわしに いける！' },
+        { kind: 'hero', title: 'すぐ タイトルへ',
+          text: 'ちずの 上の いえの ボタンで、タイトルに もどれるよ' },
+        { kind: 'mons', id: 'boss-knight', title: 'ボスの ガードくだき',
+          text: 'ボスの 大わざは まもりを ねらって くる！ 1かいめで せいかいして はねかえそう' }
+      ]
     }
   ];
 

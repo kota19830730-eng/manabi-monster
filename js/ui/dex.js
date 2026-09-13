@@ -31,22 +31,35 @@ MQ.ui.dex = (function () {
     const keepTop = oldWrap && scr.classList.contains('is-active') ? oldWrap.scrollTop : 0;
 
     /* タブの 名前と ならび（v9.0）。中身に そろえた：
-         じぶん（すがた・そうび・しょうごう）→ なかま（相棒・お店・カプセルマシン）→
+         じぶん（すがた・そうび・しょうごう）→ なかま（相棒・お店）→ カプセル（カプセルマシン）→
          もちもの（たからもの・アイテム）→ ずかん（ここが 本物の 図かん）→ せってい
        よく さわる ものを 左に、あつめる ものを 右に。
-       **id は 変えない**（hero / pals / treasure / mons / set。harness と ほかの 画面が つかう） */
+       **id は 変えない**（hero / pals / capsule / treasure / mons / set。harness と ほかの 画面が つかう）
+       カプセル（2026-09-13・ユーザー「なかまから 行くのでは なく カプセルマシンの メニューを」）：
+       まえは なかまタブの 中の 大きな ボタン。おうちの人が カプセルマシンを かくして いて、
+       おうちの マシンにも 景品が ない ときは タブを 出さない */
+    const capOn = capsuleOn(player);
+    if (tab === 'capsule' && !capOn) tab = 'pals';
+    if (tab !== 'capsule' && MQ.ui.capsule && MQ.ui.capsule.unmount) MQ.ui.capsule.unmount();
+    const tkN = capOn && MQ.capsule.tickets ? MQ.capsule.tickets(player) : 0;
     const tabs = h('div', { class: 'tabs' }, [
-      ['hero', 'じぶん'], ['pals', 'なかま'], ['treasure', 'もちもの'], ['mons', 'ずかん'],
+      ['hero', 'じぶん'], ['pals', 'なかま'], capOn ? ['capsule', 'カプセル'] : null, ['treasure', 'もちもの'], ['mons', 'ずかん'],
       ['set', 'せってい']
-    ].map(function (t) {
+    ].filter(Boolean).map(function (t) {
+      const cap = t[0] === 'capsule';
       return h('button', {
-        class: 'tab' + (tab === t[0] ? ' is-on' : ''), type: 'button', text: t[1],
+        class: 'tab' + (cap ? ' tab--capsule' : '') + (tab === t[0] ? ' is-on' : ''), type: 'button',
         onclick: function () { MQ.sfx.tap(); render(t[0]); }
-      });
+      }, [
+        cap ? h('i', { class: 'tab__cap' }) : null,
+        h('span', { text: t[1] }),
+        cap && tkN ? h('b', { class: 'tab__badge', 'aria-label': 'むりょうけん ' + tkN + 'まい', text: String(tkN) }) : null
+      ]);
     }));
 
     let body = null;
-    if (tab === 'hero') body = heroTab(player);
+    if (tab === 'capsule') body = capsuleTab(player);
+    else if (tab === 'hero') body = heroTab(player);
     else if (tab === 'treasure') body = treasureTab(player);
     else if (tab === 'mons') body = monsTab(player);
     else if (tab === 'pals') body = palsTab(player);
@@ -222,7 +235,7 @@ MQ.ui.dex = (function () {
         if (r.badge || r.ticket) kids.push(h('span', { class: 'lvroad__sub', text: (r.ticket ? (r.badge ? 'むりょうけん・' : '') : '') + 'コイン +' + r.coins }));
         return h('div', { class: 'lvroad__one' + (i === 0 ? ' is-next' : '') + (r.badge || r.ticket ? ' is-big' : '') }, kids);
       })),
-      h('p', { class: 'lvroad__note', text: (badge ? 'いまの バッジ：' + badge.name + '　' : '') + (tk ? 'むりょうけん ' + tk + 'まい（なかま → カプセルマシン）' : 'レベルが 上がる たびに ごほうびが もらえる') })
+      h('p', { class: 'lvroad__note', text: (badge ? 'いまの バッジ：' + badge.name + '　' : '') + (tk ? 'むりょうけん ' + tk + 'まい（カプセルの タブで つかえる）' : 'レベルが 上がる たびに ごほうびが もらえる') })
     ]);
   }
 
@@ -559,25 +572,7 @@ MQ.ui.dex = (function () {
       kids.push(h('p', { class: 'note', text: 'まだ なかまが いないよ。たたかいの あと「なかまに なりたそう！」と 出たら なかまに できるよ。コインでも こうかんできる。' }));
     }
 
-    /* ①b カプセルマシン（v9.0）
-       6つめの タブに せず「なかま」の 中に 置く。相棒を えらぶ・買う・引く が 1か所に そろう */
-    /* v13.12：おうちの人が ごほうびを 入れて いれば、カプセルマシンを かくして いても 出す（その ときは おうちの マシンだけ） */
-    const homeOn = !!(MQ.prize && MQ.prize.hasAny(player));
-    if (MQ.ui.capsule && MQ.capsule && (player.capsuleOff !== true || homeOn)) {
-      const got = MQ.capsule.KIND_IDS.reduce(function (n, k) { return n + MQ.capsule.progress(player, k).have; }, 0);
-      const all = MQ.capsule.KIND_IDS.reduce(function (n, k) { return n + MQ.capsule.progress(player, k).total; }, 0);
-      const tkN = MQ.capsule.tickets ? MQ.capsule.tickets(player) : 0;
-      const sub = player.capsuleOff === true ? 'おうちの人の マシンで ごほうびが 当たる'
-        : tkN ? 'むりょうけんが ' + tkN + 'まい あるよ！　あつめた ' + got + ' / ' + all
-        : 'コイン ' + MQ.capsule.COST + 'まいで 1回　あつめた ' + got + ' / ' + all + (homeOn ? '　おうちの人の マシンも あるよ' : '');
-      kids.push(h('button', {
-        class: 'btn capbtn' + (homeOn ? ' capbtn--home' : ''), type: 'button',
-        onclick: function () { MQ.sfx.tap(); MQ.ui.capsule.open({ kind: player.capsuleOff === true ? 'home' : undefined, onClose: function () { render('pals'); } }); }
-      }, [
-        h('span', { class: 'capbtn__t', text: 'カプセルマシン' }),
-        h('span', { class: 'capbtn__s', text: sub })
-      ]));
-    }
+    /* ①b カプセルマシンは 2026-09-13 から メニューの「カプセル」タブ（capsuleTab）。ここには 置かない */
 
     // ② もっている なかま（タップで 交代）
     kids.push(h('h3', { class: 'dexh', text: 'なかま　' + own.length + '体' }));
@@ -840,12 +835,28 @@ MQ.ui.dex = (function () {
      ======================================================= */
   /* カプセルマシンの せつめい（v9.0・おうちの人ページ）
      ここは **売る ときの 説明に そのまま つかう**。お金の 話を いちばん 上に 書く。 */
+  /* =======================================================
+     カプセル（カプセルマシン）タブ（2026-09-13）
+     中身は js/ui/capsule.js の mount（モーダルと 同じ カード・とじる ボタンなし）
+     ======================================================= */
+  // v13.12：おうちの人が ごほうびを 入れて いれば、カプセルマシンを かくして いても 出す（その ときは おうちの マシンだけ）
+  function capsuleOn(player) {
+    if (!MQ.ui.capsule || !MQ.capsule) return false;
+    const homeOn = !!(MQ.prize && MQ.prize.hasAny(player));
+    return player.capsuleOff !== true || homeOn;
+  }
+  function capsuleTab(player) {
+    const box = h('div', { class: 'captab' });
+    MQ.ui.capsule.mount(box, { kind: player.capsuleOff === true ? 'home' : undefined });
+    return box;
+  }
+
   function capsuleSection(player) {
     if (!MQ.capsule) return null;
     const on = player.capsuleOff !== true;
     return h('div', {}, [
       h('h2', { class: 'label', text: 'カプセルマシン' }),
-      h('p', { class: 'note', text: 'あそんで ためた「きんのコイン」で、ここでしか 手に 入らない なかま・そうび・すがたを 1回 10まいで 引ける しくみです。メニュー →「なかま」の 中に あります。' }),
+      h('p', { class: 'note', text: 'あそんで ためた「きんのコイン」で、ここでしか 手に 入らない なかま・そうび・すがたを 1回 10まいで 引ける しくみです。メニューの「カプセル」タブに あります。' }),
       h('p', { class: 'note', text: '・お金は 1円も かかりません。課金は ありません。' }),
       h('p', { class: 'note', text: '・コインは 勉強でしか たまりません（たからばこ・ボス・★3・ミッション）。' }),
       h('p', { class: 'note', text: '・はずれは ありません。同じ ものが 出た ときは コインが 半分（5まい）もどります。' }),

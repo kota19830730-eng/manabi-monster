@@ -122,7 +122,9 @@ MQ.ui = MQ.ui || {};
   };
 
   /* 名前・しょうごう・レベル・けいけんちの バー
-     opts.slim … 1行に つめた かたち（地図の 上・v8.0。80px → 60px） */
+     opts.slim … 1行に つめた かたち（地図の 上・v8.0。80px → 60px）
+     opts.home … 右はしに「タイトル」ボタン（地図の 上・2026-09-13・ユーザー「タイトル画面に もどる 方法が わかりにくい」）。
+                 まえは 右下の「小3 ▾」→「プレイヤーを かえる」しか なかった */
   MQ.ui.hud = function (player, opts) {
     const pr = MQ.hero.progress(player.xp);
     // なかま（v4.3）：連れて 歩いて いる 相棒を 顔の 横に 小さく
@@ -139,7 +141,14 @@ MQ.ui = MQ.ui || {};
         h('span', { class: 'hud__lv' + lvBadgeCls(pr.level), text: 'Lv.' + pr.level }),
         h('span', { class: 'hud__xp', text: pr.into + ' / ' + pr.need }),
         MQ.ui.frags(player)
-      ])
+      ]),
+      opts && opts.home ? h('button', {
+        class: 'hud__home', type: 'button', 'aria-label': 'タイトルへ もどる',
+        onclick: function () { MQ.sfx.tap(); MQ.ui.start.render(); MQ.ui.show('screen-start'); }
+      }, [
+        h('i', { class: 'hud__homeico' }, [h('i', { class: 'roof' }), h('i', { class: 'wall' }), h('i', { class: 'door' })]),
+        h('b', { class: 'hud__homet', text: 'タイトル' })
+      ]) : null
     ]);
   };
 

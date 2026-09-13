@@ -330,6 +330,66 @@ body {
 .hud--slim .hud__lv { font-size: 20px; }
 .hud--slim .hud__xp { font-size: 11px; }
 .hud--slim .hud__pal { width: 26px; height: 26px; }
+/* ---- ガードくだき（2026-09-14）：主人公の まもりの アイコン ----
+   主人公（.hero・84px）の 頭の 左よこ。頭の 真上は ボスの HP バーで あきが ない（タブレットで 実測）。
+   相棒の なまえ（その 下）とは かさならない。動かすのは transform と opacity だけ（v13.10） */
+.guardrow { position: absolute; left: -44px; top: 0; z-index: 6; display: flex; align-items: center; gap: 7px; pointer-events: none; }
+.guardico { position: relative; display: block; width: 17px; height: 19px; }
+.guardico__shape { position: absolute; inset: 0; display: block; background: #ffd447; }
+.guardico__shape::after { content: ''; position: absolute; inset: 2px; }
+/* たて＝青い たて（金の ふち） */
+.guardico--shield .guardico__shape, .guardico--shield .guardico__shape::after { clip-path: polygon(0 0, 100% 0, 100% 56%, 50% 100%, 0 56%); }
+.guardico--shield .guardico__shape::after { background: linear-gradient(#7cc4ff, #2e6fd6); }
+/* よろい＝むねあて（金の ふち・銀） */
+.guardico--freeze .guardico__shape, .guardico--freeze .guardico__shape::after { clip-path: polygon(0 18%, 28% 0, 72% 0, 100% 18%, 86% 100%, 14% 100%); }
+.guardico--freeze .guardico__shape::after { background: linear-gradient(#f2f4fa, #9aa6c0); }
+.guardico__n { position: absolute; right: -7px; top: 5px; font-family: var(--f-head); font-size: 11px; line-height: 1; color: #fff; text-shadow: -1px -1px 0 #1b2240, 1px -1px 0 #1b2240, -1px 1px 0 #1b2240, 1px 1px 0 #1b2240; }
+/* こわれて のこり 0 */
+.guardico.is-out { opacity: .55; }
+.guardico.is-out .guardico__shape { background: #5a6378; }
+.guardico.is-out .guardico__shape::after { background: #3a4254; }
+/* こわれた まもりが ある 種類は ヒビの 線が のこる（のこりが 0 なら 灰色）。数は 右よこ（下だと 相棒の ゲージに かかる） */
+.guardico.has-broken::after, .guardico.is-out::after { content: ''; position: absolute; left: 8px; top: -1px; width: 2px; height: 22px; background: #10152a; transform: rotate(28deg); }
+/* なおるまでの れんぞく 正解 */
+.guardfix { display: flex; flex-direction: column; gap: 2px; margin-left: 1px; }
+.guardfix i { display: block; width: 5px; height: 5px; background: #2b3656; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+.guardfix i.is-on { background: #ffd447; }
+/* ヒビ（ふつう）・こわれた（本気）・なおった・ふえた */
+.guardico.is-crack { animation: guardCrack .5s ease-out; }
+@keyframes guardCrack { 0%, 100% { transform: none; } 20% { transform: translateX(-3px) rotate(-8deg); } 45% { transform: translateX(3px) rotate(6deg); } 70% { transform: translateX(-2px); } }
+.guardico.is-crack::before { content: ''; position: absolute; left: 7px; top: 1px; width: 2px; height: 16px; background: #fff; transform: rotate(-24deg); animation: guardCrackLine .9s ease-out forwards; }
+@keyframes guardCrackLine { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+.guardico.is-break { animation: guardBreak .6s ease-out; }
+@keyframes guardBreak { 0% { transform: scale(1); } 25% { transform: scale(1.35) rotate(-10deg); } 60% { transform: scale(.85) rotate(6deg); } 100% { transform: none; } }
+.guardshard { position: absolute; left: 6px; top: 6px; width: 5px; height: 5px; background: #ffd447; animation: guardShard .75s ease-out forwards; }
+.guardshard--shield { background: #5aa8ff; }
+@keyframes guardShard { from { transform: translate(0, 0) rotate(0); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) rotate(160deg); opacity: 0; } }
+.guardico.is-fix, .guardico.is-gain { animation: guardGain .7s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes guardGain { 0% { transform: scale(.4); } 60% { transform: scale(1.3); } 100% { transform: none; } }
+/* ことばの ふだ（アイコンの 下に 出て 少し 上がって きえる） */
+.guardpop {
+  position: absolute; left: -46px; top: 26px; z-index: 7; padding: 2px 7px; border-radius: 8px; white-space: nowrap; pointer-events: none;
+  font-family: var(--f-head); font-size: 12px; line-height: 1.3; color: #fff; background: rgba(14, 20, 40, .9); box-shadow: 0 2px 0 rgba(0,0,0,.35);
+  animation: guardPop 1.4s ease-out forwards;
+}
+.guardpop--ok { color: #cfe6ff; }
+.guardpop--bad { color: #ff9a8a; box-shadow: 0 0 0 2px #e0463c, 0 2px 0 rgba(0,0,0,.35); }
+.guardpop--fix, .guardpop--gain { color: #ffe07a; box-shadow: 0 0 0 2px #ffd447, 0 2px 0 rgba(0,0,0,.35); }
+@keyframes guardPop { 0% { opacity: 0; transform: translateY(6px); } 12% { opacity: 1; transform: none; } 75% { opacity: 1; transform: translateY(-4px); } 100% { opacity: 0; transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) { .guardico, .guardico::before, .guardshard, .guardpop { animation: none !important; } }
+/* 地図の HUD の「タイトル」ボタン（2026-09-13）：家の アイコン＋小さな 字。いつも 見えて いる 場所 */
+.hud__home {
+  flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  width: 50px; height: 46px; margin-left: -2px; padding: 0; border: 0; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(var(--navy-1), var(--navy-2)); color: #dbe6ff;
+  box-shadow: 0 4px 0 var(--navy-sh), inset 0 2px 0 rgba(255,255,255,.16);
+}
+.hud__home:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--navy-sh), inset 0 2px 0 rgba(255,255,255,.16); }
+.hud__homeico { position: relative; display: block; width: 22px; height: 18px; }
+.hud__homeico .roof { position: absolute; left: 0; top: 0; width: 22px; height: 10px; background: #e0463c; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.hud__homeico .wall { position: absolute; left: 3px; top: 9px; width: 16px; height: 9px; background: #fff4dc; }
+.hud__homeico .door { position: absolute; left: 9px; top: 12px; width: 4px; height: 6px; background: #8a5a12; }
+.hud__homet { font-size: 10px; line-height: 1; font-weight: 700; letter-spacing: 0; }
 .hud__xp { display: block; font-size: 12px; color: var(--tx-sub); }
 .frags { display: flex; gap: 3px; justify-content: center; margin-top: 2px; }
 .frag { width: 12px; height: 12px; }
@@ -3696,6 +3756,19 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 .capgo__c { font-size: 12px; font-weight: 700; opacity: .85; }
 .capcoins { margin: 6px 0 0; font-size: 12px; color: var(--tx-sub); }
 .capsule__close { width: 100%; margin-top: 10px; }
+/* メニューの「カプセル」タブ（2026-09-13）：モーダルと 同じ カードを タブの 中に。とじる ボタンは なし */
+.captab { padding: 6px 0 2px; }
+.capsule--tab .capsule__card { margin: 0 auto; }
+.tab { position: relative; }
+.tab--capsule { display: inline-flex; align-items: center; gap: 4px; }
+/* タブの 小さな カプセル（上 白・下 赤）。えらんで いる ときも 同じ */
+.tab__cap { flex: none; width: 11px; height: 11px; border-radius: 50%; background: linear-gradient(#fff4dc 50%, #e0463c 50%); box-shadow: 0 0 0 2px rgba(20,24,48,.55), inset 0 -2px 0 rgba(0,0,0,.2); }
+/* タブが 6つに なったので メニューの タブは 1行に つめる（小1の ひらがなでも 入る はば：13px・よこの すきま 4px） */
+#screen-dex .tabs { flex-wrap: nowrap; gap: 4px; }
+#screen-dex .tab { flex: 1 1 auto; min-width: 0; padding: 0 4px; font-size: 13px; white-space: nowrap; }
+#screen-dex .tab--capsule { justify-content: center; gap: 3px; }
+/* むりょうけんの 数（赤い 丸） */
+.tab__badge { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e0463c; color: #fff; font-family: var(--f-head); font-size: 12px; line-height: 18px; text-align: center; box-shadow: 0 2px 0 #7a1a14; }
 
 /* 出た もの */
 .capsule__result {

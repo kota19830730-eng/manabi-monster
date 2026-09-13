@@ -348,24 +348,9 @@ MQ.ui.capsule = (function () {
     paint();
   }
 
-  /* ---- ひらく・とじる ---- */
-  function open(opts) {
-    opts = opts || {};
-    onClose = opts.onClose || null;
-    const ks = kinds();
-    kind = opts.kind && ks.indexOf(opts.kind) >= 0 ? opts.kind : ks[0];
-    rolling = false; skip = null;
-    close(true);
-
-    const stage = document.getElementById('stage') || document.body;
-    root = h('div', {
-      class: 'bag capsule',
-      onclick: function (e) {
-        if (skip) { skip(); return; }              // 演出ちゅうは タップで とばす
-        if (e.target === root) close();
-      }
-    }, [
-      h('div', { class: 'bagcard capsule__card' }, [
+  /* ---- カードの 中身（モーダルと タブで 同じ）---- */
+  function card(withClose) {
+    return h('div', { class: 'bagcard capsule__card' }, [
         h('span', { class: 'bagcard__star bagcard__star--l' }),
         h('span', { class: 'bagcard__star bagcard__star--r' }),
         h('div', { class: 'bagcard__head' }, [
@@ -376,16 +361,62 @@ MQ.ui.capsule = (function () {
         ]),
         h('div', { class: 'capsule__body' }),
         h('div', { class: 'capsule__result', hidden: true }),
-        h('button', {
+        withClose ? h('button', {
           class: 'btn btn--stone capsule__close', type: 'button', text: 'とじる',
           onclick: function () { MQ.sfx.tap(); close(); }
-        })
-      ])
-    ]);
-    stage.appendChild(root);
+        }) : null
+      ]);
+  }
+  function pickKind(want) {
+    const ks = kinds();
+    return want && ks.indexOf(want) >= 0 ? want : ks[0];
+  }
+  function afterOpen() {
     paint();
     /* v13.14：3D の マシンと カプセルを 先に 組んで おく（まわした 1コマめが 重く ならない ように） */
     if (MQ.ui.capsuleFx && MQ.ui.capsuleFx.warm) setTimeout(MQ.ui.capsuleFx.warm, 120);
+  }
+
+  /* ---- ひらく・とじる ----
+     open  … 画面ぜんたいに かぶせる モーダル（テストと むかしの 入り口）
+     mount … メニューの「カプセル」タブの 中に 出す（2026-09-13・ユーザー「カプセルマシンの メニューを 作って」）。
+             とじる ボタンは なし（ほかの タブか「マップへ もどる」で はなれる） */
+  function open(opts) {
+    opts = opts || {};
+    onClose = opts.onClose || null;
+    kind = pickKind(opts.kind);
+    rolling = false; skip = null;
+    close(true);
+
+    const stage = document.getElementById('stage') || document.body;
+    root = h('div', {
+      class: 'bag capsule',
+      onclick: function (e) {
+        if (skip) { skip(); return; }              // 演出ちゅうは タップで とばす
+        if (e.target === root) close();
+      }
+    }, [card(true)]);
+    stage.appendChild(root);
+    afterOpen();
+  }
+  function mount(host, opts) {
+    opts = opts || {};
+    close(true);
+    onClose = null;
+    // タブを ひらき直した ときは さっきの しゅるいの まま（おうちの人の マシンだけの ときは おうち）
+    kind = pickKind(opts.kind || kind);
+    rolling = false; skip = null;
+    root = h('div', {
+      class: 'capsule capsule--tab',
+      onclick: function () { if (skip) skip(); }   // 演出ちゅうは タップで とばす
+    }, [card(false)]);
+    host.appendChild(root);
+    afterOpen();
+    return root;
+  }
+  // タブの 中の マシンを はなれる（メニューの ほかの タブ・地図へ）。モーダルは さわらない
+  function unmount() {
+    if (root && root.classList.contains('capsule--tab')) close(true);
   }
 
   function close(quiet) {
@@ -396,11 +427,11 @@ MQ.ui.capsule = (function () {
   }
 
   return {
-    open: open, close: close,
+    open: open, close: close, mount: mount, unmount: unmount,
     // テスト用
     setKind: function (k) { kind = k; paint(); },
     kind: function () { return kind; },
-    isOpen: function () { return !!root; },
+    isOpen: function () { return !!(root && root.isConnected); },
     isRolling: function () { return rolling; },
     pull: pull, skip: function () { if (skip) skip(); },
     hold: function () { held = true; }

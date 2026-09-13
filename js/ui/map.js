@@ -771,7 +771,7 @@ MQ.ui.map = (function () {
     dimEl = h('div', { class: 'mapdim', hidden: true, onclick: function () { closeAll(); } });
 
     const top = h('div', { class: 'maptop' }, [
-      MQ.ui.hud(player, { slim: true }),
+      MQ.ui.hud(player, { slim: true, home: true }),
       // はじめての 子には 帯を 出さない（1回 たたかうと 出る・v11.1）
       firstTime ? null : obiBar(player, feverNow),
       firstTime ? null : panelEl

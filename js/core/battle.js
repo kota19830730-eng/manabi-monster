@@ -103,6 +103,20 @@ MQ.battle = (function () {
   const BOSS_SKILLS = ['kamae', 'clone', 'call'];
   const SUMMON_GOLDEN = 0.1;
 
+  /* ■ ガードくだき（2026-09-14・ユーザー「ボス系の モンスターは 攻撃して きて ガードや 守りを 壊して くる 要素を」）
+       ボスの 大わざ（ため 3問に 1回＝chargeInfo の attacking）が「ガードくだき」に なった。
+       ねらうのは 子どもの まもり ＝ たて（buff.shield：2回めに まちがえても にげられない）と
+                                   よろい（buff.freeze：コンボが きれない。時とめ・サポートの コンボ ガードも ここ）。
+         1回めで 正解 … はね返した！（カウンター 2ダメージは いままでどおり）＋ たてが 1つ ふえる（1たたかい GB_GAIN_MAX まで）
+         まちがえた   … ふつう：まもりに ヒビが 入る 演出だけ。**へらない**（「てきの 行動で 何も うしなわない」v7.7 の まま）
+                        本気モード（v12.7・子どもが えらんだ ときだけ）：まもりが 1つ ほんとうに こわれる（たてが 先）
+         こわれた まもりは ボスの 問題に 1回めで GB_REPAIR 問 れんぞく 正解すると なおる（けいけんち ＋GB_REPAIR_XP）
+       てきの こうげき（opts.attacks）が なし・タイムアタック・とっくんでは おきない（chargeInfo が null）。
+       画面へは answer() の 返りちでは なく guardEvent() で わたす（ほかの 作業の 返りちと ぶつからない ように） */
+  const GB_GAIN_MAX = 2;
+  const GB_REPAIR = 2;
+  const GB_REPAIR_XP = 10;
+
   /* ■ ボスを 強く（v12.7・ユーザー「ボスと ラスボスが 弱すぎる。歯ごたえが ほしい」）
        実測（400回ずつ）：ぜんぶ 正解なら ボスは 2問・ラスボスは 4問で おわって いた（正答 60% でも 勝率 100%）。
        ・HP と 問題数を ふやす（下の 表。画面がわ ui/battle.js が わたす。core の 初期値は むかしの まま＝テストの ため）
@@ -504,6 +518,8 @@ MQ.battle = (function () {
       finalAt: opts.finalAt || 0,  // さいごの 力（第3形態・v12.7）。0 は なし
       final: false,
       bossHard: false,             // 本気モード（v12.7・setBossHard）
+      gb: { broken: [], streak: 0, gained: 0, blocks: 0, breaks: 0, cracks: 0, repairs: 0 },   // ガードくだき（2026-09-14）
+      gbEvent: null,               // いまの 答えで おきた ガードくだきの 出来事（guardEvent）
       recap: mode === 'normal' && !opts.mix ? (opts.recap || []).filter(function (x) { return x && x.make && x !== stage; }) : [],
       bossAsked: 0,
       usedBossKeys: [],
@@ -588,6 +604,51 @@ MQ.battle = (function () {
     return { level: att ? CHARGE_MOB : k % CHARGE_MOB, need: CHARGE_MOB, attacking: att, boss: false };
   }
   function attacking() { const c = chargeInfo(); return !!(c && c.attacking); }
+
+  /* ---- ガードくだき（2026-09-14）。きまりは 上の GB_ の ところ ---- */
+  // ボスの 問題で まちがえた（1回めも 2回めも ここを 通る）
+  function guardOnMiss(q, wasRetry) {
+    if (s.phase !== 'boss' || !q || q.called) return;
+    if (!wasRetry) s.gb.streak = 0;           // なおす れんぞくは 1回めの まちがいで きれる
+    if (wasRetry || s.timeAttack || !attacking()) return;
+    const t = s.buff.shield > 0 ? 'shield' : s.buff.freeze > 0 ? 'freeze' : null;
+    if (!t) { s.gbEvent = { kind: 'none' }; return; }
+    if (!s.bossHard) { s.gb.cracks++; s.gbEvent = { kind: 'crack', type: t }; return; }   // ふつうは へらない
+    s.buff[t]--;
+    s.gb.broken.push(t);
+    s.gb.breaks++;
+    s.gbEvent = { kind: 'broke', type: t, need: GB_REPAIR };
+  }
+  // ボスに 正解した。はね返し（カウンター）と なおす れんぞく。ふえた けいけんちを かえす
+  function guardAfterBossHit(counter, wasRetry) {
+    let xp = 0;
+    const ev = { kind: 'hit' };
+    if (counter && !s.timeAttack) {
+      s.gb.blocks++;
+      ev.block = true;
+      if (s.gb.gained < GB_GAIN_MAX) { s.buff.shield++; s.gb.gained++; ev.gain = 'shield'; }
+    }
+    if (!wasRetry && s.gb.broken.length) {
+      s.gb.streak++;
+      if (s.gb.streak >= GB_REPAIR) {
+        const t = s.gb.broken.pop();
+        s.buff[t]++;
+        s.gb.streak = 0;
+        s.gb.repairs++;
+        ev.repaired = t;
+        xp = GB_REPAIR_XP;
+      } else ev.streak = s.gb.streak;
+    }
+    s.gbEvent = (ev.block || ev.repaired || ev.streak) ? ev : null;
+    return xp;
+  }
+  function guards() {
+    if (!s) return { shield: 0, freeze: 0, broken: [], streak: 0, need: GB_REPAIR, blocks: 0, breaks: 0, cracks: 0, repairs: 0, gained: 0 };
+    return {
+      shield: s.buff.shield || 0, freeze: s.buff.freeze || 0, broken: s.gb.broken.slice(), streak: s.gb.streak, need: GB_REPAIR,
+      blocks: s.gb.blocks, breaks: s.gb.breaks, cracks: s.gb.cracks, repairs: s.gb.repairs, gained: s.gb.gained
+    };
+  }
 
   /* サポート（v7.2）：いまの 問題の ヒントを 先に 出す（みちしるべと 同じ 中身）。
      ザコだけ・たからばこ と ボスは なし・役に 立つ ヒントが ある ときだけ
@@ -715,6 +776,7 @@ MQ.battle = (function () {
   function answer(value) {
     const q = current();
     const wasRetry = s.retry;
+    s.gbEvent = null;                                // ガードくだき（2026-09-14）：この 答えの 出来事だけ
     if (s.phase === 'boss') s.bossAnswered = true;   // 本気モードは もう 変えられない（v12.7）
 
     if (isCorrect(q, value)) {
@@ -789,10 +851,12 @@ MQ.battle = (function () {
           else { cloneKO = s.cloneClean && !wasRetry; if (cloneKO) s.skillHits++; }
         }
         if (!blocked) s.buff.dmg = 1;        // ガードされた ときは ばくれつを のこす（v12.7）
+        const gbXp = guardAfterBossHit(counter, wasRetry);   // ガードくだき（2026-09-14）：はね返し・なおす
         let xp = (wasRetry ? (last ? XP.lastHitRetry : XP.bossHitRetry) : (last ? XP.lastHit : XP.bossHit)) * Math.max(1, dmg);
         if (crit) xp += XP.critBonus;
         if (broke) xp += XP.kamaeBreak;
         if (cloneKO) xp += XP.cloneBonus;
+        xp += gbXp;
         xp += s.gear.xpAdd;                  // けん（そうび）の 効果
         s.bossHp -= dmg;
         const defeated = s.bossHp <= 0;
@@ -915,6 +979,7 @@ MQ.battle = (function () {
       s.bossOpen = false;
       if (skillNow === 'clone' && plNow.pos === 0) s.cloneClean = false;
     }
+    guardOnMiss(q, wasRetry);                        // ガードくだき（2026-09-14）：ボスの 大わざで まちがえた
     if (!wasRetry && !s.timeAttack) {
       s.retry = true;
       s.retryGiven = givenText(q, value);
@@ -1289,6 +1354,10 @@ MQ.battle = (function () {
     useItem: useItem, canUse: canUse, items: items, buffs: buffs,
     preHint: preHint,                                // サポート（v7.2）
     chargeInfo: chargeInfo, attacking: attacking,    // てきの ため → カウンター（v7.7）
+    // ガードくだき（2026-09-14）：まもりの ようすと、いまの 答えで おきた こと（{ kind: 'crack'|'broke'|'hit'|'none', … } か null）
+    guards: guards, guardEvent: function () { return s ? s.gbEvent : null; },
+    GB_GAIN_MAX: GB_GAIN_MAX, GB_REPAIR: GB_REPAIR, GB_REPAIR_XP: GB_REPAIR_XP,
+    _setBossHp: function (n) { if (s) { s.bossHp = n; if (n > s.bossHpMax) s.bossHpMax = n; } },   // テスト用
     CHARGE_MOB: CHARGE_MOB, CHARGE_BOSS: CHARGE_BOSS, COUNTER_MUL: COUNTER_MUL, COUNTER_DMG: COUNTER_DMG,
     // 敵がわの 攻防（v8.1）
     ELITE_HP: ELITE_HP, WEAK_MUL: WEAK_MUL, WEAK_DMG: WEAK_DMG, BOSS_SKILLS: BOSS_SKILLS,

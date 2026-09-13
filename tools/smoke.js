@@ -3916,6 +3916,100 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(hard60.win > hard40.win && hard40.win < 0.6, '本気は 正答率で 勝率が 変わる: 60% ' + Math.round(hard60.win * 100) + '%・40% ' + Math.round(hard40.win * 100) + '%');
   console.log('ボスを 強く: ぜんぶ正解 ' + all.q.toFixed(1) + '問・正答60% 勝率 ' + Math.round(weak.win * 100) + '%・本気 正答80/60/40% 勝率 ' + Math.round(hard80.win * 100) + '/' + Math.round(hard60.win * 100) + '/' + Math.round(hard40.win * 100) + '%');
 })();
+/* ===== ガードくだき（2026-09-14）=====
+   ボスの 大わざ（ため 3問に 1回）が 子どもの まもり（たて＝buff.shield・よろい＝buff.freeze）を ねらう。
+   ・1回めで 正解 → カウンター＋たて ＋1（1たたかい GB_GAIN_MAX まで）
+   ・ふつうで まちがえる → ヒビの 演出だけ（**へらない**）／本気で まちがえる → 1つ こわれる（たてが 先）
+   ・こわれた まもりは ボスの 問題に 1回めで GB_REPAIR 問 れんぞく 正解で なおる（けいけんち ＋GB_REPAIR_XP）
+   ・てきの こうげき なし・タイムアタックでは おきない */
+(function () {
+  const B = MQ.battle;
+  const st = MQ.content.findStage('sansu3-6').stage;
+  function right(q) { return q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : q.type === 'divrem' ? { q: q.answer.q, r: q.answer.r } : q.answer; }
+  function bad(q) { return q.type === 'number' ? q.answer + 1 : q.type === 'choice' ? (q.answer + 1) % q.choices.length : q.type === 'write' ? false : q.type === 'roma' ? 'zzzz' : q.type === 'frac' ? { q: q.answer.n + 1, r: q.answer.d } : { q: q.answer.q + 1, r: q.answer.r }; }
+  // ボスまで 進めて、わざの 予定を 消し、大わざの 問題（ため 3/3）まで 正解で 進める
+  function toAttack(o, hard) {
+    B.start(Object.assign({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false, attacks: true, bossHp: 20, bossMax: 14, enrageAt: 2, gear: { safe: 2, keep: 1 } }, o || {}));
+    while (B.phase() === 'mob') { B.answer(right(B.current())); B.next(); }
+    B._setBossPlan({});
+    if (hard) B.setBossHard(true);
+    let g = 0;
+    while (!B.attacking() && B.phase() === 'boss' && g++ < 10) { B.answer(right(B.current())); B.next(); }
+    return B.attacking();
+  }
+  check(typeof B.guards === 'function' && typeof B.guardEvent === 'function' && B.GB_GAIN_MAX === 2 && B.GB_REPAIR === 2 && B.GB_REPAIR_XP === 10, 'ガードくだき: 公開');
+  // ① ふつう：まちがえても へらない（ヒビだけ）
+  check(toAttack({}, false), 'ガードくだき: 大わざの 問題まで 進めた');
+  const g0 = B.guards();
+  check(g0.shield === 2 && g0.freeze === 1, 'ガードくだき: たて 2・よろい 1 で はじまる ' + JSON.stringify(g0));
+  let q = B.current();
+  B.answer(bad(q));
+  let ev = B.guardEvent();
+  check(ev && ev.kind === 'crack' && ev.type === 'shield', 'ガードくだき: ふつうは ヒビ ' + JSON.stringify(ev));
+  check(B.guards().shield === 2 && B.guards().broken.length === 0, 'ガードくだき: ふつうは まもりが へらない ' + JSON.stringify(B.guards()));
+  // ② 本気：まちがえると たてが 1つ こわれる → 2問 れんぞく 1回め 正解で なおる
+  check(toAttack({}, true), 'ガードくだき: 本気で 大わざの 問題まで');
+  q = B.current();
+  B.answer(bad(q));
+  ev = B.guardEvent();
+  check(ev && ev.kind === 'broke' && ev.type === 'shield' && ev.need === 2, 'ガードくだき: 本気は こわれる ' + JSON.stringify(ev));
+  check(B.guards().shield === 1 && B.guards().broken.join() === 'shield', 'ガードくだき: たてが 1つ へって こわれた 一覧に ' + JSON.stringify(B.guards()));
+  B.answer(right(q)); B.next();                         // 2回めの 正解（本気は ガード）は なおす 数に 入らない
+  check(B.guards().streak === 0, 'ガードくだき: 2回めの 正解は なおす 数に 入らない');
+  B.answer(right(B.current()));
+  check(B.guards().streak === 1 && B.guardEvent() && B.guardEvent().streak === 1, 'ガードくだき: 1問め れんぞく');
+  B.next();
+  const qx = B.current();
+  const r2 = B.answer(right(qx));
+  ev = B.guardEvent();
+  check(ev && ev.repaired === 'shield' && B.guards().shield === 2 && B.guards().broken.length === 0, 'ガードくだき: 2問 れんぞくで なおる ' + JSON.stringify({ ev: ev, g: B.guards() }));
+  check(r2.xp >= (B.XP.bossHit + B.GB_REPAIR_XP) * 2, 'ガードくだき: なおすと けいけんち ＋10（本気は 2ばい） ' + r2.xp);
+  B.next();
+  // ③ まちがえると なおす れんぞくが きれる
+  check(toAttack({}, true), 'ガードくだき: もう1回');
+  q = B.current(); B.answer(bad(q)); B.answer(right(q)); B.next();
+  B.answer(right(B.current())); B.next();
+  check(B.guards().streak === 1, 'ガードくだき: れんぞく 1');
+  q = B.current(); B.answer(bad(q));
+  check(B.guards().streak === 0 && B.guards().broken.length === 1, 'ガードくだき: まちがえると れんぞくが きれる（こわれた まま）');
+  // ④ 1回めで 正解 → カウンター＋たて ＋1（2つまで）
+  check(toAttack({}, false), 'ガードくだき: はね返す 問題まで');
+  const s0 = B.guards().shield;
+  const rc = B.answer(right(B.current()));
+  ev = B.guardEvent();
+  check(rc.counter === true && ev && ev.block === true && ev.gain === 'shield' && B.guards().shield === s0 + 1, 'ガードくだき: はね返すと たて ＋1 ' + JSON.stringify({ ev: ev, s: B.guards().shield }));
+  B.next();
+  let gains = 1, gg = 0;
+  while (B.phase() === 'boss' && gg++ < 30) {
+    const at = B.attacking();
+    B.answer(right(B.current()));
+    if (at && B.guardEvent() && B.guardEvent().gain) gains++;
+    B.next();
+  }
+  check(gains <= B.GB_GAIN_MAX && B.guards().gained <= B.GB_GAIN_MAX, 'ガードくだき: たては 1たたかい 2つまで ' + gains);
+  // ⑤ まもりが ない ときは こわす ものが ない（none）
+  check(toAttack({ gear: null }, true), 'ガードくだき: まもり なし');
+  B.answer(bad(B.current()));
+  ev = B.guardEvent();
+  check(ev && ev.kind === 'none' && B.guards().broken.length === 0, 'ガードくだき: まもりが ない ときは none ' + JSON.stringify(ev));
+  // ⑥ よろいだけの ときは よろいが こわれる
+  check(toAttack({ gear: { safe: 0, keep: 1 } }, true), 'ガードくだき: よろい だけ');
+  B.answer(bad(B.current()));
+  ev = B.guardEvent();
+  check(ev && ev.kind === 'broke' && ev.type === 'freeze' && B.guards().broken.join() === 'freeze', 'ガードくだき: よろいが こわれる ' + JSON.stringify(ev));
+  // ⑦ てきの こうげき なし では おきない
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false, attacks: false, bossHp: 20, bossMax: 14, gear: { safe: 2, keep: 1 } });
+  while (B.phase() === 'mob') { B.answer(right(B.current())); B.next(); }
+  B.setBossHard(true);
+  let any = false;
+  while (B.phase() === 'boss') { const qq = B.current(); B.answer(bad(qq)); if (B.guardEvent()) any = true; if (B.isRetry()) B.answer(right(qq)); B.next(); }
+  check(!any && B.guards().broken.length === 0, 'ガードくだき: てきの こうげき なし では おきない');
+  // ⑧ ザコでは おきない
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: false, attacks: true, gear: { safe: 2, keep: 1 } });
+  let mobEv = false;
+  while (B.phase() === 'mob') { const qq = B.current(); B.answer(bad(qq)); if (B.guardEvent()) mobEv = true; if (B.isRetry()) B.answer(right(qq)); B.next(); }
+  check(!mobEv, 'ガードくだき: ザコでは おきない');
+})();
 /* ===== 教科書（出版社）えらび（v12.4）===== */
 (function () {
   const TB = MQ.textbooks;
@@ -4742,7 +4836,7 @@ function stripComments(src) {
   check(!!cand && MQ.pals.offerFrom(pp, [cand.id], rnd) === null && MQ.pals.offerFrom(pp, [cand.id], rnd, 2) === cand.id, 'v13.16: なかま まつりは 見こみ 2ばい');
   check(MQ.pals.offerFrom(pp, [cand.id], function () { return 0.59; }, 100) === cand.id && MQ.pals.offerFrom(pp, [cand.id], function () { return 0.61; }, 100) === null, 'v13.16: 上は 6わり');
 
-  check(MQ.news.latest() === 'v13.16', 'v13.16: お知らせ');
+  check(MQ.news.list.some(function (e) { return e.v === 'v13.16'; }), 'v13.16: お知らせ');
   console.log('v13.16: ぴかぴか あつめ・しゅうまつ イベント OK');
 })();
 
