@@ -13,7 +13,7 @@
      ふた   y 0〜6   ／ ガラス 上 y 6〜10（はば 26）・下 y 10〜26（はば 32・奥ゆき 22）
      金の ふち y 26〜28 ／ 台 y 28〜44（奥ゆき 24）／ 足 y 44〜46
 
-   MQ.vox.capsuleMachine({ unit, hide, shadow }) → .v3.v3--capmc
+   MQ.vox.capsuleMachine({ unit, hide, shadow, tone }) → .v3.v3--capmc（tone 'home'＝おうちの人の 金の マシン）
    --------------------------------------------------------- */
 (function () {
   const COLORS = {
@@ -84,9 +84,16 @@
     return box;
   }
 
+  /* 台の 色の しゅるい（2026-09-13）：'home'＝おうちの人の マシン（金の 台・赤い ふち と ハンドル）。
+     2D の .capmc--home（css/prize.css）と 同じ 色の 組み合わせ */
+  const MACHINE_TONE = {
+    home: { A: '#f2b82e', B: '#a86d0c', C: '#ffd86a', y: '#e0463c', Y: '#ff8a7a', k: '#4a2e06', o: '#ff8fb0' }
+  };
   function machine(opts) {
     opts = opts || {};
     const plain = opts.plain != null ? opts.plain : false;
+    const col = Object.assign({}, COLORS, MACHINE_TONE[opts.tone] || {});
+    const bxOf = function (shape, pl) { return MQ.blocks.el(shape, col, { plain: pl }); };
     const groups = [
       { cls: 'base', bx: bxOf(BASE, plain), joint: [24, 46], thick: DEPTH },
       { cls: 'knob', bx: bxOf(KNOB, plain), joint: [32, 38.5], parent: 'base', thick: DEPTH + 4, keep: true, floor: false }
@@ -105,6 +112,7 @@
       if (p && r[5]) p.style.transform = 'translateZ(' + (r[5] * U) + 'px)';
     });
     v.classList.add('v3--capmc');
+    if (MACHINE_TONE[opts.tone]) v.classList.add('v3--capmc-' + opts.tone);
     return v;
   }
 

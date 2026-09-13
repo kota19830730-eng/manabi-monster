@@ -3643,7 +3643,7 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 /* position: relative … カプセルと 光の すじの 置きどころ（ないと カード全体に ついて 場所が ずれる）
    z-index: 0 … ここで 1つの 層を 作る。ないと 光の すじ（z-index:-1）が
                 カードの 背景の うしろに 回って **見えなく なる** */
-.capstage { position: relative; z-index: 0; height: 132px; display: flex; align-items: flex-end; justify-content: center; margin: 8px 0 6px; overflow: visible; }
+.capstage { position: relative; z-index: 0; height: 150px; display: flex; align-items: flex-end; justify-content: center; margin: 8px 0 6px; overflow: visible; }
 .capmc { position: relative; width: 96px; height: 124px; }
 .capmc__dome {
   position: absolute; left: 4px; top: 0; width: 88px; height: 62px; border-radius: 44px 44px 8px 8px;

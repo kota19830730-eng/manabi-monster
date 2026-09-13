@@ -41,7 +41,20 @@ MQ.ui.capsuleFx = (function () {
       palNode();   // 相棒の 3D も three.js の しまい場所（monCache）に 入る
     } catch (e) { /* 先に 組めなくても まわす ときに 組む */ }
   }
-  function machineV() { return cache.mc ? cache.mc.cloneNode(true) : MQ.vox.capsuleMachine({ unit: 2 }); }
+  /* マシンは 色ごとに 1台 組んで しまって おき、つかう ときは cloneNode（tone 'home'＝おうちの人の 金の マシン） */
+  function machineV(tone) {
+    const key = tone === 'home' ? 'mc-home' : 'mc';
+    if (!cache[key]) cache[key] = MQ.vox.capsuleMachine({ unit: 2, tone: tone === 'home' ? 'home' : null });
+    return cache[key].cloneNode(true);
+  }
+  /* カプセルマシンの 画面（capsule.js）の マシンも 同じ 3D に（2026-09-13・ユーザー「ここの画面も 3D の 画面に」）。
+     まわす 演出と 同じ 1台を 写すので 見た目が そろう。3D が 切って ある ときは null（2D の .capmc が 出る） */
+  function menuMachine(size, tone) {
+    if (!on3d()) return null;
+    try {
+      return h('div', { class: 'capmc3d' + (tone === 'home' ? ' capmc3d--home' : '') }, [scene3d(size, -18, machineV(tone), 'capfx__fig--mc capfx__fig--menu')]);
+    } catch (e) { return null; }
+  }
   function ballV(tone) { return cache['ball-' + tone] ? cache['ball-' + tone].cloneNode(true) : MQ.vox.capsuleBall({ unit: 2, tone: tone }); }
 
   /* ---- 期待度の はしご ---- */
@@ -186,7 +199,7 @@ MQ.ui.capsuleFx = (function () {
     // マシン
     el.mc = h('div', { class: 'capfx__mc is-enter' });
     if (on3d()) {
-      el.mcv = machineV();
+      el.mcv = machineV(opts && opts.tone);
       el.mc.appendChild(scene3d(300, -18, el.mcv, 'capfx__fig--mc'));
     } else {
       el.mcv = machine2d();
@@ -449,7 +462,7 @@ MQ.ui.capsuleFx = (function () {
   }
 
   return {
-    play: play, skip: skip, close: close, next: next, warm: warm,
+    play: play, skip: skip, close: close, next: next, warm: warm, menuMachine: menuMachine,
     plan: plan, bonusOf: bonusOf,
     // テスト用
     isOpen: function () { return !!root; },

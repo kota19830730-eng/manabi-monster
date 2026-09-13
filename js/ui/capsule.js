@@ -64,8 +64,14 @@ MQ.ui.capsule = (function () {
     return look;
   }
 
-  /* ---- マシンの 絵（CSS の div だけ。画像ファイルは 使わない）---- */
+  /* ---- マシンの 絵 ----
+     3D が 入って いる ときは まわす 演出（capsulefx.js）と 同じ 3D の マシン（2026-09-13）。
+     「りったい」を 切って いる とき・3D が 作れない ときは いままでの CSS の div */
+  const MC3D = { mon: 150, home: 124 };   // 3D の マシンの 大きさ（px。おうちは 景品の 一覧が あるので 小さめ）
   function machine(variant) {
+    const fx = MQ.ui.capsuleFx;
+    const v3 = fx && fx.menuMachine && fx.menuMachine(variant === 'home' ? MC3D.home : MC3D.mon, variant);
+    if (v3) return v3;
     return h('div', { class: 'capmc' + (variant ? ' capmc--' + variant : '') }, [
       h('span', { class: 'capmc__dome' }),
       h('span', { class: 'capmc__ball capmc__ball--1' }),
@@ -217,6 +223,7 @@ MQ.ui.capsule = (function () {
       skip = function () { MQ.ui.capsuleFx.skip(); };
       MQ.ui.capsuleFx.play({
         rarity: res.rarity,
+        tone: home ? 'home' : null,
         reveal: revealOf(res),
         onReveal: function () { skip = null; showResult(res); },
         onNext: function () {
