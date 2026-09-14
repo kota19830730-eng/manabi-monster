@@ -2344,7 +2344,29 @@ MQ.ui.battle = (function () {
   const PAL_LINES = ['{p}、いっしょに いくぞ！', '{p}と いっしょに！', 'いくぞ、{p}！'];
   const CI_POSE = { fire: 'raise', leaf: 'thrust', ice: 'guard', wind: 'sweep', bolt: 'sky', star: 'point', nova: 'spread', starburst: 'charge' };
   const CI_MS = { 1: 760, 2: 900, 3: 980, 4: 1050, 5: 1150 };   // カットインが 出て いる 長さ
-  let ciLast = '', lineLast = '', growT = null, ciForce = null, instantGrow = false;
+  let ciLast = '', lineLast = '', growT = null, ciForce = null, instantGrow = false, ciLateT = null;
+  /* v14.3 カットインを 軽く（ユーザーが 見本で 3案を くらべて「B案でお願いします」2026-09-14）：
+       late … 画面が 広がる わざ（8コンボ〜）で カットインを 何 ms あとから 出すか（0＝いつもの とおり すぐ）。
+              わざの 1コマめに 描く ものが へって、画面が 広がる 動きが 見える（CPU ×4 で いちばん 長く 止まる 174 → 76〜105ms）
+       hero … '3d'（いつもの 3D・面 約300）／'snap'（同じ 3D を 1まいの 絵に した もの・js/ui/cisnap.js）／'flat'（2D の ドット絵）
+     見本の ページ（tools/fxcheck/build_cidemo.js）と harness が MQ.ui.battle.ciOption で 切りかえる。
+     はじめは 案B（あとから ＋ 1まいの 絵）。CPU ×4 で いちばん 長く 止まる 100 → 50〜67ms・カクッ 5 → 2回（docs/v14.3画面が広がるわざメモ.md）。
+     WebGL が ない 端末・絵が まだ できて いない ときは いつもの 3D */
+  const ciOpt = { late: 300, hero: 'snap' };
+  /* 作る じゅんばん：いまの 教科の わざ（5コンボ）→ いなずま → メテオ → ビッグバン → スターバースト → のこり（セットわざ） */
+  function ciPoses() {
+    const u = [];
+    const add = function (p) { if (p && u.indexOf(p) < 0) u.push(p); };
+    try { add(CI_POSE[currentElement()]); } catch (e) {}
+    ['bolt', 'star', 'nova', 'starburst'].forEach(function (k) { add(CI_POSE[k]); });
+    Object.keys(CI_POSE).forEach(function (k) { add(CI_POSE[k]); });
+    return u;
+  }
+  function ciOption(o) {
+    if (o) Object.keys(o).forEach(function (k) { ciOpt[k] = o[k]; });
+    if (ciOpt.hero === 'snap' && MQ.ui.ciSnap && ctx && ctx.player) MQ.ui.ciSnap.warm(ctx.player, ciPoses());
+    return { late: ciOpt.late, hero: ciOpt.hero };
+  }
 
   function ciLayout(sp, withPal) {
     if (withPal && palNow) return 'duo';
@@ -2392,6 +2414,7 @@ MQ.ui.battle = (function () {
   function ciWarm(player) {
     setTimeout(fxWarm, 600);   // v14.2.1：わざの 字を 先に よみこむ（3D が なくても）
     if (!V3() || !MQ.ui.v3) return;
+    if (ciOpt.hero === 'snap' && MQ.ui.ciSnap && MQ.ui.ciSnap.ok()) { setTimeout(function () { MQ.ui.ciSnap.warm(player, ciPoses()); }, 1200); return; }   // v14.3 案B：ポーズごとの 絵を 1つずつ 作って おく（WebGL が なければ 下の いつもの 3D を 用意）
     setTimeout(function () {
       if (!d || !d.root) return;
       const hold = h('div', { class: 'ciwarm' });
@@ -2403,7 +2426,11 @@ MQ.ui.battle = (function () {
   /* カットインの 主人公（3D は ポーズつき。部品の 回し方は css/specialfx.css の ci-pose-*） */
   function ciFigure(sp, size) {
     const pose = 'ci-pose-' + (CI_POSE[sp.id] || 'raise');
-    if (V3() && MQ.ui.v3) {
+    if (V3() && MQ.ui.v3 && ciOpt.hero === 'snap' && MQ.ui.ciSnap) {   // v14.3 案B：1まいの 絵（まだ できて いなければ いつもの 3D）
+      const snap = MQ.ui.ciSnap.get(ctx.player, CI_POSE[sp.id] || 'raise', size);
+      if (snap) return snap;
+    }
+    if (V3() && MQ.ui.v3 && ciOpt.hero !== 'flat') {
       const sc = MQ.ui.v3.hero(ctx.player, size, { ry: 22, unit: ciUnit(size), mo: 'mo-ci', cls: 'ci__fig ' + pose });
       if (sc) return sc;
     }
@@ -2442,7 +2469,45 @@ MQ.ui.battle = (function () {
     d.fxs.appendChild(box);
   }
 
-  /* B：バトル画面を 広げる／もどす。広げた ぶん（px）を かえす */
+  /* B：バトル画面を 広げる／もどす。広げた ぶん（px）を かえす。
+     v14.3 なめらかに（ユーザー「画面が 大きくなる 必殺技が 多少 カクつく。クオリティは 下げないで」）：
+     前は 高さ（height）と margin-bottom を 0.28秒 アニメして いた＝毎コマ メインで レイアウト・描き直し・層の つみ直しを して、
+     広がる アリーナの 絵（空・遠景・ゆか）を GPU で 毎コマ 描き直して いた。わざの はじめの いちばん 重い コマと かさなる。
+     いまは 高さを さいしょに 広げた あとの 大きさに して、見た目が 前と 同じに なる ように 3つを 同じ 時間・同じ 速さで 動かす
+     （translate／scale だけ＝GPU が 動かす。メインが いそがしくても 動きは 止まらない・アリーナの 絵は 1回 描くだけ）：
+       ① アリーナを 上に ずらして おいて もどす＝下の へり（と かげ）が のびて いく ように 見える（上は 画面の 外で 見えない）
+       ② 上に くっついて いる もの（上の バー・ボスの パネル・コンボ・ためゲージ・帯）は 反対に ずらす＝その 場所に のこる
+       ③ 空の グラデーション（空・ボスの 暗さ・わざの 暗い 空）は 下を 中心に のばす＝前と 同じ 色の ならび
+     下に くっついて いる もの（地面・遠景・主人公・てき・相棒・ふきだし・アイテムボタン）は ①と いっしょに 動くので 何も しない。
+     ゆれ（is-shake）・コンボの ポン と ぶつからない ように、transform では なく 1つずつの プロパティ（translate／scale）を 動かす。
+     前と あとを 同じ 時間で 止めて 撮って くらべた＝ちがうのは 動いて いる あいだの 1px みまんの ふちだけ（harness #growshot）。
+     わざの 光・集中線・技名は 前と 同じく 広げた あとの 場所（動きの はじまりも 前と 同じ）。 */
+  const GROW_MS = 280, GROW_EASE = 'cubic-bezier(.2,.85,.25,1)';
+  const GROW_PIN = ':scope > .arena__top, :scope > .bossinfo, :scope > .combo, :scope > .charge, :scope > .counterbanner, :scope > .fx > .palbanner, :scope > .fx > .modebanner';   // 雲（.cloud--c）は 大きさ 0 で 見えない ので 入れない
+  const GROW_SKY = ':scope > .arena__bg > .arena__sky, :scope > .arena__bg > .arena__dusk, :scope > .arena__bg > .arena__spsky';
+  let growAnims = [], growDlt = 0;
+  function growGpu(a) {
+    try {
+      return !!(a.animate && window.CSS && CSS.supports && CSS.supports('translate', '0 1px') && CSS.supports('scale', '1 .5') &&
+        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+    } catch (e) { return false; }
+  }
+  function growStop() { growAnims.forEach(function (x) { try { x.cancel(); } catch (e) {} }); growAnims = []; growDlt = 0; }
+  /* 動きを 1つ 足す。あとから 足す もの（とちゅうで 出た 相棒の 帯）は はじまりの 時間を そろえる */
+  function growAdd(el, kf) {
+    if (!el || !el.animate) return;
+    try {
+      const an = el.animate(kf, { duration: GROW_MS, easing: GROW_EASE });
+      const lead = growAnims[0];
+      if (lead && lead.startTime !== null) an.startTime = lead.startTime;
+      growAnims.push(an);
+    } catch (e) {}
+  }
+  /* ② 広がって いる とちゅうに あとから 足した 上の もの（相棒の 帯）も その 場所に のこす */
+  function growFollow(el) {
+    if (!growDlt || !growAnims.length || growAnims[0].playState === 'finished') return;
+    growAdd(el, [{ translate: '0 ' + growDlt + 'px' }, { translate: '0 0' }]);
+  }
   function grow(on, now) {
     const a = d && d.arena;
     if (!a) return 0;
@@ -2452,19 +2517,34 @@ MQ.ui.battle = (function () {
       const big = Math.round(Math.max(base, (d.root.offsetHeight || 700) * BIG_RATIO));
       const dlt = big - base;
       if (dlt < 8) return 0;
+      growStop();
       a.dataset.base = base;
-      a.style.height = base + 'px';
-      a.style.marginBottom = '0px';
+      if (!instantGrow && !growGpu(a)) {
+        // むかしの ブラウザ（translate / scale が ない）：前と 同じ 高さの アニメ
+        a.style.height = base + 'px';
+        a.style.marginBottom = '0px';
+        a.classList.add('is-big', 'is-growcss');
+        void a.offsetHeight;
+        a.style.height = big + 'px';
+        a.style.marginBottom = (-dlt) + 'px';
+        return dlt;
+      }
       a.classList.add('is-big');
-      if (instantGrow) a.classList.add('is-instant');
-      void a.offsetHeight;
       a.style.height = big + 'px';
       a.style.marginBottom = (-dlt) + 'px';
+      if (instantGrow) return dlt;   // harness（virtual-time）は すぐ 広げる
+      // すぐ 作る（この あとの 場所の はかり（boxOf・foeCenter）は 前と 同じく 広げる 前の 見た目で はかる）
+      growAdd(a, [{ translate: '0 ' + (-dlt) + 'px' }, { translate: '0 0' }]);
+      a.querySelectorAll(GROW_PIN).forEach(function (el) { growAdd(el, [{ translate: '0 ' + dlt + 'px' }, { translate: '0 0' }]); });
+      a.querySelectorAll(GROW_SKY).forEach(function (el) { growAdd(el, [{ scale: '1 ' + (base / big) }, { scale: '1 1' }]); });
+      growDlt = dlt;
       return dlt;
     }
     if (!a.classList.contains('is-big')) return 0;
-    const done = function () { a.classList.remove('is-big', 'is-instant'); a.style.height = ''; a.style.marginBottom = ''; delete a.dataset.base; };
+    growStop();
+    const done = function () { a.classList.remove('is-big', 'is-growcss'); a.style.height = ''; a.style.marginBottom = ''; delete a.dataset.base; };
     if (now) { done(); return 0; }
+    a.classList.add('is-growcss');
     a.style.height = a.dataset.base + 'px';
     a.style.marginBottom = '0px';
     growT = setTimeout(done, 320);
@@ -2500,7 +2580,9 @@ MQ.ui.battle = (function () {
       buildFx(sp).forEach(function (el) { d.fx.appendChild(el); });
     }
     playScreenFx(sp, withPal, arenaH, dlt, canvas);
-    cutIn(sp, withPal, arenaH);
+    clearTimeout(ciLateT);
+    if (ciOpt.late && sp.tier >= BIG_TIER) ciLateT = setTimeout(function () { if (d && d.fxs) cutIn(sp, withPal, arenaH); }, ciOpt.late);   // v14.3 案A
+    else cutIn(sp, withPal, arenaH);
     MQ.sfx.special(sp.tier, sp.id);
     if (!canvas) flash(true);
     if (d.msg) d.msg.classList.add('is-quiet');   // 技名と ぶつからないように
@@ -2513,6 +2595,7 @@ MQ.ui.battle = (function () {
   function endSpecial(now) {
     if (!d) return;
     clearTimeout(fxTimer);
+    if (now) clearTimeout(ciLateT);   // v14.3：あとから 出す カットインが のこって いたら 出さない
     if (now && d.fxs) { d.fxs.textContent = ''; d.fxs.className = 'fxscreen'; }   // わざの おわり（now でない）は CSS で もう 見えない ので 消さない（3D の カットインを 消すと 1コマ 重い）
     if (now && d.fx && /\bfx--t\d/.test(d.fx.className)) { d.fx.textContent = ''; d.fx.className = 'fx'; }
     if (d.msg && !now) d.msg.classList.remove('is-quiet');
@@ -2576,6 +2659,7 @@ MQ.ui.battle = (function () {
   function palBanner(name) {
     const b = h('div', { class: 'palbanner', text: name + 'の こうげき！' });
     d.fx.appendChild(b);
+    growFollow(b);   // v14.3：画面が 広がって いる とちゅうでも その 場所に のこる
     if (d.msg) d.msg.classList.add('is-quiet');
     setTimeout(function () {
       b.remove();
@@ -3219,8 +3303,10 @@ MQ.ui.battle = (function () {
     comboShow(sp.min);
     ciForce = o.layout || null;         // v13.6：カットインの 形を きめて 撮る
     instantGrow = !!o.instant;         // harness（virtual-time）は transition が すすまない ので すぐ 広げる
+    const late0 = ciOpt.late;
+    if (o.instant) ciOpt.late = 0;     // v14.3：止めて 撮る harness では カットインを すぐ 出す（freeze で あとの タイマーが 止まる）
     playSpecial(sp, !!o.pal);
-    ciForce = null; instantGrow = false;
+    ciForce = null; instantGrow = false; ciOpt.late = late0;
     if (V3() && d.cur) specialMotion(sp, d.cur);   // v12.2：3D の 動きも いっしょに
     return sp;
   }
@@ -3239,6 +3325,7 @@ MQ.ui.battle = (function () {
     demoWarning: function (last) { build(); if (last) towerIntro(); else bossIntro(); },   // v13.6：harness #warning
     demoEnd: function () { endSpecial(true); },   // v13.6：見本の ページで つぎの わざの 前に もどす
     start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,
+    ciOption: ciOption,   // v14.3：カットインを 軽く する 案の 切りかえ（見本の ページ・harness 用）
     paintScene: paintScene,   // 背景（v12.6）を harness から 入れかえる 用
     lastJudge: function () { return lastJudge; },
     // メモ欄の 中を のぞく（tools/harness.html 用・v5.5）

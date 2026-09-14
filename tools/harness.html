@@ -155,6 +155,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="3d/demo3d.js"></script>   <!-- 3D の デモ（vox・chest3d・motion3d.css は ゲームの ファイルを 読む） -->
 <script src="../js/ui/common.js"></script>
 <script src="../js/ui/three.js"></script>
+<script src="../js/ui/cisnap.js"></script>
 <script src="../js/ui/gearaura.js"></script>
 <script src="../js/ui/scenery.js"></script>
 <script src="../js/ui/fxcanvas.js"></script>
@@ -2033,6 +2034,37 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('cipose: 8');
       return;
     }
+    /* v14.3 案B：#cisnap[:<大きさ>]＝ポーズごとに 左＝いつもの 3D（面 約300）・右＝1まいの 絵（js/ui/cisnap.js）。
+       同じ 見た目に なって いるかを 見る。ログ cisnap: に ポーズごとの 作る 時間と 面の 数 */
+    if (mode === 'cisnap' || mode.indexOf('cisnap:') === 0) {
+      const size = +(mode.split(':')[1] || 190);
+      fresh();
+      MQ.ui.battle.start('rikashakai3-1'); await wait(400);
+      const pl = MQ.save.current();
+      const box = document.createElement('div');
+      box.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:9999;background:#141a3a;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;padding:4px;overflow:hidden';
+      document.body.appendChild(box);
+      const poses = mode.split(':')[2] ? mode.split(':')[2].split(',') : ['raise', 'thrust', 'guard', 'sweep', 'sky', 'point', 'spread', 'charge'];
+      const info = [];
+      for (const p of poses) {
+        const t0 = performance.now();
+        const out = await MQ.ui.ciSnap.render(pl, p, 2.6);
+        const tm = MQ.ui.ciSnap.timing;
+        info.push(p + '=' + (performance.now() - t0).toFixed(0) + 'ms(style ' + tm.style.toFixed(0) + ' atlas ' + tm.atlas.toFixed(0) + ' gl ' + tm.gl.toFixed(0) + (tm.inline ? ' inline' : ' computed') + ')/' + (out ? out.faces : 0) + '面/' + (out ? out.cv.width + 'x' + out.cv.height : '-'));
+        const cell = document.createElement('div');
+        cell.style.cssText = 'position:relative;width:' + (size * 2.7) + 'px;height:' + (size * 1.5 + 22) + 'px;color:#fff;font:13px sans-serif;background:#25306a';
+        cell.appendChild(document.createTextNode(p + '（左＝3D・右＝絵）'));
+        const live = MQ.ui.v3.hero(pl, size, { ry: 22, unit: 4, mo: 'mo-snap', cls: 'ci-pose-' + p });
+        live.style.position = 'absolute'; live.style.left = (size * 0.3) + 'px'; live.style.top = (size * 0.45 + 20) + 'px';
+        cell.appendChild(live);
+        const pic = MQ.ui.ciSnap.get(pl, p, size);
+        if (pic) { pic.classList.remove('mo-ci'); pic.style.position = 'absolute'; pic.style.left = (size * 1.6) + 'px'; pic.style.top = (size * 0.45 + 20) + 'px'; cell.appendChild(pic); }
+        box.appendChild(cell);
+      }
+      await wait(600);
+      say('cisnap: ' + info.join(' '));
+      return;
+    }
     // ひっさつわざの エフェクト（v2.5）：#fx:<わざ>[:<秒>]  わざ＝fire leaf ice wind bolt star nova、秒＝何秒めで 止めて 撮るか（0.3）
     if (mode.indexOf('fx') === 0) {
       const want = mode.split(':')[1] || 'fire';
@@ -2372,6 +2404,31 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const b = $('.memo__btn'); b.click(); await wait(200);
       const m = $('.memo');
       say('wide: ' + m.classList.contains('memo--wide') + ' memo=' + Math.round(m.getBoundingClientRect().height) + 'px btn=' + b.textContent);
+      return;
+    }
+    /* v14.3：#growshot:<わざ>:<ms>[:pal]＝画面が 広がる とちゅうを 止めて 撮る（前の 版と 画素で くらべる 用）。
+       わざを 出した すぐ あとに ぜんぶの アニメ（広がる 動き・3D・線・カットイン）を 同じ 時間で 止め、
+       予約ずみの タイマーと rAF を ぜんぶ 消す。光の 粒（Canvas）は 毎コマ ちがう ので |css=.fxc{visibility:hidden} で かくして 撮る。
+       乱数は |js= で 種つきに（前と あとで 同じ たたかいに なる）。ログ grow: に アリーナの 高さと 動いて いる アニメの 数 */
+    if (mode.indexOf('growshot') === 0) {
+      const gp = mode.split(':');
+      const want = gp[1] || 'bolt', t = +(gp[2] || 100), withPal = mode.indexOf(':pal') > 0;
+      fresh();
+      if (withPal) MQ.save.update(function (pl) { MQ.pals.add(pl, 'drago-1'); MQ.pals.setActive(pl, 'drago-1'); });
+      MQ.ui.battle.start('sansu3-6');
+      await wait(1500);
+      MQ.ui.battle.demoSpecial(want, { pal: withPal });
+      getComputedStyle(document.body).opacity;   // style を 流す（高さの transition が できる）
+      const an = document.getAnimations();
+      an.forEach(function (x) { try { x.pause(); x.currentTime = t; } catch (e) {} });
+      const last = setTimeout(function () {}, 0);
+      for (let i = 0; i <= last + 50; i++) { clearTimeout(i); clearInterval(i); }
+      const lastR = requestAnimationFrame(function () {});
+      for (let i = 0; i <= lastR + 50; i++) cancelAnimationFrame(i);
+      const ar = $('#screen-battle .arena');
+      const trans = an.filter(function (x) { return x.effect && x.effect.target && (x.effect.target === ar || ar.contains(x.effect.target)) && !(x instanceof CSSAnimation); });
+      say('grow: t=' + t + ' arena h=' + ar.offsetHeight + ' mb=' + ar.style.marginBottom + ' anims=' + an.length + ' arenaの 動き=' + trans.length + ' ' + trans.map(function (x) { return (x.effect.target.className || '').split(' ')[0] + (x.transitionProperty ? '(' + x.transitionProperty + ')' : ''); }).join(','));
+      dump();
       return;
     }
     /* v12.5：#perffx:<わざ>[:pal]＝ひっさつわざの 演出の あいだ（1.4秒）の 1コマを はかる。本当の 時計で（cdp.js）。

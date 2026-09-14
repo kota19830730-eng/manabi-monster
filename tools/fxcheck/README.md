@@ -36,3 +36,32 @@
 | `startcut.js` | わざの 出だし 0.7秒の 長い 仕事・Layout と Paint の 数（CPU を おそく して タブレットの まね） | `QUIET=1 node startcut.js set-capsule 3 4` |
 
 - 1コマの 時間は この PC では ぶれる ので、**Paint・Layout の 回数、dirty の 数、字の まとまりの 数** で くらべる。
+
+
+## 画面が 広がる わざ（v14.3）
+
+| ファイル | すること | 使い方 |
+|---|---|---|
+| `growcut.js` | わざの はじめの 仕事を 名前ごとに 交互に はかる（画面に 出た コマ・止まった いちばん 長い あいだ・GPU の ラスター・Paint／Layout の 回数）。部品を かくして くらべる | `WIN=700 node growcut.js bolt 3 1 base= noci="|css=.ci{display:none!important}"`・前の 版は `old=@C:/mqtold` |
+| `growtrace.js` | 広がる 動き（0.28秒）の あいだに 画面に 出た コマと メインの コマを 数える（trace の Display::DrawAndSwap と ページの 動きの はじまりの 時間を あわせる） | `node growtrace.js bolt 4 4 @C:/mqt143` |
+| `gpuwho.js` | わざの はじめ 0.7秒の GPU・メイン・コンポジター・viz の 10ms こえの 仕事と 画面に 描いた 時間 | `node gpuwho.js bolt` |
+
+- harness `#growshot:<わざ>:<ms>`＝広がる とちゅうを 止めて 撮る（前の 版と 画素で くらべる。`|css=.fxc{visibility:hidden!important}` と 乱数の 種を つける）。
+- ~~わかった こと：わざの はじめが 重いのは カットインの 3D の 主人公~~ → **はかり直した（2026-09-14 午後）**：主人公だけ かくしても 止まる 長さは ほぼ 同じ（この PC は ぶれる）。
+  **カットインまるごと**（かくすと GPU の ラスター 307 → 180ms・止まる 241 → 152ms）と **技名の 光る 字**（→ 216ms）が 大きい。
+  主人公は **メインの Paint**（CPU ×4 で 238 → 63ms）＝タブレットの CPU で 効く。1つの 部品では なく「1コマめに ぜんぶ 描く」のが 重さの 正体。
+- Element Timing（画面に 出た 時間）は headless では ほぼ 来なかった（8回 中 0回）。rAF の 間かくでは GPU の おくれは 見えない。
+- `growcut.js` の `GW=<はじめms>,<おわりms>`＝その あいだの GPU の ラスターも 出す（あとから 出る カットインの ぶん）。`|js=` で `MQ.ui.battle.ciOption(...)` を たたかいの あとに よぶと 案を 切りかえて はかれる。
+
+### カットインを 軽く する 案（v14.3 案A・B・C）
+
+| ファイル | すること | 使い方 |
+|---|---|---|
+| `build_cidemo.js` | 案を 見くらべる 動く 見本 `cidemo.html`（下の パネルで いま／案A／案B／案C と わざを えらぶ・止まった いちばん 長い じかんの メーター）。ゲームは パネルの 上に おさめる | `node build_cidemo.js C:/mqtNNN`（git archive HEAD ＋ 自分の ファイル＝ほかの セッションの 作りかけを まぜない）→ Artifact |
+| `cidemo_panel.js` | 見本の パネル（build_cidemo.js が 入れる） | — |
+| `cidemo_check.js` | 見本を 本物の 時計で 動かす。すてる 1回の あと 案の じゅんばんを かえながら まわして 中央の 値（＋さいしょの まわりで カットインを 撮る） | `node cidemo_check.js <出す フォルダ> bolt 650 4 800 1280 4`（CPU ×4＝タブレットの まね） |
+| `snapcost.js` | 案B の 絵を ポーズごとに 作る 時間（内わけ style／atlas／gl・50ms こえの しごと） | `node snapcost.js 4` |
+
+- harness `#cisnap[:<大きさ>[:<ポーズ,…>]]`＝左に いつもの 3D・右に 1まいの 絵（js/ui/cisnap.js）を ポーズごとに ならべる。
+- **はじめての わざは 字・音・Canvas の 用意で おそい**。案を くらべる ときは すてる 1回を 出してから・じゅんばんを かえて 何回も（cidemo_check.js）。
+- `cidemo.html` は git に 入れない（3MB）。

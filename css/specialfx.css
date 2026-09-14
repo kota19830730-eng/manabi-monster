@@ -20,9 +20,12 @@
 .arena__spsky[data-sp="nova"]      { background: linear-gradient(rgba(3,1,12,.97) 0%, rgba(20,8,48,.93) 60%, rgba(34,14,70,.84) 100%); }
 .arena__spsky[data-sp="starburst"] { background: linear-gradient(rgba(10,5,34,.96) 0%, rgba(26,12,70,.9) 60%, rgba(10,40,64,.76) 100%); }
 
-/* ---- B：バトル画面を 広げる。高さを ふやした ぶん margin-bottom を マイナスに＝下の 問題の 大きさは 変わらない ---- */
-.arena.is-big { z-index: 3; transition: height .28s cubic-bezier(.2,.85,.25,1), margin-bottom .28s cubic-bezier(.2,.85,.25,1); box-shadow: 0 6px 18px rgba(0,0,0,.55); }
-.arena.is-big.is-instant { transition: none; }
+/* ---- B：バトル画面を 広げる。高さを ふやした ぶん margin-bottom を マイナスに＝下の 問題の 大きさは 変わらない ----
+   v14.3：広がる 動きは battle.js の grow() が translate／scale で 動かす（GPU。高さの アニメは 毎コマ レイアウトで カクついた）。
+   高さの transition は translate が ない ブラウザだけ（is-growcss）。空は 下を 中心に のばす ので transform-origin を 下に */
+.arena.is-big { z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,.55); background: transparent; }   /* 空は .arena__sky が ぜんぶ おおう。広がる とちゅうに 画面の 上に はみ出した ぶん（ゆれで 見える）を 前と 同じ 見た目に */
+.arena.is-big.is-growcss { transition: height .28s cubic-bezier(.2,.85,.25,1), margin-bottom .28s cubic-bezier(.2,.85,.25,1); }
+.arena.is-big .arena__sky, .arena.is-big .arena__dusk, .arena.is-big .arena__spsky { transform-origin: 50% 100%; }
 
 /* 色の 光・集中線・わ は アリーナの 中に とじこめる（下の カットインに かからない） */
 .fxscreen__clip { position: absolute; left: 0; right: 0; top: 0; height: var(--arena-h, 176px); overflow: hidden; }
@@ -258,6 +261,13 @@
   90% { transform: translate(-2px, 1px); }
 }
 
+/* v14.3 案B：カットインの 主人公を 1まいの 絵に（js/ui/cisnap.js）。器（.v3scene）と 同じ 場所・同じ 大きさ */
+.ci__hero .cisnap { position: absolute; left: 0; bottom: 0; }
+.ci--face .ci__hero .cisnap { top: calc(var(--fig, 400px) * -0.06); bottom: auto; }
+.cisnap__cv { position: absolute; display: block; }
+/* 絵を 作る ために 3D を 組む ところ（画面の 外・見えない） */
+.cisnap-host { position: fixed; left: -4000px; top: 0; width: 320px; height: 320px; visibility: hidden; pointer-events: none; }
+.cisnap-host .v3scene { position: absolute; left: 0; top: 0; }
 /* カットインの 3D を 先に 1回 描いて 絵を 読みこませる ところ（ほぼ 見えない） */
 .ciwarm { position: absolute; left: 0; top: 0; width: 40px; height: 40px; overflow: hidden; opacity: .01; pointer-events: none; z-index: 0; }
 .ciwarm .v3scene { position: absolute; left: 0; top: 0; }
