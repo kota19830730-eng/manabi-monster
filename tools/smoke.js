@@ -1200,7 +1200,8 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
   const rare = MQ.enemies.get(MQ.enemies.rareIdFor(a));
   check(rare && rare.rare === true, 'レア敵 for ' + a);
 });
-check(MQ.enemies.trioFor('eigo').length === 3, 'ABC3きょうだい');
+check(MQ.enemies.trioFor('eigo') === null && MQ.enemies.rareIdsFor('eigo').indexOf('abc') >= 0,
+  'ABC3きょうだいは 1体（英語の空の レア敵・3体同時は なし・v13.21）');
 
 /* ---- ブロックの 絵（CSS の div で 描く）が ただしいか ---- */
 function checkShape(name, shape, side, where) {
@@ -1261,7 +1262,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 275, '図かんは 275体（' + dex + '）');   // v11.0 で 小6の ラスボス（274 → 275）
+  check(dex === 269, '図かんは 269体（' + dex + '）');   // v11.0 で 小6の ラスボス（274 → 275）・v13.21 で ABC が 9体 → 3体（275 → 269）
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -1312,7 +1313,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
 
   /* ---- v8.6 息子さんの モンスターの 進化形（専用の すがた 12体）---- */
   (function () {
-    const LINES = ['skullhorse', 'sameoni', 'zukan', 'abc-a', 'abc-b', 'abc-c'];
+    const LINES = ['skullhorse', 'sameoni', 'zukan', 'abc'];
     let ng = 0;
     LINES.forEach(function (ln) {
       const g = MQ.enemies.list.filter(function (e) { return e.line === ln; })
@@ -1339,7 +1340,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
       });
     });
     check(leak === 0, '進化した すがたは レア敵に 出ない（' + leak + '）');
-    check(MQ.enemies.trioFor('eigo').length === 3, 'ABC3きょうだいは 3体の まま');
+    check(MQ.enemies.trioFor('eigo') === null, 'ABC3きょうだいは 1体（3体同時は なし・v13.21）');
     // Lv10 → Lv20 で すがたが 2回 かわる
     const p = { pals: {}, pal: null, dex: {} };
     MQ.pals.add(p, 'skullhorse', 0);
@@ -1353,6 +1354,54 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
     check(lv10.id === 'skullhorse-2' && lv20.id === 'skullhorse-3',
       'スカルホースは Lv10 → ' + lv10.name + ' / Lv20 → ' + lv20.name);
     check(MQ.pals.power(p).dmg === 2, '3段階めの 追い打ちは ボスに 2ダメージ');
+  })();
+
+  /* ---- v13.21 ABC3きょうだいを 1体に ---- */
+  (function () {
+    const old = ['abc-a', 'abc-b', 'abc-c', 'abc-a-2', 'abc-b-2', 'abc-c-2', 'abc-a-3', 'abc-b-3', 'abc-c-3'];
+    check(old.every(function (id) { return !MQ.enemies.get(id); }), 'ABC: むかしの 9体は もう いない');
+    ['letterA', 'letterB', 'letterC', 'letterA2', 'letterC3'].forEach(function (k) {
+      check(!MQ.monsterArt.mons[k], 'ABC: むかしの 絵 ' + k + ' は もう ない');
+    });
+    const e1 = MQ.enemies.get('abc'), e2 = MQ.enemies.get('abc-2'), e3 = MQ.enemies.get('abc-3');
+    check(e1 && e1.name === 'ABC3きょうだい' && !e1.trio && e1.evo === 'abc-2', 'ABC: 1段階めは ABC3きょうだい');
+    check(e2 && e2.name === 'ABCナイツ' && e2.evo === 'abc-3' && e3 && e3.name === 'ABCロード' && !e3.evo, 'ABC: ABCナイツ → ABCロード');
+    // 絵：赤い A・緑の B・黄色い C が ある／目が たくさん（白い 四角 10こ いじょう）／48マスに おさまる
+    ['abc', 'abc2', 'abc3'].forEach(function (k) {
+      const art = MQ.monsterArt.mons[k] || [];
+      const keys = {};
+      art.forEach(function (r) { keys[r[4]] = (keys[r[4]] || 0) + 1; });
+      check(keys.A > 0 && keys.G > 0 && keys.Y > 0, 'ABC: ' + k + ' に A・B・C の 3色');
+      check((keys.w || 0) >= 10, 'ABC: ' + k + ' は 目が たくさん（' + (keys.w || 0) + '）');
+      check(art.every(function (r) { return r[0] >= 0 && r[1] >= 0 && r[0] + r[2] <= 48 && r[1] + r[3] <= 48; }), 'ABC: ' + k + ' が 48マスに おさまる');
+    });
+    // 頭の 2つの 目玉は まばたき する（候補が 4つを こえると しなく なる）
+    check(Object.keys(MQ.blocks.pickEyesTest(MQ.monsterArt.mons.abc)).length === 4, 'ABC: 頭の 目玉が まばたき する');
+    // 古い セーブの 引きつぎ：相棒は 消さない（いちばん 育った 1体・なまえも のこる）
+    const p = {
+      pals: { 'abc-a': { exp: 120, got: '2026-09-01' }, 'abc-b': { exp: 40, got: '2026-08-30', name: 'ビーくん' }, 'abc-c-2': { exp: 5000, got: '2026-09-02', from: 'abc-c' } },
+      pal: 'abc-b', dex: { 'abc-a': 3, 'abc-b': 3, 'abc-c': 2, 'abc-c-2': 1, slime: 4 }, dexNew: { 'abc-c-2': true },
+      escaped: { 'g3:eigo': [{ key: 'x', enemyId: 'abc-c', q: { enemyId: 'abc-c' } }] },
+      review: { 'g3:eigo': [{ key: 'y', enemyId: 'abc-b' }] }
+    };
+    MQ.save.mergeAbc(p);
+    check(!p.pals['abc-a'] && !p.pals['abc-b'] && p.pals.abc && p.pals.abc.exp === 120 && p.pals.abc.name === 'ビーくん' && p.pals.abc.got === '2026-08-30',
+      'ABC: 相棒 3体 → 1体（いちばん 育った・なまえ・さいしょの 日）' + JSON.stringify(p.pals.abc));
+    check(p.pals['abc-2'] && p.pals['abc-2'].exp === 5000 && p.pals['abc-2'].from === 'abc', 'ABC: 進化した 相棒は ABCナイツに');
+    check(p.pal === 'abc', 'ABC: 連れて 歩いて いた 相棒は そのまま 連れて 歩く');
+    check(p.dex.abc === 3 && p.dex['abc-2'] === 1 && !p.dex['abc-a'] && p.dex.slime === 4 && p.dexNew['abc-2'] && !p.dexNew['abc-c-2'], 'ABC: 図かん');
+    check(p.escaped['g3:eigo'][0].enemyId === 'abc' && p.escaped['g3:eigo'][0].q.enemyId === 'abc' && p.review['g3:eigo'][0].enemyId === 'abc', 'ABC: にげた敵・ふくしゅう');
+    const again = JSON.stringify(p);
+    MQ.save.mergeAbc(p);
+    check(JSON.stringify(p) === again, 'ABC: 2回 よんでも 同じ');
+    check(/mergeAbc\(p\);/.test(fs.readFileSync(path.join(base, 'js/core/save.js'), 'utf8')), 'ABC: migratePlayer が mergeAbc を よぶ');
+    // 相棒に して 育てると ABCナイツ（Lv10）→ ABCロード（Lv20）
+    const q = { pals: {}, pal: null, dex: {} };
+    MQ.pals.add(q, 'abc', 0); MQ.pals.setActive(q, 'abc');
+    q.pals.abc.exp = MQ.pals.expFor(10); MQ.pals.evolveIfReady(q);
+    const a10 = MQ.pals.active(q);
+    q.pals[a10.id].exp = MQ.pals.expFor(20); MQ.pals.evolveIfReady(q);
+    check(a10.id === 'abc-2' && MQ.pals.active(q).id === 'abc-3', 'ABC: Lv10 → ABCナイツ／Lv20 → ABCロード');
   })();
 
   /* 進化の 部品（つの・かんむり・マント）が 48マスに おさまる */
@@ -1400,7 +1449,7 @@ checkShape('coin', MQ.monsterArt.items.coin, 40, 'たからもの');
   check(MQ.blocks.darker('#ffffff', 0.5) === '#808080', 'darker が おかしい: ' + MQ.blocks.darker('#ffffff', 0.5));
 })();
 // 息子さんの モンスター
-['skullhorse', 'sameoni', 'zukan', 'abc-a', 'abc-b', 'abc-c'].forEach(function (id) {
+['skullhorse', 'sameoni', 'zukan', 'abc'].forEach(function (id) {
   const e = MQ.enemies.get(id);
   check(e && e.by === 'son' && e.rare, '息子さんの モンスター: ' + id);
 });
@@ -1479,10 +1528,10 @@ check(MQ.battle.mobTotal() === 13, '12体 ＋ たからばこ: ' + MQ.battle.mob
   check(MQ.battle.phase() === 'boss' && MQ.battle.current().lv === 3, 'ボスの 問題は lv3');
 })();
 
-/* ---- run2: 3体同時（トリプルKO） ---- */
+/* ---- run2: 3体同時（トリプルKO）…しくみだけ。ABC3きょうだいは v13.21 で 1体に なり いまは 出ない ---- */
 MQ.battle.start({
   stage: stK, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('eigo', 9),
-  bossId: 'boss-slime', mobs: 9, trioIds: MQ.enemies.trioFor('eigo')
+  bossId: 'boss-slime', mobs: 9, trioIds: MQ.enemies.pickIds('eigo', 3)
 });
 let trioSeen = 0, triple = 0;
 for (let i = 0; i < 9; i++) {
@@ -1492,7 +1541,7 @@ for (let i = 0; i < 9; i++) {
   if (r.multi) triple = r.multi;
   MQ.battle.next();
 }
-check(trioSeen === 3, '3体同時（ABC3きょうだい）: ' + trioSeen);
+check(trioSeen === 3, '3体同時（しくみ）: ' + trioSeen);
 check(triple === 3, 'トリプルKO');
 
 /* ---- run3: たからばこ（まちがえても 罰なし） ---- */

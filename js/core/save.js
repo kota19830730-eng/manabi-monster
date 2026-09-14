@@ -47,6 +47,50 @@ MQ.save = (function () {
   }
 
   // 古いセーブでも 動くように、足りない ところを うめる
+  /* ABC3きょうだい（v13.21）
+     むかしは べつべつの 3体（abc-a エー／abc-b ビー／abc-c シー）＋ 進化形 6体だった。
+     息子さんの 絵の とおり 1体（abc → abc-2 ABCナイツ → abc-3 ABCロード）に なったので、
+     古い セーブの 記録を 新しい id に まとめる。
+       ・図かんの たおした 数は いちばん 多い もの（3体同時で 3つとも ふえて いた ので 足さない）
+       ・相棒は **消さない**：同じ すがたに なる ものは いちばん 育って いる 1体を のこし、
+         つけた なまえも 引きつぐ。連れて 歩いて いたら 新しい id で 連れて 歩く
+       ・にげた敵・ふくしゅうの 敵の id も おきかえる（ない id だと 絵が 出ない）
+     何回 よんでも 同じ（もう 古い id が なければ 何も しない） */
+  const ABC_OLD = {
+    'abc-a': 'abc', 'abc-b': 'abc', 'abc-c': 'abc',
+    'abc-a-2': 'abc-2', 'abc-b-2': 'abc-2', 'abc-c-2': 'abc-2',
+    'abc-a-3': 'abc-3', 'abc-b-3': 'abc-3', 'abc-c-3': 'abc-3'
+  };
+  function mergeAbc(p) {
+    if (!p) return p;
+    Object.keys(ABC_OLD).forEach(function (id) {
+      const to = ABC_OLD[id];
+      if (p.dex && p.dex[id] != null) { p.dex[to] = Math.max(p.dex[to] || 0, p.dex[id] || 0); delete p.dex[id]; }
+      if (p.dexNew && p.dexNew[id]) { p.dexNew[to] = true; delete p.dexNew[id]; }
+      const rec = p.pals && p.pals[id];
+      if (rec) {
+        const cur = p.pals[to];
+        const keep = (!cur || (rec.exp || 0) > (cur.exp || 0)) ? Object.assign({}, rec) : cur;
+        if (!keep.name && ((cur && cur.name) || rec.name)) keep.name = (cur && cur.name) || rec.name;
+        if (cur && cur.got && (!keep.got || cur.got < keep.got)) keep.got = cur.got;
+        if (rec.got && (!keep.got || rec.got < keep.got)) keep.got = rec.got;
+        if (keep.from && ABC_OLD[keep.from]) keep.from = ABC_OLD[keep.from];
+        p.pals[to] = keep;
+        delete p.pals[id];
+      }
+      if (p.pal === id) p.pal = to;
+    });
+    ['escaped', 'review'].forEach(function (f) {
+      Object.keys(p[f] || {}).forEach(function (k) {
+        (Array.isArray(p[f][k]) ? p[f][k] : []).forEach(function (e) {
+          if (e && ABC_OLD[e.enemyId]) e.enemyId = ABC_OLD[e.enemyId];
+          if (e && e.q && ABC_OLD[e.q.enemyId]) e.q.enemyId = ABC_OLD[e.q.enemyId];
+        });
+      });
+    });
+    return p;
+  }
+
   function migratePlayer(p) {
     // 見た目は 足りない ところを きほんの 顔で うめる
     // （v1.2 までの セーブは かみ・はだ・かみがた だけ。それは そのまま のこる）
@@ -89,6 +133,8 @@ MQ.save = (function () {
     if (!p.escaped) p.escaped = {};
     // ふくしゅう（v11.1）：1回めで まちがえた 問題を エリアごとに ためる（ルールは js/core/review.js）
     if (!p.review || typeof p.review !== 'object' || Array.isArray(p.review)) p.review = {};
+    // ABC3きょうだいが 1体に なった（v13.21）。むかしの 3体と 進化形の 記録を 新しい id に まとめる
+    mergeAbc(p);
     /* v4.5：学年を いつでも 変えられる ように なった ので、
        かけら と にげた敵は 学年ごとに 分ける（'g3:sansu' の ような キー）。
        古い セーブは その子の 学年の ぶん として つけかえる */
@@ -409,6 +455,7 @@ MQ.save = (function () {
     allEscaped: allEscaped, countAllEscaped: countAllEscaped,
     addLog: addLog, addCustom: addCustom, removeCustom: removeCustom,
     exportText: exportText, importText: importText,
+    mergeAbc: mergeAbc,
     BAG_MAX: BAG_MAX
   };
 })();

@@ -28,6 +28,16 @@ function fitTop(art, top) {
   });
 }
 
+/* 足を n マス みじかく して 上を あける（v13.21・ABC3きょうだい）。
+   地面まで とどく ブロックは 下を そのままに して 上を けずり、ほかは n マス 下げる。
+   字や 目の かたちは 変わらない（fitTop は 小さく するので 細い 線が つぶれる） */
+function lower(art, n) {
+  return art.map(function (r) {
+    if (r[1] + r[3] >= 46) return [r[0], r[1] + n, r[2], r[3] - n, r[4], r[5]];
+    return [r[0], r[1] + n, r[2], r[3], r[4], r[5]];
+  });
+}
+
 /* 上の ほうで いちばん 広い ブロック＝頭（kit と 同じ 考えかた） */
 function headCtx(art) {
   const bb = kit.bbox(art);
@@ -42,6 +52,7 @@ function headCtx(art) {
 function compose(base, d) {
   let src = base.map(function (r) { return r.slice(); });
   if (d.fitTop) src = fitTop(src, d.fitTop);
+  if (d.lower) src = lower(src, d.lower);
   const bb = kit.bbox(src);
   const spec = d.spec || {};
 
@@ -98,11 +109,11 @@ const rows = [];
 let over = 0, bad = 0;
 
 defs.forEach(function (g) {
-  const base = MQ.monsterArt.mons[g.base];
+  const base = g.baseArt || MQ.monsterArt.mons[g.base];     // baseArt＝まだ ゲームに 入って いない もとの 絵（v13.21）
   if (!base) throw new Error('もとの 絵が ない: ' + g.base);
-  const from = MQ.enemies.get(g.from);
+  const from = MQ.enemies.get(g.from) || g.fromDef;
   if (!from) throw new Error('もとの モンスターが いない: ' + g.from);
-  const row = { line: g.line, from: from, steps: [] };
+  const row = { line: g.line, from: from, baseArt: base, steps: [] };
   g.steps.forEach(function (d) {
     const made = compose(base, d);
     const art = made.art;
@@ -110,7 +121,7 @@ defs.forEach(function (g) {
     arts[d.id] = art;
     art.forEach(function (r) {
       if (r[0] < 0 || r[1] < 0 || r[0] + r[2] > 48 || r[1] + r[3] > 48) over++;
-      if (!/^[A-DPkwryesWmg2]+$/.test(String(r[4])) && String(r[4]).charAt(0) !== '#') bad++;
+      if (!/^[A-DGPYkwryesWmg2]+$/.test(String(r[4])) && String(r[4]).charAt(0) !== '#') bad++;
     });
     row.steps.push({ id: d.id, name: d.name, colors: d.colors, art: art });
   });
@@ -124,8 +135,8 @@ const names = {}, ids = {};
 MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) { names[e.name] = e.id; ids[e.id] = 1; });
 rows.forEach(function (r) {
   r.steps.forEach(function (s) {
-    if (names[s.name]) console.log('  名前が かぶり:', s.name, '←', names[s.name]);
-    if (ids[s.id]) console.log('  id が かぶり:', s.id);
+    if (names[s.name] && names[s.name] !== s.id) console.log('  名前が かぶり:', s.name, '←', names[s.name]);
+    if (ids[s.id] && !MQ.enemies.get(s.id)) console.log('  id が かぶり:', s.id);
     names[s.name] = s.id; ids[s.id] = 1;
   });
 });
@@ -144,7 +155,7 @@ html.push('<h1>息子さんの モンスターの 進化（左＝いまの す�
 ['js/core/util.js', 'js/core/blocks.js', 'js/core/pixel.js', 'js/content/monsterart.js', 'js/content/enemies.js']
   .forEach(function (f) { html.push('<script src="file:///' + root.replace(/\\/g, '/') + '/' + f + '"></script>'); });
 html.push('<script>const ROWS = ' + JSON.stringify(rows.map(function (r) {
-  return { base: { shape: r.from.shape, name: r.from.name, colors: r.from.colors }, steps: r.steps };
+  return { base: { shape: r.from.shape, name: r.from.name, colors: r.from.colors, art: r.baseArt }, steps: r.steps };
 })) + ';</script>');
 html.push('<script>');
 html.push('const h = MQ.util.h, g = document.getElementById("g");');
@@ -154,7 +165,7 @@ html.push('  const p = MQ.blocks.fill(Object.assign({}, common, colors));');
 html.push('  return h("div", { class: "c" }, [h("div", { class: "l" }, [MQ.blocks.box(art, p, { size: 96, raw: true }), MQ.blocks.box(art, p, { size: 48, raw: true })]),');
 html.push('    h("div", { class: "n", text: name }), h("div", { class: "s", text: sub })]); }');
 html.push('ROWS.forEach(function (r) {');
-html.push('  const kids = [cell(MQ.monsterArt.mons[r.base.shape], r.base.colors, r.base.name, "1段階")];');
+html.push('  const kids = [cell(r.base.art || MQ.monsterArt.mons[r.base.shape], r.base.colors, r.base.name, "1段階")];');
 html.push('  r.steps.forEach(function (s, i) {');
 html.push('    kids.push(cell(s.art, s.colors, s.name, (i + 2) + "段階 / " + s.id));');
 html.push('  });');

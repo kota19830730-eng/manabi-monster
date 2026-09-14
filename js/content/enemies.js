@@ -130,14 +130,13 @@ MQ.enemies = (function () {
     { id: 'zukan', name: 'ずかんの あくま', shape: 'zukan', area: 'kokugo', rare: true, by: 'son', line: 'zukan', stage: 1, evo: 'zukan-2',
       colors: { A: '#C4762E', w: '#FBF4DF', r: '#E8443A', k: '#2B2438', B: '#8A4B12', W: '#4A2D6B' } },
 
-    /* ABC3きょうだい … 英語の空に 3体まとめて 出てくる */
-    { id: 'abc-a', name: 'エー', shape: 'letterA', area: 'eigo', rare: true, by: 'son', line: 'abc-a', stage: 1, evo: 'abc-a-2', trio: 'abc',
-      colors: { A: '#E8443A', B: '#A82424', w: '#FFFFFF', k: '#12121A' } },
-    { id: 'abc-b', name: 'ビー', shape: 'letterB', area: 'eigo', rare: true, by: 'son', line: 'abc-b', stage: 1, evo: 'abc-b-2', trio: 'abc',
-      colors: { A: '#4CAF50', B: '#2E7D32', w: '#FFFFFF', k: '#12121A' } },
-    { id: 'abc-c', name: 'シー', shape: 'letterC', area: 'eigo', rare: true, by: 'son', line: 'abc-c', stage: 1, evo: 'abc-c-2', trio: 'abc',
-      colors: { A: '#F2C14E', B: '#B8860B', w: '#FFFFFF', k: '#12121A' } },
+    /* <abc> */
+    /* ABC3きょうだい … 赤い A・緑の B・黄色い C が くっついた 1体（v13.21）。
+       むかしは べつべつの 3体（abc-a／abc-b／abc-c）で 3体同時に 出た。古い セーブは save.js の mergeAbc が 引きつぐ */
+    { id: 'abc', name: 'ABC3きょうだい', shape: 'abc', area: 'eigo', rare: true, by: 'son', line: 'abc', stage: 1, evo: 'abc-2',
+      colors: { A: '#E8443A', G: '#4CAF50', Y: '#F2C14E', w: '#FFFFFF', k: '#12121A' } },
 
+    /* </abc> */
     /* ---- 息子さんの モンスターの 進化形（v8.6・相棒に すると 育つ） ----
        Lv10 で 2段階め、Lv20 で 3段階め。もとの 絵は そのままで かざりが ふえる。
        evoOnly＝ふつうの たたかいには 出ない（出会うのは 1段階めだけ）。
@@ -160,24 +159,14 @@ MQ.enemies = (function () {
     { id: 'zukan-3', name: 'ずかんの だいまじん', shape: 'zukan3', area: 'kokugo', rare: true, by: 'son', rank: 3,
       line: 'zukan', stage: 3, evoOnly: true,
       colors: { A: '#D08A2E', w: '#FBF4DF', r: '#FF3B30', k: '#2B2438', B: '#7A3E0E', W: '#7A3ACC', y: '#FFD447' } },
-    { id: 'abc-a-2', name: 'エーナイト', shape: 'letterA2', area: 'eigo', rare: true, by: 'son', rank: 2,
-      line: 'abc-a', stage: 2, evo: 'abc-a-3', evoOnly: true,
-      colors: { A: '#D6392E', B: '#8A1410' } },
-    { id: 'abc-a-3', name: 'エーロード', shape: 'letterA3', area: 'eigo', rare: true, by: 'son', rank: 3,
-      line: 'abc-a', stage: 3, evoOnly: true,
-      colors: { A: '#FF5A4A', B: '#A82424' } },
-    { id: 'abc-b-2', name: 'ビーナイト', shape: 'letterB2', area: 'eigo', rare: true, by: 'son', rank: 2,
-      line: 'abc-b', stage: 2, evo: 'abc-b-3', evoOnly: true,
-      colors: { A: '#3E9A44', B: '#1F5E24' } },
-    { id: 'abc-b-3', name: 'ビーロード', shape: 'letterB3', area: 'eigo', rare: true, by: 'son', rank: 3,
-      line: 'abc-b', stage: 3, evoOnly: true,
-      colors: { A: '#5FD16A', B: '#2E7D32' } },
-    { id: 'abc-c-2', name: 'シーナイト', shape: 'letterC2', area: 'eigo', rare: true, by: 'son', rank: 2,
-      line: 'abc-c', stage: 2, evo: 'abc-c-3', evoOnly: true,
-      colors: { A: '#E0B03A', B: '#8A6410' } },
-    { id: 'abc-c-3', name: 'シーロード', shape: 'letterC3', area: 'eigo', rare: true, by: 'son', rank: 3,
-      line: 'abc-c', stage: 3, evoOnly: true,
-      colors: { A: '#FFD166', B: '#B8860B', g2: '#4CAF50' } },
+    /* <abc-evo> */
+    { id: 'abc-2', name: 'ABCナイツ', shape: 'abc2', area: 'eigo', rare: true, by: 'son', rank: 2,
+      line: 'abc', stage: 2, evo: 'abc-3', evoOnly: true,
+      colors: { A: '#D6392E', G: '#3E9A44', Y: '#E0B03A', w: '#FFFFFF', k: '#12121A', s: '#B9C3D6' } },
+    { id: 'abc-3', name: 'ABCロード', shape: 'abc3', area: 'eigo', rare: true, by: 'son', rank: 3,
+      line: 'abc', stage: 3, evoOnly: true,
+      colors: { A: '#FF5A4A', G: '#5FD16A', Y: '#FFD166', w: '#FFFFFF', k: '#12121A' } },
+    /* </abc-evo> */
     /* ---------- v4.2 あたらしい 51体（17系統 × 3段階・相棒に できる） ----------
        line＝系統／stage＝1〜3／evo＝つぎの すがた。1段階は 序盤、3段階は 終盤に 出る */
     /* ドラコ → ドラグーン → ドラゴニクス */
@@ -590,7 +579,8 @@ MQ.enemies = (function () {
     return ids.length ? MQ.util.pick(ids) : goldenId();
   }
 
-  // 3体まとめて 出てくる 組（いまは ABC3きょうだいだけ）
+  /* 3体まとめて 出てくる 組（trio）。むかしは ABC3きょうだいが 3体同時＝トリプルKO だったが、
+     v13.21 で 1体の モンスターに なったので いまは 組が ない（いつも null）。しくみだけ のこす */
   function trioFor(areaId) {
     const ids = list.filter(function (e) { return e.trio && e.area === areaId; }).map(function (e) { return e.id; });
     return ids.length >= 3 ? ids : null;

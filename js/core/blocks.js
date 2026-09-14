@@ -117,7 +117,8 @@ MQ.blocks = (function () {
      小さく 出す とき（ずかんの 52px＝plain）は のせない＝220体が 軽い。
      ------------------------------------------------------- */
   const MAT_BY_KEY = { y: 'metal', s: 'metal', r: 'gem', e: 'gem', w: 'bone', m: 'cloth', W: 'cloth',
-                       A: 'body', B: 'body', C: 'body', D: 'body' };
+                       A: 'body', B: 'body', C: 'body', D: 'body',
+                       G: 'body', Y: 'body' };   // G・Y＝ABC3きょうだいの 緑と 黄色（v13.21）
   const MAT = {
     metal: 'linear-gradient(116deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.40) 42%, rgba(255,255,255,.12) 50%, rgba(255,255,255,0) 62%)',
     gem:   'radial-gradient(ellipse at 32% 26%, rgba(255,255,255,.55), rgba(255,255,255,0) 62%)',

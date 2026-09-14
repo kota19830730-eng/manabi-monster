@@ -11,7 +11,9 @@
        足すのは かざり（炎・つの・かんむり・マント・ぶき）だけ。
      ・かざりは **本体の 外がわ**に 出す。うしろに 置いた ものが 7わり いじょう
        かくれる ときは build.js が 教えて くれる（かくれる かざりは 足す いみが ない）。
-     ・ABC は **1文字ずつ べつの 系統**（3つが 1体に 合体すると、
+     ・ABC3きょうだいは v13.21 で **1体**に なった（息子さんの 絵は 3文字が
+       くっついた 1体）。むかしは 1文字ずつ べつの 系統だった
+       （そのころの きまり：3つが 1体に 合体すると、
        2体を 相棒に して いた ときに 片方が 消えて しまう）。
      ・2・3段階めは **ふつうの たたかいには 出ない**（evoOnly）。
        出会うのは いままで どおり 1段階めだけ。
@@ -143,36 +145,32 @@ module.exports = [
         ] }
     ] },
 
-  /* ================= ABC3きょうだい（英語の空）=================
-     字の かたちは そのまま。すこし 小さく して 上に かんむりを のせる。
-     **マントは 字を かくして しまう** ので、光の わ か はねを うしろに。
-     3人とも かんむり・うしろ・手が ちがう。 */
-  { line: 'abc-a', base: 'letterA', from: 'abc-a', area: 'eigo',
+  /* ================= ABC3きょうだい（英語の空・v13.21 で 1体）=================
+     赤い A・緑の B・黄色い C が くっついた 1体。もとの 絵は tools/son/abc-base.js。
+     48マス いっぱい なので **足を 3マス みじかく して（lower）上を あける**。
+     字の かたち・目・歯は そのまま。2段階め＝きしの かぶと 3つ＋A の けん、
+     3段階め＝金の かんむり 3つ＋A の しゃく＋光の つぶ。 */
+  { line: 'abc', base: 'abc', baseArt: require('./abc-base.js'), from: 'abc', area: 'eigo',
+    fromDef: { shape: 'abc', name: 'ABC3きょうだい', colors: { A: '#E8443A', G: '#4CAF50', Y: '#F2C14E', w: '#FFFFFF', k: '#12121A' } },
     steps: [
-      { id: 'abc-a-2', name: 'エーナイト', rank: 2, fitTop: 10,
-        colors: { A: '#D6392E', B: '#8A1410' },
-        spec: { crown: 'helm', hand: 'sword', extras: ['shoulder'] } },
-      // かたあてを つけると 字が つぶれる ので、むねの 宝石だけ
-      { id: 'abc-a-3', name: 'エーロード', rank: 3, fitTop: 10,
-        colors: { A: '#FF5A4A', B: '#A82424' },
-        spec: { crown: 'spike3', back: 'aura', hand: 'scepter', extras: ['chest'] } }
-    ] },
-  { line: 'abc-b', base: 'letterB', from: 'abc-b', area: 'eigo',
-    steps: [
-      { id: 'abc-b-2', name: 'ビーナイト', rank: 2, fitTop: 11,
-        colors: { A: '#3E9A44', B: '#1F5E24' },
-        spec: { crown: 'horns', hand: 'sword', extras: ['shoulder'] } },
-      { id: 'abc-b-3', name: 'ビーロード', rank: 3, fitTop: 12,
-        colors: { A: '#5FD16A', B: '#2E7D32' },
-        spec: { crown: 'spike5', back: 'wingsBug', hand: 'staff', extras: ['belt'] } }
-    ] },
-  { line: 'abc-c', base: 'letterC', from: 'abc-c', area: 'eigo',
-    steps: [
-      { id: 'abc-c-2', name: 'シーナイト', rank: 2, fitTop: 11,
-        colors: { A: '#E0B03A', B: '#8A6410' },
-        spec: { crown: 'feather', hand: 'sword', extras: ['shoulder'] } },
-      { id: 'abc-c-3', name: 'シーロード', rank: 3, fitTop: 13,
-        colors: { A: '#FFD166', B: '#B8860B', g2: '#4CAF50' },
-        spec: { crown: 'laurel', back: 'wingsFeather', hand: 'trident', extras: ['chest'] } }
+      { id: 'abc-2', name: 'ABCナイツ', rank: 2, lower: 3,
+        colors: { A: '#D6392E', G: '#3E9A44', Y: '#E0B03A', w: '#FFFFFF', k: '#12121A', s: '#B9C3D6' },
+        front: [
+          [4, 2, 9, 4, 's', 'h'], [7, 0, 3, 3, 'r'],                                  // A の かぶと
+          [16, 1, 9, 4, 's', 'h'], [19, 0, 3, 2, 'r'],                                // B の かぶと
+          [35, 10, 9, 4, 's', 'h'], [38, 8, 3, 3, 'r'],                               // C の かぶと
+          [0, 5, 2, 16, 'w'], [0, 21, 4, 2, 'y', 'h'], [1, 23, 2, 3, 's'],            // A の けん
+          [18, 22, 4, 4, 'y', 'h'], [33, 25, 4, 4, 'y', 'h']                          // 金の むねあて
+        ] },
+      { id: 'abc-3', name: 'ABCロード', rank: 3, lower: 3,
+        colors: { A: '#FF5A4A', G: '#5FD16A', Y: '#FFD166', w: '#FFFFFF', k: '#12121A' },
+        front: [
+          [4, 2, 2, 2, 'y'], [7, 0, 3, 4, 'y'], [11, 2, 2, 2, 'y'], [4, 4, 9, 2, 'y', 'h'], [7, 4, 3, 2, 'r', 'g'],       // A の かんむり
+          [16, 1, 2, 2, 'y'], [19, 0, 3, 3, 'y'], [23, 1, 2, 2, 'y'], [16, 3, 9, 2, 'y', 'h'], [19, 3, 3, 2, 'e', 'g'],   // B の かんむり
+          [35, 10, 2, 2, 'y'], [38, 8, 3, 4, 'y'], [42, 10, 2, 2, 'y'], [35, 12, 9, 2, 'y', 'h'], [38, 12, 3, 2, 'r', 'g'], // C の かんむり
+          [0, 8, 2, 15, 'y'], [0, 4, 3, 3, 'r', 'g'],                                 // A の しゃく
+          [18, 22, 4, 4, 'y', 'h'], [33, 25, 4, 4, 'y', 'h'],                         // 金の むねあて
+          [28, 1, 3, 3, 'e', 'gnd'], [45, 2, 3, 3, 'e', 'gnd']                        // 光の つぶ
+        ] }
     ] }
 ];

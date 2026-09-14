@@ -1305,7 +1305,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
        #sonevo:art  … 18体を ならべて 見る（撮る 用） */
     if (mode === 'sonevo' || mode === 'sonevo:art') {
       fresh();
-      const LINES = ['skullhorse', 'sameoni', 'zukan', 'abc-a', 'abc-b', 'abc-c'];
+      const LINES = ['skullhorse', 'sameoni', 'zukan', 'abc'];
       const rows = LINES.map(function (ln) {
         return MQ.enemies.list.filter(function (e) { return e.line === ln; })
           .sort(function (a, b) { return a.stage - b.stage; });
@@ -1334,8 +1334,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
         MQ.enemies.rareIdsFor(a).forEach(function (id) { const e = MQ.enemies.get(id); if (e && e.evoOnly) leak++; });
       });
-      say('sonevo: レア敵に まざる 進化形 ' + leak + '体（0 が せいかい）／ABC3きょうだい ' +
-          MQ.enemies.trioFor('eigo').length + '体（3 が せいかい）');
+      say('sonevo: レア敵に まざる 進化形 ' + leak + '体（0 が せいかい）／3体同時の 組 ' +
+          (MQ.enemies.trioFor('eigo') ? 'あり（なし が せいかい・v13.21）' : 'なし'));
       MQ.save.update(function (p) { MQ.pals.add(p, 'zukan', 0); MQ.pals.setActive(p, 'zukan'); });
       const steps = [];
       [1, 10, 20].forEach(function (lv) {

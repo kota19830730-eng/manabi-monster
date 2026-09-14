@@ -436,6 +436,16 @@ MQ.news = (function () {
         { kind: 'hero', title: '5こ そろえると ひかる',
           text: 'おなじ しゅるいの そうびを 5こ つけると、そうびの いろで からだが ひかるよ' }
       ]
+    },
+    {
+      // v13.21 ABC3きょうだいを 1体に（claude-f7）
+      v: 'v13.21', date: '2026-09-14', sw: 167,
+      items: [
+        { kind: 'mons', id: 'abc', title: 'ABC3きょうだいが 1たいに',
+          text: 'あかい A・みどりの B・きいろい C が くっついた 1たいに なったよ。目も いっぱい！' },
+        { kind: 'mons', id: ['abc', 'abc-2', 'abc-3'], grow: true, title: 'なかまに すると しんか',
+          text: 'なかまに して そだてると ABCナイツ、ABCロードに しんかするよ' }
+      ]
     }
   ];
 

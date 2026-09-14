@@ -165,7 +165,7 @@ img.onload = function () {
   // ② ぜんいん
   const row = document.getElementById('all');
   row.appendChild(cell('主人公', hero(img, src, 190), 190, 22));
-  [['skullhorse', 'スカルホース'], ['sameoni', 'サメオニ'], ['zukan', 'ずかんの あくま'], ['abc-a', 'エー'], ['boss-hades', 'メイオウハデス']].forEach(function (m) {
+  [['skullhorse', 'スカルホース'], ['sameoni', 'サメオニ'], ['zukan', 'ずかんの あくま'], ['abc', 'ABC3きょうだい'], ['boss-hades', 'メイオウハデス']].forEach(function (m) {
     row.appendChild(cell(m[1], monster(m[0], 190), 190, -22));
   });
   // 撮る 用：#shot=<動き>:<秒>
