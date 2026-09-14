@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="../css/capsulefx.css">
 <link rel="stylesheet" href="../css/specialfx.css">
 <link rel="stylesheet" href="../css/setwaza.css">
+<link rel="stylesheet" href="../css/gearaura.css">
 </head>
 <body>
 <!--
@@ -107,6 +108,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/monstergen.js"></script>
 <script src="../js/content/face.js"></script>
 <script src="../js/content/enemies.js"></script>
+<script src="../js/content/gearart.js"></script>
 <script src="../js/content/hero.js"></script>
 <script src="../js/content/art.js"></script>
 <script src="../js/content/treasure.js"></script>
@@ -153,6 +155,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="3d/demo3d.js"></script>   <!-- 3D の デモ（vox・chest3d・motion3d.css は ゲームの ファイルを 読む） -->
 <script src="../js/ui/common.js"></script>
 <script src="../js/ui/three.js"></script>
+<script src="../js/ui/gearaura.js"></script>
 <script src="../js/ui/scenery.js"></script>
 <script src="../js/ui/fxcanvas.js"></script>
 <script src="../js/ui/fxtext.js"></script>
@@ -1151,6 +1154,34 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     /* オーロラ（カプセルの げきレア・v9.0）
          #aurora     … 一式を つけて たたかう。2コンボで クリティカル・5コンボで いなずま・主人公が 光る
          #aurora:dex … ずかんの「じぶん」（そうびの 一覧と 光る 主人公） */
+    /* v13.19 そうびの 見た目：#gearset:<グレード>[:atk|:dex|:none]
+       グレードの 5点を つけて バトル（3D）。atk＝こうげきの とちゅうで 止める・dex＝メニューの じぶん・none＝そうび なし */
+    if (mode.indexOf('gearset') === 0) {
+      const gid = mode.split(':')[1] || 'ryu', sub = mode.split(':')[2] || '';
+      fresh({ allGear: true });
+      MQ.save.update(function (pl) { MQ.hero.slots.forEach(function (s) { pl.equipped[s] = sub === 'none' ? null : gid + '-' + s; }); });
+      if (sub === 'flat') MQ.save.setSetting('v3', false);   // りったいを 切った 2D の バトル
+      if (sub === 'dex') {
+        MQ.ui.dex.render('hero'); MQ.ui.show('screen-dex'); await wait(120);
+        say('gearset: メニューの 光 = ' + document.querySelectorAll('#screen-dex .is-gearaura.ga--' + gid).length + 'こ');
+        dump(); return;
+      }
+      MQ.ui.battle.start('sansu3-2');
+      await wait(600);
+      const ga = document.querySelector('#screen-battle .hero .gaura--back');
+      const sw = document.querySelector('.hero .p--sword');
+      say('gearset: ' + gid + ' オーラ=' + (ga ? ga.className : 'なし') + ' 3D=' + (document.querySelector('.hero .v3scene') ? 'yes' : 'no') +
+          ' けんの 箱=' + (sw ? sw.querySelectorAll('.b').length : 0) + ' 体の 箱=' + ((document.querySelector('.hero .p--body') || { querySelectorAll: function () { return []; } }).querySelectorAll(':scope > .b').length));
+      if (sub === 'atk') {                  // こうげきの 動き（mo-attack）を かけて、ふりかぶった ところで 止める（#gearset:<g>:atk:<ms>）
+        const at = parseInt(mode.split(':')[3], 10) || 170;
+        const sc = document.querySelector('#screen-battle .hero .v3scene');
+        if (sc) MQ.ui.v3.play(sc, 'mo-attack', 0);   // 0＝待機に もどす タイマーを 作らない（freeze では 止まらない）
+        await wait(20);
+        document.querySelectorAll('#screen-battle .hero, #screen-battle .hero *').forEach(function (el) { el.getAnimations().forEach(function (an) { an.pause(); an.currentTime = at; }); });
+        freeze();
+      }
+      dump(); return;
+    }
     if (mode.indexOf('aurora') === 0) {
       fresh({ allGear: true });
       const eq = MQ.save.current().equipped;

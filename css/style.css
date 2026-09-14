@@ -3658,8 +3658,9 @@ body {
 .hero.is-gearaura .hero__img,
 img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 @keyframes gearAura {
-  0%, 100% { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 5px rgba(180,140,255,.85)) drop-shadow(0 0 9px rgba(255,212,71,.35)); }
-  50%      { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 10px rgba(205,175,255,1)) drop-shadow(0 0 17px rgba(255,212,71,.65)); }
+  /* 色は グレードごと（v13.19・css/gearaura.css の .ga--<グレード>）。なければ オーロラの むらさき＋金 */
+  0%, 100% { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 5px var(--ga1, rgba(180,140,255,.85))) drop-shadow(0 0 9px var(--ga2, rgba(255,212,71,.35))); }
+  50%      { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 10px var(--ga1, rgba(205,175,255,1))) drop-shadow(0 0 17px var(--ga2, rgba(255,212,71,.65))); }
 }
 .hero.is-gearaura::before {
   content: ''; position: absolute; z-index: -1; left: 50%; bottom: 2px;

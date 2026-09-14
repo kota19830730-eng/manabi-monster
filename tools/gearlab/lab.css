@@ -1,0 +1,128 @@
+/* そうびの すがた 見くらべ（tools/gearlab）。ゲームの 夜の バトルと 同じ 紺＋金。1つの 見た目（ダーク）に きめて ある */
+:root {
+  --ground: #121833;
+  --panel: #1b2447;
+  --panel2: #232e58;
+  --line: #34416f;
+  --gold: #ffd447;
+  --gold2: #c7941c;
+  --ink: #eef1ff;
+  --sub: #a3aedb;
+  --mute: #6f7aa8;
+  --good: #6fe39a;
+  --f-head: 'Mochiy Pop One', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif;
+  --f-body: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ground); color: var(--ink); }
+body { font-family: var(--f-body); font-weight: 500; font-size: 15px; line-height: 1.7; }
+.wrap { max-width: 1560px; margin: 0 auto; padding: 28px 22px 60px; display: grid; gap: 30px; }
+
+.top { display: grid; gap: 10px; }
+.top h1 { font-family: var(--f-head); font-weight: 400; font-size: 30px; margin: 0; letter-spacing: .02em; text-wrap: balance;
+  color: var(--gold); text-shadow: 0 3px 0 #7a4c0c; }
+.top p { margin: 0; color: var(--sub); max-width: 68ch; }
+
+.bar { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
+.seg { display: flex; gap: 6px; align-items: center; }
+.seg__label { font-size: 12px; letter-spacing: .08em; color: var(--mute); margin-right: 4px; }
+.chip { font: inherit; font-weight: 700; font-size: 15px; color: var(--ink); background: var(--panel2); border: 2px solid var(--line);
+  border-radius: 10px; padding: 7px 14px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+.chip:hover { border-color: var(--sub); }
+.chip:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.chip.is-on { background: var(--gold); color: #3a2400; border-color: var(--gold); box-shadow: 0 3px 0 var(--gold2); }
+.chip__dot { width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.25); }
+
+.sec { display: grid; gap: 14px; }
+.sec h2 { font-family: var(--f-head); font-weight: 400; font-size: 20px; margin: 0; color: var(--ink); }
+.sec h2 small { font-family: var(--f-body); font-weight: 500; font-size: 13px; color: var(--sub); margin-left: 10px; }
+
+/* 4つの 列（いま／B／A／C） */
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--colw, 300px), 1fr)); gap: 16px; align-items: start; }
+.col { background: var(--panel); border: 2px solid var(--line); border-radius: 14px; overflow: hidden; display: grid; }
+.col.is-rec { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,212,71,.14); }
+.col__head { display: flex; gap: 10px; align-items: baseline; padding: 12px 14px 8px; }
+.col__tag { font-family: var(--f-head); font-size: 13px; color: #3a2400; background: var(--gold); border-radius: 6px; padding: 1px 8px; }
+.col__tag--now { background: #5b6796; color: var(--ink); }
+.col__name { font-weight: 700; font-size: 17px; }
+.col__note { padding: 10px 14px 14px; color: var(--sub); font-size: 13.5px; line-height: 1.65; display: grid; gap: 4px; }
+.col__note b { color: var(--ink); font-weight: 700; }
+
+/* バトルの 一部を 切りとった ところ（ステージの px で 作って まるごと 大きく する） */
+.slot { position: relative; overflow: hidden; width: 100% !important;
+  background: linear-gradient(transparent 70.6%, #35477f 70.6%, #2a3868), linear-gradient(#18224a 0%, #22306a 58%, #2b3a78 72%); }
+.arena { position: absolute; left: 0; top: 0; width: 184px; height: 150px; transform-origin: 0 0;
+  background: linear-gradient(#18224a 0%, #22306a 58%, #2b3a78 72%); }
+.arena__hill { position: absolute; left: -10px; right: -10px; bottom: 40px; height: 34px;
+  background: linear-gradient(90deg, #1d2a5a 0 18%, #223263 18% 41%, #1c2957 41% 63%, #24356a 63% 100%);
+  clip-path: polygon(0 60%, 12% 30%, 26% 55%, 40% 18%, 55% 50%, 70% 26%, 84% 52%, 100% 36%, 100% 100%, 0 100%); opacity: .8; }
+.arena__floor { position: absolute; left: 0; right: 0; bottom: 0; height: 44px;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, transparent 1px 22px), linear-gradient(#35477f, #2a3868); }
+.arena__floor::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: rgba(255,255,255,.12); }
+.arena__hero { position: absolute; left: 20px; bottom: 16px; width: 84px; height: 84px; }
+.arena__foe { position: absolute; right: 8px; bottom: 16px; width: 56px; height: 56px; }
+.arena__lbl { position: absolute; left: 8px; top: 7px; font-size: 9px; letter-spacing: .06em; color: rgba(238,241,255,.55); }
+
+/* 大きく */
+.big { position: relative; height: 250px; display: grid; place-items: end center; padding-bottom: 14px;
+  background: radial-gradient(ellipse 60% 40% at 50% 92%, rgba(255,255,255,.07), transparent 70%), var(--panel2); }
+.big__hero { position: relative; width: 220px; height: 220px; }
+
+/* オーラ（C）。3D には filter も box-shadow も つけない きまり → うしろの 2D の 要素で 光らせる。
+   1em ＝ バトルの 大きさ（主人公 84px）で 10px。大きく する ときは --k を 上げる */
+.aura { position: absolute; left: 50%; bottom: -0.4em; width: 17em; height: 13em; transform: translateX(-50%); pointer-events: none;
+  font-size: calc(var(--k, 1) * 10px); }
+.aura__glow { position: absolute; left: 1.5em; right: 1.5em; bottom: .3em; height: 11.5em; border-radius: 50%;
+  animation: auraBreath 2.6s ease-in-out infinite; }
+.aura__floor { position: absolute; left: 3em; right: 3em; bottom: -.2em; height: 1.8em; border-radius: 50%; }
+.aura__p { position: absolute; bottom: 1em; width: .6em; height: .6em; opacity: 0; animation: auraRise var(--d, 2.2s) linear infinite; animation-delay: var(--w, 0s); }
+.aura--front { z-index: 3; }
+.aura--back { z-index: 0; }
+.arena__hero > .v3scene, .big__hero > .v3scene { position: absolute; left: 0; bottom: 0; z-index: 2; }
+@keyframes auraBreath { 0%, 100% { transform: scale(.94); opacity: .75; } 50% { transform: scale(1.04); opacity: 1; } }
+@keyframes auraRise { 0% { transform: translateY(0) scale(.6); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-9em) scale(1); opacity: 0; } }
+@keyframes auraRiseSlow { 0% { transform: translateY(0) scale(.7); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-7em) scale(1.5); opacity: 0; } }
+@keyframes auraPillar { 0%, 100% { opacity: .15; transform: scaleY(.6); } 50% { opacity: .8; transform: scaleY(1); } }
+
+.aura--tetsu .aura__glow { background: radial-gradient(ellipse at 50% 62%, rgba(170,220,255,.55) 0, rgba(170,220,255,.22) 45%, rgba(170,220,255,0) 70%); }
+.aura--tetsu .aura__floor { background: radial-gradient(ellipse, rgba(210,236,255,.7), transparent 70%); }
+.aura--tetsu .aura__p { background: #eaf6ff; }
+
+.aura--ryu .aura__glow { background: radial-gradient(ellipse at 50% 80%, rgba(255,150,50,.8) 0, rgba(255,90,20,.35) 45%, rgba(255,90,20,0) 70%); }
+.aura--ryu .aura__floor { background: radial-gradient(ellipse, rgba(255,190,70,.95), transparent 70%); }
+.aura--ryu .aura__p { background: #ffd23a; width: .8em; height: .8em; }
+.aura--ryu .aura__p:nth-child(odd) { background: #ff6a1a; }
+
+.aura--yami .aura__glow { background: radial-gradient(ellipse at 50% 66%, rgba(160,80,255,.7) 0, rgba(90,30,160,.35) 45%, rgba(40,10,70,0) 70%); }
+.aura--yami .aura__floor { background: radial-gradient(ellipse, rgba(20,8,40,.95), transparent 72%); }
+.aura--yami .aura__p { background: rgba(30,18,52,.9); width: 1.2em; height: 1.2em; animation-name: auraRiseSlow; }
+.aura--yami .aura__p:nth-child(3n) { background: #ff4fd8; width: .45em; height: .45em; animation-name: auraRise; }
+
+.aura--aurora .aura__glow { background: radial-gradient(ellipse at 50% 62%, rgba(200,160,255,.8) 0, rgba(255,212,71,.3) 42%, rgba(120,80,255,0) 70%); }
+.aura--aurora .aura__floor { background: radial-gradient(ellipse, rgba(255,230,150,.9), transparent 70%); }
+.aura--aurora .aura__p { background: #fff3b0; width: .5em; height: .5em; }
+.aura--aurora .aura__p:nth-child(even) { background: #9ff4ff; }
+.aura__pillar { position: absolute; bottom: .4em; width: .8em; height: 11em; transform-origin: bottom;
+  background: linear-gradient(to top, rgba(200,170,255,0), rgba(225,205,255,.8) 40%, rgba(255,255,255,0));
+  animation: auraPillar 2.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aura__glow, .aura__p, .aura__pillar { animation: none !important; }
+  .aura__p { opacity: .7; }
+  .v3, .v3 * { animation: none !important; }
+}
+
+/* メニュー（2D）の ならび */
+.grid2d { overflow-x: auto; }
+.grid2d table { border-collapse: separate; border-spacing: 8px; }
+.grid2d th { font-weight: 700; font-size: 13px; color: var(--sub); text-align: left; padding: 0 6px; white-space: nowrap; }
+.grid2d td { background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 8px; }
+.grid2d td.is-sel { border-color: var(--gold); }
+.grid2d img { display: block; width: 120px; height: 120px; image-rendering: pixelated; }
+
+.plan { background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 16px 18px; display: grid; gap: 10px; max-width: 900px; }
+.plan h2 { font-family: var(--f-head); font-weight: 400; font-size: 18px; margin: 0; }
+.plan ol { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; color: var(--sub); }
+.plan li b { color: var(--ink); }
+.plan p { margin: 0; color: var(--sub); font-size: 13.5px; }

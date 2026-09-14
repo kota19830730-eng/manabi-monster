@@ -769,7 +769,32 @@ MQ.vox = (function () {
     const b = bounds(g);
     const bandOf = function (y) { for (let i = 0; i < BANDS.length; i++) if (y < BANDS[i][0]) return i; return BANDS.length - 1; };
     const t1 = now();
-    const boxes = solidBoxes(g, function (band) { return BANDS[band][1]; }, bandOf, true);
+    let boxes = solidBoxes(g, function (band) { return BANDS[band][1]; }, bandOf, true);
+    /* v13.19：opts.label（MQ.hero.labels＝マスごとに いちばん 手前の そうびの 部位）が あれば、
+       けん（'weapon'）と マント（'cape'）の さかいめで 箱を 切って、けんは けんの 部品・マントは 体の 部品へ。
+       前は「x36 より 右＝けん」と 列だけで 決めて いたので、右に 広がる マントや かた当てが けんと いっしょに 回った */
+    const LB = opts.label && opts.label.length === 48 * 48 ? opts.label : null;
+    const LBW = !!(LB && LB.indexOf('weapon') >= 0);            // けんの しるしが ある ときだけ 列の きまり（x36〜＝けん）を やめる
+    const labOf = function (x, y) { return LB[y * 48 + x] || null; };
+    const labelOfBox = function (r) {
+      const n = {}; let best = null, bn = 0;
+      for (let yy = r.y; yy < r.y + r.h; yy++) for (let xx = r.x; xx < r.x + r.w; xx++) {
+        if (!g.on[yy * 48 + xx]) continue;
+        const l = labOf(xx, yy) || '-';
+        n[l] = (n[l] || 0) + 1; if (n[l] > bn) { bn = n[l]; best = l; }
+      }
+      return best === '-' ? null : best;
+    };
+    if (LB) {
+      const cutsOf = function (r) {
+        const cuts = [];
+        for (let xx = r.x + 1; xx < r.x + r.w; xx++) {
+          for (let yy = r.y; yy < r.y + r.h; yy++) if (labOf(xx - 1, yy) !== labOf(xx, yy)) { cuts.push(xx); break; }
+        }
+        return cuts;
+      };
+      boxes = [].concat.apply([], boxes.map(function (r) { return splitCols(g, r, cutsOf(r)); }));
+    }
     timing.boxes = now() - t1;
     const wrap = wrapOf(48 * U);
     if (opts.shadow !== false) {
@@ -778,6 +803,11 @@ MQ.vox = (function () {
     }
     const P = { head: [], body: [], armL: [], armR: [], legL: [], legR: [], sword: [] };
     boxes.forEach(function (r) {
+      if (LB) {
+        const lab = labelOfBox(r);
+        if (lab === 'cape') { P.body.push(r); return; }
+        if (lab === 'weapon') { if (r.w <= SWORD_W) r.d = SWORD_D; P.sword.push(r); return; }
+      }
       if (r.band === 0) {
         /* 頭の 行でも かみの 外がわ（けん・たて）は うでの 部品に（頭に 入れると うでを ふった とき けんが 折れる）。厚みも うでと 同じに */
         splitCols(g, r, [CUT.headL, CUT.headR]).forEach(function (q) {
@@ -805,7 +835,7 @@ MQ.vox = (function () {
     const armR = [];
     P.armR.forEach(function (r) {
       splitCols(g, r, [CUT.sword]).forEach(function (q) {
-        if (q.x < CUT.sword) { armR.push(q); return; }
+        if (q.x < CUT.sword || LBW) { armR.push(q); return; }      // けんの しるしが ある ときは もう 分けて ある
         /* 刃（はば 5マス いか）は うすく（ユーザー「剣の厚さが厚すぎる」）。うでと 同じ 13 だと 板に 見える。
            手・つば（はば 6 いじょう）は うでと 同じ 厚みの まま＝にぎった こぶし */
         if (q.w <= SWORD_W) q.d = SWORD_D;

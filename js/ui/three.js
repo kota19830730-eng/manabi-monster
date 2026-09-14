@@ -99,7 +99,9 @@
     if (heroCache[key]) { done(heroCache[key]); return sc; }
     const img = new Image();
     img.onload = function () {
-      const v = MQ.vox.fromHero(img, src, { unit: U, hide: hideFor(ry, opts) });
+      /* v13.19：けん／マントの マス（MQ.hero.labels）。player.__label が あれば それ（見くらべの 道具 用） */
+      const label = player && player.__label ? player.__label : (MQ.hero.labels && player && !player.__src ? MQ.hero.labels(player) : null);
+      const v = MQ.vox.fromHero(img, src, { unit: U, hide: hideFor(ry, opts), label: label });
       v.classList.add('v3--hero');
       heroCache[key] = v;
       done(v);

@@ -56,8 +56,10 @@ MQ.ui = MQ.ui || {};
 
   /* オーロラの そうびを 5点 そろえて つけて いると 主人公が 光る（げきレア・v9.0）。
      絵じたいは 変えず、CSS の .is-gearaura を つけるだけ */
+  /* v13.19：オーロラだけ → **どの グレードも** 5点 そろえて つけると 光る（色は css/gearaura.css の .ga--<グレード>） */
   function auraCls(player) {
-    return (MQ.hero.hasAuroraSet && MQ.hero.hasAuroraSet(player)) ? ' is-gearaura' : '';
+    const gid = MQ.hero.fullSetGrade ? MQ.hero.fullSetGrade(player) : ((MQ.hero.hasAuroraSet && MQ.hero.hasAuroraSet(player)) ? 'aurora' : null);
+    return gid ? ' is-gearaura ga--' + gid : '';
   }
 
   MQ.ui.heroImg = function (player, cls) {

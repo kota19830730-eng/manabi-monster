@@ -1,0 +1,82 @@
+/* ---------------------------------------------------------
+   そうびの オーラ（v13.19・js/ui/gearaura.js）：5点 そろえた ときの グレードごとの 光
+   1em ＝ バトルの 主人公（84px）で 10px。大きく 出す ときは --k を 上げる。
+   動かすのは transform と opacity だけ（v13.10 の きまり）。
+   --------------------------------------------------------- */
+.gaura { position: absolute; left: 50%; bottom: -0.4em; width: 17em; height: 13em; transform: translateX(-50%);
+  pointer-events: none; font-size: calc(var(--k, 1) * 10px); }
+.gaura--back { z-index: -1; }
+.gaura--front { z-index: 1; }
+.gaura i { position: absolute; display: block; }
+.gaura__glow { left: 1.5em; right: 1.5em; bottom: .3em; height: 11.5em; border-radius: 50%; animation: gauraBreath 2.6s ease-in-out infinite; }
+.gaura__floor { left: 3em; right: 3em; bottom: -.2em; height: 1.8em; border-radius: 50%; }
+.gaura__p { bottom: 1em; width: .6em; height: .6em; opacity: 0; animation: gauraRise var(--d, 2.4s) linear infinite; animation-delay: var(--w, 0s); }
+.gaura__pillar { bottom: .4em; width: .8em; height: 11em; transform-origin: bottom; opacity: .15; animation: gauraPillar 2.4s ease-in-out infinite; }
+/* オーロラの 前の 光の わ（style.css の .hero.is-gearaura::before）は、オーラが ある ときは 出さない（二重に なる） */
+.hero.has-gaura::before { content: none; }
+
+@keyframes gauraBreath { 0%, 100% { transform: scale(.94); opacity: .75; } 50% { transform: scale(1.04); opacity: 1; } }
+@keyframes gauraRise { 0% { transform: translateY(0) scale(.6); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-9em) scale(1); opacity: 0; } }
+@keyframes gauraRiseSlow { 0% { transform: translateY(0) scale(.7); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-7em) scale(1.5); opacity: 0; } }
+@keyframes gauraTwinkle { 0% { transform: translateY(0) scale(.4); opacity: 0; } 20% { transform: translateY(-1.5em) scale(1.2); opacity: 1; } 40% { transform: translateY(-3em) scale(.6); opacity: .7; }
+  60% { transform: translateY(-4.5em) scale(1.2); opacity: 1; } 100% { transform: translateY(-8em) scale(.4); opacity: 0; } }
+@keyframes gauraBubble { 0% { transform: translate(0, 0) scale(.6); opacity: 0; } 15% { opacity: .95; } 50% { transform: translate(.6em, -4.5em) scale(1); } 100% { transform: translate(-.4em, -9em) scale(1.1); opacity: 0; } }
+@keyframes gauraPillar { 0%, 100% { opacity: .15; transform: scaleY(.6); } 50% { opacity: .8; transform: scaleY(1); } }
+
+/* かわ：木もれびの みどりと 黄色の つぶ */
+.gaura--kihon .gaura__glow { background: radial-gradient(ellipse at 50% 70%, rgba(170,230,110,.45) 0, rgba(170,230,110,.16) 45%, rgba(170,230,110,0) 70%); }
+.gaura--kihon .gaura__floor { background: radial-gradient(ellipse, rgba(190,240,140,.6), transparent 70%); }
+.gaura--kihon .gaura__p { background: #9be36f; animation-name: gauraRiseSlow; }
+.gaura--kihon .gaura__p:nth-child(odd) { background: #eef27a; width: .45em; height: .45em; }
+/* てつ：白い 光の つぶ */
+.gaura--tetsu .gaura__glow { background: radial-gradient(ellipse at 50% 62%, rgba(170,220,255,.55) 0, rgba(170,220,255,.22) 45%, rgba(170,220,255,0) 70%); }
+.gaura--tetsu .gaura__floor { background: radial-gradient(ellipse, rgba(210,236,255,.7), transparent 70%); }
+.gaura--tetsu .gaura__p { background: #eaf6ff; }
+/* りゅう：足もとから ほのお */
+.gaura--ryu .gaura__glow { background: radial-gradient(ellipse at 50% 80%, rgba(255,150,50,.8) 0, rgba(255,90,20,.35) 45%, rgba(255,90,20,0) 70%); }
+.gaura--ryu .gaura__floor { background: radial-gradient(ellipse, rgba(255,190,70,.95), transparent 70%); }
+.gaura--ryu .gaura__p { background: #ffd23a; width: .8em; height: .8em; }
+.gaura--ryu .gaura__p:nth-child(odd) { background: #ff6a1a; }
+/* でんせつ：金の 光の はしら・白い きらめき */
+.gaura--densetsu .gaura__glow { background: radial-gradient(ellipse at 50% 62%, rgba(255,222,120,.75) 0, rgba(255,240,190,.28) 45%, rgba(255,222,120,0) 70%); }
+.gaura--densetsu .gaura__floor { background: radial-gradient(ellipse, rgba(255,240,170,.95), transparent 70%); }
+.gaura--densetsu .gaura__p { background: #ffffff; width: .5em; height: .5em; }
+.gaura--densetsu .gaura__p:nth-child(3n) { background: #ffe07a; }
+.gaura--densetsu .gaura__pillar { background: linear-gradient(to top, rgba(255,222,120,0), rgba(255,236,170,.85) 40%, rgba(255,255,255,0)); }
+/* ほし：星が またたきながら のぼる */
+.gaura--hoshi .gaura__glow { background: radial-gradient(ellipse at 50% 62%, rgba(120,200,255,.6) 0, rgba(90,150,255,.25) 45%, rgba(90,150,255,0) 70%); }
+.gaura--hoshi .gaura__floor { background: radial-gradient(ellipse, rgba(170,225,255,.8), transparent 70%); }
+.gaura--hoshi .gaura__p { background: #ffe45a; width: .55em; height: .55em; animation-name: gauraTwinkle; }
+.gaura--hoshi .gaura__p:nth-child(even) { background: #bfeaff; }
+/* やみ：黒い けむりと 光る 火の粉 */
+.gaura--yami .gaura__glow { background: radial-gradient(ellipse at 50% 66%, rgba(160,80,255,.7) 0, rgba(90,30,160,.35) 45%, rgba(40,10,70,0) 70%); }
+.gaura--yami .gaura__floor { background: radial-gradient(ellipse, rgba(20,8,40,.95), transparent 72%); }
+.gaura--yami .gaura__p { background: rgba(30,18,52,.9); width: 1.2em; height: 1.2em; animation-name: gauraRiseSlow; }
+.gaura--yami .gaura__p:nth-child(3n) { background: #ff4fd8; width: .45em; height: .45em; animation-name: gauraRise; }
+/* カプセル：水色の あわ */
+.gaura--capsule .gaura__glow { background: radial-gradient(ellipse at 50% 64%, rgba(95,240,255,.55) 0, rgba(95,200,255,.2) 45%, rgba(95,240,255,0) 70%); }
+.gaura--capsule .gaura__floor { background: radial-gradient(ellipse, rgba(160,245,255,.8), transparent 70%); }
+.gaura--capsule .gaura__p { background: rgba(190,250,255,.85); box-shadow: inset 0 0 0 .12em #5ff0ff; width: .75em; height: .75em; animation-name: gauraBubble; }
+.gaura--capsule .gaura__p:nth-child(3n) { background: #ffffff; width: .4em; height: .4em; }
+/* オーロラ：むらさきの 光の はしらと 金の きらめき */
+.gaura--aurora .gaura__glow { background: radial-gradient(ellipse at 50% 62%, rgba(200,160,255,.8) 0, rgba(255,212,71,.3) 42%, rgba(120,80,255,0) 70%); }
+.gaura--aurora .gaura__floor { background: radial-gradient(ellipse, rgba(255,230,150,.9), transparent 70%); }
+.gaura--aurora .gaura__p { background: #fff3b0; width: .5em; height: .5em; }
+.gaura--aurora .gaura__p:nth-child(even) { background: #9ff4ff; }
+.gaura--aurora .gaura__pillar { background: linear-gradient(to top, rgba(200,170,255,0), rgba(225,205,255,.8) 40%, rgba(255,255,255,0)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gaura__glow, .gaura__p, .gaura__pillar { animation: none !important; }
+  .gaura__p { opacity: .7; }
+}
+
+/* メニュー・けっか画面・HUD の 2D の 絵（MQ.ui.heroImg）の 光を グレードの 色に（v13.19）。
+   前は オーロラ（むらさき＋金）だけ。--ga1／--ga2 を style.css の gearAura が つかう */
+.ga--kihon { --ga1: rgba(170,230,110,.9); --ga2: rgba(238,242,122,.45); }
+.ga--tetsu { --ga1: rgba(180,225,255,.95); --ga2: rgba(255,255,255,.45); }
+.ga--ryu { --ga1: rgba(255,140,40,.95); --ga2: rgba(255,210,70,.55); }
+.ga--densetsu { --ga1: rgba(255,222,120,.95); --ga2: rgba(255,255,255,.5); }
+.ga--hoshi { --ga1: rgba(120,200,255,.95); --ga2: rgba(255,228,90,.5); }
+.ga--yami { --ga1: rgba(170,80,255,.95); --ga2: rgba(255,79,216,.5); }
+.ga--capsule { --ga1: rgba(95,240,255,.95); --ga2: rgba(255,255,255,.45); }
+.ga--aurora { --ga1: rgba(180,140,255,.85); --ga2: rgba(255,212,71,.35); }

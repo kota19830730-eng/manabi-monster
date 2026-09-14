@@ -4929,6 +4929,79 @@ function stripComments(src) {
   console.log('v14.2: セットわざ OK');
 })();
 
+/* ---- v13.19 そうびの 見た目（js/content/gearart.js・js/ui/gearaura.js）----
+   8グレード × 5部位を りんかくから 描き直した。3D の 部品分け（vox.js の fromHero）の きまりを まもって いるかを 見る */
+(function () {
+  const A = MQ.gearArt;
+  check(!!A, 'v13.19: MQ.gearArt が 読めて いる');
+  if (!A) return;
+  check(CONTENT_ORDER.indexOf('js/content/gearart.js') >= 0 && CONTENT_ORDER.indexOf('js/content/gearart.js') < CONTENT_ORDER.indexOf('js/content/hero.js'), 'v13.19: gearart.js は hero.js より 先');
+  const swT = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  ['./js/content/gearart.js', './js/ui/gearaura.js', './css/gearaura.css'].forEach(function (x) { check(swT.indexOf("'" + x + "'") >= 0, 'v13.19: sw.js の FILES に ' + x); });
+  const hxT = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  check(hxT.indexOf('../js/content/gearart.js') >= 0 && hxT.indexOf('../js/ui/gearaura.js') >= 0 && hxT.indexOf('../css/gearaura.css') >= 0, 'v13.19: harness に gearart／gearaura');
+  check(INDEX_HTML.indexOf('js/ui/gearaura.js') > INDEX_HTML.indexOf('js/ui/three.js') && INDEX_HTML.indexOf('css/gearaura.css') >= 0, 'v13.19: index に gearaura（three.js の あと）');
+  const SL = MQ.hero.slots;
+  check(A.grades.length === MQ.hero.grades.length && MQ.hero.grades.every(function (g) { return A.grades.indexOf(g.id) >= 0; }), 'v13.19: gearArt の グレード ＝ hero の グレード');
+  const cells = function (rows) { const o = []; rows.forEach(function (r, y) { for (let x = 0; x < 48; x++) if (r[x] !== '.') o.push([x, y]); }); return o; };
+  A.grades.forEach(function (gid) {
+    SL.forEach(function (slot) {
+      const r = A.rows(slot, gid);
+      check(!!r && r.length === 48 && r.every(function (x) { return x.length === 48; }), 'v13.19: ' + gid + '-' + slot + ' は 48×48');
+      if (!r) return;
+      const c = cells(r);
+      check(c.length > 12, 'v13.19: ' + gid + '-' + slot + ' に 絵が ある（' + c.length + '）');
+      const pal = A.palette(gid, slot);
+      c.forEach(function (p) { if (!pal[r[p[1]][p[0]]]) check(false, 'v13.19: ' + gid + '-' + slot + ' の 色 ' + r[p[1]][p[0]] + ' が ない'); });
+      // かぶとは 3D の 頭の はんい（x11〜35）の 中だけ（外に 出ると うでの 部品に なり ふると 折れる）
+      if (slot === 'helm') check(c.every(function (p) { return p[0] >= 11 && p[0] <= 35; }), 'v13.19: ' + gid + ' の かぶとは x11〜35 の 中');
+      // よろいの 頭の 行（y<22）は 頭に かからない（x≤10＝左うで か x≥36＝右うで）
+      if (slot === 'armor') check(c.filter(function (p) { return p[1] < 22; }).every(function (p) { return p[0] <= 10 || p[0] >= 36; }), 'v13.19: ' + gid + ' の かた当ては 頭に かからない');
+      // けんは x33 より 右（x32 より 左は 体の 部品に なって、ふっても その場に のこる）
+      if (slot === 'weapon') check(c.every(function (p) { return p[0] >= 33; }), 'v13.19: ' + gid + ' の けん・つばは x33 より 右');
+      // けんの 刃（y<28）は x36〜40（はば 5 いか＝3D で うすい 刃に なる）
+      if (slot === 'weapon') check(c.filter(function (p) { return p[1] < 26; }).every(function (p) { return p[0] >= 36 && p[0] <= 40; }), 'v13.19: ' + gid + ' の 刃は x36〜40');
+      // たては 左うでの よこ（体の まん中 x16〜31 を ふさがない）
+      if (slot === 'shield') check(c.every(function (p) { return p[0] <= 16; }), 'v13.19: ' + gid + ' の たては 体の よこ（x≤16）');
+    });
+  });
+  // グレードごとに りんかくが ちがう（前は てつの 形に 四角を 足しただけ＝色ちがい）
+  SL.forEach(function (slot) {
+    const sil = {};
+    A.grades.forEach(function (gid) { sil[A.rows(slot, gid).map(function (r) { return r.replace(/[^.]/g, '#'); }).join('')] = 1; });
+    check(Object.keys(sil).length === A.grades.length, 'v13.19: ' + slot + ' の りんかくが 8グレード ぜんぶ ちがう（' + Object.keys(sil).length + '）');
+  });
+  // hero.js が つかう
+  const g0 = MQ.hero.getGear('ryu-helm');
+  check(g0 && g0.rows === A.rows('helm', 'ryu') && !!g0.mat && !!g0.palette.T, 'v13.19: hero の そうびは gearArt の 絵・色・素材');
+  // かぶとを つけたら かみの 上（行10まで）は けす／つけて いなければ そのまま
+  const lookP = { look: MQ.hero.lookOf({}), equipped: {} };
+  const hairOf = function (p) { return MQ.hero.layersFor(p)[4]; };
+  const bare = hairOf(lookP);
+  lookP.equipped = { helm: 'tetsu-helm' };
+  const under = hairOf(lookP);
+  check(bare.rows.slice(0, 11).some(function (r) { return /[^.]/.test(r); }), 'v13.19: かぶとなしは かみが 上まで ある');
+  check(under.rows.slice(0, 11).every(function (r) { return !/[^.]/.test(r); }) && (!under.rows2 || under.rows2.slice(0, 22).every(function (r) { return !/[^.]/.test(r); })), 'v13.19: かぶとの 下の かみは 行10まで けす');
+  // 3D の しるし：右の マントだけ
+  const full = {}; SL.forEach(function (sl) { full[sl] = 'tetsu-' + sl; });
+  const lb = MQ.hero.labels({ look: MQ.hero.lookOf({}), equipped: full });
+  check(Array.isArray(lb) && lb.length === 48 * 48, 'v13.19: labels は 48×48');
+  if (Array.isArray(lb)) {
+    let bad = 0, n = 0;
+    lb.forEach(function (v, i) { if (v) { n++; if (v !== 'cape' || (i % 48) < 33) bad++; } });
+    check(n > 0 && bad === 0, 'v13.19: しるしは x33 より 右の マントだけ（' + n + '・へん ' + bad + '）');
+  }
+  check(MQ.hero.labels({ look: MQ.hero.lookOf({}), equipped: {} }) === null, 'v13.19: マントなしは しるしなし');
+  check(MQ.hero.fullSetGrade({ equipped: full }) === 'tetsu' && MQ.hero.fullSetGrade({ equipped: { helm: 'tetsu-helm' } }) === null, 'v13.19: fullSetGrade');
+  // オーラの CSS が 8グレード ぶん ある
+  const gaCss = fs.readFileSync(path.join(base, 'css/gearaura.css'), 'utf8');
+  A.grades.forEach(function (gid) { check(gaCss.indexOf('.gaura--' + gid + ' .gaura__glow') >= 0 && gaCss.indexOf('.ga--' + gid) >= 0, 'v13.19: オーラの 色 ' + gid); });
+  // keyframes で 動かすのは transform と opacity だけ
+  const kf = gaCss.match(/@keyframes[^{]+\{[\s\S]*?\}\s*\}/g) || [];
+  check(kf.length >= 5 && kf.every(function (k) { return !/(left|top|width|height|filter|box-shadow|background)\s*:/.test(k.replace(/@keyframes[^{]+\{/, '')); }), 'v13.19: オーラの keyframes は transform／opacity だけ');
+  console.log('v13.19: そうびの 見た目 OK（8グレード × 5部位）');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

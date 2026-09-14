@@ -2495,7 +2495,14 @@ MQ.ui.battle = (function () {
     const old = d.hero.querySelector('.v3scene');
     if (old) old.remove();
     d.heroImg.hidden = v3;
-    if (v3) d.hero.insertBefore(MQ.ui.v3.hero(player, 84, { ry: 22, mo: 'mo-idle', cls: 'hero__img3d' }), d.heroImg);
+    const sc3 = v3 ? MQ.ui.v3.hero(player, 84, { ry: 22, mo: 'mo-idle', cls: 'hero__img3d' }) : null;
+    if (sc3) d.hero.insertBefore(sc3, d.heroImg);
+    /* v13.19：同じ グレードを 5点 そろえて いると グレードごとの オーラ（js/ui/gearaura.js）。
+       3D の ときは 器（.v3scene）の 中に 入れる＝こうげきで 走っても いっしょに 動く */
+    if (MQ.ui.gearAura) {
+      Array.prototype.slice.call(d.hero.querySelectorAll(':scope > .gaura')).forEach(function (e) { e.remove(); });
+      d.hero.classList.toggle('has-gaura', !!MQ.ui.gearAura.attach(sc3 || d.hero, player, 1));
+    }
     /* v12.5 軽く：3D の あいだ 2D の 絵は hidden なので、カットイン（tier ≥ 3）で はじめて デコードされて 1コマ ひっかかる → 先に デコードして おく */
     if (v3 && window.Image) { try { const pre = new Image(); pre.src = d.heroImg.src; if (pre.decode) pre.decode().catch(function () {}); } catch (e) {} }
     ciWarm(player);   // v13.6：カットインの 3D を 先に 作る

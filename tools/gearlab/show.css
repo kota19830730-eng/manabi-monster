@@ -1,0 +1,11 @@
+/* できあがりの ページだけ（lab.css の 上に） */
+.show__menu { display: grid; place-items: center; padding: 14px 0 6px; background: var(--panel2); }
+.show__img { width: 144px; height: 144px; image-rendering: pixelated; }
+/* style.css の gearAura（メニューの 光）を この ページでも */
+img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
+@keyframes gearAura {
+  0%, 100% { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 5px var(--ga1, rgba(180,140,255,.85))) drop-shadow(0 0 9px var(--ga2, rgba(255,212,71,.35))); }
+  50%      { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 10px var(--ga1, rgba(205,175,255,1))) drop-shadow(0 0 17px var(--ga2, rgba(255,212,71,.65))); }
+}
+.arena__hero > .v3scene { position: absolute; left: 0; bottom: 0; z-index: 2; }
+.arena__hero { z-index: 2; }
