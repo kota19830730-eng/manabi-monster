@@ -1224,7 +1224,7 @@ function checkShape(name, shape, side, where) {
 MQ.enemies.list.concat(MQ.enemies.bosses).forEach(function (e) {
   const shape = MQ.enemies.shapes[e.shape];
   check(!!shape, 'shape exists: ' + e.shape);
-  if (shape) checkShape(e.shape, shape, 48, 'モンスター');
+  if (shape) checkShape(e.shape, shape, e.base || 48, 'モンスター');   // v14.6：64マスの ボス
 });
 check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい いじょう: ' + Object.keys(MQ.monsterArt.mons).length);
 
@@ -4216,6 +4216,20 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(INDEX_HTML.indexOf('js/ui/three.js') > INDEX_HTML.indexOf('js/ui/common.js') && INDEX_HTML.indexOf('js/ui/three.js') < INDEX_HTML.indexOf('js/ui/start.js'), 'index: three.js は common.js の あと・start.js の 前');
   check(INDEX_HTML.indexOf('css/motion3d.css') >= 0, 'index: motion3d.css');
   ['./css/motion3d.css', './js/core/vox.js', './js/content/chest3d.js', './js/ui/three.js'].forEach(function (f) { check(sw.indexOf("'" + f + "'") >= 0, 'sw.js の FILES に ' + f); });
+  // v14.6 ボスの 作り直し：ナンバードラゴン・モジオニは 64マス・部品つき・3D は boss3d.js
+  check(sw.indexOf("'./js/content/boss3d.js'") >= 0, 'sw.js の FILES に boss3d.js');
+  check(INDEX_HTML.indexOf('js/content/boss3d.js') > INDEX_HTML.indexOf('js/content/enemies.js'), 'index: boss3d.js は enemies.js の あと');
+  ['boss-dragon', 'boss-oni'].forEach(function (id) {
+    const e = MQ.enemies.get(id);
+    const art = MQ.monsterArt.mons[e.shape] || [];
+    check(e.base === 64 && art.length >= 40, id + ': 64マスの 絵（' + art.length + 'こ）');
+    check(art.every(function (r) { return r[0] >= 0 && r[1] >= 0 && r[0] + r[2] <= 64 && r[1] + r[3] <= 64; }), id + ': 64マスに おさまる');
+    check(!!e.phase2, id + ': おこった ときの 色');
+    const cfg = MQ.vox.boss3d && MQ.vox.boss3d.CFG[e.shape];
+    check(!!cfg, id + ': 3D の 部品の 表');
+    if (cfg) cfg.parts.forEach(function (p) { check(art.some(function (r) { return r[6] === p.tag; }), id + ': 部品 ' + p.tag + ' の 絵が ある'); });
+    check(art.every(function (r) { return cfg && cfg.parts.some(function (p) { return p.tag === r[6]; }); }), id + ': どの 四角も どこかの 部品に 入る');
+  });
   ['../css/motion3d.css', '../js/core/vox.js', '../js/content/chest3d.js', '../js/ui/three.js'].forEach(function (f) { check(harness.indexOf(f) >= 0, 'harness.html に ' + f); });
 
   /* 背景（v12.6）：scenery.js は common.js の あと・start.js の 前。css/sw/harness にも ある。

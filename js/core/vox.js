@@ -580,7 +580,7 @@ MQ.vox = (function () {
     box.style.top = (r.y * U) + 'px';
     box.style.width = w + 'px';
     box.style.height = h + 'px';
-    box.style.transform = 'translateZ(' + (d / 2) + 'px)';          // まん中ぞろえ（手まえと おくに 半分ずつ）
+    box.style.transform = 'translateZ(' + (d / 2 + (r.z || 0) * U) + 'px)';          // まん中ぞろえ（手まえと おくに 半分ずつ）。r.z＝部品の 奥ゆきの ずれ（v14.6 ボスの 足・つばさ）
     box.appendChild(front);
     box.faces = { front: front, back: null, L: null, R: null, T: null, B: null };
     if (r.w <= 1 && r.h <= 1) return box;
@@ -742,6 +742,8 @@ MQ.vox = (function () {
       if (gr.floor !== false) { x0 = Math.min(x0, bd.b.x0); x1 = Math.max(x1, bd.b.x1); y1 = Math.max(y1, bd.b.y1); thick = Math.max(thick, gr.thick || bd.thick); }
       /* bottom … 下の 面を この 色（ふたの 内がわ＝明るい 木）に。ひらくと 上を 向く ので 光も「上」の もの */
       if (gr.bottom) bd.boxes.forEach(function (r) { r.B = r.B.map(function () { return gr.bottom; }); r.litB = 'top'; });
+      /* z … 部品ごとの 奥ゆきの ずれ（マス）。手まえの 足・つばさは +、向こうは −（v14.6 ボス） */
+      if (gr.z) bd.boxes.forEach(function (r) { r.z = gr.z; });
       return { cls: gr.cls, joint: gr.joint, jz: gr.jz, parent: gr.parent, keep: !!gr.keep, back: !!gr.back, boxes: bd.boxes, make: bd.makeBox };
     });
     const wrap = wrapOf(size * U);

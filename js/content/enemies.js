@@ -428,8 +428,13 @@ MQ.enemies = (function () {
 
   // ボス（エリアごとに 1体）
   const bosses = [
-    { id: 'boss-dragon', area: 'sansu',      name: 'ナンバードラゴン', shape: 'dragon',    colors: { A: '#4F8CFF', B: '#FFD166' } },
-    { id: 'boss-oni',    area: 'kokugo',     name: 'モジオニ',        shape: 'oni',       colors: { A: '#FF5A5A', C: '#2B2B3A' } },
+    /* v14.6：ナンバードラゴン・モジオニは 64マス（base）。絵は tools/bossart/final.js → emit.js。3D は js/content/boss3d.js */
+    { id: 'boss-dragon', area: 'sansu',      name: 'ナンバードラゴン', shape: 'dragon',    base: 64,
+      colors: { A: '#B31F1A', B: '#761612', C: '#8E1A16', D: '#5A1210', w: '#F5E0B0', y: '#F2C14E', k: '#2B1512', e: '#FFE14A', r: '#FFB13A' },
+      phase2: { A: '#D42A1C', e: '#FF4A2A', r: '#FF5A1A', C: '#A81F18' } },
+    { id: 'boss-oni',    area: 'kokugo',     name: 'モジオニ',        shape: 'oni',       base: 64,
+      colors: { A: '#3F7FD6', B: '#2B5AA6', C: '#B8281F', D: '#8F1F1A', y: '#F2C14E', s: '#CFD8E6', P: '#8B95A8', w: '#F1E6C8', W: '#F4F0E6', e: '#FFE14A', k: '#1B0C0C', r: '#7A1512', m: '#5A2D17' },
+      phase2: { A: '#2F5FB8', B: '#1F4488', e: '#FF3A3A' } },
     { id: 'boss-knight', area: 'rikashakai', name: 'メカナイト',      shape: 'knight',    colors: { A: '#8A9BB8', B: '#12121A' } },
     { id: 'boss-slime',  area: 'eigo',       name: 'キングスライム',   shape: 'kingslime', colors: { A: '#FFA33A', B: '#B35F00' } },
     /* 小4で 理科と 社会が べつの エリアに なった（v4.6）。
@@ -492,7 +497,7 @@ MQ.enemies = (function () {
     if (skin) return MQ.blocks.imgBox(skin, { size: size, cls: cls, alt: e.name });
     const drawn = MQ.art && MQ.art.enemies && MQ.art.enemies[id];
     if (drawn && !opts.enrage) return MQ.blocks.imgBox(drawn, { size: size, cls: cls, alt: e.name });
-    const box = MQ.blocks.box(shapes[e.shape] || [], paletteOf(e, opts.enrage), { size: size, cls: cls, raw: true });
+    const box = MQ.blocks.box(shapes[e.shape] || [], paletteOf(e, opts.enrage), { size: size, cls: cls, raw: true, base: e.base });   // base＝64マスの ボス（v14.6）
     if (opts.shadow) box.classList.add('is-shadow');
     return box;
   }
@@ -627,7 +632,7 @@ MQ.enemies = (function () {
     get: get, node: node, shadowNode: shadowNode, dexList: dexList,
     pickIds: pickIds, goldenId: goldenId, rareId: goldenId, rareIdFor: rareIdFor, rareIdsFor: rareIdsFor,
     trioFor: trioFor, bossFor: bossFor, poolArea: poolArea, setCustom: setCustom, mateFor: mateFor,
-    midFor: midFor, midIdsFor: midIdsFor,
+    midFor: midFor, midIdsFor: midIdsFor, paletteOf: paletteOf,
     customs: function () { return customs; }
   };
 })();

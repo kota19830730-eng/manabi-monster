@@ -1,0 +1,47 @@
+
+/* ---------------------------------------------------------
+   ボスの 動き（v14.6）：ナンバードラゴン（.v3--dragonboss）・モジオニ（.v3--oniboss）
+   部品は js/content/boss3d.js。つばさは 横すがたなので rotateX で はばたく（ふつうの モンスターの rotateY では ない）。
+   手まえの つばさ（wingR）は 手まえへ、向こう（wingL）は 向こうへ ひらく。首（head）は 首の ねもとが かんせつ。
+   動かすのは transform だけ（v13.10）。
+   --------------------------------------------------------- */
+.v3--dragonboss.mo-menace .p--wingR, .v3--dragonboss.mo-title .p--wingR { animation: dbFlapN 1.7s ease-in-out infinite; }
+.v3--dragonboss.mo-menace .p--wingL, .v3--dragonboss.mo-title .p--wingL { animation: dbFlapF 1.7s ease-in-out infinite; }
+.v3--dragonboss.mo-menace .p--head { animation: dbHead 3.4s ease-in-out infinite; }
+.v3--dragonboss.mo-title .p--head { animation: dbHead 4.2s ease-in-out infinite; }
+.v3--dragonboss.mo-menace .p--tail, .v3--dragonboss.mo-title .p--tail { animation: dbTail 2.6s ease-in-out infinite; }
+.v3--dragonboss.mo-menace .p--body { animation: dbBreath 3.4s ease-in-out infinite; }
+/* 歩いて 出る・はねる・こうげき・くらう：つばさを 大きく ひろげる */
+.v3--dragonboss.mo-walk .p--wingR, .v3--dragonboss.mo-hop .p--wingR { animation: dbFlapN .3s ease-in-out 2; }
+.v3--dragonboss.mo-walk .p--wingL, .v3--dragonboss.mo-hop .p--wingL { animation: dbFlapF .3s ease-in-out 2; }
+.v3--dragonboss.mo-attack .p--wingR, .v3--dragonboss.mo-lunge .p--wingR, .v3--dragonboss.mo-hurt .p--wingR { animation: dbFlapBigN .6s ease-in-out both; }
+.v3--dragonboss.mo-attack .p--wingL, .v3--dragonboss.mo-lunge .p--wingL, .v3--dragonboss.mo-hurt .p--wingL { animation: dbFlapBigF .6s ease-in-out both; }
+.v3--dragonboss.mo-attack .p--head, .v3--dragonboss.mo-lunge .p--head { animation: dbRoar .6s ease-in-out both; }
+.v3--dragonboss.mo-hurt .p--head { animation: dbHurtHead .5s ease-out both; }
+.v3--dragonboss.mo-attack .p--tail, .v3--dragonboss.mo-lunge .p--tail { animation: dbTailWhip .6s ease-in-out both; }
+@keyframes dbFlapN { 0%, 100% { transform: rotateX(0deg); } 50% { transform: rotateX(-30deg); } }
+@keyframes dbFlapF { 0%, 100% { transform: rotateX(0deg); } 50% { transform: rotateX(30deg); } }
+@keyframes dbFlapBigN { 0%, 100% { transform: rotateX(0deg); } 40% { transform: rotateX(-55deg); } 70% { transform: rotateX(10deg); } }
+@keyframes dbFlapBigF { 0%, 100% { transform: rotateX(0deg); } 40% { transform: rotateX(55deg); } 70% { transform: rotateX(-10deg); } }
+@keyframes dbHead { 0%, 100% { transform: rotateZ(0deg); } 40% { transform: rotateZ(5deg); } 70% { transform: rotateZ(-3deg); } }
+@keyframes dbRoar { 0% { transform: rotateZ(0deg); } 35% { transform: rotateZ(12deg); } 70% { transform: rotateZ(-16deg); } 100% { transform: rotateZ(0deg); } }
+@keyframes dbHurtHead { 0% { transform: rotateZ(0deg); } 40% { transform: rotateZ(14deg); } 100% { transform: rotateZ(0deg); } }
+@keyframes dbTail { 0%, 100% { transform: rotateY(0deg) rotateZ(0deg); } 50% { transform: rotateY(-16deg) rotateZ(5deg); } }
+@keyframes dbTailWhip { 0%, 100% { transform: rotateZ(0deg); } 40% { transform: rotateZ(-14deg); } 70% { transform: rotateZ(10deg); } }
+@keyframes dbBreath { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.015, .985); } }
+
+.v3--oniboss.mo-menace .p--armR, .v3--oniboss.mo-title .p--armR { animation: obPole 3s ease-in-out infinite; }
+.v3--oniboss.mo-menace .p--armL { animation: obArmL 3s ease-in-out infinite; }
+.v3--oniboss.mo-menace .p--head, .v3--oniboss.mo-title .p--head { animation: obHead 3.4s ease-in-out infinite; }
+.v3--oniboss.mo-menace .p--mane { animation: obMane 1.8s ease-in-out infinite; }
+.v3--oniboss.mo-attack .p--armR, .v3--oniboss.mo-lunge .p--armR { animation: obSlash .6s ease-in-out both; }
+.v3--oniboss.mo-attack .p--head, .v3--oniboss.mo-lunge .p--head { animation: obRoar .6s ease-in-out both; }
+@keyframes obPole { 0%, 100% { transform: rotateZ(0deg); } 50% { transform: rotateZ(-5deg); } }
+@keyframes obArmL { 0%, 100% { transform: rotateZ(0deg); } 50% { transform: rotateZ(4deg); } }
+@keyframes obHead { 0%, 100% { transform: rotateZ(0deg); } 30% { transform: rotateZ(-3deg); } 65% { transform: rotateZ(2deg); } }
+@keyframes obMane { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(8deg); } }
+@keyframes obSlash { 0% { transform: rotateZ(0deg); } 35% { transform: rotateZ(-28deg); } 70% { transform: rotateZ(55deg); } 100% { transform: rotateZ(0deg); } }
+@keyframes obRoar { 0%, 100% { transform: rotateZ(0deg) scale(1); } 50% { transform: rotateZ(-4deg) scale(1.06); } }
+@media (prefers-reduced-motion: reduce) {
+  .v3--dragonboss .p, .v3--oniboss .p { animation: none !important; }
+}

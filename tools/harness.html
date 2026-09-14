@@ -116,6 +116,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/setwaza.js"></script>
 <script src="../js/content/chest3d.js"></script>
 <script src="../js/content/capsule3d.js"></script>
+<script src="../js/content/boss3d.js"></script>
 <script src="../js/content/zu.js"></script>
 <script src="../js/content/sansu3.js"></script>
 <script src="../js/content/lesson3.js"></script>
@@ -3066,6 +3067,36 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const R = function (el) { if (!el) return 'none'; const r = el.getBoundingClientRect(); return Math.round((r.left - o.left) / k) + ',' + Math.round((r.top - o.top) / k) + ' ' + Math.round(r.width / k) + 'x' + Math.round(r.height / k); };
       const foe = $('.foes .enemy'), img = $('.foes .enemy__img3d, .foes .enemy__img'), v3 = $('.foes .v3'), hold = $('.foes .v3hold');
       say('bubble ' + kind + ': msg=' + R($('.arena__msg')) + ' foe=' + R(foe) + ' img=' + R(img) + ' v3=' + R(v3) + ' hold=' + R(hold) + ' bag=' + R($('.bagbtn')) + ' hero=' + R($('.hero')) + ' text=' + ($('.arena__msg') || {}).textContent);
+      return;
+    }
+    /* ボスの 作り直し（v14.6）：#boss64[:<ms>]＝2体を 2D・3D・おこった で ならべる／#bossof:<ステージ>＝その ボス戦まで */
+    if (mode.indexOf('boss64') === 0) {
+      fresh();
+      const ms = +(mode.split(':')[1] || 0);
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999;background:#5b8fd8;display:grid;grid-template-columns:repeat(3,260px);gap:10px;padding:10px;align-content:start';
+      ['boss-dragon', 'boss-oni'].forEach(function (id) {
+        const cell = function (el, t) { const c = document.createElement('div'); c.style.cssText = 'position:relative;height:270px;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.08)'; c.appendChild(el); const l = document.createElement('div'); l.textContent = t; l.style.cssText = 'position:absolute;left:4px;top:2px;font:12px sans-serif;color:#fff'; c.appendChild(l); wrap.appendChild(c); };
+        cell(MQ.enemies.node(id, { size: 256 }), id + ' 2D');
+        cell(MQ.ui.v3.monster(id, 256, { mo: 'mo-menace' }), id + ' 3D');
+        cell(MQ.ui.v3.monster(id, 256, { mo: 'mo-menace', enrage: true }), id + ' 3D おこった');
+        const v = MQ.ui.v3.monster(id, 256, { mo: 'mo-menace' });
+        const vv = v.querySelector('.v3');
+        say(id + ': parts=' + (vv ? vv.dataset.parts : '-') + ' boxes=' + (vv ? vv.dataset.boxes : '-') + ' faces=' + (vv ? vv.dataset.faces : '-'));
+      });
+      document.body.appendChild(wrap);
+      await wait(300);
+      if (ms) { freeze(); document.getAnimations().forEach(function (a) { a.pause(); a.currentTime = ms; }); }
+      return;
+    }
+    if (mode.indexOf('bossof:') === 0) {
+      fresh();
+      MQ.ui.battle.start(mode.split(':')[1]);
+      await wait(400);
+      await playBattle('boss', { stopAtBoss: true });
+      await wait(2200);
+      const b = $('.foes .enemy');
+      say('bossof: ' + (b ? b.className : 'none') + ' name=' + (($('.bossinfo .enemy__name') || {}).textContent || ''));
       return;
     }
     if (mode === 'boss') {

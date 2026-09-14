@@ -600,7 +600,7 @@ body {
 
 /* ---- タイトルに ならぶ モンスター（絵は ゲームの 本物）---- */
 .tmob { position: absolute; filter: drop-shadow(0 5px 5px rgba(20,20,60,.4)); }
-.tmob--dragon { left: 250px; bottom: 118px; z-index: 1; animation: bob 3.6s ease-in-out infinite; filter: drop-shadow(0 9px 9px rgba(60,15,10,.4)); }
+.tmob--dragon { left: 226px; bottom: 110px;   /* v14.6：ナンバードラゴン（横長の 竜王）に かわった ので 左下へ */ z-index: 1; animation: bob 3.6s ease-in-out infinite; filter: drop-shadow(0 9px 9px rgba(60,15,10,.4)); }
 .tmob--bat    { left: 26px;  bottom: 196px; z-index: 1; animation: bob 3.1s ease-in-out .4s infinite; }
 .tmob--robo   { left: 10px;  bottom: 112px; z-index: 1; animation: bob 4.2s ease-in-out .7s infinite; }
 .tmob--slime  { left: 10px;  bottom: 76px;  z-index: 2; animation: bob 1.9s ease-in-out infinite; }

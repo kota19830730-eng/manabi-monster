@@ -59,10 +59,14 @@
   function monster(id, size, opts) {
     opts = opts || {};
     const U = opts.unit || unitFor(size);
-    const ry = opts.ry == null ? -22 : opts.ry;
-    const sc = scene(size, ry, 48 * U, opts.cls);
+    /* v14.6：ナンバードラゴン・モジオニは 部品ごとの 絵から 組む（boss3d.js）。64マス。ドラゴンは 頭を 手まえに 向ける */
+    const me0 = MQ.enemies.get ? MQ.enemies.get(id) : null;
+    const b3 = me0 && MQ.vox.boss3d && MQ.vox.boss3d.has(me0.shape) ? MQ.vox.boss3d : null;
+    const ry = b3 && b3.ry(me0.shape) != null && (opts.ry == null || opts.ry < 0) ? b3.ry(me0.shape) : (opts.ry == null ? -22 : opts.ry);
+    const sc = scene(size, ry, ((me0 && me0.base) || 48) * U, opts.cls);
     const key = id + '|' + U + '|' + (opts.enrage ? 1 : 0) + '|' + (hideFor(ry, opts) || '-') + (MQ.sonSkin ? '|' + MQ.sonSkin.keyOf(id) : '');   // v14.5 すがたを かえたら 作り直す
     if (monCache[key]) return put(sc, monCache[key].cloneNode(true), opts.mo || 'mo-menace');
+    if (b3) { monCache[key] = b3.make(me0, { unit: U, hide: hideFor(ry, opts), enrage: !!opts.enrage }); return put(sc, monCache[key].cloneNode(true), opts.mo || 'mo-menace'); }
     const holder = MQ.enemies.node(id, { size: 48, enrage: !!opts.enrage });
     const bx = holder.querySelector('.bx');
     if (bx) { monCache[key] = MQ.vox.fromBx(bx, { unit: U, hide: hideFor(ry, opts) }); return put(sc, monCache[key].cloneNode(true), opts.mo || 'mo-menace'); }
