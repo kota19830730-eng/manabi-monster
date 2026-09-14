@@ -3485,12 +3485,14 @@ MQ.monsterGen = (function () {
   }
   /* 絵（dataURL）から つぎの 段階の 絵を 作る。ブラウザだけ（canvas を つかう） */
   function evoPng(url, stage, cb) {
-    const N = 48;
     const im = new Image();
     im.onload = function () {
+      // v14.4 きみの 絵（64マス）は その 大きさの まま（48に ちぢめると ぼやける）
+      const N = Math.max(48, Math.min(64, im.naturalWidth || 48));
       const tmp = document.createElement('canvas');
       tmp.width = N; tmp.height = N;
       const tg = tmp.getContext('2d');
+      tg.imageSmoothingEnabled = false;
       tg.drawImage(im, 0, 0, N, N);
       const d = tg.getImageData(0, 0, N, N).data;
       const mask = new Uint8Array(N * N);
@@ -3510,6 +3512,7 @@ MQ.monsterGen = (function () {
         });
       }
       draw(parts.back);
+      g.imageSmoothingEnabled = false;
       g.drawImage(im, 0, 0, N, N);
       draw(parts.front);
       cb(cv.toDataURL('image/png'));

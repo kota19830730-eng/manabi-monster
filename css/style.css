@@ -2419,6 +2419,17 @@ body {
 .dexhead__chip { flex: none; padding: 5px 12px; border-radius: 999px; background: #3a2a52; color: #e0c9ff; font-size: 12px; }
 
 .dexgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 10px; margin-top: 16px; }
+/* 子どもの 絵から うまれた モンスター（v14.5）：すがたを えらぶ（ゲームばん／そのまま／かっこよく） */
+.sonskin { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.sonskin .note { margin: 0; }
+.sonskin__row { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 13px; background: linear-gradient(#222d52, #1a2340); }
+.sonskin__name { font-size: 14px; font-weight: 700; color: #e6ecff; }
+.sonskin__opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.sonskin__opt { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0 5px; border: 3px solid var(--frame); border-radius: 12px; background: rgba(16,24,48,.85); cursor: pointer; }
+.sonskin__opt.is-on { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(245,197,66,.35), 0 3px 0 var(--gold-sh); }
+.sonskin__opt img { image-rendering: pixelated; }
+.sonskin__lbl { font-size: 12px; font-weight: 700; color: #cfdaf6; }
+.sonskin__opt.is-on .sonskin__lbl { color: var(--gold); }
 .dexcell {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px;
   padding: 12px 6px 10px; border-radius: 13px;
@@ -2601,6 +2612,11 @@ body {
 .photo__pick { flex-direction: column; gap: 1px; height: auto; padding: 3px 0 2px; }
 .photo__pickname { font-size: 9px; line-height: 1.1; color: #cfdaf6; max-width: 56px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .photo__pick.is-on .photo__pickname { color: var(--gold); }
+/* v14.5 きみの 絵（そのまま／かっこよく）＝ 大きな 2枚 */
+.photo__mine { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.photo__pick.photo__pick--big { width: auto; padding: 6px 0 5px; gap: 3px; }
+.photo__pick--big .photo__pickimg { width: 112px; height: 112px; }
+.photo__pick--big .photo__pickname { font-size: 13px; max-width: none; font-weight: 700; }
 .photo__grouprow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .photo__grouprow .photo__lbl { width: 100%; }
 /* v6.0：AIに 見てもらう（絵を 送って しゅるいを 文字で もらう） */

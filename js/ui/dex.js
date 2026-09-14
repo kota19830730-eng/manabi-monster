@@ -630,6 +630,37 @@ MQ.ui.dex = (function () {
     return h('div', { class: 'cell' }, kids);
   }
 
+  /* 子どもの 絵から うまれた モンスター（v14.5）。息子さんの 4体の すがたを えらぶ。
+     ゲームばん（手で かき直した すがた）／そのまま（もとの 絵）／かっこよく。出会った モンスターだけ 出す */
+  function sonSkinSection(player) {
+    const S = MQ.sonSkin;
+    if (!S) return null;
+    const rows = S.LINES.filter(function (line) { return S.has(line) && MQ.enemies.get(line) && (player.dex[line] || 0) > 0; }).map(function (line) {
+      const e = MQ.enemies.get(line), cur = S.pick(player, line);
+      return h('div', { class: 'sonskin__row' }, [
+        h('span', { class: 'sonskin__name', text: e.name }),
+        h('div', { class: 'sonskin__opts' }, S.KINDS.map(function (k) {
+          const art = k.id ? MQ.blocks.imgBox(S.sample(line, k.id), { size: 56, cls: 'mons', alt: e.name }) : MQ.enemies.node(line, { size: 56, official: true });
+          return h('button', {
+            class: 'sonskin__opt' + (cur === k.id ? ' is-on' : ''), type: 'button',
+            onclick: function () {
+              if (cur === k.id) return;
+              MQ.sfx.tap();
+              MQ.save.update(function (p) { S.set(p, line, k.id); });
+              MQ.ui.toast(e.name + 'を 「' + k.name + '」に したよ');
+              render('mons');
+            }
+          }, [art, h('span', { class: 'sonskin__lbl', text: k.name })]);
+        }))
+      ]);
+    });
+    if (!rows.length) return null;
+    return h('div', { class: 'sonskin' }, [
+      h('h2', { class: 'label', text: '子どもの 絵から うまれた モンスター' }),
+      h('p', { class: 'note', text: 'すがたを えらべるよ。「そのまま」「かっこよく」は もとの 絵から 作った すがた。バトルや なかまでも この すがたに なるよ。' })
+    ].concat(rows));
+  }
+
   function monsTab(player) {
     const list = MQ.enemies.dexList();
     const seen = list.filter(function (e) { return (player.dex[e.id] || 0) > 0; }).length;
@@ -665,6 +696,7 @@ MQ.ui.dex = (function () {
         onclick: function () { MQ.sfx.tap(); MQ.ui.photo.render(); }
       }, [h('i', { class: 'ic ic--cam' }), h('span', { text: 'じぶんの モンスターを つくる' })]),
       h('p', { class: 'note', text: '紙に かいた モンスターを 写真に とると、ドット絵に なって バトルに 出てくるよ。' }),
+      sonSkinSection(player),
       dexHead('モンスター', seen, list.length),
       h('div', { class: 'dexgrid' }, list.map(function (e) { return cell(e); })),
       h('h2', { class: 'label', text: 'ボス' }),

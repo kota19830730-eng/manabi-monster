@@ -1134,6 +1134,848 @@ MQ.ui.photo = (function () {
     }
   }
 
+  /* <trace> */
+  /* =======================================================
+     絵の まま（ぬりえ方式・v14.4 試作）
+     ユーザー「絵の 再現性の 機能を 一番 こだわって」（2026-09-14）。
+     子どもの 絵は「えんぴつの 線で かこんで、中を 色えんぴつで ぬる」。線は とじて いない ことが 多い ので、
+       ① 色えんぴつの 点を 絵の 色（数色）に 分け、
+       ② その 色を 近く（D px）だけ ひろげる（線は こえない）＝ぬりむら・すきまの 白が うまる。遠くまでは もれない、
+       ③ どの 色も とどかない ところは 白（ガイコツの 顔・目の 白）、えんぴつで ぬりつぶした ところは こい 灰色、
+       ④ 線は のこす（黒でなく、となりの 色の こい 色）。
+     形は 1マスも うごかさない（絵の 形 そのもの）。
+     かえり値：{ cells: N×N（null か [r,g,b]）, info } */
+  let lastTraceDbg = '';
+  const TRACE = { lineMin: 40, D: 13, Dfill: 4, line: 0.12, darkR: 7, dark: 0.5, darkMin: 0.025, regCov: 0.04, regTop: 0.7, white: 0.03, reach: 0.45, sparse: 0.2, peak: 0.03, shade: 0.8, light: 0.3, split: 38 };
+  function traceCells(q, fg, W, H, box, lineD, lineS, N) {
+    const n = W * H;
+    // ① 点の しゅるい：0＝外・1＝紙（中）・2＝色・3＝線
+    const cls = new Uint8Array(n);
+    const colPts = [];
+    // えんぴつの 線は こい（紙より 40 いじょう 暗い）。それより うすい 灰色の すじは 色えんぴつの うすい ところか かすれ
+    const LD = Math.max(lineD, TRACE.lineMin);
+    for (let k = 0; k < n; k++) {
+      if (!fg[k]) continue;
+      const r = q[k * 3], g = q[k * 3 + 1], b = q[k * 3 + 2];
+      const d = 255 - lumOf(r, g, b), s = Math.max(r, g, b) - Math.min(r, g, b);
+      if (d > LD && s < 14 + d * 0.08) cls[k] = 3;
+      else if (s > lineS && s > 14 + d * 0.18) { cls[k] = 2; colPts.push(k); }   // こい 色は はっきり 色が ある ときだけ（えんぴつの 線の まわりの 茶色を 色に しない）
+      else if (d > LD) cls[k] = 3
+      else cls[k] = 1;
+    }
+    // ② えんぴつで ぬりつぶした ところ（線が こみあって いる）＝「こい ぬり」
+    const R = TRACE.darkR;
+    const ii = new Int32Array((W + 1) * (H + 1));
+    for (let y = 0; y < H; y++) {
+      let row = 0;
+      for (let x = 0; x < W; x++) {
+        row += cls[y * W + x] === 3 ? 1 : 0;
+        ii[(y + 1) * (W + 1) + x + 1] = ii[y * (W + 1) + x + 1] + row;
+      }
+    }
+    function lineSum(x0, y0, x1, y1) {
+      x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W - 1, x1); y1 = Math.min(H - 1, y1);
+      return ii[(y1 + 1) * (W + 1) + x1 + 1] - ii[y0 * (W + 1) + x1 + 1] - ii[(y1 + 1) * (W + 1) + x0] + ii[y0 * (W + 1) + x0];
+    }
+    const dark = new Uint8Array(n);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const k = y * W + x;
+        if (!fg[k]) continue;
+        const a = (Math.min(W - 1, x + R) - Math.max(0, x - R) + 1) * (Math.min(H - 1, y + R) - Math.max(0, y - R) + 1);
+        if (lineSum(x - R, y - R, x + R, y + R) >= a * TRACE.dark) dark[k] = 1;
+      }
+    }
+    {
+      const lab = new Int32Array(n);
+      let fgN = 0;
+      for (let k = 0; k < n; k++) if (fg[k]) fgN++;
+      for (let k0 = 0; k0 < n; k0++) {
+        if (!dark[k0] || lab[k0]) continue;
+        const mem = [k0], st = [k0];
+        lab[k0] = 1;
+        while (st.length) {
+          const k = st.pop();
+          const x = k % W, y = (k - x) / W;
+          const nb = [x + 1 < W ? k + 1 : -1, x > 0 ? k - 1 : -1, y + 1 < H ? k + W : -1, y > 0 ? k - W : -1];
+          for (let m = 0; m < 4; m++) { const kk = nb[m]; if (kk >= 0 && dark[kk] && !lab[kk]) { lab[kk] = 1; mem.push(kk); st.push(kk); } }
+        }
+        if (mem.length < fgN * TRACE.darkMin) mem.forEach(function (k) { dark[k] = 0; });
+      }
+    }
+    const lineM = new Uint8Array(n);
+    for (let k = 0; k < n; k++) if (cls[k] === 3 && !dark[k]) lineM[k] = 1;
+    // ③ 絵の 色を 分ける＝色あいの 山（色えんぴつは 1本ずつ 色あいが ちがう。RGB の 近さで 分けると うすい ピンクと オレンジが 1つに なる）
+    const HB = 60;                                    // 6° ずつ
+    const hist = new Float32Array(HB);
+    const hueK = new Float32Array(n).fill(-1);
+    colPts.forEach(function (k) {
+      const hh = hueOf3([q[k * 3], q[k * 3 + 1], q[k * 3 + 2]]);
+      hueK[k] = hh;
+      if (hh >= 0) hist[Math.floor(hh / 6) % HB]++;
+    });
+    const sm = new Float32Array(HB);
+    for (let i = 0; i < HB; i++) sm[i] = hist[(i + HB - 2) % HB] + 2 * hist[(i + HB - 1) % HB] + 3 * hist[i] + 2 * hist[(i + 1) % HB] + hist[(i + 2) % HB];
+    let colTot = 0;
+    for (let i = 0; i < HB; i++) colTot += hist[i];
+    let peaks = [];
+    for (let i = 0; i < HB; i++) {
+      let top = true;
+      for (let d = -2; d <= 2; d++) if (d && sm[(i + d + HB) % HB] > sm[i]) top = false;
+      let mass = 0;
+      for (let d = -2; d <= 2; d++) mass += hist[(i + d + HB) % HB];
+      if (top && mass >= colTot * TRACE.peak) peaks.push({ h: i * 6 + 3, mass: mass });
+    }
+    // たいらな 山の てっぺんが 2つ ならんだ ときは 1つに
+    peaks = peaks.filter(function (p, i) { return !peaks.some(function (o, j) { return j < i && Math.min(Math.abs(o.h - p.h), 360 - Math.abs(o.h - p.h)) < 14; }); });
+    peaks.sort(function (a, b) { return b.mass - a.mass; });
+    peaks = peaks.slice(0, 7);
+    function peakOf(hh) {
+      let bi = 0, bd = 999;
+      peaks.forEach(function (p, i) { const d = Math.min(Math.abs(p.h - hh), 360 - Math.abs(p.h - hh)); if (d < bd) { bd = d; bi = i; } });
+      return bi;
+    }
+    /* 同じ 色あいでも こさが はっきり 2つに 分かれる とき（こく ぬった 赤い 目と うすい ピンクの ほっぺ）は 2色に。
+       山ごとに 明るさを 2つに 分けて、差が 38 いじょう・どちらも 15% いじょう なら 分ける */
+    const cut = peaks.map(function () { return -1; });
+    peaks.forEach(function (p, i) {
+      const arr = [];
+      colPts.forEach(function (k) { if (hueK[k] >= 0 && peakOf(hueK[k]) === i) arr.push(lumOf(q[k * 3], q[k * 3 + 1], q[k * 3 + 2])); });
+      if (arr.length < 60) return;
+      arr.sort(function (a, b) { return a - b; });
+      let c1 = arr[Math.floor(arr.length * 0.25)], c2 = arr[Math.floor(arr.length * 0.75)];
+      let n1 = 0, n2 = 0;
+      for (let it = 0; it < 6; it++) {
+        let s1 = 0, s2 = 0; n1 = 0; n2 = 0;
+        const m = (c1 + c2) / 2;
+        arr.forEach(function (v) { if (v < m) { s1 += v; n1++; } else { s2 += v; n2++; } });
+        if (!n1 || !n2) return;
+        c1 = s1 / n1; c2 = s2 / n2;
+      }
+      if (c2 - c1 >= TRACE.split && Math.min(n1, n2) >= arr.length * 0.15) cut[i] = (c1 + c2) / 2;
+    });
+    // 色の 番号：山 i の 明るい ほう＝slot[i][0]・こい ほう＝slot[i][1]（分けない ときは 同じ）
+    const slot = [];
+    let nPal = 0;
+    peaks.forEach(function (p, i) { const a = nPal++; slot.push([a, cut[i] >= 0 ? nPal++ : a]); });
+    function classOf(k) { const i = peakOf(hueK[k]); return cut[i] >= 0 && lumOf(q[k * 3], q[k * 3 + 1], q[k * 3 + 2]) < cut[i] ? slot[i][1] : slot[i][0]; }
+    // 色ごとの 色＝その 点の 平均（こく・あざやかに）→ ゲームの こさに
+    const acc = [];
+    for (let i = 0; i < nPal; i++) acc.push([0, 0, 0, 0]);
+    colPts.forEach(function (k) {
+      if (hueK[k] < 0 || !peaks.length) return;
+      const i = classOf(k);
+      const c = vivid.apply(null, dense([q[k * 3], q[k * 3 + 1], q[k * 3 + 2]]));
+      acc[i][0] += c[0]; acc[i][1] += c[1]; acc[i][2] += c[2]; acc[i][3]++;
+    });
+    const pal = acc.map(function (a) { return gameColor(a[3] ? [a[0] / a[3], a[1] / a[3], a[2] / a[3]] : [200, 200, 200]); });
+    // ④ 色を 近くだけ ひろげる（線は こえない）。who＝どの 色か（1〜）、dist＝きょり
+    const who = new Uint8Array(n), dist = new Uint16Array(n).fill(65535);
+    let front = [];
+    colPts.forEach(function (k) {
+      if (dark[k]) return;
+      if (hueK[k] < 0 || !peaks.length) return;
+      who[k] = classOf(k) + 1; dist[k] = 0; front.push(k);
+    });
+    for (let dd = 1; dd <= TRACE.D && front.length; dd++) {
+      const nx = [];
+      for (let t = 0; t < front.length; t++) {
+        const k = front[t];
+        const x = k % W, y = (k - x) / W;
+        const nb = [x + 1 < W ? k + 1 : -1, x > 0 ? k - 1 : -1, y + 1 < H ? k + W : -1, y > 0 ? k - W : -1];
+        for (let m = 0; m < 4; m++) {
+          const kk = nb[m];
+          if (kk < 0 || !fg[kk] || lineM[kk] || dark[kk] || dist[kk] <= dd) continue;
+          dist[kk] = dd; who[kk] = who[k]; nx.push(kk);
+        }
+      }
+      front = nx;
+    }
+    // ⑤' 線で かこまれた 場所ごとに ととのえる（線を 1px ふとらせた かべで 区切る）
+    const regLog = [];
+    const regFill = new Uint8Array(n);   // 場所ごと ぬった 点
+    {
+      const wall = dilate(lineM, W, H, 1);
+      const lab = new Int32Array(n);
+      let rid = 0;
+      for (let k0 = 0; k0 < n; k0++) {
+        if (!fg[k0] || wall[k0] || lab[k0] || dark[k0]) continue;
+        rid++;
+        const mem = [k0], st = [k0];
+        lab[k0] = rid;
+        while (st.length) {
+          const k = st.pop();
+          const x = k % W, y = (k - x) / W;
+          const nb = [x + 1 < W ? k + 1 : -1, x > 0 ? k - 1 : -1, y + 1 < H ? k + W : -1, y > 0 ? k - W : -1];
+          for (let m = 0; m < 4; m++) { const kk = nb[m]; if (kk >= 0 && fg[kk] && !wall[kk] && !dark[kk] && !lab[kk]) { lab[kk] = rid; mem.push(kk); st.push(kk); } }
+        }
+        const cnt = new Int32Array(pal.length + 1);
+        let colN = 0;
+        mem.forEach(function (k) { if (dist[k] === 0 && who[k]) { cnt[who[k]]++; colN++; } });
+        let top = 0;
+        for (let t = 1; t <= pal.length; t++) if (cnt[t] > cnt[top]) top = t;
+        const cov = colN / mem.length;
+        let to = -1;
+        if (mem.length > 150) { const x0 = mem[0] % W, y0 = (mem[0] - x0) / W; regLog.push([mem.length, Math.round(cov * 100), top, 'r' + Math.round((function () { let r = 0; if (top) mem.forEach(function (k) { if (who[k] === top) r++; }); return r / mem.length * 100; })()), colN ? Math.round(cnt[top] / colN * 100) : 0, x0 + ',' + y0].join('/')); }
+        let reach = 0;
+        if (top) mem.forEach(function (k) { if (who[k] === top) reach++; });
+        reach /= mem.length;
+        /* 場所を ぜんぶ その 色に する とき：
+             ・色が ほとんど ぜんぶに とどいて いる（9わり）
+             ・うすく まばらに ぬって ある（色の 点が 2わり いか）のに 半分 いじょうに とどく＝「ぜんぶ ぬった つもり」（サメの 体）
+           こく ぬった ところが 一部だけ（ドクロの ほっぺ）の ときは ぬった ところだけ（のこりは 白） */
+        // こさで 2色に 分けた 山は 2つを あわせて 数える（1本の 色えんぴつの こい・うすいで「1色で ない」と しない）
+        let same = cnt[top];
+        slot.forEach(function (sl) { if (top && (sl[0] + 1 === top || sl[1] + 1 === top) && sl[0] !== sl[1]) same = cnt[sl[0] + 1] + cnt[sl[1] + 1]; });
+        const one = top && same >= colN * TRACE.regTop && cov >= TRACE.regCov;
+        if (one && (reach >= 0.9 || (cov <= TRACE.sparse && reach >= TRACE.reach))) to = top;
+        else if (cov < TRACE.white) to = 0;
+        if (to < 0) continue;
+        // かべの ふくらみ（線の すぐ となり）も いっしょに
+        mem.forEach(function (k) { who[k] = to; regFill[k] = 1; });
+        mem.forEach(function (k) {
+          const x = k % W, y = (k - x) / W;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+            const kk = yy * W + xx;
+            if (wall[kk] && !lineM[kk] && fg[kk] && !dark[kk]) { who[kk] = to; regFill[kk] = 1; }
+          }
+        });
+      }
+    }
+    // 色の 番号：1〜pal.length＝色、WHITE、DARK
+    const WHITE = pal.length + 1, DARK = pal.length + 2;
+    const fills = pal.map(function (c) { return c.slice(); });
+    fills.push([246, 244, 238]);
+    fills.push([62, 58, 72]);
+    // テスト用：点の しゅるいの 図（線＝黒・こい ぬり＝むらさき・とどいた 色＝その 色・白＝うすい 灰）
+    try {
+      const dc = document.createElement('canvas'); dc.width = W; dc.height = H;
+      const dd2 = dc.getContext('2d').createImageData(W, H);
+      for (let k = 0; k < n; k++) {
+        if (!fg[k]) continue;
+        const c = lineM[k] ? [0, 0, 0] : dark[k] ? [150, 60, 200] : who[k] ? pal[who[k] - 1] : [215, 215, 215];
+        dd2.data[k * 4] = c[0]; dd2.data[k * 4 + 1] = c[1]; dd2.data[k * 4 + 2] = c[2]; dd2.data[k * 4 + 3] = 255;
+      }
+      dc.getContext('2d').putImageData(dd2, 0, 0);
+      lastTraceDbg = dc.toDataURL('image/png');
+    } catch (e) { lastTraceDbg = ''; }
+    // ⑤ マス目に 落とす（絵の まわりの 余白を 切って 正方形）
+    const bw = box.x1 - box.x0 + 1, bh = box.y1 - box.y0 + 1;
+    const side = Math.max(bw, bh) * 1.04;
+    const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
+    const ox = cx - side / 2, oy = cy - side / 2, cs = side / N;
+    const M = 6;
+    const grid = new Int16Array(N * N);   // 0＝なし・-1＝線・1〜＝色の 番号
+    const lf = new Float32Array(N * N);   // マスの 中の 線の わりあい
+    const fill = new Int16Array(N * N);   // 線で なかった ときの 色
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        let tot = 0, fgN = 0, lnN = 0;
+        const votes = new Int32Array(DARK + 1);
+        for (let v = 0; v < M; v++) {
+          for (let u = 0; u < M; u++) {
+            const x = Math.floor(ox + (i + (u + 0.5) / M) * cs), y = Math.floor(oy + (j + (v + 0.5) / M) * cs);
+            tot++;
+            if (x < 0 || y < 0 || x >= W || y >= H) continue;
+            const k = y * W + x;
+            if (!fg[k]) continue;
+            fgN++;
+            if (lineM[k]) { lnN++; continue; }
+            votes[dark[k] ? DARK : who[k] && (dist[k] <= TRACE.Dfill || regFill[k]) ? who[k] : WHITE]++;
+          }
+        }
+        if (fgN < tot * 0.4) continue;
+        const c = j * N + i;
+        lf[c] = lnN / tot;
+        let best = 0, bv = 0;
+        for (let t = 1; t <= DARK; t++) if (votes[t] > bv) { bv = votes[t]; best = t; }
+        fill[c] = best;
+        grid[c] = best || -1;
+      }
+    }
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const c = j * N + i;
+        const f = lf[c];
+        if (!grid[c] || f < TRACE.line) continue;
+        const L = i > 0 ? lf[c - 1] : 0, Rr = i < N - 1 ? lf[c + 1] : 0, U = j > 0 ? lf[c - N] : 0, Dd = j < N - 1 ? lf[c + N] : 0;
+        const peak = (f >= L && f >= Rr) || (f >= U && f >= Dd) || f >= 0.5 || !fill[c];
+        if (peak) grid[c] = -1;
+      }
+    }
+    dropLoose(grid, N, WHITE);
+    // ⑥ 色の 小さな しみ（2マス いか）を まわりの 色に
+    specks(grid, N, 3);
+    // ⑥' 色の 中に ぽつんと のこった えんぴつの すじ（まわり 8マスに 線が 1つ いか・上下左右が 同じ 色）は その 色に。
+    //     白い ところの 中の 点（目の 黒い 点）は のこす
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        const c = j * N + i;
+        if (grid[c] !== -1) continue;
+        const a = grid[c - 1], b = grid[c + 1], u = grid[c - N], d = grid[c + N];
+        if (a <= 0 || a === WHITE || a !== b || a !== u || a !== d) continue;
+        let ln = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && grid[c + dy * N + dx] === -1) ln++;
+        if (ln <= 1) grid[c] = a;
+      }
+    }
+    // ⑦ 線の 色：まわり（2マス）で いちばん 多い 色（白 いがい）の こい 色。白しか ない ところは こい 紺
+    const cells = new Array(N * N).fill(null);
+    for (let c = 0; c < N * N; c++) if (grid[c] > 0) cells[c] = fills[grid[c] - 1].slice();
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const c = j * N + i;
+        if (grid[c] !== -1) continue;
+        const cnt = new Int32Array(DARK + 1);
+        let best = 0, bv = 0;
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const x = i + dx, y = j + dy;
+            if (x < 0 || y < 0 || x >= N || y >= N) continue;
+            const g = grid[y * N + x];
+            if (g <= 0 || g === WHITE) continue;
+            cnt[g]++;
+            if (cnt[g] > bv) { bv = cnt[g]; best = g; }
+          }
+        }
+        const f = best && best !== DARK ? fills[best - 1] : null;
+        cells[c] = f ? [f[0] * 0.42, f[1] * 0.42, f[2] * 0.42] : [44, 40, 58];
+      }
+    }
+    // ⑧ ブロックと 同じ 立体感：色の 面の 上の ふち（上が ちがう 色・線・そと）は 明るく、下の ふちは こく
+    const shaded = cells.map(function (c) { return c ? c.slice() : null; });
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const c = j * N + i;
+        const g = grid[c];
+        if (g <= 0) continue;
+        const up = j > 0 ? grid[c - N] : 0, dn = j < N - 1 ? grid[c + N] : 0, rt = i < N - 1 ? grid[c + 1] : 0;
+        const f = cells[c];
+        if (dn !== g || rt !== g) shaded[c] = [f[0] * TRACE.shade, f[1] * TRACE.shade, f[2] * TRACE.shade];
+        else if (up !== g) shaded[c] = [f[0] + (255 - f[0]) * TRACE.light, f[1] + (255 - f[1]) * TRACE.light, f[2] + (255 - f[2]) * TRACE.light];
+      }
+    }
+    for (let c = 0; c < N * N; c++) cells[c] = shaded[c];
+    const cvT = document.createElement('canvas');
+    cvT.width = N; cvT.height = N;
+    const odT = cvT.getContext('2d').createImageData(N, N);
+    let drawn = 0;
+    cells.forEach(function (c, k) { if (!c) return; odT.data[k * 4] = Math.round(c[0]); odT.data[k * 4 + 1] = Math.round(c[1]); odT.data[k * 4 + 2] = Math.round(c[2]); odT.data[k * 4 + 3] = 255; drawn++; });
+    cvT.getContext('2d').putImageData(odT, 0, 0);
+    // v14.5 かっこよく しあげ（形は 絵の まま・線と 色と 光を ゲームの モンスターに そろえる）
+    let cool = [];
+    try { cool = [coolTrace(grid, fills, N, WHITE, DARK, 2, { M: N })]; } catch (e) { cool = []; }   // 48マスの「つよく」（opt.strong）は 小さな 目・トゲが つぶれる ので 出さない（ユーザー決定 2026-09-14「二枚で」）
+    return { png: drawn ? cvT.toDataURL('image/png') : '', cool: cool, N: N, drawn: drawn, cells: cells, info: { eyes: lastCoolEyes, colors: pal.length, pal: pal.map(function (c) { return c.map(Math.round).join(',') + '@' + Math.round(hueOf3(c)); }), regs: regLog.sort(function (a, b) { return parseInt(b) - parseInt(a); }).slice(0, 14) } };
+  }
+  function hueOf3(c) {
+    const r = c[0], g = c[1], b = c[2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mx - mn < 12) return -1;
+    const hh = mx === r ? (g - b) / (mx - mn) : mx === g ? 2 + (b - r) / (mx - mn) : 4 + (r - g) / (mx - mn);
+    return (hh * 60 + 360) % 360;
+  }
+  function hueGap(a, b) {
+    const x = hueOf3(a), y = hueOf3(b);
+    if (x < 0 || y < 0) return x === y ? 0 : 999;
+    const d = Math.abs(x - y);
+    return Math.min(d, 360 - d);
+  }
+  // 色えんぴつの うすい 色を、子どもが ぬった つもりの 色に（色あいは そのまま・こさと あざやかさを そろえる）
+  function gameColor(c) {
+    const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+    if (mx - mn < 0.06) return c.slice();
+    const d = mx - mn;
+    const s0 = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    let hh = mx === r ? ((g - b) / d + (g < b ? 6 : 0)) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    hh *= 60;
+    const s1 = Math.min(0.9, Math.max(0.5, s0 * 1.3)), l1 = Math.min(0.7, Math.max(0.46, l * 0.9));
+    function f(nn) { const k = (nn + hh / 30) % 12; const a = s1 * Math.min(l1, 1 - l1); return Math.round(255 * (l1 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); }
+    return [f(0), f(8), f(4)];
+  }
+  /* 線だけで できた 小さな かたまり（題名の 字・紙の はしの 線）と、ほんの 小さな かけらを 消す。
+     いちばん 大きな かたまりは のこす */
+  function dropLoose(grid, N, WHITE) {
+    const lab = new Int32Array(N * N);
+    const comps = [];
+    let total = 0;
+    for (let c = 0; c < N * N; c++) if (grid[c]) total++;
+    for (let c0 = 0; c0 < N * N; c0++) {
+      if (!grid[c0] || lab[c0]) continue;
+      const mem = [c0], st = [c0];
+      lab[c0] = comps.length + 1;
+      let col = 0;
+      while (st.length) {
+        const c = st.pop();
+        if (grid[c] > 0 && grid[c] !== WHITE) col++;   // 白は 色に 数えない（字の あいだの 紙）
+        const x = c % N, y = (c - x) / N;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue;
+          const cc = yy * N + xx;
+          if (!grid[cc] || lab[cc]) continue;
+          lab[cc] = lab[c0]; mem.push(cc); st.push(cc);
+        }
+      }
+      comps.push({ mem: mem, col: col });
+    }
+    let big = 0;
+    comps.forEach(function (o, i) { if (o.mem.length > comps[big].mem.length) big = i; });
+    comps.forEach(function (o, i) {
+      if (i === big) return;
+      if ((o.col < o.mem.length * 0.2 && o.mem.length < total * 0.06) || o.mem.length < total * 0.012) o.mem.forEach(function (c) { grid[c] = 0; });
+    });
+  }
+  // 同じ 色で つながった かたまりが min マスより 小さければ、まわりで いちばん 多い 色に（線は そのまま）
+  function specks(grid, N, min) {
+    const lab = new Int32Array(N * N);
+    let id = 0;
+    for (let c0 = 0; c0 < N * N; c0++) {
+      if (grid[c0] <= 0 || lab[c0]) continue;
+      id++;
+      const mem = [c0], st = [c0];
+      lab[c0] = id;
+      while (st.length) {
+        const c = st.pop();
+        const x = c % N, y = (c - x) / N;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+          const xx = x + d[0], yy = y + d[1];
+          if (xx < 0 || yy < 0 || xx >= N || yy >= N) return;
+          const cc = yy * N + xx;
+          if (lab[cc] || grid[cc] !== grid[c0]) return;
+          lab[cc] = id; mem.push(cc); st.push(cc);
+        });
+      }
+      if (mem.length >= min) continue;
+      const cnt = {};
+      let best = 0, bv = 0;
+      mem.forEach(function (c) {
+        const x = c % N, y = (c - x) / N;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+          const xx = x + d[0], yy = y + d[1];
+          if (xx < 0 || yy < 0 || xx >= N || yy >= N) return;
+          const g = grid[yy * N + xx];
+          if (g <= 0 || g === grid[c0]) return;
+          cnt[g] = (cnt[g] || 0) + 1;
+          if (cnt[g] > bv) { bv = cnt[g]; best = g; }
+        });
+      });
+      if (best) mem.forEach(function (c) { grid[c] = best; });
+    }
+  }
+
+  /* v14.5 かっこよく しあげ（試作・ユーザー「修正されて カッコ良く なってる 方が いい」→「そのまま」と ならべて 子どもが えらぶ）。
+     「きみの 絵」の マス目（grid：0＝なし・-1＝線・1〜＝色・WHITE・DARK）から、形は 絵の まま で
+       ① 48マスに（ドットの 大きさを ゲームの モンスターと 同じに）
+       ② 大きな 色の 中の えんぴつの すじを 消す（目の 中の 点・色の さかいめの 線は のこす）
+       ③ 輪かくの ささくれ・欠け・小さな かけらを ならす
+       ④ ブロックの 光（上・左は 明るく、下・右は こく）
+       lvl 2 は さらに ⑤ 外がわに こい 色の 輪かく ⑥ 上から 下へ 3だんの 明るさ ⑦ ひとみに 光 ⑧ 色を あざやかに
+     かえり値：PNG の dataURL */
+  const COOL = { M: 48, big: 0.06, thin: 0.55, eye: 0.04 };
+  let lastCoolEyes = [];
+  function coolTrace(g0, fills, N, WHITE, DARK, lvl, opt) {
+    opt = opt || {};
+    const strong = !!opt.strong;   // つよく＝48マス・色の 中の 線を ぜんぶ 消す／ひかえめ＝絵と 同じ マス数・大きな 色の 中の すじだけ
+    const M = opt.M || COOL.M, pad = 1, IN = M - pad * 2;
+    const OUT = -2, RING = -3, PUP = -4;
+    // ① 48マスに：1マスに 入る 点を 多数決（線は 少し 強めに 数える）
+    let g = new Int16Array(M * M);
+    const S = 4;
+    for (let j = 0; j < IN; j++) {
+      for (let i = 0; i < IN; i++) {
+        const cnt = new Map();
+        let best = 0, bv = 0, none = 0;
+        for (let v = 0; v < S; v++) {
+          for (let u = 0; u < S; u++) {
+            const x = Math.floor((i + (u + 0.5) / S) * N / IN), y = Math.floor((j + (v + 0.5) / S) * N / IN);
+            const t = g0[y * N + x];
+            if (!t) { none++; continue; }
+            const w = (cnt.get(t) || 0) + (t === -1 ? 1.3 : 1);
+            cnt.set(t, w);
+            if (w > bv) { bv = w; best = t; }
+          }
+        }
+        g[(j + pad) * M + i + pad] = none > S * S * COOL.thin ? 0 : best;
+      }
+    }
+    function at(i, j) { return i < 0 || j < 0 || i >= M || j >= M ? 0 : g[j * M + i]; }
+    const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const N8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+    function flood(c0, same, nb) {
+      const mem = [c0], st = [c0], seen = new Set([c0]);
+      while (st.length) {
+        const c = st.pop(), x = c % M, y = (c - x) / M;
+        nb.forEach(function (d) {
+          const xx = x + d[0], yy = y + d[1];
+          if (xx < 0 || yy < 0 || xx >= M || yy >= M) return;
+          const cc = yy * M + xx;
+          if (!seen.has(cc) && same(cc)) { seen.add(cc); mem.push(cc); st.push(cc); }
+        });
+      }
+      return mem;
+    }
+    // 同じ 色の かたまり（4方向）
+    function regions() {
+      const lab = new Int32Array(M * M), area = [0];
+      for (let c0 = 0; c0 < M * M; c0++) {
+        if (g[c0] <= 0 || lab[c0]) continue;
+        const id = area.length, v0 = g[c0];
+        const mem = flood(c0, function (cc) { return g[cc] === v0; }, N4);
+        mem.forEach(function (c) { lab[c] = id; });
+        area.push(mem.length);
+      }
+      return { lab: lab, area: area };
+    }
+    // ② 輪かくを ならす：まわり 8マスの 6つ いじょうが 絵なら うめる・2つ いかなら けずる
+    for (let pass = 0; pass < 2; pass++) {
+      const h = g.slice();
+      for (let j = 0; j < M; j++) {
+        for (let i = 0; i < M; i++) {
+          const c = j * M + i;
+          let n8 = 0, best = 0, bv = 0;
+          const cnt = new Map();
+          N8.forEach(function (d) {
+            const v = at(i + d[0], j + d[1]);
+            if (!v) return;
+            n8++;
+            const w = (cnt.get(v) || 0) + (v === -1 ? 0.9 : 1);
+            cnt.set(v, w);
+            if (w > bv) { bv = w; best = v; }
+          });
+          const notch = (at(i - 1, j) && at(i + 1, j)) || (at(i, j - 1) && at(i, j + 1));
+          if (!g[c] && (n8 >= 6 || (strong && notch && n8 >= 5))) h[c] = best;
+          else if (g[c] && n8 <= (strong ? 2 : 1)) h[c] = 0;
+        }
+      }
+      g = h;
+    }
+    // 小さな かけら（いちばん 大きな かたまり いがいで 1% みまん）を 消す
+    let total = 0;
+    {
+      const done = new Uint8Array(M * M), groups = [];
+      for (let c0 = 0; c0 < M * M; c0++) {
+        if (!g[c0] || done[c0]) continue;
+        const mem = flood(c0, function (cc) { return !!g[cc]; }, N8);
+        mem.forEach(function (c) { done[c] = 1; });
+        groups.push(mem);
+      }
+      let bigI = 0;
+      groups.forEach(function (m, i) { if (m.length > groups[bigI].length) bigI = i; });
+      for (let c = 0; c < M * M; c++) if (g[c]) total++;
+      groups.forEach(function (m, i) { if (i !== bigI && m.length < total * 0.01) m.forEach(function (c) { g[c] = 0; }); });
+      total = 0;
+      for (let c = 0; c < M * M; c++) if (g[c]) total++;
+    }
+    let R0 = regions();
+    if (lvl >= 2) {
+      /* ③ かっこよく：色の 中の えんぴつの すじ（まわりが 1つの 色だけ）を その 色に。
+           目・歯・白い ところの ふち・色の さかいめの 線は のこす（絵の 顔つきは この 線で できて いる）。
+           外がわの 輪かくは あとで 外に 1マス 描き直す */
+      // ひとみ：小さな 線の かたまり（8マス いか）が 小さな 1つの 場所（色でも 白でも）に かこまれて いる → まもる
+      const seen = new Uint8Array(M * M);
+      for (let c0 = 0; c0 < M * M; c0++) {
+        if (g[c0] !== -1 || seen[c0]) continue;
+        const mem = flood(c0, function (cc) { return g[cc] === -1; }, N8);
+        mem.forEach(function (c) { seen[c] = 1; });
+        if (mem.length > 8) continue;
+        let L = 0, ok = true, small = true;
+        mem.forEach(function (c) {
+          const x = c % M, y = (c - x) / M;
+          N8.forEach(function (d) {
+            const xx = x + d[0], yy = y + d[1], v = at(xx, yy);
+            if (v === -1) return;
+            if (v <= 0 || (L && v !== L)) ok = false;
+            L = v;
+            if (v > 0 && R0.area[R0.lab[yy * M + xx]] > total * COOL.eye) small = false;
+          });
+        });
+        if (ok && L && L !== DARK && small) mem.forEach(function (c) { g[c] = PUP; });
+      }
+      // すじを 消す（外から 内へ 何回か）
+      for (let pass = 0; pass < 4; pass++) {
+        const RR = regions(), h = g.slice();
+        let changed = 0;
+        for (let j = 0; j < M; j++) {
+          for (let i = 0; i < M; i++) {
+            const c = j * M + i;
+            if (g[c] !== -1) continue;
+            let L = 0, one = true, big = strong;
+            N8.forEach(function (d) {
+              const v = at(i + d[0], j + d[1]);
+              if (v <= 0) return;
+              if (L && v !== L) one = false;
+              L = v;
+              if (RR.area[RR.lab[(j + d[1]) * M + i + d[0]]] >= total * COOL.big) big = true;
+            });
+            if (one && L && L !== WHITE && big) { h[c] = L; changed++; }
+          }
+        }
+        g = h;
+        if (!changed) break;
+      }
+      // 色の ぶちを ならす（まわり 8マスの 5つ いじょうが ほかの 色なら その 色。白・線・ひとみは さわらない）
+      for (let pass = 0; pass < 2; pass++) {
+        const h = g.slice();
+        for (let j = 0; j < M; j++) {
+          for (let i = 0; i < M; i++) {
+            const c = j * M + i;
+            if (g[c] <= 0 || g[c] === WHITE) continue;
+            const cnt = new Map();
+            let best = 0, bv = 0;
+            N8.forEach(function (d) {
+              const v = at(i + d[0], j + d[1]);
+              if (v <= 0 || v === WHITE) return;
+              const w = (cnt.get(v) || 0) + 1;
+              cnt.set(v, w);
+              if (w > bv) { bv = w; best = v; }
+            });
+            if (best && best !== g[c] && bv >= (strong ? 5 : 6)) h[c] = best;
+          }
+        }
+        g = h;
+      }
+    } else {
+      // すっきり：大きな 色（白 いがい）の 中の えんぴつの すじだけ その 色に。外に 面した 線（輪かく）・小さな 場所の 中の 点は のこす
+      for (let pass = 0; pass < 3; pass++) {
+        const R = regions(), h = g.slice();
+        for (let j = 0; j < M; j++) {
+          for (let i = 0; i < M; i++) {
+            const c = j * M + i;
+            if (g[c] !== -1) continue;
+            let L = 0, ok = true, big = false;
+            for (let t = 0; t < 8 && ok; t++) {
+              const xx = i + N8[t][0], yy = j + N8[t][1], v = at(xx, yy);
+              if (!v) ok = false;
+              else if (v > 0) {
+                if (L && v !== L) ok = false;
+                L = v;
+                if (R.area[R.lab[yy * M + xx]] >= total * COOL.big) big = true;
+              }
+            }
+            if (ok && L && L !== WHITE && big) h[c] = L;
+          }
+        }
+        g = h;
+      }
+    }
+    // 色の 中の 1マスの しみ（まわり 8マス ぜんぶ ほかの 同じ 色）
+    {
+      const h = g.slice();
+      for (let j = 1; j < M - 1; j++) {
+        for (let i = 1; i < M - 1; i++) {
+          const c = j * M + i;
+          if (g[c] <= 0) continue;
+          const v0 = at(i - 1, j - 1);
+          if (v0 <= 0 || v0 === g[c]) continue;
+          if (N8.every(function (d) { return at(i + d[0], j + d[1]) === v0; })) h[c] = v0;
+        }
+      }
+      g = h;
+    }
+    /* ⑦ 目を はっきり（lvl2）：子どもが 線で かこんだ 丸（＝目）を もとの マス目（g0）で さがし、
+         同じ 場所・同じ 大きさで「こい ふち＋白目（か 色の ひとみ）＋黒目＋光」に 描き直す。
+         黒目の 場所は 子どもが 丸の 中に かいた 点（線）に 合わせる（よこを 見て いる 目は よこを 見た まま） */
+    const eyeGlint = new Uint8Array(M * M), iris = new Uint8Array(M * M), eyeIn = new Uint8Array(M * M);
+    if (lvl >= 2) {
+      const n0 = N * N, wall = new Uint8Array(n0), out = new Uint8Array(n0);
+      let bx0 = N, by0 = N, bx1 = -1, by1 = -1;
+      for (let k = 0; k < n0; k++) {
+        if (!g0[k]) continue;
+        const x = k % N, y = (k - x) / N;
+        if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y;
+        if (g0[k] !== -1) continue;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx >= 0 && yy >= 0 && xx < N && yy < N) wall[yy * N + xx] = 1;
+        }
+      }
+      const st = [];
+      for (let t = 0; t < N; t++) [t, (N - 1) * N + t, t * N, t * N + N - 1].forEach(function (k) { if (!wall[k] && !out[k]) { out[k] = 1; st.push(k); } });
+      while (st.length) {
+        const k = st.pop(), x = k % N, y = (k - x) / N;
+        N4.forEach(function (d) {
+          const xx = x + d[0], yy = y + d[1];
+          if (xx < 0 || yy < 0 || xx >= N || yy >= N) return;
+          const kk = yy * N + xx;
+          if (!wall[kk] && !out[kk]) { out[kk] = 1; st.push(kk); }
+        });
+      }
+      const bw = bx1 - bx0 + 1, bh = by1 - by0 + 1, area = bw * bh;
+      const seen = new Uint8Array(n0), found = [];
+      for (let k0 = 0; k0 < n0; k0++) {
+        if (seen[k0] || wall[k0] || out[k0]) continue;
+        const q = [k0], cnt = new Map(), mem = [];
+        seen[k0] = 1;
+        let n = 0, x0 = N, y0 = N, x1 = -1, y1 = -1;
+        while (q.length) {
+          const k = q.pop(), x = k % N, y = (k - x) / N;
+          n++; mem.push(k);
+          if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+          const v = g0[k];
+          if (v > 0) cnt.set(v, (cnt.get(v) || 0) + 1);
+          N4.forEach(function (d) {
+            const xx = x + d[0], yy = y + d[1];
+            if (xx < 0 || yy < 0 || xx >= N || yy >= N) return;
+            const kk = yy * N + xx;
+            if (!seen[kk] && !wall[kk] && !out[kk]) { seen[kk] = 1; q.push(kk); }
+          });
+        }
+        const w = x1 - x0 + 1, h = y1 - y0 + 1, ar = w / h;
+        if (n < area * 0.002 || n > area * 0.05 || ar < 0.45 || ar > 2.2 || n < w * h * 0.42 || (y0 + y1) / 2 - by0 > bh * 0.75) continue;
+        let col = 0, cv = 0;
+        cnt.forEach(function (v, key) { if (v > cv) { cv = v; col = key; } });
+        // 丸の 中の 色が まわり（外がわ 3マス）の 色と ちがう ときだけ 目（体の 中の ぬりわけの 線で できた 丸は 目で ない）
+        if (!col || cv < n * 0.5) continue;
+        const inC = new Set(mem), around = new Map();
+        let av = 0, ac = 0;
+        mem.forEach(function (k) {
+          const x = k % N, y = (k - x) / N;
+          N4.forEach(function (d) {
+            for (let r = 1; r <= 6; r++) {
+              const xx = x + d[0] * r, yy = y + d[1] * r;
+              if (xx < 0 || yy < 0 || xx >= N || yy >= N) break;
+              const kk = yy * N + xx;
+              if (inC.has(kk)) break;
+              if (wall[kk]) continue;   // 丸の 線（と その すぐ そば）は とばす
+              const v = g0[kk];
+              if (v > 0) { const w = (around.get(v) || 0) + 1; around.set(v, w); if (w > av) { av = w; ac = v; } break; }
+            }
+          });
+        });
+        // 目＝白い 丸（まわりは 色）か、白い 顔の 中の 色の 丸。色の 中の 色の 丸（体の ぬりわけ）は 目に しない
+        if (ac === col || !(col === WHITE || ac === WHITE) || col === DARK) continue;
+        found.push({ x0: x0 - 1, y0: y0 - 1, x1: x1 + 1, y1: y1 + 1, n: n, col: col });
+      }
+      found.sort(function (a, b) { return b.n - a.n; });
+      lastCoolEyes = found.slice(0, 14).map(function (e) { return [e.x0, e.y0, e.x1 - e.x0 + 1, e.y1 - e.y0 + 1, e.col].join(','); });
+      found.slice(0, 14).forEach(function (e) {
+        // 子どもが 丸の 中に かいた 点（線）＝黒目の 場所
+        let px = 0, py = 0, pn = 0;
+        for (let y = e.y0 + 1; y < e.y1; y++) for (let x = e.x0 + 1; x < e.x1; x++) if (g0[y * N + x] === -1) { px += x; py += y; pn++; }
+        const cx = (e.x0 + e.x1) / 2, cy = (e.y0 + e.y1) / 2;
+        const tx = pn ? px / pn : cx, ty = pn ? py / pn : cy;
+        const k = IN / N;
+        // 48マスでの 目（白目 2マス いじょう）
+        let ex0 = Math.round(pad + e.x0 * k), ey0 = Math.round(pad + e.y0 * k), ex1 = Math.round(pad + (e.x1 + 1) * k) - 1, ey1 = Math.round(pad + (e.y1 + 1) * k) - 1;
+        if (ex1 - ex0 < 1) ex1 = ex0 + 1;
+        if (ey1 - ey0 < 1) ey1 = ey0 + 1;
+        const ecx = (ex0 + ex1) / 2, ecy = (ey0 + ey1) / 2, rx = (ex1 - ex0 + 1) / 2, ry = (ey1 - ey0 + 1) / 2;
+        const colored = e.col && e.col !== WHITE && e.col !== DARK;
+        function inside(i, j, grow) { const u = (i - ecx) / (rx + grow), v = (j - ecy) / (ry + grow); return u * u + v * v <= 1.08; }
+        for (let j = ey0 - 1; j <= ey1 + 1; j++) {
+          for (let i = ex0 - 1; i <= ex1 + 1; i++) {
+            if (i < 0 || j < 0 || i >= M || j >= M) continue;
+            const c = j * M + i;
+            const small = rx < 1.6 || ry < 1.6;
+            const inn = small ? (i >= ex0 && i <= ex1 && j >= ey0 && j <= ey1) : inside(i, j, 0);
+            if (inn) { g[c] = colored ? e.col : WHITE; iris[c] = colored ? 1 : 0; eyeIn[c] = 1; }
+            else if ((small || inside(i, j, 1)) && !eyeIn[c]) g[c] = RING;
+          }
+        }
+        // 黒目：目の 大きさの 4わり（1〜3マス）
+        const ps = Math.max(1, Math.min(3, Math.round(Math.min(rx, ry) * 0.8)));
+        const pcx = Math.min(ex1, Math.max(ex0, Math.round(pad + (tx + 0.5) * k - ps / 2))), pcy = Math.min(ey1, Math.max(ey0, Math.round(pad + (ty + 0.5) * k - ps / 2)));
+        for (let j = pcy; j < pcy + ps && j <= ey1; j++) for (let i = pcx; i < pcx + ps && i <= ex1; i++) g[j * M + i] = PUP;
+        // 光：黒目の 左上（黒目が 2マス いじょう なら 黒目の 中、1マスなら 白目の 左上）
+        if (ps >= 2) eyeGlint[pcy * M + pcx] = 1;
+        else if (colored) { const gi = Math.max(ex0, pcx - 1), gj = Math.max(ey0, pcy - 1); if (g[gj * M + gi] !== PUP) eyeGlint[gj * M + gi] = 1; }
+      });
+    }
+    // 外がわの 輪かく（lvl2）：絵の となりの 空いた マスに こい 色の 輪かく
+    if (lvl >= 2) {
+      const h = g.slice();
+      for (let j = 0; j < M; j++) {
+        for (let i = 0; i < M; i++) {
+          if (g[j * M + i]) continue;
+          let touch = false;
+          N4.forEach(function (d) { const v = at(i + d[0], j + d[1]); if (v > 0 || v === RING || v === PUP) touch = true; });
+          if (touch) h[j * M + i] = OUT;
+        }
+      }
+      g = h;
+    }
+    // 色を つける
+    function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+    function mul(a, k) { return [a[0] * k, a[1] * k, a[2] * k]; }
+    function sat(a, k) { const m = (a[0] + a[1] + a[2]) / 3; return a.map(function (v) { return Math.max(0, Math.min(255, m + (v - m) * k)); }); }
+    function base(v) {
+      if (v === DARK) return lvl >= 2 ? [58, 52, 84] : [62, 58, 72];
+      if (v === WHITE) return [246, 244, 238];
+      const f = fills[v - 1];
+      return lvl >= 2 ? sat(f, 1.15) : f.slice();
+    }
+    const R = regions();
+    const ry0 = [], ry1 = [];
+    for (let c = 0; c < M * M; c++) {
+      const id = R.lab[c];
+      if (!id) continue;
+      const y = (c - c % M) / M;
+      if (ry0[id] === undefined || y < ry0[id]) ry0[id] = y;
+      if (ry1[id] === undefined || y > ry1[id]) ry1[id] = y;
+    }
+    // 線の 色：まわり 2マスで いちばん 多い 色（白 いがい）の こい 色
+    function lineColor(i, j) {
+      const cnt = new Map();
+      let best = 0, bv = 0;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const v = at(i + dx, j + dy);
+        if (v <= 0 || v === WHITE) continue;
+        const w = (cnt.get(v) || 0) + 1;
+        cnt.set(v, w);
+        if (w > bv) { bv = w; best = v; }
+      }
+      const f = best && best !== DARK ? base(best) : null;
+      if (!f) return lvl >= 2 ? [34, 28, 52] : [44, 40, 58];
+      return lvl >= 2 ? mix(mul(f, 0.32), [30, 22, 60], 0.3) : mul(f, 0.42);
+    }
+    // ひとみの 光：ひとみの かたまりの 左上
+    const glint = new Uint8Array(M * M);
+    {
+      const seen = new Uint8Array(M * M);
+      for (let c0 = 0; c0 < M * M; c0++) {
+        if (g[c0] !== PUP || seen[c0]) continue;
+        const mem = flood(c0, function (cc) { return g[cc] === PUP; }, N8);
+        mem.forEach(function (c) { seen[c] = 1; });
+        if (mem.length < 3) continue;
+        let tl = mem[0];
+        mem.forEach(function (c) { const x = c % M, y = (c - x) / M, tx = tl % M, ty = (tl - tx) / M; if (y < ty || (y === ty && x < tx)) tl = c; });
+        glint[tl] = 1;
+      }
+    }
+    const cv = document.createElement('canvas');
+    cv.width = M; cv.height = M;
+    const od = cv.getContext('2d').createImageData(M, M);
+    for (let j = 0; j < M; j++) {
+      for (let i = 0; i < M; i++) {
+        const c = j * M + i, v = g[c];
+        if (!v) continue;
+        let col;
+        if (v === PUP) col = glint[c] ? [250, 250, 255] : [22, 18, 34];
+        else if (v === -1 || v === OUT || v === RING) col = lineColor(i, j);
+        else {
+          col = base(v);
+          if (lvl >= 2) {
+            const id = R.lab[c], hh = ry1[id] - ry0[id] + 1;
+            if (iris[c]) col = mix(sat(col, 1.25), [255, 255, 255], 0.1);
+            else if (hh >= 6 && v !== WHITE) { const t = (j - ry0[id]) / hh; col = t < 0.34 ? mix(col, [255, 250, 235], 0.14) : t < 0.67 ? col : mul(col, 0.84); }
+          }
+          const up = at(i, j - 1), dn = at(i, j + 1), lf = at(i - 1, j), rt = at(i + 1, j);
+          if (dn !== v || rt !== v) col = mul(col, lvl >= 2 ? 0.72 : 0.78);
+          else if (up !== v) col = mix(col, [255, 255, 255], lvl >= 2 ? 0.38 : 0.28);
+          else if (lf !== v) col = mix(col, [255, 255, 255], 0.14);
+        }
+        if (eyeGlint[c]) col = [252, 252, 255];
+        od.data[c * 4] = Math.round(col[0]); od.data[c * 4 + 1] = Math.round(col[1]); od.data[c * 4 + 2] = Math.round(col[2]); od.data[c * 4 + 3] = 255;
+      }
+    }
+    cv.getContext('2d').putImageData(od, 0, 0);
+    return cv.toDataURL('image/png');
+  }
+
+  /* </trace> */
+
   function build() {
     if (!img) return '';
     const cv = workCanvas(img, crop);
@@ -1152,6 +1994,12 @@ MQ.ui.photo = (function () {
     fg = keepMain(fg, W, H);
     const box = bbox(fg, W, H);
     if (!box || box.n < 30) { lastInfo = { empty: true, thr: thr }; return ''; }
+    // 絵の まま（ぬりえ方式・v14.4）：モンスターの 候補の 先頭「きみの 絵」／しあげ4（テスト用）は これだけ
+    const traced = traceCells(q, fg, W, H, box, lineD, lineS, cleanMode === 4 && size === 48 ? 48 : 64);   // 64マス（目や 字など こまかい ところが のこる・3D の 面は ふつうの モンスターと 同じ くらい）
+    if (cleanMode === 4) {
+      lastInfo = { size: traced.N, clean: 4, drawn: traced.drawn, trace: traced.info, box: box };
+      return traced.png;
+    }
     // はこ（たからばこ・わく）の 中に 生きものが いる 絵（v5.7）：中の 生きものだけの マスクも 作る（候補に ミミックと 中の 生きものを 出す ため）
     const inn = cleanMode === 3 ? innerFigure(fg, q, W, H, lineD) : null;
     const innerFg = inn ? keepMain(inn.fg, W, H) : null;
@@ -1249,6 +2097,12 @@ MQ.ui.photo = (function () {
         list = cellsI && MQ.monsterGen.variantsInner ? MQ.monsterGen.variantsInner(cells, cellsI, N, want) : MQ.monsterGen.variants(cells, N, want);
         // AIが 見て くれた ときは その すがたを 先頭に（v6.0）
         if (aiSee && aiSee.kinds && MQ.monsterGen.withFirst) list = MQ.monsterGen.withFirst(list, aiSee.kinds);
+      }
+      // v14.4 いちばん 先頭は「きみの 絵」＝絵の 形と 色 そのまま（ユーザー「絵の 再現性を 一番 こだわって」）
+      if (traced.png && traced.drawn >= 40) {
+        const tl = [{ kind: 'trace', tag: 'trace', trace: true, png: traced.png }];
+        (traced.cool || []).forEach(function (png) { if (png) tl.push({ kind: 'trace', tag: 'cool', trace: true, png: png }); });   // v14.5 かっこよく しあげ（形と 色は 絵の まま）
+        list = tl.concat(list);
       }
       if (list.length) {
         picks = list;
@@ -1576,11 +2430,12 @@ MQ.ui.photo = (function () {
       if (p.letters && letterPick.length && MQ.monsterGen.letterPng) return MQ.monsterGen.letterPng(letterPick, p.cols || null);
       return p.png;
     }
+    function pickName(p) { return p.trace ? (p.tag === 'cool' ? 'かっこよく' : 'そのまま') : MQ.monsterGen.kindName ? MQ.monsterGen.kindName(p.tag || p.kind) : ''; }
     // 候補 1体ぶんの タイル（絵＋名前）
-    function pickTile(p, i) {
+    function pickTile(p, i, big) {
       return h('button', {
-        class: 'photo__pick' + (i === pickAt ? ' is-on' : ''), type: 'button',
-        title: MQ.monsterGen.kindName ? MQ.monsterGen.kindName(p.tag || p.kind) : '',
+        class: 'photo__pick' + (big ? ' photo__pick--big' : '') + (i === pickAt ? ' is-on' : ''), type: 'button',
+        title: pickName(p),
         onclick: function () {
           if (pickAt === i) return;
           pickAt = i; MQ.sfx.tap();
@@ -1588,7 +2443,7 @@ MQ.ui.photo = (function () {
         }
       }, [
         h('img', { class: 'photo__pickimg', src: pickPng(p), alt: '' }),
-        h('span', { class: 'photo__pickname', text: MQ.monsterGen.kindName ? MQ.monsterGen.kindName(p.tag || p.kind) : '' })
+        h('span', { class: 'photo__pickname', text: pickName(p) })
       ]);
     }
     function paintPicks() {
@@ -1602,8 +2457,14 @@ MQ.ui.photo = (function () {
         b.classList.toggle('is-on', b.getAttribute('data-g') === showGroup);
       });
       if (!on) return;
-      pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'おすすめ' }));
-      picks.slice(0, 12).forEach(function (p, i) { pickRow.appendChild(pickTile(p, i)); });
+      /* v14.5 きみの 絵（そのまま／かっこよく）は 大きな 2枚。はじめは「そのまま」（ユーザー決定 2026-09-14）。
+         組み立ての すがたは その 下に 小さく（「ほかの すがた」） */
+      const mine = h('div', { class: 'photo__mine' });
+      picks.forEach(function (p, i) { if (p.trace) mine.appendChild(pickTile(p, i, true)); });
+      if (mine.children.length) { pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'きみの 絵' })); pickRow.appendChild(mine); }
+      pickRow.appendChild(h('span', { class: 'photo__lbl', text: mine.children.length ? 'ほかの すがた' : 'おすすめ' }));
+      let shown = 0;
+      picks.forEach(function (p, i) { if (!p.trace && shown < 12) { pickRow.appendChild(pickTile(p, i)); shown++; } });
       if (!showGroup) return;
       // えらんだ なかまの すがただけ ならべる（v6.2）
       picks.forEach(function (p, i) {
@@ -1813,6 +2674,7 @@ MQ.ui.photo = (function () {
       const mon = { id: 'my-' + MQ.util.uid(), name: name, area: areaId, png: outUrl };
       if (aiUsed) mon.ai = true;
       if (edited) mon.edited = true;
+      if (cleanMode === 3 && picks[pickAt] && picks[pickAt].trace && !aiUsed) mon.trace = true;   // v14.4 きみの 絵（直しても 形は 絵の まま）
       const how = aiUsed ? '（AIで かっこよく）' : edited && !img ? '（ドット絵を じぶんで かいた）' : edited ? '（ドットを 直した）' : '';
       // 3段階に 育つ ように、つの つき／かんむり つきの 絵も いっしょに 作る（v8.2）
       MQ.ui.growCustom(mon, function () {
@@ -1943,7 +2805,7 @@ MQ.ui.photo = (function () {
     }
     a.getContext('2d').putImageData(ad, 0, 0);
     b.getContext('2d').putImageData(bd, 0, 0);
-    return { norm: a.toDataURL('image/jpeg', 0.85), cls: b.toDataURL('image/png'), thr: thr, lineD: lineD, lineS: lineS };
+    return { norm: a.toDataURL('image/jpeg', 0.85), cls: cleanMode === 4 && lastTraceDbg ? lastTraceDbg : b.toDataURL('image/png'), thr: thr, lineD: lineD, lineS: lineS };
   }
 
   return {
@@ -1953,7 +2815,7 @@ MQ.ui.photo = (function () {
     inner: function () { return lastInner; },   // テスト用：はこの 中の 生きものの 見わけ（v5.7）
     debug: debugImages,
     crop: function () { return crop; },
-    picks: function () { return picks.map(function (p) { return { kind: p.kind, png: p.png, letters: p.letters || null }; }); },   // テスト用：候補
+    picks: function () { return picks.map(function (p) { return { kind: p.kind, png: p.png, letters: p.letters || null, trace: !!p.trace }; }); },   // テスト用：候補
     setLetters: function (a) { letterPick = a ? a.slice() : []; },   // テスト用：もじを えらぶ
     partsImg: function () { return lastCells && MQ.monsterGen.partsImg ? MQ.monsterGen.partsImg(lastCells.cells, lastCells.N) : null; },
     build: build,

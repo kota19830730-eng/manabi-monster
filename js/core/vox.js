@@ -572,7 +572,8 @@ MQ.vox = (function () {
      → よこ・上下の 面を 手まえに EPS だけ 長く して すきまを ふさぐ */
   const EPS = 0.6;   // 右と 下の 面を 0.6px 手まえに 出す（前の 面との つぎめに 空が すけない・ドラゴンの はねで 実測）
   function buildBox(r, U, front, atlas) {
-    const w = r.w * U, h = r.h * U, d = r.d * U, dd = d + EPS;
+    const E = r.noEps ? 0 : EPS;                                      // v14.4 型ぬき（slab）は 前の 面が 1まい＝手まえに 出すと 絵を つきぬけて 線に 見える
+    const w = r.w * U, h = r.h * U, d = r.d * U, dd = d + E;
     const box = document.createElement('div');
     box.className = 'b';
     box.style.left = (r.x * U) + 'px';
@@ -613,14 +614,14 @@ MQ.vox = (function () {
     const TC = m.T ? m.T.cols : r.T, TW = (m.T ? m.T.n : r.w) * U;
     const BC = m.B ? m.B.cols : r.B, BW = (m.B ? m.B.n : r.w) * U;
     // 右（rotateY(90deg) は うしろへ のびる・法線 +x＝外むき）
-    if (fl.R) box.faces.R = box.appendChild(tex(face(dd, RH, 'translateX(' + w + 'px) translateZ(' + EPS + 'px) rotateY(90deg)', 'left center'), RC, 'right', 'x', false));
+    if (fl.R) box.faces.R = box.appendChild(tex(face(dd, RH, 'translateX(' + w + 'px) translateZ(' + E + 'px) rotateY(90deg)', 'left center'), RC, 'right', 'x', false));
     // 左（rotateY(90deg) を 左はしに・v12.0 と 同じ）
     if (fl.L) box.faces.L = box.appendChild(tex(face(d, LH, 'rotateY(90deg)', 'left center'), LC, 'left', 'x', false));
     /* 上・下の 面は **はば いっぱい**に つける。となりの 箱に かくれる ぶんは ⑦ で はぶく。
        ふちだけに すると 箱の 中が あいて いて、かんせつで 回した とき（たおれる・歩く）に
        中＝前の 面の うら（顔）が 見えた（ユーザー「首に 顔が ある」）。 */
     if (fl.T) box.faces.T = box.appendChild(tex(face(TW, d, 'rotateX(-90deg)', 'left top'), TC, 'top', 'y', false));
-    if (fl.B) box.faces.B = box.appendChild(tex(face(BW, dd, 'translateY(' + h + 'px) translateZ(' + EPS + 'px) rotateX(-90deg)', 'left top'), BC, r.litB || 'bottom', 'y', false));
+    if (fl.B) box.faces.B = box.appendChild(tex(face(BW, dd, 'translateY(' + h + 'px) translateZ(' + E + 'px) rotateX(-90deg)', 'left top'), BC, r.litB || 'bottom', 'y', false));
     box.dataset.f = (fl.back ? 'k' : '') + (fl.L ? 'L' : '') + (fl.R ? 'R' : '') + (fl.T ? 'T' : '') + (fl.B ? 'B' : '') + (r.m ? '+' : '');   // 検査用：どの 面が あるか
     return box;
   }
@@ -913,6 +914,28 @@ MQ.vox = (function () {
     const thick = Math.max(6, Math.min(18, Math.round(Math.min(b.x1 - b.x0, b.y1 - b.y0) * 0.42)));
     const boxes = solidBoxes(g, opts.max || thick, null, true);
     const wrap = wrapOf(size * U);
+    /* v14.4 絵の まま（ぬりえ方式）の モンスター＝クッキーの 型ぬき：
+       ・ぜんぶ 同じ 厚み（子どもの 絵の ギザギザな 形で 行ごとに 厚みを 変えると、厚みの ちがう 板が かさなって よこ すじに 見える）
+       ・前の 面は 絵 1まい（箱ごとの 前の 面は 作らない＝箱の つぎめの 線が 出ない・面も へる）
+       ・部品は 体 1つ（前の 面が 1まいなので あしだけ 動かせない。体の ゆれ・フェイントは そのまま） */
+    if (opts.slab) {
+      const T = opts.max || thick;
+      boxes.forEach(function (r) { r.d = T; r.noEps = true; });
+      if (opts.shadow !== false) wrap.appendChild(floorShadow(size * U, T * U, b.x0 * U, b.x1 * U, b.y1 * U));
+      const parts = [{ cls: 'body', joint: [(b.x0 + b.x1) / 2, b.y1], boxes: boxes }];
+      assemble(wrap, parts, U, function (r) { return buildBox(r, U, document.createComment('f'), atlas); }, opts.hide);
+      const plane = face(size * U, size * U, 'translateZ(' + (T * U / 2 + 0.25) + 'px)', null);
+      plane.classList.add('v3__slab');
+      plane.style.backgroundImage = 'url(' + src + ')';
+      plane.style.backgroundSize = (size * U) + 'px ' + (size * U) + 'px';
+      plane.style.imageRendering = 'pixelated';
+      wrap.querySelector('.p--body').appendChild(plane);
+      atlas.finish(U);
+      wrap.dataset.boxes = boxes.length;
+      wrap.dataset.grid = size;
+      wrap.dataset.slab = '1';
+      return wrap;
+    }
     if (opts.shadow !== false) wrap.appendChild(floorShadow(size * U, thick * U, b.x0 * U, b.x1 * U, b.y1 * U));
     const makeBox = function (r) {
       const front = frontFace(r.w * U, r.h * U);

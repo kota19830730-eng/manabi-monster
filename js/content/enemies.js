@@ -487,6 +487,9 @@ MQ.enemies = (function () {
     if (!e) return MQ.blocks.box([], {}, { size: size, cls: cls });
     // 写真から 作った モンスターだけは 画像（それ いがいは ぜんぶ div）
     if (e.png) return MQ.blocks.imgBox(e.png, { size: size, cls: cls, alt: e.name });
+    // 息子さんの 4体は えらんだ すがた（そのまま／かっこよく・v14.5）。まだ 見て いない かげは いつもの 絵
+    const skin = !opts.shadow && !opts.official && MQ.sonSkin ? MQ.sonSkin.pngFor(id) : null;
+    if (skin) return MQ.blocks.imgBox(skin, { size: size, cls: cls, alt: e.name });
     const drawn = MQ.art && MQ.art.enemies && MQ.art.enemies[id];
     if (drawn && !opts.enrage) return MQ.blocks.imgBox(drawn, { size: size, cls: cls, alt: e.name });
     const box = MQ.blocks.box(shapes[e.shape] || [], paletteOf(e, opts.enrage), { size: size, cls: cls, raw: true });
@@ -607,13 +610,13 @@ MQ.enemies = (function () {
       const line = 'my-' + m.id;
       const grown = !!(m.png2 && m.png3);
       customs.push({
-        id: m.id, name: m.name, area: m.area, png: m.png, rare: true, by: 'photo',
+        id: m.id, name: m.name, area: m.area, png: m.png, rare: true, by: 'photo', trace: !!m.trace,
         line: grown ? line : null, stage: grown ? 1 : null, evo: grown ? m.id + '-2' : null
       });
       if (!grown) return;
-      customs.push({ id: m.id + '-2', name: 'つよい ' + m.name, area: m.area, png: m.png2, rare: true, by: 'photo',
+      customs.push({ id: m.id + '-2', name: 'つよい ' + m.name, area: m.area, png: m.png2, rare: true, by: 'photo', trace: !!m.trace,
                      line: line, stage: 2, evo: m.id + '-3', evoOnly: true });
-      customs.push({ id: m.id + '-3', name: 'でんせつの ' + m.name, area: m.area, png: m.png3, rare: true, by: 'photo',
+      customs.push({ id: m.id + '-3', name: 'でんせつの ' + m.name, area: m.area, png: m.png3, rare: true, by: 'photo', trace: !!m.trace,
                      line: line, stage: 3, evoOnly: true });
     });
     customs.forEach(function (m) { byId[m.id] = m; });

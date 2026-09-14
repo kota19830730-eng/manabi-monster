@@ -61,7 +61,7 @@
     const U = opts.unit || unitFor(size);
     const ry = opts.ry == null ? -22 : opts.ry;
     const sc = scene(size, ry, 48 * U, opts.cls);
-    const key = id + '|' + U + '|' + (opts.enrage ? 1 : 0) + '|' + (hideFor(ry, opts) || '-');
+    const key = id + '|' + U + '|' + (opts.enrage ? 1 : 0) + '|' + (hideFor(ry, opts) || '-') + (MQ.sonSkin ? '|' + MQ.sonSkin.keyOf(id) : '');   // v14.5 すがたを かえたら 作り直す
     if (monCache[key]) return put(sc, monCache[key].cloneNode(true), opts.mo || 'mo-menace');
     const holder = MQ.enemies.node(id, { size: 48, enrage: !!opts.enrage });
     const bx = holder.querySelector('.bx');
@@ -72,7 +72,8 @@
     const img = new Image();
     img.onload = function () {
       const grid = Math.min(img.naturalWidth || 48, 64);
-      const v = MQ.vox.fromImage(img, png.src, { unit: U, size: grid, hide: hideFor(ry, opts) });
+      const me = MQ.enemies.get && MQ.enemies.get(id);
+      const v = MQ.vox.fromImage(img, png.src, { unit: U, size: grid, hide: hideFor(ry, opts), slab: !!(me && me.trace) || !!(MQ.sonSkin && MQ.sonSkin.keyOf(id)) });   // v14.4 絵の まま＝同じ 厚み
       if (!v) return;
       // 器は 48マスの つもりで 作って ある → 大きさを 合わせ直す
       const k = size / (grid * U);

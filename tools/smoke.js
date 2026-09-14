@@ -1309,7 +1309,34 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(!MQ.enemies.get('my-2').evo, 'むかしの セーブ（絵が 1つ）は そのまま');
   const rare = MQ.enemies.rareIdsFor('sansu');
   check(rare.indexOf('my-1') >= 0 && rare.indexOf('my-1-2') < 0, 'レアに 出るのは 1段階めだけ');
+  // v14.4 きみの 絵（ぬりえ方式）の しるしは 3段階 ぜんぶに つく（3D は 型ぬき＝同じ 厚み・前の 面 1まい）
+  MQ.enemies.setCustom([{ id: 'my-3', name: 'きみ', area: 'sansu', png: 'data:1', png2: 'data:2', png3: 'data:3', trace: true }]);
+  check(!!MQ.enemies.get('my-3').trace && !!MQ.enemies.get('my-3-2').trace && !!MQ.enemies.get('my-3-3').trace, 'きみの 絵の しるしが 3段階 ぜんぶに つく');
+  check(!c1.trace, 'ふつうの じぶんの モンスターには しるしが ない');
   MQ.enemies.setCustom([]);
+
+  /* ---- v14.5 子どもの 絵から うまれた モンスターの すがた（ゲームばん／そのまま／かっこよく）---- */
+  {
+    const S = MQ.sonSkin;
+    check(!!S, 'MQ.sonSkin が ある');
+    check(INDEX_HTML.indexOf('js/content/sonskin.js') > INDEX_HTML.indexOf('js/content/enemies.js'), 'index: sonskin.js は enemies.js の あと');
+    S.LINES.forEach(function (l) {
+      check(S.has(l) && /^data:image\/png;base64,/.test(S.sample(l, 'trace') || '') && /^data:image\/png;base64,/.test(S.sample(l, 'cool') || ''), l + ' に そのまま・かっこよく の 絵');
+      check(!!MQ.enemies.get(l) && MQ.enemies.get(l).by === 'son' && MQ.enemies.get(l).line === l, l + ' は 息子さんの 系統');
+    });
+    const pl = { sonSkin: {} };
+    check(S.pick(pl, 'skullhorse') === '' && S.pngFor('skullhorse', pl) === null, 'はじめは ゲームばん（いつもの 絵）');
+    S.set(pl, 'skullhorse', 'cool');
+    check(S.pick(pl, 'skullhorse') === 'cool' && S.pngFor('skullhorse', pl) === S.sample('skullhorse', 'cool'), 'かっこよく を えらぶと その 絵');
+    check(!!S.pngFor('skullhorse-3', pl), '進化形も えらんだ すがた（絵が まだなら 1段階めの 絵）');
+    check(S.pngFor('sameoni', pl) === null, 'ほかの 3体は ゲームばんの まま');
+    check(S.pngFor('golem-gray', pl) === null && S.pngFor('slime-golden', pl) === null, '息子さん いがいの モンスターは かわらない');
+    S.set(pl, 'skullhorse', 'nope');
+    check(S.pick(pl, 'skullhorse') === '', 'ない すがたは ゲームばんに もどる');
+    S.set(pl, 'skullhorse', '');
+    check(!('skullhorse' in pl.sonSkin), 'ゲームばんに もどすと しるしを 消す');
+    console.log('v14.5: 子どもの 絵から うまれた モンスターの すがた OK（' + S.LINES.length + '体）');
+  }
 
   /* ---- v8.6 息子さんの モンスターの 進化形（専用の すがた 12体）---- */
   (function () {

@@ -108,6 +108,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/monstergen.js"></script>
 <script src="../js/content/face.js"></script>
 <script src="../js/content/enemies.js"></script>
+<script src="../js/content/sonskin.js"></script>
 <script src="../js/content/gearart.js"></script>
 <script src="../js/content/hero.js"></script>
 <script src="../js/content/art.js"></script>
@@ -1216,6 +1217,44 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'mons') { fresh(); MQ.ui.dex.render('mons'); MQ.ui.show('screen-dex'); return; }
+    /* 子どもの 絵から うまれた モンスター（v14.5）：#sonskin[:trace|cool|mix][:pal|:click]
+       4体を 見た ことに して すがたを えらぶ。pal＝スカルロード（3段階め）を 相棒に して なかまタブ／click＝ボタンを 押して かわるか */
+    if (mode.indexOf('sonskin') === 0) {
+      fresh();
+      const sp = mode.split(':'), arg = sp[1] || '';
+      MQ.save.update(function (p) {
+        MQ.sonSkin.LINES.forEach(function (l) {
+          p.dex[l] = 1;
+          if (arg) MQ.sonSkin.set(p, l, arg === 'mix' ? (l === 'skullhorse' || l === 'zukan' ? 'cool' : 'trace') : arg);
+        });
+        if (sp[2] === 'pal') { MQ.pals.add(p, 'skullhorse-3'); MQ.pals.setActive(p, 'skullhorse-3'); }
+      });
+      MQ.sonSkin.warm(function () {
+        const p = MQ.save.current();
+        say('sonskin: ' + MQ.sonSkin.LINES.map(function (l) {
+          const s1 = MQ.sonSkin.pngFor(l), s3 = MQ.sonSkin.pngFor(l + '-3');
+          return l + '=' + (MQ.sonSkin.pick(p, l) || 'game') + (s1 ? '/png' : '') + (s3 && s3 !== s1 ? '/evo3' : '');
+        }).join(' '));
+        MQ.ui.dex.render(sp[2] === 'pal' ? 'pals' : 'mons'); MQ.ui.show('screen-dex');
+        if (sp[2] === 'click') {
+          const b = document.querySelectorAll('.sonskin__row')[1].querySelectorAll('.sonskin__opt')[2];
+          b.click();
+          try {
+            const on = document.querySelectorAll('.sonskin__row')[1].querySelector('.is-on .sonskin__lbl');
+            say('click: sameoni=' + (MQ.sonSkin.pick(MQ.save.current(), 'sameoni') || 'game') + ' on=' + (on ? on.textContent : '-'));
+          } catch (e) { say('click ERR ' + e.message); }
+        }
+        // :3d＝バトルと 同じ 3D の 出し方で 1段階め・3段階めを ならべる（ゲームばん・えらんだ すがた）
+        if (sp[2] === '3d' && MQ.ui.v3) {
+          const box = document.createElement('div');
+          box.style.cssText = 'position:fixed;left:0;top:0;right:0;z-index:99;display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:linear-gradient(#5cbcf3,#9edcff 70%,#7ccf52 70%)';
+          MQ.sonSkin.LINES.forEach(function (l) { [l, l + '-3'].forEach(function (id) { const v = MQ.ui.v3.monster(id, 110, { mo: 'mo-none' }); if (v) box.appendChild(v); }); });
+          document.body.appendChild(box);
+        }
+        dump();
+      });
+      return;
+    }
     // 学期（v2.6）：#term1 1学期に した 地図／#parent1 おうちの人ページ（1学期）
     if (mode.indexOf('term1') === 0 || mode === 'parent1') {
       fresh();
