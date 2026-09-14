@@ -1517,12 +1517,35 @@ body {
 .pillstat span { margin-right: 5px; font-size: 13px; }
 /* 中身が ないときは 出さない（空の 黒い わくが 見えてしまうため） */
 .feedback:empty, .arena__msg:empty, .card__unit:empty, .combo:empty { display: none; }
-.hissan__row { display: block; }
-.hissan__sign { margin-right: 8px; }
 .card__q ruby rt { font-size: .45em; }
 
-.hissan { font-family: var(--f-head); font-size: 30px; color: var(--paper-ink); line-height: 1.12; text-align: right; display: inline-block; }
-.hissan u { text-decoration: none; display: block; border-bottom: 3px solid var(--paper-ink); padding-bottom: 2px; }
+/* ひっさん（v13.20）：方眼の マスに 1字ずつ。メモの 方眼（.memo__canvas の background）も 同じ --hc・同じ 起点（--hx, --hy）に する＝
+   線は マスの さかいめだけを 通り、数字には かからない（前は 24px の 方眼の 上に 30px の 字が のって いて 線が 字を よこぎって いた） */
+.memo.is-hissan { --hc: 34px; --hx: 14px; --hy: 6px; container-type: size; }
+/* マスの 大きさは メモ欄に 合わせる：2行と 線が 入る 高さ・右上の ボタンに かからない はば（24〜40px）。
+   タブレット（ステージ 700）は メモ欄が 66px くらいしか ないので 2行 ぴったり（27px）、スマホの 高い メモ欄では 40px */
+@supports (height: 1cqh) {
+  .memo.is-hissan { --hc: clamp(18px, min(max((100cqh - 10px) / 2.4, min((100cqh - 10px) / 2, 30px)), (100cqw - 170px) / var(--cols, 4)), 40px); }
+}
+/* ひろげた とき：ボタンの 下から（--hy 56px）はば いっぱいに */
+.memo--wide.is-hissan { --hc: 56px; --hx: 16px; --hy: 56px; }
+@supports (height: 1cqh) {
+  .memo--wide.is-hissan { --hc: clamp(32px, (100cqw - 32px) / var(--cols, 4), 64px); }
+}
+/* 「ここに ゆびで ひっさんが かけるよ」は 右下へ（左下だと 2行めの 数字に かかる） */
+.memo.is-hissan .memo__hint { left: auto; right: 12px; }
+/* メモ欄が ひくい（小数の キー＋ヒント）ときは 右上の ボタンに かかるので 出さない */
+@container (max-height: 70px) { .memo.is-hissan .memo__hint { display: none; } }
+.memo.is-hissan .memo__canvas { background-size: var(--hc) var(--hc); background-position: var(--hx) var(--hy); }
+.hissan { position: absolute; left: var(--hx, 14px); top: var(--hy, 8px); display: grid; grid-template-columns: repeat(var(--cols, 3), var(--hc, 34px)); grid-auto-rows: var(--hc, 34px);
+  font-family: var(--f-head); font-size: calc(var(--hc, 34px) * .8); line-height: 1; color: var(--paper-ink); pointer-events: none; z-index: 1; }
+.hissan[hidden] { display: none; }
+.hs__c { position: relative; display: flex; align-items: center; justify-content: center; padding-top: 2px; }
+.hs__sign { font-size: .9em; }
+/* 小数点：前の 数字の マスの 右下（ノートの ひっさんと 同じ 書き方） */
+.hs__pt { position: absolute; right: calc(var(--hc, 34px) * -.08); bottom: calc(var(--hc, 34px) * .1); width: max(4px, calc(var(--hc, 34px) * .16)); aspect-ratio: 1; border-radius: 50%; background: var(--paper-ink); }
+/* 答えを 書く 前の 線（2行めの 下の マスの さかいめ） */
+.hs__bar { position: absolute; left: 0; right: 0; top: calc(var(--hc, 34px) * 2 - 1.5px); height: 3px; border-radius: 2px; background: var(--paper-ink); }
 
 .memo { position: relative; flex: 1 1 auto; min-height: 64px; --memo-min: 64px; border-radius: 16px; padding: 8px 12px; background: #fff; box-shadow: 0 6px 0 var(--memo-sh); overflow: hidden; }
 .memo__canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; background-image: linear-gradient(var(--memo-line) 1px, transparent 1px), linear-gradient(90deg, var(--memo-line) 1px, transparent 1px); background-size: 24px 24px; }
@@ -1536,7 +1559,6 @@ body {
 .battle__body.has-hint .memo { min-height: 34px; }
 .memo--wide { position: absolute; inset: 12px; z-index: 30; }
 .battle__body.is-wide > :not(.memo) { visibility: hidden; }
-.memo--wide .hissan { font-size: 52px; margin: 6px 0 0 6px; }
 /* ひろげた ときだけ、問題文を メモの 左上に 小さく 出す（キーと カードが かくれるので） */
 .memo__q { display: none; position: relative; margin: 2px 130px 4px 4px; font-family: var(--f-head); font-size: 24px; line-height: 1.25; color: var(--paper-ink); max-height: 3.8em; overflow: hidden; }
 .memo--wide .memo__q:not(:empty) { display: block; }

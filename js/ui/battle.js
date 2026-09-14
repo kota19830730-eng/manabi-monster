@@ -1244,6 +1244,7 @@ MQ.ui.battle = (function () {
       d.panel.classList.add('has-memo');
       d.spacer.hidden = true;
       d.hissan.hidden = true;
+      d.memo.classList.remove('is-hissan');
       d.memoHint.textContent = 'ここに ゆびで かん字を かこう';
       d.memoQ.innerHTML = d.prompt.innerHTML;
       d.displays.hidden = true;
@@ -1266,11 +1267,11 @@ MQ.ui.battle = (function () {
       if (q.layout === 'vertical') {
         d.hissan.hidden = false;
         d.memoQ.innerHTML = '';          // ひっさんの 数字が メモの 中に あるので 問題文は いらない
-        d.hissan.innerHTML =
-          '<span class="hissan__row">' + q.a + '</span>' +
-          '<span class="hissan__row"><span class="hissan__sign">' + q.sign + '</span>' + q.b + '</span>';
+        d.hissan.innerHTML = hissanHtml(q);
+        d.memo.classList.add('is-hissan');
       } else {
         d.hissan.hidden = true;
+        d.memo.classList.remove('is-hissan');
         d.memoQ.innerHTML = d.prompt.innerHTML;
       }
       memo.reset();
@@ -1279,6 +1280,46 @@ MQ.ui.battle = (function () {
     renderDisplays();
     if (q.type === 'roma') renderRomaKeys();
     else renderNumKeys();
+  }
+
+  /* v13.20 ひっさんを 方眼の マスに 1字ずつ（ノートの ひっさんと 同じ）。
+     マスの 大きさは CSS の --hc で、メモの 方眼も 同じ 大きさ・同じ 起点に そろえる＝線が 数字に かからない。
+     たし算・ひき算は 小数点で そろえ、かけ算・わり算は 右で そろえる。小数点は 前の 数字の マスの 右下（ノートと 同じ）。 */
+  function hissanHtml(q) {
+    const addLike = q.sign === '+' || q.sign === '−' || q.sign === '-';
+    function parts(v) { const s = String(v); const i = s.indexOf('.'); return i < 0 ? [s, ''] : [s.slice(0, i), s.slice(i + 1)]; }
+    const P = [parts(q.a), parts(q.b)];
+    let rows;   // [{ d: 数字, pt: 小数点 }] の ならび（左が 空き）
+    if (addLike) {
+      const il = Math.max(P[0][0].length, P[1][0].length), fl = Math.max(P[0][1].length, P[1][1].length);
+      rows = P.map(function (p) {
+        const r = [];
+        for (let i = p[0].length; i < il; i++) r.push(null);
+        p[0].split('').forEach(function (c, i) { r.push({ d: c, pt: !!p[1] && i === p[0].length - 1 }); });
+        p[1].split('').forEach(function (c) { r.push({ d: c }); });
+        for (let i = p[1].length; i < fl; i++) r.push(null);
+        return r;
+      });
+    } else {
+      const raw = P.map(function (p) {
+        return (p[0] + p[1]).split('').map(function (c, i) { return { d: c, pt: !!p[1] && i === p[0].length - 1 }; });
+      });
+      const w = Math.max(raw[0].length, raw[1].length);
+      rows = raw.map(function (r) { const pad = []; for (let i = r.length; i < w; i++) pad.push(null); return pad.concat(r); });
+    }
+    const cols = rows[0].length + 1;   // 左の 1列は 記号（＋ − × ÷）
+    let html = '';
+    rows.forEach(function (r, y) {
+      r.forEach(function (c, x) {
+        if (!c) return;
+        html += '<span class="hs__c" style="grid-row:' + (y + 1) + ';grid-column:' + (x + 2) + '">' + MQ.util.esc(c.d) +
+          (c.pt ? '<i class="hs__pt"></i>' : '') + '</span>';
+      });
+    });
+    html += '<span class="hs__c hs__sign" style="grid-row:2;grid-column:1">' + MQ.util.esc(q.sign) + '</span>';
+    html += '<span class="hs__bar"></span>';
+    d.memo.style.setProperty('--cols', cols);   // メモ欄に おく＝方眼（canvas）の マスの 大きさも 同じ 式で 決まる
+    return html;
   }
 
   function renderDisplays() {
