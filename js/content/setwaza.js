@@ -42,7 +42,12 @@
     { grade: 'capsule',  gradeName: 'カプセル', id: 'set-capsule',  name: '禁断ノ匣',   ruby: 'パンドラ・カプセル',       lines: ['あけては ならぬ はこ……いま ひらく！'], color: '#4fd3ff',
       ready: true, pose: 'thrust', mo: 'leaf', scene: null, hit: 340, down: 1650, ms: 2300, tier: 4 },
     { grade: 'aurora',   gradeName: 'オーロラ', id: 'set-aurora',   name: '極光ノ神域', ruby: 'オーロラ・サンクチュアリ', lines: ['きわみの 光よ、ここに あれ！'],         color: '#7cf9c4',
-      ready: true, pose: 'raise', mo: 'starburst', scene: 'mo-dash-sp', hit: 500, down: 1650, ms: 2300, tier: 4 }
+      ready: true, pose: 'raise', mo: 'starburst', scene: 'mo-dash-sp', hit: 500, down: 1650, ms: 2300, tier: 4 },
+    // カプセル 第2弾（2026-09-17・ユーザーが 名前を えらんだ）
+    { grade: 'prism',    gradeName: 'プリズム', id: 'set-prism',    name: '分光烈破',   ruby: 'スペクトル・ブレイク',     lines: ['ひかりよ、ななつに わかれて きりさけ！'], color: '#bfefff',
+      ready: true, pose: 'sweep', mo: 'ice', scene: 'mo-dash-thru', hit: 360, down: 1650, ms: 2300, tier: 4 },
+    { grade: 'ginga',    gradeName: 'ギンガ',   id: 'set-ginga',    name: '超新星ノ轟砲', ruby: 'スーパーノヴァ・カノン',   lines: ['ほしよ、もえつきて ほえろ！'],          color: '#9a6aff',
+      ready: true, pose: 'point', mo: 'nova', scene: 'mo-rise', hit: 560, down: 1700, ms: 2300, tier: 4 }
   ];
   const byIdMap = {}, byGradeMap = {}, byNameMap = {};
   LIST.forEach(function (w) { byIdMap[w.id] = w; byGradeMap[w.grade] = w; byNameMap[w.gradeName] = w; });

@@ -4976,7 +4976,7 @@ function stripComments(src) {
    ======================================================= */
 (function () {
   const SW = MQ.setwaza;
-  check(!!SW && SW.list().length === 8, 'v14.2: セットわざは 8つ');
+  check(!!SW && SW.list().length === 10, 'v14.2: セットわざは 10（カプセル 第2弾の プリズム・ギンガを ふくむ）');
   const POSES = ['raise', 'thrust', 'guard', 'sweep', 'sky', 'point', 'spread', 'charge'];
   const MOS = ['fire', 'leaf', 'ice', 'wind', 'bolt', 'star', 'nova', 'starburst'];
   const uiSet = fs.readFileSync(path.join(base, 'js/ui/setwaza.js'), 'utf8');

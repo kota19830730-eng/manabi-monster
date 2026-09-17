@@ -986,6 +986,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
          #capsule:dup    … かぶって コインが もどる
          #capsule:pity   … 天井が あと 1回
          #capsule:poor   … コインが たりない
+         #capsule:comp   … コンプリートした 台（金の 王かん・全額の もどり・v14.8）。:stay＝引かずに 撮る
+         #capsule:secret … シークレットが 出る ところ（？？？の 行も・v14.8）
          #menu           … タブの 名前と ならびが 変わった メニュー */
     /* v13.12 おうちの人の マシン
          #prize            … おうちの人ページ：はじめて（番号を 決める）
@@ -1099,12 +1101,45 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         MQ.capsule.byRarity('mon', 'sr').forEach(function (x) { c.got[x.id] = 1; });
         c.pity.mon = MQ.capsule.PITY - 1;
       });
-      MQ.ui.capsule.open({ kind: what === 'gear' ? 'gear' : what === 'look' ? 'look' : 'mon' });
+      // コンプリート（v14.8）：そうびの 台を ぜんぶ あつめた ことに する
+      if (what === 'comp') MQ.save.update(function (pl) {
+        const c = MQ.capsule.ensure(pl);
+        MQ.capsule.pool('gear').forEach(function (x) { c.got[x.id] = 1; });
+      });
+      MQ.ui.capsule.open({ kind: what === 'gear' || what === 'comp' ? 'gear' : what === 'look' ? 'look' : 'mon' });
       await wait(120);
       say('capsule: しゅるい=' + MQ.ui.capsule.kind()
         + '　コイン=' + MQ.save.current().coins
         + '　' + (document.querySelector('.capline') || {}).textContent);
       say('capsule: わりあい = ' + [].map.call(document.querySelectorAll('.caprate__i'), function (e) { return e.textContent; }).join(' / '));
+      /* v14.8：コンプリートした 台（王かん・金の バー・かぶり 全額） */
+      if (what === 'comp') {
+        say('comp: 王かん ' + (document.querySelector('.capcomp') ? 'ok' : 'MISSING')
+          + ' / バー ' + ((document.querySelector('.capbar--comp .capbar__t') || {}).textContent || 'MISSING')
+          + ' / 全額の 行 ' + (document.querySelector('.capline--comp') ? 'ok' : 'MISSING'));
+        if (mode.split(':')[2] === 'stay') { dump(); return; }   // :stay＝引かずに 王かんを 撮る
+        const c0 = MQ.save.current().coins;
+        document.querySelector('.capgo').click();
+        await wait(300); MQ.ui.capsule.skip(); await wait(250);
+        const msg = (document.querySelector('.capres__msg') || {}).textContent || 'MISSING';
+        say('comp: かぶり → ' + msg + ' / コイン ' + MQ.save.current().coins + '（' + (MQ.save.current().coins === c0 ? 'へって いない ok' : 'NG へった') + '）');
+        dump(); return;
+      }
+      /* v14.8：シークレット（？？？）。でたらめの 数を 一時的に つかんで げきレア → シークレットに */
+      if (what === 'secret') {
+        say('secret: ？？？の 行 = ' + ((document.querySelector('.capsecret') || {}).textContent || 'MISSING'));
+        const rnd0 = Math.random; const seqv = [0.01, 0.1, 0.5]; let si = 0;
+        Math.random = function () { return seqv[Math.min(si++, 2)]; };
+        document.querySelector('.capgo').click();
+        Math.random = rnd0;
+        await wait(300); MQ.ui.capsule.skip(); await wait(250);
+        const nm = (document.querySelector('.capres__name') || {}).textContent || 'MISSING';
+        const badge = (document.querySelector('.capres__rare') || {}).textContent || 'MISSING';
+        const e = MQ.enemies.list.filter(function (x) { return x.name === nm; })[0];
+        say('secret: ' + badge + ' ' + nm + '（secret=' + (e && e.secret ? 'ok' : 'NG') + '）'
+          + ' / のこりの ？？？ = ' + MQ.capsule.secretsLeft(MQ.save.current(), 'mon'));
+        dump(); return;
+      }
       /* #capsule:roll[:n|r|sr] … **とばさずに** 演出を 見る。
          ここが 抜けて いた ので「まわす」の クリックが そのまま「タップで とばす」に
          届いて いる バグ（演出が 1つも 見えない）を 見のがした（2026-09-07）。

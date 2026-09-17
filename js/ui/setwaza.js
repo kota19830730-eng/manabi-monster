@@ -978,6 +978,226 @@
       }
       if (E.t > 1500 && E.t < 2250 && E.step % 2 === 0) P(E, { x: R(E, 0, K.size().W), y: -4, vx: R(E, -20, 20), vy: R(E, 50, 100), life: 1000, s0: R(E, 2, 4), s1: 1.5, ramp: AUR });
     } });
+
+    /* =========================================================
+       カプセル 第2弾の セットわざ（2026-09-17）
+       ユーザー「プリズムと ギンガの 一式 揃えた 時の 必殺技」→ 分光烈破／超新星ノ轟砲
+       ========================================================= */
+
+    /* ---- 分光烈破（スペクトル・ブレイク）：プリズムの セット ----
+       0〜360   主人公の 上に 3D の 大きな 水晶（三角の 柱）。けんの 先から 白い 光が 入り、7色に 分かれて ひろがる
+       360〜1060 7色の 斬撃が 1本ずつ（赤 → むらさき）。色ごとに 水晶の かけら
+       1100〜1460 7色の 光が うずを まいて てきに あつまる（虹の 輪が しまる）
+       1500    分光の 大ばくはつ：まっしろ → 虹の わ 3つ・水晶の 柱が とびちる */
+    const SPEC7 = ['#ff4a5a', '#ff9a2a', '#ffe23a', '#5ae06a', '#3ad6ff', '#4a78ff', '#b25aff'];
+    const SPECC = rgb(SPEC7);
+    const PRISMR = ramp(['#ffffff', '#f2fbff', '#bfefff', '#9ab8ff', '#c79bff']);
+    // 3D の 三角の 柱（水晶）
+    const TRIPRISM = (function () {
+      const v = [], f = [];
+      for (let k = 0; k < 2; k++) for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 3; v.push([Math.cos(a), k ? 1 : -1, Math.sin(a)]); }
+      f.push([0, 1, 2], [5, 4, 3]);
+      for (let i = 0; i < 3; i++) { const j = (i + 1) % 3; f.push([i, 3 + i, 3 + j, j]); }
+      return { v: v, f: f };
+    })();
+    function bigPrism(E, x, y, life, size) {
+      const t = thing(E, { life: life, top: true, draw: function (g, u) {
+        const grow = 1 - Math.pow(1 - Math.min(1, u / 0.3), 3), a = u > 0.85 ? (1 - u) / 0.15 : 1, s = size * grow;
+        if (s < 1) return;
+        g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.55 * a;
+        g.drawImage(glowOf([200, 236, 255]), x - s * 2.6, y - s * 2.6, s * 5.2, s * 5.2);
+        g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+        mesh(g, TRIPRISM, { x: x, y: y + Math.sin(u * 9) * 3, s: s, sx: 1.15, sz: 1.15, sy: 1.35, rx: -0.5, ry: 0.5 + u * 4, rz: 0.15, col: [150, 210, 255], a: 0.62 * a, edge: 1, spec: 1 });
+        g.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 7; i++) { g.fillStyle = css(SPECC[i], 0.35 * a); g.fillRect(x - s * 0.5 + i * s * 0.15, y - s * 0.9 + ((i * 7 + (u * 60 | 0)) % 9) * s * 0.18, s * 0.12, s * 0.5); }
+        g.globalCompositeOperation = 'source-over';
+      } });
+      return t;
+    }
+    // 7色の 光の すじ（x0,y0 から 扇に ひろがる）
+    function spectrumFan(E, x0, y0, x1, y1, life) {
+      thing(E, { life: life, draw: function (g, u) {
+        const a = u < 0.2 ? u / 0.2 : 1 - (u - 0.2) / 0.8, grow = Math.min(1, u / 0.35);
+        const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) * grow, base = Math.atan2(dy, dx);
+        g.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 7; i++) {
+          const an = base + (i - 3) * 0.075, ex = x0 + Math.cos(an) * L, ey = y0 + Math.sin(an) * L;
+          const gr = g.createLinearGradient(x0, y0, ex, ey);
+          gr.addColorStop(0, css([255, 255, 255], 0.9 * a)); gr.addColorStop(0.3, css(SPECC[i], 0.85 * a)); gr.addColorStop(1, css(SPECC[i], 0));
+          g.strokeStyle = gr; g.lineWidth = 7; g.beginPath(); g.moveTo(x0, y0); g.lineTo(ex, ey); g.stroke();
+          g.strokeStyle = css([255, 255, 255], 0.5 * a); g.lineWidth = 1.5; g.stroke();
+        }
+      } });
+    }
+    fxc.define('set-prism', { dur: 2300, run: function (E, F, S, Hr) {
+      const PX = Hr.x + 30, PY = Math.max(40, Hr.y - 64);
+      if (at(E, 10)) {
+        bigPrism(E, PX, PY, 1080, 22);
+        K.ring(E, Hr.x, Hr.y + 40, 6, 90, 440, '#bfefff', 5, 0.3);
+      }
+      // けんの 先から 白い 光が 水晶へ
+      if (at(E, 90)) {
+        thing(E, { life: 300, draw: function (g, u) {
+          const a = u < 0.3 ? u / 0.3 : 1 - (u - 0.3) / 0.7;
+          g.globalCompositeOperation = 'lighter';
+          g.strokeStyle = 'rgba(255,255,255,' + a + ')'; g.lineWidth = 5; g.beginPath(); g.moveTo(S.x, S.y); g.lineTo(PX, PY); g.stroke();
+          g.strokeStyle = 'rgba(200,236,255,' + 0.5 * a + ')'; g.lineWidth = 12; g.stroke();
+        } });
+        K.glint(E, PX, PY, 80, 300);
+      }
+      if (at(E, 220)) { spectrumFan(E, PX, PY, F.x, F.y, 900); K.flash(E, '#f2fbff', 0.3, 180); }
+      if (E.t < 360 && E.step % 2 === 0) P(E, { x: PX + R(E, -24, 24), y: PY + R(E, -24, 24), vx: R(E, -40, 40), vy: R(E, -80, -20), life: 360, s0: 3, s1: 1, ramp: PRISMR });
+      // 7色の 斬撃
+      for (let i = 0; i < 7; i++) {
+        if (at(E, 360 + i * 110)) {
+          const c = SPEC7[i];
+          K.slash(E, F.x + R(E, -6, 6), F.y + R(E, -6, 6), F.h * 0.5 + 24, -Math.PI * (0.15 + i * 0.29) - Math.PI * 0.5, Math.PI * 0.9, 340, c, i === 6 ? 17 : 13);
+          K.burst(E, F.x, F.y, 12, { ramp: ramp(['#ffffff', c, c]), v0: 120, v1: 380, g: 200 });
+          gemShards(E, F.x, F.y, 3, [SPECC[i]], { mesh: TRIPRISM, sx: 0.45, sy: 1, sz: 0.45, v0: 130, v1: 340, s0: 6, s1: 10 });
+          if (i % 2 === 0) K.flash(E, c, 0.12, 120);
+        }
+      }
+      if (at(E, 400)) K.ring(E, F.x, F.bot, 8, 140, 560, '#bfefff', 6, 0.3);
+      // 7色が うずを まいて あつまる
+      if (during(E, 1100, 1460)) {
+        for (let i = 0; i < n(E, 2); i++) {
+          const c = SPEC7[(E.step + i) % 7];
+          P(E, { m: 'o', draw: 's', cx: F.x, cy: F.y, ang: R(E, 0, 6.3), rad: R(E, 90, 180), w: 5, dr: -R(E, 240, 360), rise: 0, oy: 0, sq: 0.8,
+            life: 460, s0: 3, s1: 1.2, ramp: ramp(['#ffffff', c, c]), orbit: true, kill: 8 });
+        }
+      }
+      if (at(E, 1100)) K.crystalRing(E, F.x, F.y, F.w * 0.7 + 40, 18, 7, -1.05, 400, { spin: -6, size: 12, cols: SPECC });
+      if (at(E, 1480)) K.glint(E, F.x, F.y, 120, 260);
+      // 分光の 大ばくはつ
+      if (at(E, 1500)) {
+        K.flash(E, '#ffffff', 0.9, 300); K.flash(E, '#9ab8ff', 0.3, 700);
+        rings3(E, F.x, F.y, 1500, ['#ffffff', '#ffe23a', '#3ad6ff']);
+        [0, 60, 120].forEach(function (d, j) {
+          E.later.push({ at: 1520 + d, fn: function () { K.ring(E, F.x, F.y, 10, 250 - j * 40, 700, [SPEC7[0], SPEC7[3], SPEC7[6]][j], 6, 1); } });
+        });
+        K.ring(E, F.x, F.bot, 12, 250, 760, '#bfefff', 8, 0.3);
+        K.rays(E, F.x, F.y, 21, 300, 900, '#ffffff', 0.5);
+        K.burst(E, F.x, F.y, 72, { rainbow: true, v0: 220, v1: 680, g: 120, drag: 1.1, l0: 600, l1: 1100, s: 2.8 });
+        gemShards(E, F.x, F.y, 22, SPECC, { mesh: TRIPRISM, sx: 0.45, sy: 1, sz: 0.45, v0: 200, v1: 560, lift: 120, s0: 8, s1: 14 });
+        K.crystalRing(E, F.x, F.y, 20, 200, 14, -1.1, 1050, { spin: 3.5, size: 14, cols: SPECC });
+      }
+      if (E.t > 1520 && E.t < 2250 && E.step % 2 === 0) P(E, { x: R(E, 0, K.size().W), y: -4, vx: R(E, -20, 20), vy: R(E, 60, 110), life: 1000, s0: R(E, 2, 4), s1: 1.5, ramp: ramp(['#ffffff', SPEC7[E.step % 7], SPEC7[E.step % 7]]) });
+    } });
+
+    /* ---- 超新星ノ轟砲（スーパーノヴァ・カノン）：ギンガの セット ----
+       0〜540   けんの 先に 星雲の うず（腕の ある 銀河）。まわりの 星が うずを まいて すいこまれ、まん中が 光る
+       560〜1000 轟砲：太い 光の 大砲が てきを つらぬく（ここで 当たる）。光の 中を 星が ながれる
+       1000〜1460 てきの まわりに 大きな 星雲の うず。まん中の 星が ぎゅっと ちぢむ
+       1500    超新星：まっしろ → むらさき の 大ばくはつ・しょうげきの わ・3D の 星が とびちる */
+    const NEBU = ramp(['#ffffff', '#e8ecff', '#b8c4ff', '#9a6aff', '#4a2aa8', '#141040']);
+    const GINC = rgb(['#e8ecff', '#b8c4ff', '#c79bff', '#8a6aff', '#ffffff']);
+    // 腕の ある 銀河の うず（ss＝大きさ・rot＝回る 速さ）
+    function galaxy(E, x, y, life, r0, r1, o) {
+      o = o || {};
+      const seeds = [];
+      for (let i = 0; i < 70; i++) seeds.push({ arm: i % 3, d: R(E, 0.08, 1), j: R(E, -0.25, 0.25), s: R(E, 1, 2.6), c: GINC[i % GINC.length] });
+      thing(E, { life: life, top: !!o.top, draw: function (g, u) {
+        const grow = o.shrinkAt && u > o.shrinkAt ? 1 - Math.pow((u - o.shrinkAt) / (1 - o.shrinkAt), 2) : 1 - Math.pow(1 - Math.min(1, u / 0.35), 3);
+        const rr = (r0 + (r1 - r0) * grow), a = u > 0.9 ? (1 - u) / 0.1 : 1, rot = u * (o.spin || 6);
+        if (rr < 2) return;
+        g.globalCompositeOperation = 'lighter';
+        // うすい 星雲の もや
+        g.globalAlpha = 0.5 * a; g.drawImage(glowOf([120, 90, 230]), x - rr * 1.5, y - rr * 0.9, rr * 3, rr * 1.8);
+        g.globalAlpha = 0.8 * a; g.drawImage(glowOf([230, 236, 255]), x - rr * 0.45, y - rr * 0.3, rr * 0.9, rr * 0.6);
+        g.globalAlpha = 1;
+        // 3本の うでを 光の 帯で（外ほど ほそく・うすく）
+        for (let arm = 0; arm < 3; arm++) {
+          [[rr * 0.12, [120, 90, 230], 0.28], [rr * 0.07, [200, 190, 255], 0.55], [rr * 0.022, [255, 255, 255], 0.8]].forEach(function (b) {
+            g.beginPath();
+            for (let k = 0; k <= 24; k++) {
+              const d = 0.06 + k / 24 * 0.94, an = rot + arm * Math.PI * 2 / 3 + d * 3.4, px = x + Math.cos(an) * rr * d, py = y + Math.sin(an) * rr * d * 0.5;
+              if (k) g.lineTo(px, py); else g.moveTo(px, py);
+            }
+            g.lineWidth = Math.max(1, b[0]); g.lineCap = 'round'; g.strokeStyle = css(b[1], b[2] * a); g.stroke();
+          });
+        }
+        g.globalAlpha = a; g.drawImage(glowOf([255, 255, 255]), x - rr * 0.3, y - rr * 0.3, rr * 0.6, rr * 0.6); g.globalAlpha = 1;
+        for (let i = 0; i < seeds.length; i++) {
+          const p = seeds[i], an = rot + p.arm * Math.PI * 2 / 3 + p.d * 3.4 + p.j, rad = rr * p.d;
+          const px = x + Math.cos(an) * rad, py = y + Math.sin(an) * rad * 0.5, sz = p.s * (0.6 + 0.4 * grow);
+          g.fillStyle = css(p.c, (1 - p.d * 0.6) * a);
+          g.fillRect(px - sz, py - sz, sz * 2, sz * 2);
+        }
+      } });
+    }
+    // 光の 大砲（x0,y0 → x1,y1。はじめ ふとく、ゆっくり ほそく なる）
+    function cannon(E, x0, y0, x1, y1, life, w) {
+      thing(E, { life: life, top: true, draw: function (g, u) {
+        const reach = Math.min(1, u / 0.12), a = u < 0.7 ? 1 : 1 - (u - 0.7) / 0.3, ww = w * (u < 0.12 ? 0.6 + u * 3.3 : 1 - (u - 0.12) * 0.45) * (1 + Math.sin(u * 90) * 0.06);
+        const ex = x0 + (x1 - x0) * reach, ey = y0 + (y1 - y0) * reach, an = Math.atan2(y1 - y0, x1 - x0), nx = -Math.sin(an), ny = Math.cos(an);
+        g.globalCompositeOperation = 'lighter';
+        [[ww * 1.9, [120, 80, 230], 0.35], [ww, [184, 196, 255], 0.75], [ww * 0.42, [255, 255, 255], 1]].forEach(function (b) {
+          g.fillStyle = css(b[1], b[2] * a);
+          g.beginPath();
+          g.moveTo(x0 + nx * b[0] * 0.4, y0 + ny * b[0] * 0.4); g.lineTo(ex + nx * b[0], ey + ny * b[0]);
+          g.lineTo(ex - nx * b[0], ey - ny * b[0]); g.lineTo(x0 - nx * b[0] * 0.4, y0 - ny * b[0] * 0.4);
+          g.closePath(); g.fill();
+        });
+        g.globalAlpha = a; g.drawImage(glowOf([200, 210, 255]), ex - ww * 3, ey - ww * 3, ww * 6, ww * 6); g.globalAlpha = 1;
+      } });
+    }
+    fxc.define('set-ginga', { dur: 2300, run: function (E, F, S, Hr) {
+      // ---- ため：けんの 先に 銀河 ----
+      if (at(E, 10)) {
+        galaxy(E, S.x + 6, S.y - 6, 620, 6, 62, { shrinkAt: 0.86, spin: 7 });
+        K.ring(E, Hr.x, Hr.y + 40, 6, 90, 520, '#9a6aff', 5, 0.3);
+      }
+      if (E.t < 540) {
+        for (let i = 0; i < n(E, 2); i++) {
+          P(E, { m: 'o', draw: 's', cx: S.x + 6, cy: S.y - 6, ang: R(E, 0, 6.3), rad: R(E, 80, 170), w: 5, dr: -R(E, 220, 340), rise: 0, oy: 0, sq: 0.55,
+            life: 520, s0: 2.6, s1: 1, ramp: NEBU, orbit: true, kill: 8 });
+        }
+        if (E.step % 4 === 0) K.starP(E, S.x + R(E, -90, 90), S.y + R(E, -60, 40), { col: GINC[E.step % GINC.length], vx: 0, vy: 0, life: 360, s0: R(E, 5, 8), s1: 2, fi: 0.3 });
+      }
+      if (at(E, 500)) { K.orb(E, S.x + 6, S.y - 6, 4, 30, 160, '#e8ecff', { shrinkAt: 0.5 }); K.glint(E, S.x + 6, S.y - 6, 110, 260); }
+      // ---- 轟砲 ----
+      if (at(E, 540)) {
+        K.flash(E, '#e8ecff', 0.55, 220);
+        cannon(E, S.x + 10, S.y - 6, F.x, F.y, 520, 20);
+      }
+      if (at(E, 560)) {
+        K.burst(E, F.x, F.y, 36, { ramp: NEBU, v0: 180, v1: 540, g: 200 });
+        K.ring(E, F.x, F.y, 10, 170, 520, '#b8c4ff', 7, 1);
+        K.starOut(E, F.x, F.y, 8, { v0: 160, v1: 420, s0: 7, s1: 12 });
+      }
+      if (during(E, 560, 1000) && E.step % 2 === 0) {
+        const k = R(E, 0, 1);
+        P(E, { x: S.x + (F.x - S.x) * k, y: S.y + (F.y - S.y) * k + R(E, -10, 10), vx: (F.x - S.x) * 1.4, vy: (F.y - S.y) * 1.4, drag: 0.8, life: R(E, 180, 300), s0: R(E, 2, 4), s1: 1, ramp: NEBU });
+      }
+      // ---- 星雲の うずが てきを つつむ ----
+      if (at(E, 980)) galaxy(E, F.x, F.y, 540, F.w * 0.45 + 24, Math.max(F.w * 0.6 + 30, Math.min(F.w * 0.9 + 56, K.size().W - F.x + 24)), { shrinkAt: 0.6, spin: -5, top: true });
+      if (during(E, 1000, 1460)) {
+        for (let i = 0; i < n(E, 2); i++) {
+          P(E, { m: 'o', draw: 's', cx: F.x, cy: F.y, ang: R(E, 0, 6.3), rad: R(E, 130, 230), w: 3.6, dr: -R(E, 280, 440), rise: 0, oy: 0, sq: 0.6,
+            life: 520, s0: 2.6, s1: 1, ramp: NEBU, orbit: true, kill: 10 });
+        }
+        if (E.step % 5 === 0) K.starIn(E, F, 1, 120, 200);
+      }
+      if (at(E, 1300)) K.orb(E, F.x, F.y, 30, 4, 200, '#ffffff');
+      // ---- 超新星 ----
+      if (at(E, 1500)) {
+        K.flash(E, '#ffffff', 0.95, 320); K.flash(E, '#6a4aff', 0.45, 800);
+        K.orb(E, F.x, F.y, 12, 80, 460, '#e8ecff');
+        rings3(E, F.x, F.y, 1500, ['#ffffff', '#b8c4ff', '#9a6aff'], 380);
+        K.ring(E, F.x, F.bot, 12, 260, 780, '#9a6aff', 8, 0.3);
+        K.rays(E, F.x, F.y, 20, 320, 950, '#e8ecff', -0.4);
+        K.burst(E, F.x, F.y, 80, { ramp: NEBU, v0: 220, v1: 720, g: 90, drag: 1.1, l0: 650, l1: 1150, s: 3 });
+        for (let i = 0; i < n(E, 22); i++) {
+          const a = R(E, 0, Math.PI * 2), v = R(E, 200, 600);
+          K.starP(E, F.x, F.y, { col: GINC[i % GINC.length], vx: Math.cos(a) * v, vy: Math.sin(a) * v, ay: 60, drag: 1.1, life: R(E, 750, 1200), s0: R(E, 9, 17), s1: 3 });
+        }
+        K.crystalRing(E, F.x, F.y, 20, 210, 14, -1.1, 1050, { spin: -3, size: 14, cols: GINC });
+        K.glint(E, F.x, F.y, 200, 660);
+      }
+      if (E.t > 1520 && E.t < 2250 && E.step % 2 === 0) {
+        P(E, { x: R(E, 0, K.size().W), y: R(E, 0, F.bot), vx: 0, vy: R(E, 10, 30), life: R(E, 500, 900), s0: R(E, 1.5, 3), s1: 0.5, ramp: NEBU, fi: 0.3 });
+      }
+    } });
   }
   defineAll();
 

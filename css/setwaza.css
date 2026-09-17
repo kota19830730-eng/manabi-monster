@@ -64,3 +64,10 @@
 .ci--set-hoshi .ci__tx { color: #e8f0ff; }
 .ci--set-capsule .ci__tx { color: #e8faff; }
 .ci--set-aurora .ci__tx { color: #eafff6; }
+/* カプセル 第2弾（2026-09-17） */
+.arena__spsky[data-sp="set-prism"]    { background: linear-gradient(rgba(4,8,22,.96) 0%, rgba(16,30,64,.9) 55%, rgba(40,70,110,.76) 100%); }
+.arena__spsky[data-sp="set-ginga"]    { background: linear-gradient(rgba(2,0,10,.97) 0%, rgba(14,8,44,.93) 55%, rgba(38,20,90,.8) 100%); }
+.ci--set-prism.ci--full .ci__bg   { background: radial-gradient(ellipse at 50% 70%, #ffffff 0%, #ffe23a 10%, #5ae06a 18%, #3ad6ff 26%, #b25aff 34%, rgba(20,30,70,.95) 54%, rgba(2,4,12,.98) 82%); }
+.ci--set-ginga.ci--full .ci__bg   { background: radial-gradient(ellipse at 50% 70%, #ffffff 0%, #b8c4ff 12%, #6a4aff 26%, rgba(24,12,70,.95) 48%, rgba(2,0,8,.98) 82%); }
+.ci--set-prism .ci__tx { color: #f2fbff; }
+.ci--set-ginga .ci__tx { color: #e8ecff; }

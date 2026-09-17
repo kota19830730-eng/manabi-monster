@@ -46,7 +46,9 @@
     'set-hoshi':    { ink: '#152a6a', shadow: '#070f2e', glow: '#8fb8ff', glow2: '#d6a8ff', ruby: '#e6eeff', grad: ['#ffffff', '#e8f0ff', '#a8c4ff'] },
     'set-yami':     { ink: '#2a0a4a', shadow: '#12031f', glow: '#b04dff', ruby: '#efdcff', grad: ['#ffffff', '#f1e2ff', '#c99bff'] },
     'set-capsule':  { ink: '#0a3a5a', shadow: '#041a2a', glow: '#4fd3ff', glow2: '#ff7ad0', ruby: '#dff6ff', grad: ['#ffffff', '#e0f8ff', '#8fe2ff'] },
-    'set-aurora':   { ink: '#0f3f48', shadow: '#061c22', glow: '#7cf9c4', glow2: '#c48bff', ruby: '#e6fff6', grad: ['#ffffff', '#eafff6', '#a6f5d6'] }
+    'set-aurora':   { ink: '#0f3f48', shadow: '#061c22', glow: '#7cf9c4', glow2: '#c48bff', ruby: '#e6fff6', grad: ['#ffffff', '#eafff6', '#a6f5d6'] },
+    'set-prism':    { ink: '#1a3a6a', shadow: '#0a1830', glow: '#bfefff', glow2: '#ff9ae0', ruby: '#f2fbff', grad: ['#ffffff', '#fff6d6', '#9fe8ff'] },
+    'set-ginga':    { ink: '#1a1050', shadow: '#080420', glow: '#9a6aff', glow2: '#b8c4ff', ruby: '#e8ecff', grad: ['#ffffff', '#e8ecff', '#b8a4ff'] }
   };
   const PLAIN = { ink: '#14102c', shadow: '#06040e', glow: '#ffd447', grad: ['#ffffff', '#fff6dc', '#ffe08a'] };
 
