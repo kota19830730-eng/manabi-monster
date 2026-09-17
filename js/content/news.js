@@ -466,6 +466,18 @@ MQ.news = (function () {
         { kind: 'mons', id: 'boss-oni', title: 'モジオニが へんしん',
           text: 'こくごの ボスは しろい たてがみの あおおにの たいしょう。なぎなたを ふって くるぞ！' }
       ]
+    },
+    {
+      // v14.7 ボスを ふやす（エリアごとに 序盤・中盤・終盤の 3体・新しい ボス 10体・メカナイト／グランドタイタン／キングスライムを 64マスで 作り直し）
+      v: 'v13.24', date: '2026-09-17', sw: 171,
+      items: [
+        { kind: 'mons', id: ['boss-saidon', 'boss-majin', 'boss-dragon'], grow: true, title: 'ボスが 3たいに ふえた',
+          text: 'どの きょうかも はじめ・まんなか・さいごで ちがう ボスが 出るよ。さいごは いつもの ボス！' },
+        { kind: 'mons', id: ['boss-fude', 'boss-namazu', 'boss-koban'], title: 'あたらしい ボスが 10たい',
+          text: 'フデダヌキ・ビリビリナマズ・コバンネズミ… 10たいの ボスが まって いるぞ！' },
+        { kind: 'mons', id: ['boss-knight', 'boss-titan', 'boss-slime'], title: '3たいの ボスも へんしん',
+          text: 'メカナイト・グランドタイタン・キングスライムも おおきく かっこよく なったよ' }
+      ]
     }
   ];
 

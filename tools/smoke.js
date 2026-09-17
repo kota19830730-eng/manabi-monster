@@ -1262,7 +1262,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 269, '図かんは 269体（' + dex + '）');   // v11.0 で 小6の ラスボス（274 → 275）・v13.21 で ABC が 9体 → 3体（275 → 269）
+  check(dex === 279, '図かんは 279体（' + dex + '）');   // v11.0 で 小6の ラスボス（274 → 275）・v13.21 で ABC が 9体 → 3体（275 → 269）・v14.7 で 序盤・中盤の ボス 10体（269 → 279）
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -4230,6 +4230,47 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     if (cfg) cfg.parts.forEach(function (p) { check(art.some(function (r) { return r[6] === p.tag; }), id + ': 部品 ' + p.tag + ' の 絵が ある'); });
     check(art.every(function (r) { return cfg && cfg.parts.some(function (p) { return p.tag === r[6]; }); }), id + ': どの 四角も どこかの 部品に 入る');
   });
+  /* v14.7 ボスを ふやす：エリアごとに 序盤（tier 1）・中盤（tier 2）・終盤（tier 3）の 3体。ぜんぶ 64マス・部品つき */
+  (function () {
+    const areaBosses = MQ.enemies.bosses.filter(function (b) { return !b.last; });
+    check(areaBosses.length === 15, 'エリアボスは 15体（' + areaBosses.length + '）');
+    ['sansu', 'kokugo', 'rikashakai', 'shakai', 'eigo'].forEach(function (a) {
+      const got = MQ.enemies.bossesOf(a);
+      check(got.length === 3 && [1, 2, 3].every(function (t) { return got.filter(function (b) { return b.tier === t; }).length === 1; }), a + ': 序盤・中盤・終盤が 1体ずつ');
+      check(MQ.enemies.bossFor(a, 0).tier === 1 && MQ.enemies.bossFor(a, 0.5).tier === 2 && MQ.enemies.bossFor(a, 1).tier === 3, a + ': むずかしさで ボスが かわる');
+      check(MQ.enemies.bossFor(a).tier === 3, a + ': むずかしさなしは 終盤（いままでの ボス）');
+    });
+    check(MQ.enemies.bossFor('rika', 0).id === 'boss-namazu' && MQ.enemies.bossFor('rika', 1).id === 'boss-knight', '小4〜の 理科は 理科社会の ボスを 借りる');
+    check(MQ.enemies.bossFor('sansu', 0.2).id === 'boss-saidon' && MQ.enemies.bossFor('sansu', 0.9).id === 'boss-dragon', '算数の 序盤＝イワサイドン・終盤＝ナンバードラゴン');
+    // 18ステージの 算数で 6・6・6 に わかれる（pickIds と 同じ 位置の 計算）
+    const cnt = { 1: 0, 2: 0, 3: 0 };
+    for (let i = 0; i < 18; i++) cnt[MQ.enemies.bossFor('sansu', i / 17).tier]++;
+    check(cnt[1] === 6 && cnt[2] === 6 && cnt[3] === 6, '18ステージは 6・6・6（' + JSON.stringify(cnt) + '）');
+    const names = {};
+    areaBosses.forEach(function (e) {
+      const art = MQ.monsterArt.mons[e.shape] || [];
+      check(e.base === 64 && art.length >= 40, e.id + ': 64マスの 絵（' + art.length + 'こ）');
+      check(art.every(function (r) { return r[0] >= 0 && r[1] >= 0 && r[0] + r[2] <= 64 && r[1] + r[3] <= 64; }), e.id + ': 64マスに おさまる');
+      check(!!e.phase2, e.id + ': おこった ときの 色');
+      const pal = MQ.enemies.paletteOf(e, false);
+      check(art.every(function (r) { return !!pal[r[4]]; }), e.id + ': 絵の 色が ぜんぶ ある');
+      const cfg = MQ.vox.boss3d && MQ.vox.boss3d.CFG[e.shape];
+      check(!!cfg && MQ.vox.boss3d.has(e.shape), e.id + ': 3D の 部品の 表');
+      if (cfg) {
+        cfg.parts.forEach(function (p) { check(art.some(function (r) { return r[6] === p.tag; }), e.id + ': 部品 ' + p.tag + ' の 絵が ある'); });
+        check(art.every(function (r) { return cfg.parts.some(function (p) { return p.tag === r[6]; }); }), e.id + ': どの 四角も どこかの 部品に 入る');
+      }
+      check(!names[e.name], e.id + ': 名前が かぶらない');
+      names[e.name] = 1;
+    });
+    const all = MQ.enemies.list.map(function (e) { return e.name; });
+    areaBosses.forEach(function (e) { check(all.indexOf(e.name) < 0, e.id + ': ザコと 名前が かぶらない'); });
+    // 序盤・中盤の ボスは ふつうの ザコ・中ボス・カプセルには 出ない
+    const pool = {};
+    ['sansu', 'kokugo', 'rikashakai', 'shakai', 'eigo'].forEach(function (a) { for (let i = 0; i < 20; i++) MQ.enemies.pickIds(a, 12, i / 19).forEach(function (id) { pool[id] = 1; }); });
+    check(areaBosses.every(function (b) { return !pool[b.id]; }), 'エリアボスは ザコに まざらない');
+    console.log('v14.7 ボスを ふやす: 15体・序盤／中盤／終盤 OK（算数 18ステージ ' + cnt[1] + '・' + cnt[2] + '・' + cnt[3] + '）');
+  })();
   ['../css/motion3d.css', '../js/core/vox.js', '../js/content/chest3d.js', '../js/ui/three.js'].forEach(function (f) { check(harness.indexOf(f) >= 0, 'harness.html に ' + f); });
 
   /* 背景（v12.6）：scenery.js は common.js の あと・start.js の 前。css/sw/harness にも ある。

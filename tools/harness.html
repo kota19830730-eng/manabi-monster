@@ -3069,6 +3069,32 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('bubble ' + kind + ': msg=' + R($('.arena__msg')) + ' foe=' + R(foe) + ' img=' + R(img) + ' v3=' + R(v3) + ' hold=' + R(hold) + ' bag=' + R($('.bagbtn')) + ' hero=' + R($('.hero')) + ' text=' + ($('.arena__msg') || {}).textContent);
       return;
     }
+    /* ボスを ふやす（v14.7）：#bossall[:<ms>][:enrage|:2d]＝エリアボス 15体（よこ＝教科・たて＝序盤／中盤／終盤） */
+    if (mode.indexOf('bossall') === 0) {
+      fresh();
+      const bits = mode.split(':');
+      const ms = +(bits[1] || 0);
+      const enr = bits.indexOf('enrage') >= 0, flat = bits.indexOf('2d') >= 0;
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999;background:#5b8fd8;display:grid;grid-template-columns:repeat(5,200px);gap:6px;padding:6px;align-content:start';
+      [1, 2, 3].forEach(function (t) {
+        ['sansu', 'kokugo', 'rikashakai', 'shakai', 'eigo'].forEach(function (a) {
+          const b = MQ.enemies.bossesOf(a).filter(function (x) { return x.tier === t; })[0];
+          const c = document.createElement('div');
+          c.style.cssText = 'position:relative;height:210px;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.08)';
+          if (b) {
+            c.appendChild(flat ? MQ.enemies.node(b.id, { size: 190, enrage: enr }) : MQ.ui.v3.monster(b.id, 190, { mo: 'mo-menace', enrage: enr }));
+            const l = document.createElement('div'); l.textContent = b.name + ' t' + t; l.style.cssText = 'position:absolute;left:4px;top:2px;font:12px sans-serif;color:#fff'; c.appendChild(l);
+            if (!flat) { const v = MQ.ui.v3.monster(b.id, 190, { mo: 'mo-menace', enrage: enr }).querySelector('.v3'); say(b.id + ': parts=' + (v ? v.dataset.parts : '-') + ' boxes=' + (v ? v.dataset.boxes : '-') + ' faces=' + (v ? v.dataset.faces : '-') + ' cls=' + (v ? v.className : '-')); }
+          }
+          wrap.appendChild(c);
+        });
+      });
+      document.body.appendChild(wrap);
+      await wait(300);
+      if (ms) { freeze(); document.getAnimations().forEach(function (an) { an.pause(); an.currentTime = ms; }); }
+      return;
+    }
     /* ボスの 作り直し（v14.6）：#boss64[:<ms>]＝2体を 2D・3D・おこった で ならべる／#bossof:<ステージ>＝その ボス戦まで */
     if (mode.indexOf('boss64') === 0) {
       fresh();

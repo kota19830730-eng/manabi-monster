@@ -428,18 +428,55 @@ MQ.enemies = (function () {
 
   // ボス（エリアごとに 1体）
   const bosses = [
-    /* v14.6：ナンバードラゴン・モジオニは 64マス（base）。絵は tools/bossart/final.js → emit.js。3D は js/content/boss3d.js */
-    { id: 'boss-dragon', area: 'sansu',      name: 'ナンバードラゴン', shape: 'dragon',    base: 64,
+    /* <areabosses> ここから tools/bossart/emit.js が 書く（手で さわらない・正本は tools/bossart/final.js と final2.js）
+       エリアの ボスは 序盤（tier 1）・中盤（tier 2）・終盤（tier 3）の 3体（v14.7）。どれが 出るかは bossFor(エリア, むずかしさ)。
+       ぜんぶ 64マス（base）。理科は rikashakai を、小4〜の 理科（rika）は べつ名（AREA_ALIAS）で 借りる。 */
+    { id: 'boss-dragon', area: 'sansu', name: 'ナンバードラゴン', shape: 'dragon', base: 64, tier: 3,
       colors: { A: '#B31F1A', B: '#761612', C: '#8E1A16', D: '#5A1210', w: '#F5E0B0', y: '#F2C14E', k: '#2B1512', e: '#FFE14A', r: '#FFB13A' },
       phase2: { A: '#D42A1C', e: '#FF4A2A', r: '#FF5A1A', C: '#A81F18' } },
-    { id: 'boss-oni',    area: 'kokugo',     name: 'モジオニ',        shape: 'oni',       base: 64,
+    { id: 'boss-oni', area: 'kokugo', name: 'モジオニ', shape: 'oni', base: 64, tier: 3,
       colors: { A: '#3F7FD6', B: '#2B5AA6', C: '#B8281F', D: '#8F1F1A', y: '#F2C14E', s: '#CFD8E6', P: '#8B95A8', w: '#F1E6C8', W: '#F4F0E6', e: '#FFE14A', k: '#1B0C0C', r: '#7A1512', m: '#5A2D17' },
       phase2: { A: '#2F5FB8', B: '#1F4488', e: '#FF3A3A' } },
-    { id: 'boss-knight', area: 'rikashakai', name: 'メカナイト',      shape: 'knight',    colors: { A: '#8A9BB8', B: '#12121A' } },
-    { id: 'boss-slime',  area: 'eigo',       name: 'キングスライム',   shape: 'kingslime', colors: { A: '#FFA33A', B: '#B35F00' } },
-    /* 小4で 理科と 社会が べつの エリアに なった（v4.6）。
-       理科は メカナイト（rikashakai）を そのまま つかい、社会に この ボスを 足した */
-    { id: 'boss-titan',  area: 'shakai',     name: 'グランドタイタン', shape: 'titan',     colors: { A: '#8A7B63', B: '#4E4436' } },
+    { id: 'boss-knight', area: 'rikashakai', name: 'メカナイト', shape: 'knight', base: 64, tier: 3,
+      colors: { A: '#8A9BB8', B: '#4E5A75', D: '#2B3248', y: '#F2C14E', c: '#4FD3FF', k: '#12121A' },
+      phase2: { c: '#FF4A4A', A: '#9AA6C8', D: '#3A1A2A' } },
+    { id: 'boss-slime', area: 'eigo', name: 'キングスライム', shape: 'kingslime', base: 64, tier: 3,
+      colors: { A: '#FFA33A', B: '#B35F00', C: '#FFC97A', y: '#F2C14E', R: '#D13B30', V: '#6A3FA0', w: '#FFFFFF', k: '#3A1C08' },
+      phase2: { A: '#FF7A2A', C: '#FFB07A', V: '#A83FC8' } },
+    { id: 'boss-titan', area: 'shakai', name: 'グランドタイタン', shape: 'titan', base: 64, tier: 3,
+      colors: { A: '#8A7B63', B: '#4E4436', D: '#332D22', g: '#5A8A4A', y: '#FFB43A', e: '#FFB43A', k: '#241F16' },
+      phase2: { A: '#9A6A4A', y: '#FF5A1A', e: '#FF3A1A' } },
+    { id: 'boss-saidon', area: 'sansu', name: 'イワサイドン', shape: 'saidon', base: 64, tier: 1,
+      colors: { A: '#96714D', D: '#5E462F', C: '#D9C39A', R: '#7D7E8C', r: '#55565F', w: '#F2EAD8', e: '#FF5A3C', k: '#241812', y: '#F2C14E' },
+      phase2: { A: '#B0703E', R: '#9A5A4A', e: '#FF2A1A' } },
+    { id: 'boss-majin', area: 'sansu', name: 'ナンバーマジン', shape: 'majin', base: 64, tier: 2,
+      colors: { A: '#8A4FD8', B: '#5B2F96', V: '#2A2640', y: '#F2C14E', e: '#FFE14A', g: '#4FD3FF', m: '#8A5A30', k: '#241633' },
+      phase2: { A: '#B04FE0', g: '#FF4AB0', e: '#FF3A3A' } },
+    { id: 'boss-fude', area: 'kokugo', name: 'フデダヌキ', shape: 'fude', base: 64, tier: 1,
+      colors: { A: '#A4713F', D: '#5F3C20', C: '#E8D3A8', G: '#4DA33C', m: '#8A5A30', w: '#F2EAD8', k: '#1D1A24', p: '#7A3FD1', e: '#FFB43A' },
+      phase2: { A: '#B8743A', e: '#FF3A1A', p: '#C23BFF' } },
+    { id: 'boss-tengu', area: 'kokugo', name: 'カラステング', shape: 'tengu', base: 64, tier: 2,
+      colors: { F: '#2B2D45', f: '#454A70', W: '#E8E4DA', R: '#D13B30', y: '#F2C14E', G: '#4DA33C', m: '#8A5A30', w: '#F2EAD8', e: '#FF5A3C', o: '#C47A20', k: '#16141F' },
+      phase2: { F: '#3A1E3A', R: '#FF3B30', e: '#FFD447' } },
+    { id: 'boss-namazu', area: 'rikashakai', name: 'ビリビリナマズ', shape: 'namazu', base: 64, tier: 1,
+      colors: { A: '#4E6E9E', B: '#2F4668', C: '#E2D9B8', e: '#FFE14A', z: '#FFD94A', w: '#F2EAD8', k: '#1A1626', p: '#3FA9E8' },
+      phase2: { A: '#5A5AB0', z: '#FFF36A', e: '#FF3A3A' } },
+    { id: 'boss-mizuchi', area: 'rikashakai', name: 'アオミズチ', shape: 'mizuchi', base: 64, tier: 2,
+      colors: { A: '#3F7FD1', B: '#24508F', C: '#CFE8F0', F: '#6FE0E8', w: '#F2EAD8', e: '#4FD3FF', y: '#F2C14E', k: '#121A2E', p: '#3FA9E8' },
+      phase2: { A: '#2F5FB8', F: '#B8F6FF', e: '#FF3A3A' } },
+    { id: 'boss-koban', area: 'shakai', name: 'コバンネズミ', shape: 'koban', base: 64, tier: 1,
+      colors: { A: '#8B8F9E', B: '#5A5E6E', C: '#E8DDC0', y: '#F2C14E', o: '#B8862A', R: '#D13B30', s: '#8A5A30', e: '#FFB43A', w: '#F2EAD8', k: '#1D1A24' },
+      phase2: { A: '#9A8E7E', R: '#FF3B30', e: '#FF3A1A' } },
+    { id: 'boss-haniwa', area: 'shakai', name: 'ハニワショーグン', shape: 'haniwa', base: 64, tier: 2,
+      colors: { A: '#C98A5A', B: '#96603A', k: '#1D1410', e: '#FF5A3C', y: '#F2C14E', m: '#8A5A30', s: '#8A8FA0' },
+      phase2: { A: '#D07A48', e: '#FFD447', B: '#7A3A20' } },
+    { id: 'boss-prince', area: 'eigo', name: 'プリンススライム', shape: 'prince', base: 64, tier: 1,
+      colors: { A: '#4FA8E8', B: '#2E6FAE', C: '#9FD4F2', y: '#F2C14E', R: '#D13B30', r: '#8F221A', w: '#FFFFFF', k: '#16243A' },
+      phase2: { A: '#6A8AF0', C: '#C9D8FF', R: '#FF3B30' } },
+    { id: 'boss-griffon', area: 'eigo', name: 'アルファグリフォン', shape: 'griffon', base: 64, tier: 2,
+      colors: { A: '#B8874A', B: '#7A5426', W: '#EEF2F8', y: '#F2C14E', R: '#D13B30', e: '#FFB43A', k: '#1D1A24' },
+      phase2: { A: '#C8743A', R: '#FF3B30', e: '#FF3A1A' } },
+    /* </areabosses> */
     /* 小4の ラスボス（v4.8）。塔は 学年ごとに あるので、
        どの ラスボスが 出るかは world3.js の towerStage の bossId が 決める。 */
     { id: 'boss-dark', area: 'tower4', name: 'ダークロード', shape: 'dark', last: true,
@@ -594,11 +631,29 @@ MQ.enemies = (function () {
     return ids.length >= 3 ? ids : null;
   }
 
-  function bossFor(areaId) {
-    for (let i = 0; i < bosses.length; i++) if (bosses[i].area === areaId) return bosses[i];
-    const alias = poolArea(areaId);
-    for (let i = 0; i < bosses.length; i++) if (bosses[i].area === alias) return bosses[i];
-    return bosses[0];
+  /* エリアの ボス（v14.7）：エリアごとに 序盤（tier 1）・中盤（tier 2）・終盤（tier 3）の 3体。
+     hard＝その エリアで 開いて いる ステージの 中の 位置（0＝さいしょ 1＝さいご・pickIds と 同じ）。
+     hard を わたさない ときは 終盤（いままでの ボス）。ラスボス（last）は ここでは 出さない */
+  function tierOf(hard) {
+    if (hard == null || isNaN(hard)) return 3;
+    return hard < 1 / 3 - 1e-9 ? 1 : hard < 2 / 3 - 1e-9 ? 2 : 3;
+  }
+  function bossesOf(areaId) {
+    let got = bosses.filter(function (b) { return !b.last && b.area === areaId; });
+    if (!got.length) { const alias = poolArea(areaId); got = bosses.filter(function (b) { return !b.last && b.area === alias; }); }
+    return got;
+  }
+  function bossFor(areaId, hard) {
+    const got = bossesOf(areaId);
+    if (!got.length) return bosses[0];
+    const want = tierOf(hard);
+    let best = null;
+    got.forEach(function (b) {
+      const t = b.tier || 3;
+      if (t === want) best = b;
+      else if (!best && t === 3) best = b;
+    });
+    return best || got[0];
   }
 
   /* 写真から 作った モンスターを 敵として つかえるように する。
@@ -631,7 +686,7 @@ MQ.enemies = (function () {
     list: list, bosses: bosses, shapes: shapes,
     get: get, node: node, shadowNode: shadowNode, dexList: dexList,
     pickIds: pickIds, goldenId: goldenId, rareId: goldenId, rareIdFor: rareIdFor, rareIdsFor: rareIdsFor,
-    trioFor: trioFor, bossFor: bossFor, poolArea: poolArea, setCustom: setCustom, mateFor: mateFor,
+    trioFor: trioFor, bossFor: bossFor, bossesOf: bossesOf, tierOf: tierOf, poolArea: poolArea, setCustom: setCustom, mateFor: mateFor,
     midFor: midFor, midIdsFor: midIdsFor, paletteOf: paletteOf,
     customs: function () { return customs; }
   };

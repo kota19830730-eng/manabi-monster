@@ -1216,7 +1216,7 @@ body {
    頭の 上に おくと 3D の 図が 上まで あって 画面から はみ出た。ぶんしん・呼ばれた ザコの となり（twin）は いままで どおり */
 .bossinfo { position: absolute; top: 6px; right: 10px; z-index: 3; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; pointer-events: none; }
 .bossinfo[hidden] { display: none; }
-.bossinfo .enemy__name { position: static; transform: none; margin: 0; font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.bossinfo .enemy__name { position: static; transform: none; margin: 0; font-size: 12px; max-width: 144px; overflow: hidden; text-overflow: ellipsis; }   /* 144px＝9文字（アルファグリフォン・v14.7）まで 入る */
 .bossinfo__row { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .bossinfo__row:empty { display: none; }
 .bossinfo .enemy__weak { position: static; transform: none; margin: 0; }

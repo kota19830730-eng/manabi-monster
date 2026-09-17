@@ -42,6 +42,147 @@
         { tag: 'legA',   cls: 'legA',   joint: [25, 54], thick: 8 },
         { tag: 'legB',   cls: 'legB',   joint: [39, 54], thick: 8 }
       ]
+    },
+    /* ---------- v14.7：序盤・中盤の 10体と 64マスで 作り直した 3体（絵の 正本は tools/bossart/final2.js） ----------
+       kind：'side'＝左むきの 横すがた（頭を 手まえに ry +18・つばさは rotateX）／'front'＝正面（ry −22・つばさは rotateY）。
+       動きは css/motion3d.css の .v3--b64（頭・うで・しっぽ・つばさ・マント・かんむり・うかぶ もの）。 */
+    saidon: {
+      ry: 18, kind: 'side',
+      parts: [
+        { tag: 'body',  cls: 'body',  joint: [34, 50], thick: 14 },
+        { tag: 'head',  cls: 'head',  joint: [16, 36], thick: 10, parent: 'body' },
+        { tag: 'tail',  cls: 'tail',  joint: [54, 34], thick: 4,  parent: 'body' },
+        { tag: 'legNF', cls: 'legA',  joint: [21, 48], thick: 6,  z: 4 },
+        { tag: 'legNB', cls: 'legB',  joint: [43, 48], thick: 6,  z: 4 },
+        { tag: 'legFF', cls: 'legB',  joint: [23, 46], thick: 5,  z: -4 },
+        { tag: 'legFB', cls: 'legA',  joint: [47, 46], thick: 5,  z: -4 }
+      ]
+    },
+    majin: {
+      kind: 'front',
+      parts: [
+        { tag: 'body', cls: 'body', joint: [32, 58], thick: 12 },
+        { tag: 'head', cls: 'head', joint: [32, 18], thick: 12, parent: 'body' },
+        { tag: 'armL', cls: 'armL', joint: [16, 24], thick: 5,  parent: 'body' },
+        { tag: 'armR', cls: 'armR', joint: [48, 22], thick: 5,  parent: 'body' },
+        { tag: 'orbs', cls: 'orbs', joint: [32, 44], thick: 2,  z: 4, floor: false }
+      ]
+    },
+    fude: {
+      kind: 'front',
+      parts: [
+        { tag: 'body', cls: 'body', joint: [31, 56], thick: 12 },
+        { tag: 'head', cls: 'head', joint: [29, 26], thick: 12, parent: 'body' },
+        { tag: 'tail', cls: 'tail', joint: [48, 40], thick: 5,  z: -6, parent: 'body', floor: false },
+        { tag: 'armL', cls: 'armL', joint: [16, 32], thick: 4,  parent: 'body' },
+        { tag: 'armR', cls: 'armR', joint: [44, 31], thick: 5,  parent: 'body' },
+        { tag: 'legA', cls: 'legA', joint: [23, 56], thick: 8 },
+        { tag: 'legB', cls: 'legB', joint: [39, 56], thick: 8 }
+      ]
+    },
+    tengu: {
+      kind: 'front',
+      parts: [
+        { tag: 'body', cls: 'body',  joint: [32, 48], thick: 10 },
+        { tag: 'head', cls: 'head',  joint: [30, 24], thick: 12, parent: 'body' },
+        { tag: 'wing', cls: 'wingR', joint: [42, 18], thick: 2,  z: -6, parent: 'body', floor: false },
+        { tag: 'armL', cls: 'armL',  joint: [20, 30], thick: 4,  parent: 'body' },
+        { tag: 'armR', cls: 'armR',  joint: [44, 29], thick: 5,  parent: 'body' },
+        { tag: 'legA', cls: 'legA',  joint: [28, 48], thick: 6 },
+        { tag: 'legB', cls: 'legB',  joint: [38, 48], thick: 6 }
+      ]
+    },
+    namazu: {
+      ry: 18, kind: 'side',
+      parts: [
+        { tag: 'body',   cls: 'body', joint: [28, 58], thick: 14 },
+        { tag: 'tail',   cls: 'tail', joint: [46, 40], thick: 5,  parent: 'body' },
+        { tag: 'fin',    cls: 'fin',  joint: [30, 32], thick: 2,  parent: 'body', floor: false },
+        { tag: 'pool',   cls: 'pool', joint: [31, 61], thick: 16, floor: false },
+        { tag: 'sparks', cls: 'orbs', joint: [24, 16], thick: 2,  z: 4, floor: false }
+      ]
+    },
+    mizuchi: {
+      ry: 18, kind: 'side',
+      parts: [
+        { tag: 'body', cls: 'body', joint: [32, 58], thick: 16 },
+        { tag: 'head', cls: 'head', joint: [18, 32], thick: 8,  parent: 'body' },
+        { tag: 'tail', cls: 'tail', joint: [52, 46], thick: 4,  parent: 'body' },
+        { tag: 'pool', cls: 'pool', joint: [33, 61], thick: 18, floor: false }
+      ]
+    },
+    koban: {
+      kind: 'front',
+      parts: [
+        { tag: 'body', cls: 'body', joint: [32, 56], thick: 12 },
+        { tag: 'head', cls: 'head', joint: [29, 24], thick: 12, parent: 'body' },
+        { tag: 'sack', cls: 'sack', joint: [50, 26], thick: 6,  z: -6, parent: 'body', floor: false },
+        { tag: 'tail', cls: 'tail', joint: [48, 52], thick: 3,  z: -4, parent: 'body', floor: false },
+        { tag: 'armL', cls: 'armL', joint: [14, 36], thick: 4,  parent: 'body' },
+        { tag: 'legA', cls: 'legA', joint: [23, 56], thick: 8 },
+        { tag: 'legB', cls: 'legB', joint: [39, 56], thick: 8 }
+      ]
+    },
+    haniwa: {
+      kind: 'front',
+      parts: [
+        { tag: 'body', cls: 'body', joint: [32, 62], thick: 14 },
+        { tag: 'head', cls: 'head', joint: [32, 26], thick: 14, parent: 'body' },
+        { tag: 'armL', cls: 'armL', joint: [18, 30], thick: 5,  parent: 'body' },
+        { tag: 'armR', cls: 'armR', joint: [46, 30], thick: 5,  parent: 'body' }
+      ]
+    },
+    prince: {
+      kind: 'front',
+      parts: [
+        { tag: 'body',  cls: 'body',  joint: [32, 62], thick: 16 },
+        { tag: 'crown', cls: 'crown', joint: [31, 13], thick: 6, parent: 'body' },
+        { tag: 'cape',  cls: 'cape',  joint: [44, 18], thick: 2, z: -7, parent: 'body', floor: false }
+      ]
+    },
+    griffon: {
+      ry: 18, kind: 'side',
+      parts: [
+        { tag: 'body',  cls: 'body',  joint: [32, 50], thick: 12 },
+        { tag: 'head',  cls: 'head',  joint: [18, 24], thick: 8,  parent: 'body' },
+        { tag: 'wing',  cls: 'wingR', joint: [42, 18], thick: 2,  z: -6, parent: 'body', floor: false },
+        { tag: 'tail',  cls: 'tail',  joint: [50, 36], thick: 4,  parent: 'body' },
+        { tag: 'legNF', cls: 'legA',  joint: [26, 46], thick: 5,  z: 4 },
+        { tag: 'legNB', cls: 'legB',  joint: [42, 40], thick: 5,  z: 4 }
+      ]
+    },
+    knight: {
+      kind: 'front',
+      parts: [
+        { tag: 'body',   cls: 'body',   joint: [32, 44], thick: 12 },
+        { tag: 'head',   cls: 'head',   joint: [32, 20], thick: 12, parent: 'body' },
+        { tag: 'armL',   cls: 'armL',   joint: [14, 26], thick: 4,  parent: 'body' },
+        { tag: 'armR',   cls: 'armR',   joint: [48, 24], thick: 6,  parent: 'body' },
+        { tag: 'weapon', cls: 'weapon', joint: [56, 44], thick: 2,  z: 4, parent: 'armR', floor: false },
+        { tag: 'legA',   cls: 'legA',   joint: [27, 44], thick: 8 },
+        { tag: 'legB',   cls: 'legB',   joint: [41, 44], thick: 8 }
+      ]
+    },
+    kingslime: {
+      kind: 'front',
+      parts: [
+        { tag: 'body',    cls: 'body',    joint: [30, 62], thick: 18 },
+        { tag: 'crown',   cls: 'crown',   joint: [32, 14], thick: 6, parent: 'body' },
+        { tag: 'cape',    cls: 'cape',    joint: [8, 20],  thick: 2, z: -8, parent: 'body', floor: false },
+        { tag: 'minionA', cls: 'minionA', joint: [6, 61],  thick: 6, z: 6 },
+        { tag: 'minionB', cls: 'minionB', joint: [57, 60], thick: 6, z: 6 }
+      ]
+    },
+    titan: {
+      kind: 'front',
+      parts: [
+        { tag: 'body', cls: 'body', joint: [32, 46], thick: 16 },
+        { tag: 'head', cls: 'head', joint: [33, 14], thick: 12, parent: 'body' },
+        { tag: 'armL', cls: 'armL', joint: [9, 18],  thick: 10, parent: 'body' },
+        { tag: 'armR', cls: 'armR', joint: [55, 18], thick: 10, parent: 'body' },
+        { tag: 'legA', cls: 'legA', joint: [25, 46], thick: 9 },
+        { tag: 'legB', cls: 'legB', joint: [39, 46], thick: 9 }
+      ]
     }
   };
 
@@ -65,6 +206,7 @@
     });
     const v = MQ.vox.fromGroups(groups, { unit: opts.unit || 2, hide: opts.hide, shadow: opts.shadow });
     v.classList.add('v3--' + e.shape + 'boss');
+    if (cfg.kind) { v.classList.add('v3--b64'); v.classList.add('v3--b64' + cfg.kind); }   // v14.7：序盤・中盤の ボスと 作り直しの 3体の 動き
     return v;
   }
 

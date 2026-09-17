@@ -194,7 +194,7 @@ MQ.ui.battle = (function () {
       const bossArea = hit ? hit.area : (groups.length ? MQ.util.pick(groups).area : found.area);
       ctx.bossArea = bossArea.id;
       mixBiome = bossArea.biome || 'mountain';
-      const boss = MQ.enemies.bossFor(bossArea.id);
+      const boss = MQ.enemies.bossFor(bossArea.id, Math.random());   // v14.7：ごちゃまぜは 序盤・中盤・終盤の どれか
       MQ.battle.start({
         stage: found.stage, mode: 'normal', mix: true, bossArea: bossArea.id,
         escaped: [], enemies: [], bossId: boss.id,
@@ -248,7 +248,7 @@ MQ.ui.battle = (function () {
       const trio = MQ.enemies.trioFor(ctx.area.id);
       if (trio && Math.random() < TRIO_CHANCE) { trioIds = trio; rareId = null; }
       if (wk && wk.golden) { rareId = MQ.enemies.goldenId(); trioIds = null; }   // ゴールデン まつり（v13.16）
-      const boss = MQ.enemies.bossFor(ctx.area.id);
+      const boss = MQ.enemies.bossFor(ctx.area.id, hard);   // v14.7：ステージの 位置で 序盤・中盤・終盤の ボス
       ctx.first = first;
       /* ボスを 強く（v12.7）：HP5・最大8問（はじめての たたかいは HP3 の まま）。
          まとめ問題＝ボスの 2・4…問めは、この エリアで 前に ★を とった ステージから */
@@ -475,6 +475,7 @@ MQ.ui.battle = (function () {
       else if ((e.rank || 2) === 1) { cls += ' enemy--r1'; size = 60; }   // よわそうなのは 小さく
       if (e.by === 'photo' && !boss && ids.length === 1) size = 96;          // じぶんの 絵の モンスターは 大きく（64マスの ドットが つぶれない・v3.2）
       if (e.base && e.base !== 48) size = Math.round(size * e.base / 48);    // 64マスの ボス（v14.6）：1ドットの 大きさを ほかの ボスと そろえる（96 → 128）
+      if (boss && e.tier === 1) size = Math.round(size * 0.94);                // 序盤の ボス（v14.7）は すこし 小さく（128 → 120）
       if (q.rare && i === pos) cls += ' enemy--rare';
       if (q.revenge && i === pos) cls += ' enemy--revenge';   // リベンジ：赤い オーラ＋リボン（v3.1）
       if (q.review && !q.revenge && i === pos) cls += ' enemy--review';   // ふくしゅう：水色の オーラ＋リボン（v11.1）
