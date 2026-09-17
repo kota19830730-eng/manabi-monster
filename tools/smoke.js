@@ -2946,6 +2946,45 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     KINDS.forEach(function (k) { if (gids.indexOf(G.kindGroup(k)) < 0) badG++; });
     check(badG === 0, 'なかま分けは ' + gids.length + 'つの どれか（ちがう ' + badG + '）');
   })();
+  // v14.10 部品を えらぶ：どの 体にも どの 部品でも 48マスに おさまり、えらぶと 四角が ふえる（おまかせは いままでと 同じ）
+  (function () {
+    check(Array.isArray(G.partList) && G.partList.length === 7, '部品の しゅるいは 7つ（' + (G.partList || []).length + '）');
+    let nOpt = 0;
+    G.partList.forEach(function (c) { nOpt += c.opts.length; });
+    check(nOpt >= 35, '部品の えらびは 35 いじょう（' + nOpt + '）');
+    const fp = { main: [180, 120, 200], accent: [240, 120, 80], eyes: 2, horns: 0, legs: 0, wings: false, skull: false, teeth: false, wide: false, tall: false, parts: 1, rectness: 0.5, sideOut: false };
+    G.setParts(null);
+    const base = {};
+    KINDS.forEach(function (k) { base[k] = JSON.stringify(G.make(fp, k).shape); });
+    let over = 0, same = 0, bad = [];
+    G.partList.forEach(function (c) {
+      c.opts.forEach(function (o) {
+        if (o[0] === 'auto' || o[0] === 'none') return;
+        const p = {}; p[c.id] = o[0];
+        G.setParts(p);
+        KINDS.forEach(function (k) {
+          const sh = G.make(fp, k).shape;
+          if (sh.some(function (r) { return r[0] < 0 || r[1] < 0 || r[0] + r[2] > 48 || r[1] + r[3] > 48 || r[2] <= 0 || r[3] <= 0; })) { over++; if (bad.length < 3) bad.push(k + ':' + c.id + '.' + o[0]); }
+          const expectSame = k === 'knight' || (c.id === 'tail' && o[0] === 'tail') || (c.id === 'eye' && (o[0] === 'two' || k === 'eyeball'));   // 2つ目＝おまかせと 同じ・きしは 専用の 形・目玉は 1つ目
+          if (JSON.stringify(sh) === base[k] && !expectSame) { same++; if (bad.length < 6) bad.push('same ' + k + ':' + c.id + '.' + o[0]); }
+        });
+      });
+    });
+    check(over === 0, '部品が 48マスから はみ出さない（' + over + '）' + bad.join(' '));
+    check(same === 0, '部品を えらぶと すがたが かわる（かわらない ' + same + '）' + bad.join(' '));
+    G.setParts({ eye: 'auto', horn: 'auto' });
+    check(JSON.stringify(G.make(fp, 'beast').shape) === base.beast, 'おまかせだけ なら いままでと 同じ すがた');
+    // デザイン案：絵に ちかい／つよそう／かわいい の 3つ・それぞれ ちがう すがた・子どもが えらんだ 部品が かつ
+    const ds = G.designSets(Object.assign({}, fp, { horns: 3, teeth: true, wings: false }));
+    check(ds.length === 3 && ds[0].parts.back === 'spike' && ds[0].parts.horn === 'none', 'デザイン案は 3つ・でっぱり 3つは トゲ（' + JSON.stringify(ds[0].parts) + '）');
+    G.setParts(null);
+    const d3 = ds.map(function (d) { return JSON.stringify(G.make(fp, 'cat', d.parts).shape); });
+    check(d3[0] !== d3[1] && d3[1] !== d3[2], 'デザイン案ごとに すがたが ちがう');
+    G.setParts({ eye: 'glow' });
+    check(G.make(fp, 'cat', ds[1].parts).shape.some(function (r) { return r[4] === 'r'; }), '子どもが えらんだ 目（ひかる め）が デザイン案より かつ');
+    G.setParts(null);
+    G.setParts(null);
+  })();
   // ミミック（v5.7）：はこ＋中の 生きもの。M の 色が 中の 生きものの 色に なり、目の 数は 中から
   (function () {
     const mm = G.make({ main: [226, 150, 95], accent: [242, 201, 59], inner: { main: [58, 56, 68], eyes: 3 }, eyes: 2 }, 'mimic');

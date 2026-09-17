@@ -2640,9 +2640,246 @@ MQ.monsterGen = (function () {
     return 'blob';
   }
 
+
+  /* =======================================================
+     部品を えらぶ（v14.10）
+
+     ユーザー「ゲーム版の クオリティも あげられる ように 部品・パーツの 種類を 増やして 再現性を 高められる ように」。
+     絵から 目の 色・もよう・つの を 自動で 読むのは 当たらない（息子さんの 4まいで 実測：
+     ガイコツの 赤い 目が 灰色・どの 絵も「しま 5〜8本」）。v4.0 の もじと 同じく
+     **当てに いかず、子どもが チップで えらぶ**。どの 体（85しゅるい）にも つく ように、
+     場所は 体の 四角を 48マスに ぬった 形（上の へり・はんい）と 目の 場所（EYE_AT）から 決める。
+       め 8／つの 8／くち 5／せなか 5／しっぽ 3／もよう 4／もちもの 4
+     auto（おまかせ）は いままで どおり 絵から 読んだ 数で つける。
+     ======================================================= */
+  const PART_LIST = [
+    { id: 'eye', name: 'め', opts: [['auto', 'おまかせ'], ['one', '1つ'], ['two', '2つ'], ['three', '3つ'], ['big', '大きな 1つ'], ['cat', 'ねこの め'], ['glow', 'ひかる め'], ['angry', 'おこり め']] },
+    { id: 'horn', name: 'つの', opts: [['auto', 'おまかせ'], ['none', 'なし'], ['one', '1本'], ['two', '2本'], ['three', '3本'], ['oni', 'おにの つの'], ['crown', 'かんむり'], ['ears', 'みみ']] },
+    { id: 'mouth', name: 'くち', opts: [['auto', 'おまかせ'], ['none', 'なし'], ['fang', 'きば'], ['big', '大きな くち'], ['smile', 'にっこり']] },
+    { id: 'back', name: 'せなか', opts: [['auto', 'おまかせ'], ['none', 'なし'], ['wing', 'はね'], ['bat', 'こうもりの はね'], ['spike', 'トゲ']] },
+    { id: 'tail', name: 'しっぽ', opts: [['auto', 'おまかせ'], ['none', 'なし'], ['tail', 'しっぽ']] },
+    { id: 'pattern', name: 'もよう', opts: [['none', 'なし'], ['stripe', 'たてじま'], ['spot', 'ぶち'], ['belly', 'おなか']] },
+    { id: 'hold', name: 'もちもの', opts: [['none', 'なし'], ['sword', 'けん'], ['shield', 'たて'], ['staff', 'つえ']] }
+  ];
+  let PARTS = {};
+  function setParts(p) { PARTS = p && typeof p === 'object' ? Object.assign({}, p) : {}; }
+  let DESIGN = {};   // デザイン案（v14.10）の 部品。子どもが えらんだ 部品が あれば そちらが かつ
+  function partOf(id) {
+    const v = PARTS[id] && PARTS[id] !== 'auto' ? PARTS[id] : DESIGN[id];
+    return v || (id === 'pattern' || id === 'hold' ? 'none' : 'auto');
+  }
+  function anyParts() {
+    return PART_LIST.some(function (c) { const v = partOf(c.id); return v !== 'auto' && !((c.id === 'pattern' || c.id === 'hold') && v === 'none'); });
+  }
+  /* デザイン案（v14.10・ユーザー「ゲーム版の モンスターも イラストの デザインを 認識して デザインを 何種類か 作成する ように」）。
+     絵から 読める もの（丸の 数＝目・上の でっぱり＝つの・はしの ギザギザ＝きば・よこの 出っぱり＝はね・
+     えんぴつの 黒ぬり＝こうもり）で「絵に ちかい」を 組み、そこから「つよそう」「かわいい」を 作る */
+  function designSets(f) {
+    const near = {};
+    near.eye = f.eyes >= 3 ? 'three' : f.eyes === 1 ? 'one' : 'two';
+    // でっぱり 3つ いじょうは つのでは なく せなかの トゲ（ひれ・はねと かさなって ごちゃごちゃに なる ため）
+    near.horn = f.horns === 2 ? 'two' : f.horns === 1 ? 'one' : 'none';
+    near.mouth = f.teeth ? 'fang' : 'none';
+    near.back = f.dark && f.wings ? 'bat' : f.wings ? 'wing' : (f.horns >= 3 ? 'spike' : 'none');
+    const strong = Object.assign({}, near, {
+      eye: f.eyes >= 3 ? 'three' : f.eyes === 1 ? 'big' : 'angry',
+      horn: near.horn === 'two' ? 'two' : 'oni',
+      mouth: 'fang', hold: 'sword', back: near.back === 'none' ? 'spike' : near.back
+    });
+    const cute = Object.assign({}, near, {
+      eye: f.eyes === 1 ? 'big' : f.eyes >= 3 ? 'three' : 'two',
+      horn: near.horn === 'none' ? 'ears' : near.horn,
+      mouth: 'smile', pattern: 'belly', back: near.back === 'bat' ? 'wing' : near.back === 'spike' ? 'none' : near.back
+    });
+    return [{ id: 'near', name: '絵に ちかい', parts: near }, { id: 'strong', name: 'つよそう', parts: strong }, { id: 'cute', name: 'かわいい', parts: cute }];
+  }
+  // 体の 四角を 48マスに ぬった 形（0/1）と はんい・列ごとの いちばん 上
+  function bodyMask(shape) {
+    const m = new Uint8Array(48 * 48);
+    shape.forEach(function (p) {
+      if (!p || p[4] === 'k') return;
+      for (let y = Math.max(0, p[1]); y < Math.min(48, p[1] + p[3]); y++) for (let x = Math.max(0, p[0]); x < Math.min(48, p[0] + p[2]); x++) m[y * 48 + x] = 1;
+    });
+    let x0 = 48, y0 = 48, x1 = -1, y1 = -1;
+    const top = new Int16Array(48).fill(-1);
+    for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) if (m[y * 48 + x]) {
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      if (top[x] < 0) top[x] = y;
+    }
+    return { m: m, x0: x0, y0: y0, x1: x1, y1: y1, top: top };
+  }
+  function clip(list) {
+    return list.map(function (p) {
+      let x = p[0], y = p[1], w = p[2], h = p[3];
+      if (x < 0) { w += x; x = 0; }
+      if (y < 0) { h += y; y = 0; }
+      w = Math.min(w, 48 - x); h = Math.min(h, 48 - y);
+      if (w <= 0 || h <= 0) return null;
+      return [x, y, w, h].concat(p.slice(4));
+    }).filter(Boolean);
+  }
+  // 目の 中心（2つの とき）と 大きさ
+  function eyeSpots(kind) {
+    const a = EYE_AT[kind] || EYE_AT.blob;
+    return { y: a.y, size: a.size, xs: a.xs, cx: a.cx };
+  }
+  function partEyes(kind, style, n) {
+    const a = eyeSpots(kind);
+    const out = [];
+    if (style === 'auto') return eyesFor(kind, n);
+    if (style === 'one') return eye(a.cx, a.y, a.size + 2);
+    if (style === 'two') { out.push.apply(out, eye(a.xs[0], a.y, a.size)); out.push.apply(out, eye(a.xs[1], a.y, a.size)); return out; }
+    if (style === 'three') return eyesFor(kind, 3);
+    if (style === 'big') {
+      const s2 = a.size + 7, x = Math.max(0, Math.min(48 - s2, a.cx - 3)), y = Math.max(0, a.y - 3);
+      return [[x, y, s2, s2, 'w', 'h'], [x + 3, y + 3, s2 - 7, s2 - 6, 'k', 'n'], [x + 3, y + 3, 2, 2, 'w', 'n']];
+    }
+    [a.xs[0], a.xs[1]].forEach(function (x) {
+      const s2 = a.size;
+      if (style === 'cat') { out.push([x, a.y, s2, s2, 'y']); out.push([x + Math.round(s2 / 2) - 1, a.y, 2, s2, 'k', 'n']); }
+      else if (style === 'glow') { out.push([x - 1, a.y - 1, s2 + 2, s2 + 2, 'r']); out.push([x + 1, a.y + 1, Math.max(2, s2 - 3), Math.max(2, s2 - 3), 'y', 'n']); }
+      else if (style === 'angry') {
+        out.push.apply(out, eye(x, a.y, s2));
+        const left = x === a.xs[0];
+        // まゆ：内がわが 下がる 2だん
+        out.push([left ? x - 1 : x + Math.round(s2 / 2), a.y - 4, Math.round(s2 / 2) + 1, 2, 'k', 'n']);
+        out.push([left ? x + Math.round(s2 / 2) : x - 1, a.y - 2, Math.round(s2 / 2) + 1, 2, 'k', 'n']);
+      }
+    });
+    return out;
+  }
+  function partHorns(kind, style, n, bm) {
+    const a = eyeSpots(kind);
+    const xL = a.xs[0] + Math.round(a.size / 2), xR = a.xs[1] + Math.round(a.size / 2), xC = Math.round((xL + xR) / 2);
+    function topAt(x) { const t = bm.top[Math.max(0, Math.min(47, x))]; return t < 0 ? bm.y0 : t; }
+    // 頭の 上に 2マス かさねて 立てる（上に あきが ない ときは 短く）
+    function horn(x, w, h, key) { const t = topAt(x); h = Math.max(5, Math.min(h, t + 2)); const y = t + 2 - h; return [[x - Math.floor(w / 2), y + 3, w, h - 3, key], [x - Math.floor(w / 4), y, Math.max(2, Math.ceil(w / 2)), 4, key, 'n']]; }
+    if (style === 'auto') return n >= 2 ? horns(kind, n) : [];
+    if (style === 'none') return [];
+    if (style === 'one') return horn(xC, 5, 11, 'C');
+    if (style === 'two') return horn(xL, 4, 9, 'C').concat(horn(xR, 4, 9, 'C'));
+    if (style === 'three') return horn(xL, 4, 8, 'C').concat(horn(xC, 4, 11, 'C'), horn(xR, 4, 8, 'C'));
+    if (style === 'oni') return horn(xL - 2, 6, 13, 'y').concat(horn(xR + 2, 6, 13, 'y'));
+    if (style === 'ears') {
+      const out = [];
+      [xL - 2, xR + 2].forEach(function (x) { const y = Math.max(7, topAt(x) + 1); out.push([x - 4, y - 7, 8, 9, 'A', 'h'], [x - 2, y - 5, 4, 5, 'C', 'n']); });
+      return out;
+    }
+    if (style === 'crown') {
+      const x0 = Math.min(xL, xR) - 4, w = Math.abs(xR - xL) + 8, y = Math.max(5, topAt(xC) - 3);
+      return [[x0, y, w, 5, 'y', 'h'], [x0, y - 4, 3, 4, 'y', 'n'], [xC - 1, y - 5, 3, 5, 'y', 'n'], [x0 + w - 3, y - 4, 3, 4, 'y', 'n'], [xC - 1, y + 1, 3, 3, 'r', 'n']];
+    }
+    return [];
+  }
+  function partMouth(kind, style, f) {
+    const a = TEETH_AT[kind] || TEETH_AT.blob;
+    if (style === 'auto') return f.teeth ? teeth(kind) : [];
+    if (style === 'none') return [];
+    if (style === 'fang') return teeth(kind);
+    if (style === 'big') return [[a[0] - 1, a[1] - 1, 14, 5, 'k', 'n'], [a[0] + 1, a[1] - 1, 2, 2, 'w', 'n'], [a[0] + 9, a[1] - 1, 2, 2, 'w', 'n'], [a[0] + 3, a[1] + 2, 6, 2, 'r', 'n']];
+    if (style === 'smile') return [[a[0] + 1, a[1] + 1, 9, 2, 'k', 'n'], [a[0] - 1, a[1] - 1, 2, 2, 'k', 'n'], [a[0] + 10, a[1] - 1, 2, 2, 'k', 'n']];
+    return [];
+  }
+  function partBack(kind, style, f, bm) {
+    const midY = Math.round((bm.y0 + bm.y1) / 2);
+    const wy = Math.max(0, Math.min(midY - 12, bm.y0 + 4));
+    if (style === 'auto') return f.wings && kind !== 'bird' ? wings(kind) : [];
+    if (style === 'none') return [];
+    if (style === 'wing') {
+      const w = wings(kind);
+      if (w.length) return w;
+      return [[bm.x0 - 7, wy, 9, 14, 'C', 'h'], [bm.x0 - 10, wy + 3, 5, 9, 'C'], [bm.x1 - 1, wy, 9, 14, 'C', 'h'], [bm.x1 + 6, wy + 3, 5, 9, 'C']];
+    }
+    if (style === 'bat') {
+      // よこに あきが あれば よこへ、なければ（体が はば いっぱい）頭の うしろから 上へ ギザギザに ひろげる
+      const out = [];
+      if (bm.x0 >= 8 && bm.x1 <= 39) {
+        [[bm.x0 - 1, -1], [bm.x1 + 1, 1]].forEach(function (e) {
+          const x = e[0], d = e[1];
+          for (let i = 0; i < 3; i++) out.push([d < 0 ? x - (i + 1) * 4 : x + i * 4, wy + i * 2, 4, 12 - i * 2, 'P', i ? 'n' : '']);
+        });
+      } else {
+        [bm.x0 + 3, bm.x1 - 10].forEach(function (x, side) {
+          const t = bm.top[Math.max(0, Math.min(47, x + 4))] < 0 ? bm.y0 : bm.top[Math.max(0, Math.min(47, x + 4))];
+          for (let i = 0; i < 3; i++) { const xx = side ? x + i * 3 : x + 8 - (i + 1) * 3; out.push([xx, Math.max(0, t - 9 + i * 2), 3, 10 - i * 2, 'P', 'n']); }
+        });
+      }
+      return out;
+    }
+    if (style === 'spike') {
+      const out = [];
+      const span = bm.x1 - bm.x0, a = bm.x0 + Math.round(span * 0.25), b = bm.x1 - Math.round(span * 0.25);
+      for (let x = a; x <= b; x += 6) { const t = bm.top[x] < 0 ? bm.y0 : bm.top[x]; out.push([x - 1, t - 4, 4, 5, 'C'], [x, t - 6, 2, 2, 'C', 'n']); }
+      return out;
+    }
+    return [];
+  }
+  function partTail(kind, style, bm) {
+    if (style === 'auto') return tail(kind);
+    if (style === 'none') return [];
+    const t = tail(kind);
+    if (t.length) return t;
+    const tx = Math.min(bm.x1 - 2, 38);   // 右に あきが ない ときは 体の 右下に かさねる
+    return [[tx, bm.y1 - 10, 8, 4, 'C'], [tx + 5, bm.y1 - 15, 4, 6, 'C'], [tx + 6, bm.y1 - 18, 3, 3, 'C', 'n']];
+  }
+  function partPattern(style, shape) {
+    if (style === 'none') return [];
+    // いちばん 大きな 体の 四角（A）の 中に 描く
+    let big = null;
+    shape.forEach(function (p) { if (p && p[4] === 'A' && (!big || p[2] * p[3] > big[2] * big[3])) big = p; });
+    // A の 大きな 四角が ない 体（ロケット・ゆきだるま など）は 黒・きいろ・赤 いがいの いちばん 大きな 四角（白い 体にも つく）
+    if (!big || big[2] < 8 || big[3] < 8) shape.forEach(function (p) { if (p && 'kyr'.indexOf(p[4]) < 0 && p[2] >= 6 && p[3] >= 5 && (!big || p[2] * p[3] > big[2] * big[3])) big = p; });
+    if (!big || big[2] < 6 || big[3] < 5) return [];
+    const x = big[0], y = big[1], w = big[2], h = big[3];
+    if (style === 'stripe') {
+      const out = [];
+      for (let i = 1; i <= 3; i++) out.push([x + Math.round(w * i / 4) - 1, y + 2, 2, h - 4, 'B', 'n']);
+      return out;
+    }
+    if (style === 'spot') return [[x + Math.round(w * 0.2), y + Math.round(h * 0.25), 4, 4, 'C', 'n'], [x + Math.round(w * 0.6), y + Math.round(h * 0.2), 5, 4, 'C', 'n'], [x + Math.round(w * 0.42), y + Math.round(h * 0.6), 4, 4, 'C', 'n']];
+    if (style === 'belly') return [[x + Math.round(w * 0.25), y + Math.round(h * 0.45), Math.round(w * 0.5), Math.round(h * 0.45), 'C', 'n']];
+    return [];
+  }
+  function partHold(style, bm) {
+    if (style === 'none') return [];
+    const midY = Math.round((bm.y0 + bm.y1) / 2);
+    if (style === 'sword') {
+      const x = Math.min(42, bm.x1 - 2), y = Math.max(3, midY - 18);
+      return [[x, y, 4, 20, 's', 'h'], [x + 1, y - 3, 2, 3, 's', 'n'], [x - 3, y + 20, 10, 3, 'y', 'n'], [x + 1, y + 23, 2, 5, 'D', 'n']];
+    }
+    if (style === 'shield') {
+      const x = Math.max(0, bm.x0 - 3), y = Math.max(0, midY - 4);
+      return [[x, y, 11, 13, 'C', 'h'], [x + 1, y + 11, 9, 3, 'C', 'n'], [x + 4, y + 4, 3, 5, 'y', 'n']];
+    }
+    if (style === 'staff') {
+      const x = Math.min(43, bm.x1 - 1), y = Math.max(6, midY - 18);
+      return [[x, y, 3, 28, 'D', 'n'], [x - 2, y - 6, 7, 7, 'e', 'h'], [x - 3, y - 2, 2, 3, 'y', 'n'], [x + 4, y - 2, 2, 3, 'y', 'n']];
+    }
+    return [];
+  }
+  // 体と 部品を かさねる（うしろ：せなか・しっぽ・つの → 体 → もよう → 目・くち → 手に もつ もの）
+  function withParts(kind, body, f) {
+    const bm = bodyMask(body);
+    if (bm.x1 < 0) return body;
+    let shape = body.slice();
+    shape = partBack(kind, partOf('back'), f, bm).concat(shape).concat(partTail(kind, partOf('tail'), bm));
+    shape = partOf('horn') === 'auto' ? partHorns(kind, 'auto', f.horns, bm).concat(shape) : shape.concat(partHorns(kind, partOf('horn'), f.horns, bm));
+    if (f.skull) shape = shape.concat(skullHead(kind));
+    shape = shape.concat(partPattern(partOf('pattern'), body));
+    shape = shape.concat(partMouth(kind, partOf('mouth'), f));
+    shape = shape.concat(partEyes(kind, partOf('eye'), kind === 'eyeball' ? 1 : f.eyes));
+    shape = shape.concat(partHold(partOf('hold'), bm));
+    return clip(shape);
+  }
+
   /* 特徴 → { shape, colors, kind }。kind を わたせば その すがたで 作る */
-  function make(f, forceKind) {
+  function make(f, forceKind, design) {
     if (!f) return null;
+    if (design) {   // デザイン案の 部品を つかって 1体 作る（おわったら もどす）
+      const keep = DESIGN;
+      DESIGN = design;
+      try { return make(f, forceKind); } finally { DESIGN = keep; }
+    }
     const kind = forceKind || pickKind(f);
     /* 字（A〜Z）と 馬に のった きし は 体の 型を つかわず、専用の 部品で 組み立てる（v4.0） */
     if (kind === 'letters' || kind === 'letter') {
@@ -2668,13 +2905,18 @@ MQ.monsterGen = (function () {
       if (f.accent) cl.C = hex(f.accent);
       return { shape: mimicBody(inner), colors: cl, kind: 'mimic' };
     }
-    let shape = BODIES[kind]();
+    let shape;
+    if (anyParts()) {
+      shape = withParts(kind, BODIES[kind](), f);   // v14.10 子どもが 部品を えらんだ とき
+    } else {
+    shape = BODIES[kind]();
     if (f.horns >= 2) shape = horns(kind, f.horns).concat(shape);
     if (f.wings && kind !== 'bird') shape = wings(kind).concat(shape);
     shape = shape.concat(tail(kind));
     if (f.skull) shape = shape.concat(skullHead(kind));
     if (f.teeth) shape = shape.concat(teeth(kind));
     shape = shape.concat(eyesFor(kind, kind === 'eyeball' ? 1 : f.eyes));   // 目玉モンスターは かならず 1つ目
+    }
     const colors = { A: hex(f.main) };
     if (f.accent) colors.C = hex(f.accent);
     return { shape: shape, colors: colors, kind: kind };
@@ -3139,7 +3381,18 @@ MQ.monsterGen = (function () {
     if (!f.boxish) plan.push(['box', 'box']);
     for (let i = 6; i < order.length; i++) plan.push([ord(i), ord(i)]);
     plan.forEach(function (p) { add(p[0], p[1], p[2]); });
-    return out.slice(0, want);
+    /* デザイン案（v14.10）：いちばん 合う 体 2しゅるい × 絵に ちかい／つよそう／かわいい */
+    const designs = [];
+    const SPECIAL = ['letters', 'letter', 'rider', 'knight', 'mimic', 'triple'];
+    const bodies = order.map(function (o) { return o.kind; }).filter(function (k) { return SPECIAL.indexOf(k) < 0 && BODIES[k]; }).slice(0, 2);
+    bodies.forEach(function (k) {
+      designSets(f).forEach(function (d) {
+        const m = make(f, k, d.parts);
+        if (!m) return;
+        designs.push({ png: png(m.shape, m.colors), kind: m.kind, tag: k + '#' + d.id, design: d.id, label: (KIND_NAMES[k] || k) + '・' + d.name, parts: d.parts, shape: m.shape, colors: m.colors, letters: null, cols: null });
+      });
+    });
+    return designs.concat(out.slice(0, want));
   }
 
   /* はこ（たからばこ・わく）の 中に 生きものが いる 絵（v5.7）。
@@ -3528,6 +3781,10 @@ MQ.monsterGen = (function () {
     kindMask: kindMask,
     groups: GROUPS,
     setHint: setHint,
+    setParts: setParts,
+    designSets: designSets,
+    parts: function () { return Object.assign({}, PARTS); },
+    partList: PART_LIST,
     withFirst: withFirst,
     analyze: analyze,
     fromDrawing: fromDrawing,

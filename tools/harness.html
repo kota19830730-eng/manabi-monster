@@ -1759,8 +1759,29 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         await wait(200);
         say('letters: ' + JSON.stringify(MQ.ui.photo.info()));
       }
-      say('dark: ' + (MQ.ui.photo.dark ? MQ.ui.photo.dark() : '-'));   // v14.8 くらい 写真の 注意
-      // :eyes=u,v;u,v = 「目は どこ？」を おして できあがりの 絵を タップ（v14.8・ボタンと 絵を click する）
+      // :parts=eye.glow,horn.oni = 「ほかの すがた」で パーツが つけられる 1つめを えらんで、パーツの チップを おす（v14.10・chip を click する）
+      if (parts[6] && parts[6].indexOf('parts=') === 0) {
+        const tiles = document.querySelectorAll('.photo__pick:not(.photo__pick--big)');
+        for (let i = 0; i < tiles.length; i++) {
+          const t2 = document.querySelectorAll('.photo__pick:not(.photo__pick--big)')[i];
+          if (!t2) break;
+          t2.click();
+          await wait(120);
+          if ($('.photo__parts') && !$('.photo__parts').hidden) break;
+        }
+        say('partsrow: ' + ($('.photo__parts') && !$('.photo__parts').hidden ? 'show' : 'MISSING'));
+        const wantP = parts[6].slice(6).split(',').map(function (x) { return x.replace('.', ':'); });
+        for (let i = 0; i < wantP.length; i++) {
+          const cb = document.querySelector('.photo__pcat[data-cat="' + wantP[i].split(':')[0] + '"]');
+          if (cb) { cb.click(); await wait(60); }
+          const b = document.querySelector('.photo__part[data-part="' + wantP[i] + '"]');
+          if (b) b.click(); else say('part MISSING ' + wantP[i]);
+          await wait(120);
+        }
+        say('partsel: ' + JSON.stringify(MQ.monsterGen.parts()) + ' on=' + document.querySelectorAll('.photo__part.is-on').length);
+      }
+      say('dark: ' + (MQ.ui.photo.dark ? MQ.ui.photo.dark() : '-'));   // v14.10 くらい 写真の 注意
+      // :eyes=u,v;u,v = 「目は どこ？」を おして できあがりの 絵を タップ（v14.10・ボタンと 絵を click する）
       if (parts[6] && parts[6].indexOf('eyes=') === 0) {
         const eb = $('.photo__eyebtn');
         say('eyebtn: ' + !!eb + ' hidden=' + (eb ? $('.photo__eyes').hidden : '-'));
