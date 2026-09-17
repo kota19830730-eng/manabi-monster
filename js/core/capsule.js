@@ -22,6 +22,9 @@ MQ.capsule = (function () {
   const COST = 10;          // 1回の ねだん
   const REFUND = 5;         // かぶった ときに もどる コイン
   const PITY = 10;          // 何回で げきレア かくていか
+  /* シークレット（v14.8）：げきレアが 出た とき、この かくりつで ？？？の 3体から 出る。
+     わりあいの 表（70／25／5）は 変えない＝げきレアの 中みが 2しゅるいに なる だけ */
+  const SECRET_RATE = 0.25;
 
   // 出る わりあい。合計は かならず 1
   const RATES = { n: 0.70, r: 0.25, sr: 0.05 };
@@ -59,7 +62,7 @@ MQ.capsule = (function () {
     if (kind === 'mon') {
       const list = (MQ.enemies && MQ.enemies.dexList && MQ.enemies.dexList()) || [];
       return list.filter(function (e) { return e.capsuleOnly; }).map(function (e) {
-        return { id: e.id, name: e.name, rarity: e.cap || 'n', kind: 'mon' };
+        return { id: e.id, name: e.name, rarity: e.cap || 'n', kind: 'mon', secret: !!e.secret };
       });
     }
     if (kind === 'gear') {
@@ -115,6 +118,19 @@ MQ.capsule = (function () {
     all.forEach(function (x) { if (c && c.got[x.id]) have++; });
     return { have: have, total: all.length };
   }
+  /* コンプリート（v14.8）：その 台の 景品を ぜんぶ あつめたか。
+     そろった 台は かぶりの もどりが 全額（COST）に なる＝まわす 楽しみだけ 味わえて コインは へらない */
+  function complete(p, kind) {
+    const pr = progress(p, kind);
+    return pr.total > 0 && pr.have >= pr.total;
+  }
+  function completeAll(p) {
+    return KIND_IDS.every(function (k) { return complete(p, k); });
+  }
+  /* シークレットの のこり（？？？の 見せ方に つかう） */
+  function secretsLeft(p, kind) {
+    return pool(kind).filter(function (x) { return x.secret && !has(p, x.id); }).length;
+  }
   function pityLeft(p, kind) {
     const c = ensure(p);
     return Math.max(0, PITY - ((c && c.pity[kind]) || 0));
@@ -153,8 +169,15 @@ MQ.capsule = (function () {
   function pick(kind, rarity, p, rnd) {
     const order = fallback(rarity);
     for (let i = 0; i < order.length; i++) {
-      const list = byRarity(kind, order[i]);
+      let list = byRarity(kind, order[i]);
       if (!list.length) continue;                 // ③ わくが 空の ときだけ つぎへ
+      /* シークレット（v14.8）：げきレアの わくの 中で、SECRET_RATE で ？？？の ほうから 出る。
+         えらんだ がわが 空なら もう いっぽうへ（はずれなしの きまいの まま） */
+      if (order[i] === 'sr') {
+        const sec = list.filter(function (x) { return x.secret; });
+        const norm = list.filter(function (x) { return !x.secret; });
+        if (sec.length && norm.length) list = rnd() < SECRET_RATE ? sec : norm;
+      }
       const fresh = list.filter(function (x) { return !has(p, x.id); });
       const from = fresh.length ? fresh : list;   // ① まだの もの → ② ぜんぶ 持って いたら かぶり
       return from[Math.floor(rnd() * from.length)];
@@ -204,8 +227,8 @@ MQ.capsule = (function () {
     const dup = has(p, item.id);
     let refund = 0;
     if (dup) {
-      refund = REFUND;
-      p.coins += REFUND;
+      refund = complete(p, kind) ? COST : REFUND;   // コンプリートした 台は 全額 もどる（v14.8）
+      p.coins += refund;
     } else {
       c.got[item.id] = 1;
       grant(p, item);
@@ -224,9 +247,10 @@ MQ.capsule = (function () {
   }
 
   return {
-    COST: COST, REFUND: REFUND, PITY: PITY, RATES: RATES, tickets: tickets,
+    COST: COST, REFUND: REFUND, PITY: PITY, RATES: RATES, SECRET_RATE: SECRET_RATE, tickets: tickets,
     KINDS: KINDS, KIND_IDS: KIND_IDS, RARITY: RARITY,
     ensure: ensure, pool: pool, byRarity: byRarity, rates: rates, has: has,
-    progress: progress, pityLeft: pityLeft, canPull: canPull, pull: pull
+    progress: progress, pityLeft: pityLeft, canPull: canPull, pull: pull,
+    complete: complete, completeAll: completeAll, secretsLeft: secretsLeft
   };
 })();

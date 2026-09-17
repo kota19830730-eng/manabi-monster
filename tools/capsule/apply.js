@@ -1,4 +1,4 @@
-/* カプセル専用モンスター 54体（18系統 × 3段階）を ゲームに 入れる。
+/* カプセル専用モンスター 84体（27系統 × 3段階＋シークレット 3体・v14.8 第2弾）を ゲームに 入れる。
      node tools/capsule/apply.js
 
    ・絵  → js/content/monsterart.js の mons
@@ -20,6 +20,9 @@ const root = path.join(__dirname, '..', '..');
 const kit = require('./kit.js');
 const defs = require('./defs.js');
 const evo = require('./evo.js');
+const defs2 = require('./defs2.js');   // 第2弾（v14.8）：ようかい隊・メカ生きもの・でんせつの どうぶつ
+const evo2 = require('./evo2.js');
+/* シークレット（v14.8）：単体・進化しない・あつめぐあいの バーでは ？？？ */
 
 const START = '    /* ---------- カプセル専用（v9.0）ここから：tools/capsule/apply.js が 書く ---------- */';
 const END = '    /* ---------- カプセル専用 ここまで ---------- */';
@@ -43,13 +46,13 @@ function lift(colors, k) {
 
 /* ---- 54体を 組み立てる ---- */
 const byId = {};
-defs.ALL.forEach(function (b) { byId[b.id] = b; });
+defs.ALL.concat(defs2.ALL2).forEach(function (b) { byId[b.id] = b; });
 
 const made = [];   // { id, name, shape, colors, cap, line, stage, evo, rank }
 // つよさ（★の 数だけに つかう。ふつうの たたかいには 出ない）
 const RANK = { n: 1, r: 2, sr: 3 };
 
-evo.forEach(function (row) {
+evo.concat(evo2).forEach(function (row) {
   const base = byId[row.from];
   if (!base) { console.log('FAIL: ' + row.from + ' が defs.js に ない'); process.exit(1); }
   const steps = row.steps;
@@ -71,7 +74,10 @@ evo.forEach(function (row) {
   });
 });
 
-if (made.length !== 54) { console.log('FAIL: ' + made.length + '体（54体の はず）'); process.exit(1); }
+defs2.SECRET.forEach(function (b) {
+  made.push({ id: b.id, name: b.name, shape: b.shape, colors: b.colors, cap: b.cap, secret: true, rank: 3, first: true });
+});
+if (made.length !== 84) { console.log('FAIL: ' + made.length + '体（84体の はず）'); process.exit(1); }
 
 /* ---- 48マスから はみ出して いないか（入れる 前の さいごの 検査）---- */
 let ng = 0;
@@ -115,7 +121,8 @@ const dataBody = made.map(function (m) {
     'rank: ' + m.rank];
   if (m.first) { bits.push('capsuleOnly: true', "cap: '" + m.cap + "'"); }
   else bits.push('evoOnly: true');
-  bits.push("line: '" + m.line + "'", 'stage: ' + m.stage);
+  if (m.secret) bits.push('secret: true');
+  if (m.line) { bits.push("line: '" + m.line + "'", 'stage: ' + m.stage); }
   if (m.evo) bits.push("evo: '" + m.evo + "'");
   return '    { ' + bits.join(', ') + ',\n      colors: ' + colorStr(m.colors) + ' }';
 }).join(',\n');
@@ -151,10 +158,11 @@ function splice(file, body, head) {
 }
 
 splice('js/content/monsterart.js', artBody,
-  '    /* 18系統 × 3段階。絵の 正本は tools/capsule/defs.js と evo.js。手で 直さない */');
+  '    /* 27系統 × 3段階＋シークレット 3体。絵の 正本は tools/capsule/defs.js・evo.js（第1弾）と defs2.js・evo2.js（第2弾）。手で 直さない */');
 splice('js/content/enemies.js', dataBody,
-  '    /* カプセルマシンでしか 手に 入らない 18系統 × 3段階＝54体。\n'
+  '    /* カプセルマシンでしか 手に 入らない 27系統 × 3段階＋シークレット 3体＝84体（v14.8 で 第2弾）。\n'
   + '       1段階め＝capsuleOnly（引ける）／2・3段階め＝evoOnly（Lv.10 / Lv.20 で なる）。\n'
+  + '       secret: true＝あつめぐあいの バーで ？？？（進化しない 単体）。\n'
   + '       area を つけないので ふつうの たたかい（pickIds）には 出ない。 */');
 
 console.log('\nカプセル専用 ' + made.length + '体（1段階め ' + made.filter(function (m) { return m.first; }).length + '体）を 入れた');

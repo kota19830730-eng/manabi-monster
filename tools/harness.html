@@ -1724,6 +1724,21 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         await wait(200);
         say('letters: ' + JSON.stringify(MQ.ui.photo.info()));
       }
+      say('dark: ' + (MQ.ui.photo.dark ? MQ.ui.photo.dark() : '-'));   // v14.8 くらい 写真の 注意
+      // :eyes=u,v;u,v = 「目は どこ？」を おして できあがりの 絵を タップ（v14.8・ボタンと 絵を click する）
+      if (parts[6] && parts[6].indexOf('eyes=') === 0) {
+        const eb = $('.photo__eyebtn');
+        say('eyebtn: ' + !!eb + ' hidden=' + (eb ? $('.photo__eyes').hidden : '-'));
+        if (eb) eb.click();
+        await wait(100);
+        const pv = $('.photo__out'), pr = pv.getBoundingClientRect();
+        parts[6].slice(5).split(';').forEach(function (uv) {
+          const t = uv.split(',').map(Number);
+          pv.dispatchEvent(new MouseEvent('click', { clientX: pr.left + t[0] * pr.width, clientY: pr.top + t[1] * pr.height, bubbles: true }));
+        });
+        await wait(200);
+        say('eyes: ' + JSON.stringify(MQ.ui.photo.eyes()));
+      }
       if (parts[5] === 'down') { const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__preview'); if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 90; }   // :down = できあがりまで スクロール
       // できあがり（PNG）と わくの 中の 写真（JPEG）を ログに 出す（外の 道具で ならべて 見る ため）
       say('png:' + ($('.photo__out').src || ''));

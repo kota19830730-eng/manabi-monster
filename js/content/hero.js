@@ -243,6 +243,14 @@ MQ.hero = (function () {
      答えを 見せる・問題を とばす 力は 作らない。
      中身は js/core/battle.js（s.gear の フラグ）と js/ui/battle.js（specialOf）。
      ======================================================= */
+  /* ギンガ（げきレア 第2弾・v14.8）だけの 力。オーロラと 同じく「正解した ときの もらいが ふえる」だけ */
+  const GINGA_POWER = {
+    weapon: { key: 'fastX2',      text: 'はやとき ボーナスが 2ばいに なる',       short: 'はやとき 2ばい' },
+    shield: { key: 'noEscape',    text: 'たてが へらずに ずっと まもって くれる', short: 'ずっと まもる' },
+    helm:   { key: 'setX2',       text: 'セットわざの ゲージが 2ばい たまる',     short: 'セット 2ばい' },
+    armor:  { key: 'palXp2',      text: 'なかまの けいけんちが 2ばいに なる',     short: 'なかま そだつ' },
+    cape:   { key: 'perfectCoin', text: 'パーフェクトの とき コイン ＋5',         short: 'パーフェクト ＋5' }
+  };
   const AURORA_POWER = {
     weapon: { key: 'critEasy', text: 'クリティカルが 2コンボから 出る',   short: 'クリティカル 早い' },
     shield: { key: 'pierce',   text: '中ボスを 一発で たおせる',           short: '中ボス 一発' },
@@ -274,7 +282,13 @@ MQ.hero = (function () {
     { id: 'capsule', no: 7, name: 'カプセル', how: 'カプセルマシン',
       capsule: true, cap: 'n', powerNo: 2, setCoins: 3 },
     { id: 'aurora',  no: 8, name: 'オーロラ', how: 'カプセルマシン（げきレア）',
-      capsule: true, cap: 'sr', powerNo: 6, setCoins: 6, setMulNo: 6, aurora: true }
+      capsule: true, cap: 'sr', powerNo: 6, setCoins: 6, setMulNo: 6, aurora: true },
+    /* カプセル 第2弾（v14.8）。つよさの きまりは 第1弾と 同じ：
+       プリズム＝てつ級＋セットで コイン＋3／ギンガ＝やみ級（こえない）＋コイン＋6＋×1.6＋ギンガだけの 力 */
+    { id: 'prism', no: 9, name: 'プリズム', how: 'カプセルマシン（第2だん）',
+      capsule: true, cap: 'n', powerNo: 2, setCoins: 3 },
+    { id: 'ginga', no: 10, name: 'ギンガ', how: 'カプセルマシン（第2だん・げきレア）',
+      capsule: true, cap: 'sr', powerNo: 6, setCoins: 6, setMulNo: 6, ginga: true }
   ];
 
   const GEAR_DEF = {
@@ -337,6 +351,21 @@ MQ.hero = (function () {
       helm:   { name: 'オーロラの かぶと' },
       armor:  { name: 'オーロラの よろい' },
       cape:   { name: 'オーロラの マント' }
+    },
+    // カプセル 第2弾（v14.8）
+    prism: {
+      weapon: { name: 'プリズムの けん' },
+      shield: { name: 'プリズムの たて' },
+      helm:   { name: 'プリズムの かぶと' },
+      armor:  { name: 'プリズムの よろい' },
+      cape:   { name: 'プリズムの マント' }
+    },
+    ginga: {
+      weapon: { name: 'ギンガの けん' },
+      shield: { name: 'ギンガの たて' },
+      helm:   { name: 'ギンガの かぶと' },
+      armor:  { name: 'ギンガの よろい' },
+      cape:   { name: 'ギンガの マント' }
     }
   };
 
@@ -359,13 +388,14 @@ MQ.hero = (function () {
         capsule: !!g.capsule,
         cap: g.cap || null,                 // カプセルマシンでの レアさ
         aurora: !!g.aurora,
+        ginga: !!g.ginga,   // ギンガだけの 力（v14.8）
         // カプセル限定は powerNo（＝ほかの グレードと 同じ つよさ）を 見る
         power: GEAR_POWER[slot].vals[(g.powerNo || g.no) - 1],
         powerText: GEAR_POWER[slot].text(GEAR_POWER[slot].vals[(g.powerNo || g.no) - 1]),
         powerShort: GEAR_POWER[slot].short(GEAR_POWER[slot].vals[(g.powerNo || g.no) - 1]),
         // オーロラだけの 力（げきレア）。ほかの グレードは null
-        extraText: g.aurora ? AURORA_POWER[slot].text : null,
-        extraShort: g.aurora ? AURORA_POWER[slot].short : null
+        extraText: g.aurora ? AURORA_POWER[slot].text : (g.ginga ? GINGA_POWER[slot].text : null),
+        extraShort: g.aurora ? AURORA_POWER[slot].short : (g.ginga ? GINGA_POWER[slot].short : null)
       });
     });
   });
@@ -388,7 +418,7 @@ MQ.hero = (function () {
        でんせつ … まなびの かけら（1つ＝1点）＋ ラスボスで 5点目
        ほし     … ★3の ステージが 3・6・9・12・15 に なったとき（v5.4）
        さいごの塔を クリアする たびに 1点（v5.4） */
-  const SPECIAL_GRADES = ['densetsu', 'hoshi', 'yami', 'capsule', 'aurora'];
+  const SPECIAL_GRADES = ['densetsu', 'hoshi', 'yami', 'capsule', 'aurora', 'prism', 'ginga'];
   function isDensetsu(id) { return String(id).indexOf('densetsu-') === 0; }
   function isSpecial(id) {
     return SPECIAL_GRADES.some(function (g) { return String(id).indexOf(g + '-') === 0; });
@@ -433,13 +463,20 @@ MQ.hero = (function () {
     const out = {
       xpAdd: 0, safe: 0, special: 0, keep: 0, coins: 0, setMul: 1, setName: '',
       // オーロラ（げきレア）だけの 力。つけて いる ぶんだけ true に なる
-      critEasy: false, pierce: false, tierUp: false, palPlus: 0, bossCoin: 0
+      critEasy: false, pierce: false, tierUp: false, palPlus: 0, bossCoin: 0,
+      // ギンガ（げきレア 第2弾・v14.8）だけの 力
+      fastX2: false, noEscape: false, setX2: false, palXp2: false, perfectCoin: 0
     };
     ORDER.forEach(function (slot) {
       const g = eq[slot] && gearById[eq[slot]];
       if (!g) return;
       // きたえた ぶん（v13.15）。場所ごとに 足す（べつの そうびに かえても のこる）
       out[GEAR_POWER[slot].key] += g.power + forgeBonus(player, slot);
+      if (g.ginga) {
+        const gx = GINGA_POWER[slot];
+        if (gx.key === 'perfectCoin') out.perfectCoin += 5;   // パーフェクトで コイン ＋5
+        else out[gx.key] = true;
+      }
       if (!g.aurora) return;
       const ex = AURORA_POWER[slot];
       if (ex.key === 'palPlus') out.palPlus += 1;        // なかまゲージ 2ばい
@@ -918,7 +955,11 @@ MQ.hero = (function () {
     { id: 't-lv30',    name: 'にじいろの けんし',   how: 'Lv30',                       test: function (p) { return levelOf(p.xp) >= 30; } },
     { id: 't-forgeall', name: 'きたえの たつじん',  how: '5つの そうびを ぜんぶ +5 に', test: function (p) { return !!(MQ.forge && MQ.forge.allMax(p)); } },
     { id: 't-lv40',    name: 'たいようの けんし',   how: 'Lv40',                       test: function (p) { return levelOf(p.xp) >= 40; } },
-    { id: 't-lv50',    name: 'えいゆう',            how: 'Lv50',                       test: function (p) { return levelOf(p.xp) >= 50; } }
+    { id: 't-lv50',    name: 'えいゆう',            how: 'Lv50',                       test: function (p) { return levelOf(p.xp) >= 50; } },
+    /* カプセルの コンプリート（v14.8）。complete は そのときの 景品の 数で 見る ので、景品が ふえたら 自動で きびしく なる */
+    { id: 't-capmon',  name: 'なかま コンプリート', how: 'カプセルの なかまを ぜんぶ あつめる', test: function (p) { return !!(MQ.capsule && MQ.capsule.complete && MQ.capsule.complete(p, 'mon')); } },
+    { id: 't-capgear', name: 'そうび コンプリート', how: 'カプセルの そうびを ぜんぶ あつめる', test: function (p) { return !!(MQ.capsule && MQ.capsule.complete && MQ.capsule.complete(p, 'gear')); } },
+    { id: 't-caplook', name: 'すがた コンプリート', how: 'カプセルの すがたを ぜんぶ あつめる', test: function (p) { return !!(MQ.capsule && MQ.capsule.complete && MQ.capsule.complete(p, 'look')); } }
   ];
   const titleById = {};
   titles.forEach(function (t) { titleById[t.id] = t; });
@@ -958,7 +999,7 @@ MQ.hero = (function () {
     getGear: getGear, nextGear: nextGear, nextDensetsu: nextDensetsu, isDensetsu: isDensetsu,
     nextHoshi: nextHoshi, nextYami: nextYami, isSpecial: isSpecial, hoshiStars: HOSHI_STARS,
     capsuleGear: capsuleGear, isCapsuleGear: isCapsuleGear, hasAuroraSet: hasAuroraSet, setCoinsOf: setCoinsOf,
-    gearPower: gearPower, slotPower: slotPower, gearSlotPower: GEAR_POWER, auroraPower: AURORA_POWER, setMulFor: setMulFor,
+    gearPower: gearPower, slotPower: slotPower, gearSlotPower: GEAR_POWER, auroraPower: AURORA_POWER, gingaPower: GINGA_POWER, setMulFor: setMulFor,
     fullSetOf: fullSetOf, hasSet: hasSet, equippedSetOf: equippedSetOf, fullSetGrade: fullSetGrade, labels: labels,
     sprite: sprite, faceSprite: faceSprite, bodySprite: bodySprite, partSprite: partSprite, poster: poster,
     gearSprite: gearSprite, gearShadow: gearShadow, layersFor: layersFor,

@@ -503,7 +503,7 @@ MQ.battle = (function () {
         freeze: (opts.timeAttack ? 0 : gear.keep) + (support ? (support.keep || 0) : 0),   // よろい・サポート：はじめから コンボを まもる
         // オーロラの よろい（げきレア・v9.0）… なかまゲージが はじめから 2ばい
         xpMul: 1, palPlus: (fever ? (fever.palPlus || 0) : 0) + (gear.palPlus || 0),
-        comboPlus: 0, fastSure: 0, palXp: 1
+        comboPlus: 0, fastSure: 0, palXp: gear.palXp2 ? 2 : 1   // ギンガの よろい（v14.8）：なかまの けいけんち 2ばい
       },
       itemsUsed: [],
       frozenQ: null,     // 時とめが 効いている 問題の id
@@ -782,7 +782,7 @@ MQ.battle = (function () {
   /* セットゲージ（v14.2）：正解ごとに 1つ。いっぱいに なった 正解で セットわざ（1たたかい MAX 回まで） */
   function setHitNow() {
     if (!s.setWaza || !MQ.setwaza || s.setMoves >= MQ.setwaza.MAX) return false;
-    s.setGauge += 1;
+    s.setGauge += s.gear.setX2 ? 2 : 1;   // ギンガの かぶと（v14.8）：セットゲージ 2ばい
     if (s.setGauge < MQ.setwaza.NEED) return false;
     s.setGauge = 0;
     s.setMoves++;
@@ -1016,8 +1016,9 @@ MQ.battle = (function () {
     }
 
     // てっぺき まもり：2回目に まちがえても にげられない（答えは 見せずに もう1回）
-    if (s.buff.shield > 0 && !s.timeAttack) {
-      s.buff.shield--;
+    // ギンガの たて（v14.8）：たてが へらずに ずっと まもる（ガードくだきでも こわれない）
+    if ((s.buff.shield > 0 || s.gear.noEscape) && !s.timeAttack) {
+      if (!s.gear.noEscape) s.buff.shield--;
       if (s.frozenQ !== q.id) s.combo = 0;
       if (q.groupId) s.groupClean = false;
       return { outcome: 'shielded', left: s.buff.shield, combo: s.combo, hint: makeHint(q), hit: hit };
@@ -1294,7 +1295,7 @@ MQ.battle = (function () {
     const time = elapsed();
     const fast = s.answered > 0 && time <= s.answered * SEC_PER_Q;
     // はやての はね（v5.4）を つかった ときは かならず もらえる
-    const fastBonus = Math.max(fast ? XP.fast : 0, s.answered > 0 ? (s.buff.fastSure || 0) : 0);
+    const fastBonus = Math.max(fast ? XP.fast : 0, s.answered > 0 ? (s.buff.fastSure || 0) : 0) * (s.gear.fastX2 ? 2 : 1);   // ギンガの けん（v14.8）
     const stars = starsFor(s.correct, s.answered);
     // ★3で コイン +1（とっくんは のぞく）
     const starCoins = s.mode !== 'tokkun' && s.answered > 0 && stars === 3 ? 1 : 0;
@@ -1306,6 +1307,8 @@ MQ.battle = (function () {
     const mixCoins = s.mix && s.answered > 0 ? 1 : 0;
     // しゅうまつ イベントの コイン まつり（v13.16）
     const weekendCoins = s.weekend && s.answered > 0 ? (s.weekend.coins || 0) : 0;
+    // ギンガの マント（v14.8）：パーフェクト（ぜんもん 1回めで 正解）なら コイン ＋5
+    const perfectCoins = s.mode !== 'tokkun' && s.answered > 0 && s.correct === s.answered ? (s.gear.perfectCoin || 0) : 0;
     return {
       mix: s.mix,
       mixCoins: mixCoins,
@@ -1329,7 +1332,8 @@ MQ.battle = (function () {
       baseXp: s.xp,
       fastBonus: fastBonus,
       time: time,
-      coins: s.coins + starCoins + gearCoins + feverCoins + mixCoins + weekendCoins,
+      coins: s.coins + starCoins + gearCoins + feverCoins + mixCoins + weekendCoins + perfectCoins,
+      perfectCoins: perfectCoins,
       starCoins: starCoins,
       gearCoins: gearCoins,
       gearSet: s.gear.setName || '',

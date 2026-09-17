@@ -80,3 +80,17 @@
 .ga--yami { --ga1: rgba(170,80,255,.95); --ga2: rgba(255,79,216,.5); }
 .ga--capsule { --ga1: rgba(95,240,255,.95); --ga2: rgba(255,255,255,.45); }
 .ga--aurora { --ga1: rgba(180,140,255,.85); --ga2: rgba(255,212,71,.35); }
+
+/* カプセル 第2弾（v14.8）：プリズム（にじの きらめき）・ギンガ（よぞらの 星あかり） */
+.ga--prism { --ga1: rgba(255,159,208,.9); --ga2: rgba(122,224,255,.5); }
+.ga--ginga { --ga1: rgba(143,216,255,.95); --ga2: rgba(255,228,90,.45); }
+.gaura--prism .gaura__glow { background: radial-gradient(ellipse at 50% 64%, rgba(255,159,208,.5) 0, rgba(122,224,255,.22) 45%, rgba(255,159,208,0) 70%); }
+.gaura--prism .gaura__floor { background: radial-gradient(ellipse, rgba(230,245,255,.85), transparent 70%); }
+.gaura--prism .gaura__p { background: #ffd6ec; width: .55em; height: .55em; }
+.gaura--prism .gaura__p:nth-child(odd) { background: #bff0ff; }
+.gaura--prism .gaura__p:nth-child(3n) { background: #ffffff; width: .35em; height: .35em; }
+.gaura--ginga .gaura__glow { background: radial-gradient(ellipse at 50% 60%, rgba(90,130,255,.5) 0, rgba(40,60,160,.25) 45%, rgba(40,60,160,0) 70%); }
+.gaura--ginga .gaura__floor { background: radial-gradient(ellipse, rgba(143,216,255,.7), transparent 70%); }
+.gaura--ginga .gaura__p { background: #ffffff; width: .4em; height: .4em; animation-name: gauraRiseSlow; }
+.gaura--ginga .gaura__p:nth-child(odd) { background: #ffe45a; }
+.gaura--ginga .gaura__p:nth-child(3n) { background: #8fd8ff; width: .6em; height: .6em; }

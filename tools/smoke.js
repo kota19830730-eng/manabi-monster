@@ -927,14 +927,14 @@ const trIds = MQ.treasure.list.map(function (t) { return t.id; });
 check(new Set(trIds).size === trIds.length, 'たからものの id が かぶっていない');
 
 /* ---- 主人公・そうび ---- */
-check(MQ.hero.gear.length === 40, 'そうび 40点（5部位 × 8グレード）: ' + MQ.hero.gear.length);
-check(MQ.hero.grades.length === 8, 'グレード 8しゅるい: ' + MQ.hero.grades.length);
+check(MQ.hero.gear.length === 50, 'そうび 50点（5部位 × 10グレード・v14.8 で プリズム／ギンガ）: ' + MQ.hero.gear.length);
+check(MQ.hero.grades.length === 10, 'グレード 10しゅるい: ' + MQ.hero.grades.length);
 (function () {
   // v5.4：かたちが グレードごとに ちがう（前は 色だけ ちがった）
   MQ.hero.slots.forEach(function (slot) {
     const shapes = MQ.hero.gear.filter(function (g) { return g.slot === slot; })
       .map(function (g) { return g.rows.join('\n'); });
-    check(new Set(shapes).size === 8, slot + ' の かたちが 8つ とも ちがう: ' + new Set(shapes).size);
+    check(new Set(shapes).size === MQ.hero.grades.length, slot + ' の かたちが ぜんぶ ちがう: ' + new Set(shapes).size);
   });
   // そうびの 効果：どの グレードも 0 では ない・上の グレードほど 強い
   MQ.hero.slots.forEach(function (slot) {
@@ -965,7 +965,7 @@ check(MQ.hero.grades.length === 8, 'グレード 8しゅるい: ' + MQ.hero.grad
 
   /* ---- カプセル限定の そうび 10点（v9.0）---- */
   const cg = MQ.hero.capsuleGear();
-  check(cg.length === 10, 'カプセル限定の そうびは 10点: ' + cg.length);
+  check(cg.length === 20, 'カプセル限定の そうびは 20点（v14.8 で プリズム／ギンガ）: ' + cg.length);
   check(cg.every(function (g) { return g.capsule === true; }), 'カプセル限定に しるしが ある');
   check(cg.every(function (g) { return MQ.hero.isSpecial(g.id); }),
     '★2の ごほうびでは カプセル限定は 出ない');
@@ -1040,11 +1040,11 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     dojoDone: 5,                       // v13.0 しゅぎょうの たつじん
     forgeCount: 25, forge: { weapon: 5, shield: 5, helm: 5, armor: 5, cape: 5 },   // v13.15 きたえる
     elites: 10, weakHits: 10,          // v8.1 中ボス ハンター・弱点を つく 者
-    // v9.0 カプセル コレクター（30回）・げきレアの もちぬし（げきレア 3つ）
+    // v9.0 カプセル コレクター（30回）・げきレアの もちぬし・v14.8 コンプリート 3つ（got を ぜんぶに）
     capsule: (function () {
       const got = {};
       MQ.capsule.KIND_IDS.forEach(function (k) {
-        MQ.capsule.byRarity(k, 'sr').forEach(function (x) { got[x.id] = 1; });
+        MQ.capsule.pool(k).forEach(function (x) { got[x.id] = 1; });
       });
       return { pulls: 30, got: got, pity: {} };
     })(),
@@ -1154,8 +1154,8 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
 
   /* ---- カプセル限定の すがたパーツ 20個（v9.0）---- */
   const cps = MQ.hero.capsuleParts();
-  check(cps.length === 20, 'カプセル限定の パーツは 20こ: ' + cps.length);
-  const want = { hair: 4, eye: 3, cloth: 4, glass: 3, acc: 6 };
+  check(cps.length === 40, 'カプセル限定の パーツは 40こ（v14.8 で 第2弾 ＋20）: ' + cps.length);
+  const want = { hair: 8, eye: 6, cloth: 8, glass: 6, acc: 12 };
   Object.keys(want).forEach(function (k) {
     const got = cps.filter(function (p) { return p.group === k; }).length;
     check(got === want[k], 'カプセル限定の ' + k + ' は ' + want[k] + 'こ: ' + got);
@@ -1168,8 +1168,8 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     'カプセル限定の パーツは id・name・cap を もつ');
   const capN = { n: 0, r: 0, sr: 0 };
   cps.forEach(function (p) { capN[p.cap]++; });
-  check(capN.n === 10 && capN.r === 6 && capN.sr === 4,
-    'すがたの レアさは ふつう10／レア6／げきレア4: ' + JSON.stringify(capN));
+  check(capN.n === 20 && capN.r === 12 && capN.sr === 8,
+    'すがたの レアさは ふつう20／レア12／げきレア8: ' + JSON.stringify(capN));
   // 持って いない 子には 見えない・持って いる 子には 見える
   const noOne = { xp: 999999 };
   check(cps.every(function (p) { return !MQ.hero.owns(p.item, noOne); }),
@@ -1262,7 +1262,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(dup === 0, 'モンスターの 名前と id が かぶらない（' + dup + '）');
   // 図かん（ザコ＋ボス5体）
   const dex = MQ.enemies.dexList().length + MQ.enemies.bosses.length;
-  check(dex === 279, '図かんは 279体（' + dex + '）');   // v11.0 で 小6の ラスボス（274 → 275）・v13.21 で ABC が 9体 → 3体（275 → 269）・v14.7 で 序盤・中盤の ボス 10体（269 → 279）
+  check(dex === 309, '図かんは 309体（' + dex + '）');   // v13.21 で ABC 275 → 269・v14.7 で ボス 10体（→ 279）・v14.8 で カプセル 第2弾 27体＋シークレット 3体（→ 309）
   // エリアごとの 顔ぶれ
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
     const pool = MQ.enemies.list.filter(function (e) { return (e.area === a || e.any) && !e.rare && !e.hidden; });
@@ -1279,7 +1279,7 @@ check(Object.keys(MQ.monsterArt.mons).length >= 50, '形は 50しゅるい い�
   check(kings.every(function (e) { return e.stage === 3 && e.line && !e.evo && e.rank === 3; }), '王さまは 3段階め・rank3・つぎは ない');
   check(kings.every(function (e) { return !!MQ.enemies.shapes[e.shape]; }), '王さまの 絵が ぜんぶ ある');
   // むかしから いる 88体は ぜんぶ 系統に 入って 進化する（中ボスと レアは のぞく）
-  const plain = MQ.enemies.list.filter(function (e) { return !e.mid && !e.rare && !e.hidden && e.id !== 'chest'; });
+  const plain = MQ.enemies.list.filter(function (e) { return !e.mid && !e.rare && !e.hidden && !e.secret && e.id !== 'chest'; });   // secret＝カプセルの ？？？（単体・v14.8）
   const noEvo = plain.filter(function (e) { return !e.evo && e.stage !== 3; });
   check(noEvo.length === 0, '系統に 入って いない モンスターが ない（' + noEvo.map(function (e) { return e.name; }).join('・') + '）');
   // 中ボス（v8.1）は 系統に 入れない（claude-36 の たのみ）
@@ -3524,7 +3524,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
   // しょうごう
   check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
-  check(MQ.hero.titles.length === 58, 'しょうごう 58（v13.15 で Lv30・40・50 と きたえる 2つ・v13.16 で ぴかぴか マスター）: ' + MQ.hero.titles.length);
+  check(MQ.hero.titles.length === 61, 'しょうごう 61（v13.16 で ぴかぴか マスター・v14.8 で コンプリート 3つ）: ' + MQ.hero.titles.length);
   // 古い セーブ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
   check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');
@@ -4350,17 +4350,17 @@ function stripComments(src) {
   const C = MQ.capsule;
   check(!!C, 'capsule.js が 読めて いる');
   if (!C) return;
-  // ① 景品の 数（なかま 18／そうび 10／すがた 20）
-  check(C.pool('mon').length === 18, 'カプセルの なかまは 18体（' + C.pool('mon').length + '）');
-  check(C.pool('gear').length === 10, 'カプセルの そうびは 10点（' + C.pool('gear').length + '）');
-  check(C.pool('look').length === 20, 'カプセルの すがたは 20こ（' + C.pool('look').length + '）');
-  check(C.byRarity('mon', 'n').length === 9 && C.byRarity('mon', 'r').length === 6 && C.byRarity('mon', 'sr').length === 3,
-    'なかまの わけ方 9 / 6 / 3');
+  // ① 景品の 数（v14.8 第2弾：なかま 30（シークレット 3を ふくむ）／そうび 20／すがた 40）
+  check(C.pool('mon').length === 30, 'カプセルの なかまは 30体（' + C.pool('mon').length + '）');
+  check(C.pool('gear').length === 20, 'カプセルの そうびは 20点（' + C.pool('gear').length + '）');
+  check(C.pool('look').length === 40, 'カプセルの すがたは 40こ（' + C.pool('look').length + '）');
+  check(C.byRarity('mon', 'n').length === 13 && C.byRarity('mon', 'r').length === 9 && C.byRarity('mon', 'sr').length === 8,
+    'なかまの わけ方 13 / 9 / 8（げきレア 5＋シークレット 3）');
   // ② 引けるのは 1段階めだけ（2・3段階め・ボス・写真の モンスターは 入らない）
   const monPool = C.pool('mon').map(function (x) { return MQ.enemies.get(x.id); });
-  check(monPool.every(function (e) { return e && e.stage === 1 && !e.evoOnly && !e.mid && !e.rare && e.by !== 'photo'; }),
-    'カプセルの なかまは 1段階めだけ');
-  check(monPool.every(function (e) { return e.line && e.evo; }), 'カプセルの なかまは 系統と 進化さきを もつ');
+  check(monPool.every(function (e) { return e && (e.stage === 1 || e.secret) && !e.evoOnly && !e.mid && !e.rare && e.by !== 'photo'; }),
+    'カプセルの なかまは 1段階め（か シークレット）だけ');
+  check(monPool.every(function (e) { return e.secret || (e.line && e.evo); }), 'カプセルの なかまは 系統と 進化さきを もつ（シークレットは 単体）');
   // ③ ふつうの たたかいには 出ない
   const wild = {};
   ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (a) {
@@ -5060,6 +5060,60 @@ function stripComments(src) {
   console.log('v14.2: セットわざ OK');
 })();
 
+/* ---- v14.8 カプセルの 景品を ふやす（第2弾・シークレット・コンプリート・ギンガの 力）---- */
+(function () {
+  const C = MQ.capsule;
+  // ① シークレットは 3体・ぜんぶ げきレア・単体（line なし）・？？？の のこりが 数えられる
+  const secrets = C.pool('mon').filter(function (x) { return x.secret; });
+  check(secrets.length === 3, 'シークレットは 3体（' + secrets.length + '）');
+  check(secrets.every(function (x) { return x.rarity === 'sr'; }), 'シークレットは ぜんぶ げきレア');
+  check(secrets.every(function (x) { const e = MQ.enemies.get(x.id); return e && e.secret && !e.line && !e.evo; }), 'シークレットは 単体（進化しない）');
+  const p0 = { coins: 0, dex: {}, pals: {} };
+  check(C.secretsLeft(p0, 'mon') === 3 && C.secretsLeft(p0, 'gear') === 0, '？？？の のこりが 数えられる');
+  // ② げきレアの わくの 中で SECRET_RATE の ときだけ シークレットが 出る
+  const seq = function (arr) { let i = 0; return function () { return arr[Math.min(i++, arr.length - 1)]; }; };
+  const ps = { coins: 1000, dex: {}, pals: {} };
+  const rs = C.pull(ps, 'mon', seq([0.01, 0.1, 0]));   // げきレア → シークレットの わく → 1体め
+  check(rs.ok && rs.item.secret === true && rs.rarity === 'sr', 'げきレアの 中から シークレットが 出る（' + rs.item.id + '）');
+  const pn = { coins: 1000, dex: {}, pals: {} };
+  const rn = C.pull(pn, 'mon', seq([0.01, 0.9, 0]));   // げきレア → ふつうの げきレアの わく
+  check(rn.ok && !rn.item.secret && rn.rarity === 'sr', 'のこりは いつもの げきレア（' + rn.item.id + '）');
+  // ③ コンプリートした 台は かぶりの もどりが 全額（10まい）・complete／completeAll
+  const done = { coins: 100, dex: {}, pals: {}, gear: [], parts: {} };
+  C.ensure(done);
+  C.pool('gear').forEach(function (x) { done.capsule.got[x.id] = 1; });
+  check(C.complete(done, 'gear') && !C.complete(done, 'mon') && !C.completeAll(done), 'コンプリートの 見分けが つく');
+  const rd = C.pull(done, 'gear', function () { return 0.5; });
+  check(rd.ok && rd.dup && rd.refund === C.COST && done.coins === 100, 'コンプリートした 台は かぶりで 全額 もどる（コインが へらない）');
+  const half = { coins: 100, dex: {}, pals: {}, gear: [], parts: {} };
+  C.ensure(half);
+  half.capsule.got[C.pool('gear')[0].id] = 1;
+  const rh = C.pull(half, 'gear', function () { return 0.5; });
+  if (rh.dup) check(rh.refund === C.REFUND, 'そろって いない 台の かぶりは 5まいの まま');
+  // ④ ギンガの 力 5つ（そうびの 表 → gearPower → core）
+  const gg = {};
+  MQ.hero.slots.forEach(function (sl) { gg[sl] = 'ginga-' + sl; });
+  const pw = MQ.hero.gearPower({ gear: Object.keys(gg).map(function (k) { return gg[k]; }), equipped: gg });
+  check(pw.fastX2 === true && pw.noEscape === true && pw.setX2 === true && pw.palXp2 === true && pw.perfectCoin === 5,
+    'ギンガの 力 5つ（はやとき2ばい・にげない・セット2ばい・なかま2ばい・パーフェクト＋5）');
+  check(pw.setMul === MQ.hero.setMulFor(6) && pw.coins >= 6, 'ギンガの セットは やみ級を こえない（×1.6・コイン＋6）');
+  const pw9 = MQ.hero.gearPower({ gear: ['prism-weapon'], equipped: { weapon: 'prism-weapon' } });
+  check(pw9.xp === MQ.hero.gearPower({ gear: ['tetsu-weapon'], equipped: { weapon: 'tetsu-weapon' } }).xp, 'プリズムは てつと 同じ つよさ');
+  // core：ずっと まもる（noEscape）＝ 2回 まちがえても にげられない・たては へらない
+  const st = { id: 'x', name: 'x', make: function (n) { const out = []; for (let i = 0; i < n; i++) out.push({ type: 'number', prompt: i + '+1', answer: String(i + 1), unit: 'u', id: 'q' + i, lv: 1 }); return out; } };
+  MQ.battle.start({ stage: st, mode: 'tokkun', enemies: ['slime'], escaped: [{ enemyId: 'slime', q: { type: 'number', prompt: '1+1', answer: '2', unit: 'u', id: 'qq', lv: 1 } }], gear: Object.assign(MQ.hero.gearPower({}), { noEscape: true, setX2: true }) });
+  check(MQ.battle.answer('999').outcome === 'retry', 'ギンガ: 1回めは いつもどおり もう1回');
+  const r2 = MQ.battle.answer('999');
+  check(r2.outcome === 'shielded', 'ギンガ: 2回めも にげられない（shielded）');
+  check(MQ.battle.answer('999').outcome === 'shielded', 'ギンガ: 何回でも まもる');
+  // core：はやとき 2ばい・パーフェクト ＋5（summary）
+  MQ.battle.start({ stage: st, mode: 'normal', enemies: ['slime'], mobs: 1, chest: false, gear: Object.assign(MQ.hero.gearPower({}), { fastX2: true, perfectCoin: 5 }) });
+  while (!MQ.battle.isOver()) { const qq = MQ.battle.current(); if (!qq) break; MQ.battle.answer(correctValue(qq)); MQ.battle.next(); }
+  const sm = MQ.battle.summary();
+  check(sm.fastBonus === 60, 'ギンガの けん: はやとき ボーナスが 60（30×2）: ' + sm.fastBonus);
+  check(sm.perfectCoins === 5, 'ギンガの マント: パーフェクトで コイン ＋5: ' + sm.perfectCoins);
+  console.log('v14.8 カプセル 第2弾: シークレット 3・コンプリート・ギンガの 力 OK');
+})();
 /* ---- v13.19 そうびの 見た目（js/content/gearart.js・js/ui/gearaura.js）----
    8グレード × 5部位を りんかくから 描き直した。3D の 部品分け（vox.js の fromHero）の きまりを まもって いるかを 見る */
 (function () {

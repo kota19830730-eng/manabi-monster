@@ -100,14 +100,22 @@ MQ.ui.capsule = (function () {
     // ① しゅるいの チップ
     body.appendChild(chips());
 
-    // ② マシン
-    body.appendChild(h('div', { class: 'capstage' }, [machine()]));
-
-    // ③ あつめぐあい
-    body.appendChild(h('div', { class: 'capbar' }, [
-      h('div', { class: 'capbar__fill', style: { width: (prog.total ? Math.round(prog.have / prog.total * 100) : 0) + '%' } }),
-      h('span', { class: 'capbar__t', text: 'あつめた ' + prog.have + ' / ' + prog.total })
+    // ② マシン（コンプリートした 台には 金の 王かん・v14.8）
+    const comp = MQ.capsule.complete && MQ.capsule.complete(p, kind);
+    body.appendChild(h('div', { class: 'capstage' + (comp ? ' is-comp' : '') }, [
+      machine(),
+      comp ? h('div', { class: 'capcomp' }, [h('i'), h('i'), h('i'), h('b')]) : null
     ]));
+
+    // ③ あつめぐあい（そろったら 金の バー・v14.8）
+    body.appendChild(h('div', { class: 'capbar' + (comp ? ' capbar--comp' : '') }, [
+      h('div', { class: 'capbar__fill', style: { width: (prog.total ? Math.round(prog.have / prog.total * 100) : 0) + '%' } }),
+      h('span', { class: 'capbar__t', text: (comp ? 'コンプリート！ ' : 'あつめた ') + prog.have + ' / ' + prog.total })
+    ]));
+    // シークレットの ？？？（v14.8・なかまの 台だけ。ぜんぶ 見つけたら 出さない）
+    const secLeft = MQ.capsule.secretsLeft ? MQ.capsule.secretsLeft(p, kind) : 0;
+    if (secLeft > 0) body.appendChild(h('p', { class: 'capsecret', text: '？？？が あと ' + secLeft + 'たい かくれて いる…' }));
+    if (comp) body.appendChild(h('p', { class: 'capline capline--comp', text: 'かぶりは コインが ぜんぶ もどるよ' }));
 
     // ④ 天井（引く 前から 見せる）
     body.appendChild(h('p', {
@@ -299,7 +307,7 @@ MQ.ui.capsule = (function () {
       };
     }
     return {
-      badge: RARE_NAME[res.rarity],
+      badge: (res.item && res.item.secret) ? 'シークレット！' : RARE_NAME[res.rarity],
       art: function (s) { return artOf(it, s); },
       name: it.name,
       msg: res.dup ? 'コインが ' + res.refund + 'まい もどって きた！'
@@ -333,9 +341,13 @@ MQ.ui.capsule = (function () {
       return;
     }
 
-    box.appendChild(h('span', { class: 'capres__rare', text: RARE_NAME[res.rarity] }));
+    box.appendChild(h('span', { class: 'capres__rare', text: it.secret ? 'シークレット！' : RARE_NAME[res.rarity] }));
     box.appendChild(h('div', { class: 'capres__art' }, [artOf(it, 96)]));
     box.appendChild(h('p', { class: 'capres__name', text: it.name }));
+    // コンプリート（v14.8）：この 1回で そろった とき
+    if (!res.dup && MQ.capsule.complete && MQ.capsule.complete(MQ.save.current(), res.kind)) {
+      box.appendChild(h('p', { class: 'capres__comp', text: 'コンプリート！ この だいは ぜんぶ あつめたよ！' }));
+    }
     box.appendChild(h('p', {
       class: 'capres__msg',
       text: res.dup ? 'コインが ' + res.refund + 'まい もどって きた！'

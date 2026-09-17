@@ -440,6 +440,102 @@
     [[5, 33], [42, 31], [3, 40], [44, 38], [8, 37], [39, 36]].forEach(function (p) { paint(g, p[0], p[1], p[0], p[1], 'X'); });
   };
 
+  // プリズム（v14.8・カプセル 第2弾）：すいしょうの かぶと（3本の けっしょう・ピンクの おび）
+  helm.prism = function (g) {
+    R(g, 13, 4, 34, 4, 'A'); R(g, 12, 5, 35, 8, 'A');
+    R(g, 13, 4, 19, 5, 'a'); R(g, 34, 5, 35, 8, 'n');
+    R(g, 22, 0, 25, 3, 'W'); P(g, 22, 0, 'g'); R(g, 16, 2, 18, 4, 'W'); R(g, 29, 2, 31, 4, 'W');
+    P(g, 16, 2, 'a'); P(g, 31, 2, 'a');
+    R(g, 12, 8, 35, 8, 'T'); R(g, 13, 9, 34, 9, 't');
+    [17, 23, 29].forEach(function (x) { R(g, x, 7, x + 1, 7, 'G'); });
+    R(g, 12, 10, 35, 10, 'N');
+    Rm(g, 12, 11, 14, 17, 'A'); Rm(g, 12, 18, 13, 19, 'A');
+    R(g, 12, 11, 12, 17, 'W'); Rm(g, 13, 13, 14, 14, 'G');
+  };
+  // ギンガ（v14.8・カプセル 第2弾・げきレア）：よぞらの かぶと（金の 三日月・星）
+  helm.ginga = function (g) {
+    R(g, 15, 1, 32, 1, 'A'); R(g, 13, 2, 34, 2, 'A'); R(g, 12, 3, 35, 8, 'A');
+    R(g, 15, 1, 21, 2, 'a'); R(g, 12, 3, 12, 8, 'a'); R(g, 34, 3, 35, 8, 'n');
+    R(g, 22, 0, 25, 0, 'T'); R(g, 21, 1, 22, 3, 'T'); R(g, 25, 1, 26, 3, 'T'); R(g, 22, 4, 25, 4, 'T');
+    P(g, 16, 3, 'g'); P(g, 30, 2, 'g'); P(g, 19, 6, 'g'); P(g, 28, 6, 'g');
+    R(g, 12, 9, 35, 10, 'F'); R(g, 13, 9, 34, 9, 'G');
+    Rm(g, 12, 11, 15, 18, 'A'); Rm(g, 12, 19, 13, 20, 'A');
+    R(g, 12, 11, 12, 18, 'a'); Rm(g, 13, 14, 14, 15, 'T');
+  };
+  // プリズム：すいしょうの よろい（むねに 大きな ひし形の 宝石・かたに けっしょう）
+  armor.prism = function (g) {
+    R(g, 16, 22, 31, 33, 'A'); R(g, 17, 23, 19, 26, 'a'); R(g, 30, 23, 31, 33, 'n');
+    R(g, 23, 24, 24, 24, 'G'); R(g, 22, 25, 25, 27, 'G'); R(g, 21, 26, 26, 26, 'G'); R(g, 23, 28, 24, 29, 'G'); P(g, 22, 25, 'g');
+    R(g, 16, 30, 31, 30, 'T');
+    lower(g, false);
+    Rm(g, 17, 40, 21, 41, 'W');
+    R(g, 6, 18, 8, 21, 'W'); R(g, 4, 22, 10, 24, 'W'); R(g, 3, 25, 11, 27, 'A'); R(g, 5, 28, 9, 29, 'A');
+    P(g, 6, 18, 'g'); R(g, 4, 22, 5, 23, 'a');
+    R(g, 39, 19, 41, 21, 'W'); R(g, 37, 22, 43, 24, 'W'); R(g, 36, 25, 44, 26, 'A'); R(g, 38, 27, 42, 28, 'A');
+    P(g, 41, 19, 'g');
+  };
+  // ギンガ：よぞらの よろい（うずまきの ぎんが・金の ふち・かたに 星）
+  armor.ginga = function (g) {
+    chest(g);
+    R(g, 16, 22, 16, 33, 'T'); R(g, 31, 22, 31, 33, 'T');
+    P(g, 21, 25, 'G'); P(g, 22, 24, 'G'); R(g, 23, 24, 25, 24, 'G'); P(g, 26, 25, 'G'); P(g, 26, 26, 'G');
+    R(g, 24, 26, 25, 26, 'G'); P(g, 23, 27, 'G'); P(g, 24, 28, 'g');
+    P(g, 19, 30, 'g'); P(g, 28, 29, 'g'); P(g, 18, 24, 'g');
+    lower(g, false); R(g, 16, 34, 31, 34, 'T');
+    R(g, 5, 20, 10, 21, 'A'); R(g, 3, 22, 11, 26, 'A'); R(g, 4, 27, 10, 28, 'N'); R(g, 3, 22, 4, 23, 'a'); R(g, 3, 26, 11, 26, 'T'); P(g, 7, 23, 'g');
+    R(g, 37, 20, 42, 21, 'A'); R(g, 36, 22, 44, 26, 'A'); R(g, 37, 27, 43, 28, 'N'); R(g, 36, 26, 44, 26, 'T'); P(g, 40, 23, 'g');
+  };
+  // プリズム：六角形の すいしょうの たて
+  shield.prism = function (g) {
+    R(g, 5, 25, 11, 26, 'W'); R(g, 3, 27, 13, 30, 'A'); R(g, 1, 31, 15, 38, 'A'); R(g, 3, 39, 13, 42, 'A'); R(g, 5, 43, 11, 44, 'N');
+    R(g, 3, 27, 5, 28, 'a'); R(g, 13, 31, 15, 38, 'n');
+    R(g, 7, 29, 9, 30, 'T'); R(g, 6, 31, 10, 34, 'G'); R(g, 7, 35, 9, 36, 'T'); P(g, 6, 31, 'g');
+    R(g, 1, 31, 1, 38, 'W'); R(g, 15, 31, 15, 38, 'W');
+  };
+  // ギンガ：まるい よぞらの たて（土星の わ・星）
+  shield.ginga = function (g) {
+    [[26, 6, 10], [27, 4, 12], [28, 3, 13], [29, 2, 14]].forEach(function (r) { R(g, r[1], r[0], r[2], r[0], 'A'); });
+    R(g, 1, 30, 15, 39, 'A');
+    [[40, 2, 14], [41, 3, 13], [42, 4, 12], [43, 6, 10]].forEach(function (r) { R(g, r[1], r[0], r[2], r[0], 'A'); });
+    R(g, 2, 27, 4, 28, 'a'); R(g, 13, 38, 15, 39, 'n');
+    R(g, 0, 33, 16, 33, 'T'); R(g, 0, 34, 16, 34, 't'); R(g, 0, 32, 1, 32, 'T'); R(g, 15, 35, 16, 35, 'T');
+    P(g, 5, 29, 'g'); P(g, 11, 31, 'g'); P(g, 4, 38, 'g'); P(g, 10, 41, 'g');
+    R(g, 7, 36, 9, 38, 'G'); P(g, 7, 36, 'g');
+  };
+  // プリズム：すいしょうの けん（とがった 切っ先・中に 白い すじ）
+  weapon.prism = function (g) {
+    R(g, 38, 1, 38, 2, 'W'); R(g, 37, 3, 39, 5, 'A'); R(g, 36, 6, 40, 24, 'A');
+    R(g, 38, 3, 38, 22, 'W'); R(g, 37, 6, 37, 20, 'a'); R(g, 40, 6, 40, 24, 'N');
+    P(g, 38, 1, 'g'); P(g, 36, 10, 'g'); P(g, 40, 15, 'g');
+    R(g, 34, 26, 43, 27, 'T'); R(g, 34, 27, 43, 27, 't'); R(g, 33, 26, 34, 28, 'W'); R(g, 43, 26, 44, 28, 'W');
+    R(g, 37, 28, 39, 28, 'G');
+    R(g, 37, 29, 39, 34, 'K'); P(g, 38, 31, 'k');
+    R(g, 36, 35, 40, 37, 'T'); R(g, 37, 36, 39, 36, 'G'); P(g, 37, 35, 'g');
+  };
+  // ギンガ：よぞらの けん（星が ながれる 刃・金の 三日月の つば）
+  weapon.ginga = function (g) {
+    R(g, 38, 0, 38, 1, 'g'); R(g, 37, 2, 39, 3, 'a'); R(g, 36, 4, 40, 24, 'A');
+    R(g, 36, 4, 36, 24, 'a'); R(g, 40, 4, 40, 24, 'N');
+    P(g, 38, 6, 'g'); P(g, 37, 10, 'g'); P(g, 39, 13, 'g'); P(g, 38, 17, 'g'); P(g, 37, 21, 'g');
+    R(g, 38, 7, 38, 20, 'G');
+    R(g, 33, 26, 45, 27, 'T'); R(g, 33, 27, 45, 27, 't');
+    R(g, 33, 28, 34, 29, 'T'); R(g, 44, 28, 45, 29, 'T'); P(g, 33, 30, 'g'); P(g, 45, 30, 'g');
+    R(g, 37, 28, 39, 33, 'K'); P(g, 38, 30, 'k');
+    R(g, 36, 34, 40, 36, 'T'); R(g, 37, 35, 39, 35, 'G');
+  };
+  // プリズム：うすい にじ色の マント（きらきらの 点）
+  cape.prism = function (g) {
+    capeBody(g, 44, 0.12);
+    hem(g, 42, 42, 'x'); hem(g, 43, 44, 'X');
+    [[6, 30], [40, 28], [10, 36], [37, 35], [5, 40], [42, 40], [23, 33]].forEach(function (p) { paint(g, p[0], p[1], p[0], p[1], 'X'); });
+  };
+  // ギンガ：よぞらの マント（星空・金の すそ・3つに 分かれる すそ）
+  cape.ginga = function (g) {
+    capeBody(g, 46, 0.22);
+    [[9, 45], [10, 44], [37, 45], [38, 44], [23, 45]].forEach(function (p) { R(g, p[0], p[1], p[0], 46, '.'); });
+    hem(g, 44, 44, 'x'); hem(g, 45, 46, 'X');
+    [[5, 30], [41, 28], [12, 34], [35, 33], [7, 39], [40, 38], [19, 31], [28, 37], [16, 41], [31, 42]].forEach(function (p) { paint(g, p[0], p[1], p[0], p[1], 'X'); });
+  };
   const SHAPES = { helm: helm, armor: armor, shield: shield, weapon: weapon, cape: cape };
 
   /* =================== 色（グレードごと・どの 部位も 同じ 文字） =================== */
@@ -459,7 +555,11 @@
     capsule: { A: '#5fc4ea', a: '#bff0ff', N: '#2f6f9f', n: '#3f8fbf', T: '#ffffff', t: '#c8e8f5', G: '#5ff0ff', g: '#e0ffff',
                W: '#f4fbff', K: '#2f6f9f', k: '#4f9fcf', F: '#2f8fcf', f: '#9fe6ff', C: '#2f6f9f', c: '#255a82', X: '#f4fbff', x: '#9fe6ff', R: '#ff6fa8', r: '#ffc0da' },
     aurora:  { A: '#cdb8ff', a: '#ffffff', N: '#8f6fe0', n: '#b39cf5', T: '#ffd447', t: '#d19a24', G: '#72f0ff', g: '#e0fcff',
-               W: '#ffffff', K: '#6a4cc0', k: '#8f6fe0', F: '#b79cff', f: '#e2d6ff', C: '#5b37b3', c: '#4a2a98', X: '#ffd447', x: '#ff9bf0', R: '#ff9bf0', r: '#ffd6fa' }
+               W: '#ffffff', K: '#6a4cc0', k: '#8f6fe0', F: '#b79cff', f: '#e2d6ff', C: '#5b37b3', c: '#4a2a98', X: '#ffd447', x: '#ff9bf0', R: '#ff9bf0', r: '#ffd6fa' },
+    prism:   { A: '#dcebf8', a: '#ffffff', N: '#93b2d4', n: '#bcd4ea', T: '#ff9fd0', t: '#d86aa8', G: '#7ae0ff', g: '#e0fbff',
+               W: '#ffffff', K: '#6a7a9a', k: '#8fa5c8', F: '#bfd8f0', f: '#e0eefa', C: '#dfe8f5', c: '#bcd0e8', X: '#ffb0e0', x: '#9fe0ff', R: '#ff9fd0', r: '#ffd6ec' },
+    ginga:   { A: '#232a52', a: '#3d4a8a', N: '#12162e', n: '#1a2140', T: '#ffd447', t: '#c7941c', G: '#8fd8ff', g: '#ffffff',
+               W: '#f0f4ff', K: '#12162e', k: '#2a3158', F: '#1b2144', f: '#2c3766', C: '#1b2144', c: '#131834', X: '#ffe45a', x: '#8fd8ff', R: '#ffd447', r: '#fff0a0' }
   };
   /* 部位ごとの 色の 上書き。けんの 刃は どの グレードでも いちばん 明るく（バトルで 目が いく ところ） */
   const SLOTPAL = {
@@ -470,13 +570,15 @@
     hoshi:    { weapon: { A: '#bfe6ff', a: '#ffffff', N: '#6fb0e0' } },
     yami:     { weapon: { A: '#7a5fc8', a: '#b9a2ff', N: '#d23cb4' } },
     capsule:  {},
-    aurora:   { weapon: { A: '#e8deff', a: '#ffffff', N: '#b39cf5' } }
+    aurora:   { weapon: { A: '#e8deff', a: '#ffffff', N: '#b39cf5' } },
+    prism:    { weapon: { A: '#f4faff', a: '#ffffff', N: '#a8c8e8' } },
+    ginga:    {}
   };
   function palette(grade, slot) { return Object.assign({}, PAL[grade], (SLOTPAL[grade] || {})[slot] || {}); }
 
   /* 素材（pixel.js の HD）。かわ（グレード1）は 木と かわ・のこりは 金ぞく */
   function mat(grade, slot) {
-    if (slot === 'cape') return { C: 'cloth', c: 'cloth', X: grade === 'ryu' || grade === 'yami' ? 'glow' : 'gold', x: grade === 'ryu' ? 'glow' : 'cloth' };
+    if (slot === 'cape') return { C: 'cloth', c: 'cloth', X: grade === 'ryu' || grade === 'yami' || grade === 'ginga' ? 'glow' : 'gold', x: grade === 'ryu' ? 'glow' : 'cloth' };
     const plate = grade === 'kihon' && slot !== 'weapon' ? 'wood' : 'metal';
     const m = { A: plate, a: plate, N: plate, n: plate, T: 'gold', t: 'gold', G: 'glow', g: 'glow', W: 'white',
                 K: 'wood', k: 'wood', F: grade === 'kihon' ? 'wood' : 'metal', f: grade === 'kihon' ? 'wood' : 'metal',
@@ -498,7 +600,7 @@
 
   window.MQ = window.MQ || {};
   MQ.gearArt = {
-    grades: ['kihon', 'tetsu', 'ryu', 'densetsu', 'hoshi', 'yami', 'capsule', 'aurora'],
+    grades: ['kihon', 'tetsu', 'ryu', 'densetsu', 'hoshi', 'yami', 'capsule', 'aurora', 'prism', 'ginga'],
     rows: rowsOf, palette: palette, mat: mat, PAL: PAL
   };
 })();

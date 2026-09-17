@@ -198,6 +198,36 @@ MQ.face = (function () {
       block(g, 5, 18, 9, 21, 'h', 'H');
       rect(g, 7, 13, 11, 13, 't'); rect(g, 6, 17, 10, 17, 't');               // むすびめ
       rect(g, 5, 22, 8, 23, 't');
+    } },
+    /* ===== ここから カプセル限定 第2弾（v14.8）。lv は つけない ===== */
+    { id: 'antena', name: 'アンテナヘア', rare: 'r', gacha: true, cap: 'n', make: function (g) {
+      helmet(g, 3, 7);
+      bangs(g, 8, [[12, 35]]);
+      sides(g, 9, 11);
+      rect(g, 23, 0, 24, 2, 'h'); rect(g, 22, 0, 25, 0, 'H');               // アンテナ
+      rect(g, 23, 0, 24, 0, 'y');                                           // 先の 光
+    } },
+    { id: 'yurayura', name: 'ゆらゆらヘア', rare: 'r', gacha: true, cap: 'n', make: function (g) {
+      helmet(g, 3, 7);
+      bangs(g, 8, [[12, 17], [20, 24], [27, 35]]);
+      sides(g, 9, 11);
+      rect(g, 14, 0, 16, 2, 'h'); rect(g, 21, 0, 23, 1, 'h'); rect(g, 29, 0, 31, 2, 'h');   // ゆらめく けさき
+      rect(g, 15, 0, 15, 0, 'H'); rect(g, 30, 0, 30, 0, 'H');
+    } },
+    { id: 'hoshifuri', name: 'ほしふりヘア', rare: 'sr', gacha: true, cap: 'r', make: function (g) {
+      helmet(g, 2, 7);
+      bangs(g, 8, [[12, 22], [25, 35]]);
+      sides(g, 9, 12);
+      px(g, 16, 3, 'w'); px(g, 24, 1, 'w'); px(g, 31, 4, 'w'); px(g, 20, 5, 'w');   // かみの 中の 星
+      px(g, 23, 0, 'y'); rect(g, 22, 1, 24, 1, 'y'); px(g, 23, 2, 'y');             // てっぺんの 星
+    } },
+    { id: 'crystalHair', name: 'すいしょうヘア', rare: 'sr', gacha: true, cap: 'r', make: function (g) {
+      helmet(g, 3, 7);
+      bangs(g, 8, [[12, 35]]);
+      sides(g, 9, 11);
+      rect(g, 13, 1, 15, 4, 'h'); rect(g, 14, 0, 14, 1, 'w');               // とがった けっしょう 3本
+      rect(g, 22, 0, 25, 3, 'h'); rect(g, 23, 0, 24, 0, 'w');
+      rect(g, 32, 1, 34, 4, 'h'); rect(g, 33, 0, 33, 1, 'w');
     } }
   ];
   hairStyles.forEach(function (s) { const g = grid(); s.make(g); s.rows = rows(g); });
@@ -256,6 +286,26 @@ MQ.face = (function () {
       rect(g, 17, 11, 20, 14, 'e'); rect(g, 27, 11, 30, 14, 'e');
       rect(g, 18, 11, 19, 14, 'w'); rect(g, 28, 11, 29, 14, 'w');             // たての ひとみ
       rect(g, 18, 12, 19, 13, 'e'); rect(g, 28, 12, 29, 13, 'e');
+    } },
+    /* ===== ここから カプセル限定 第2弾（v14.8） ===== */
+    { id: 'guruguru', name: 'ぐるぐるめ', rare: 'r', gacha: true, cap: 'n', make: function (g) {
+      [17, 27].forEach(function (x) {
+        rect(g, x, 11, x + 3, 14, 'w');
+        rect(g, x, 11, x + 3, 11, 'e'); px(g, x + 3, 12, 'e');
+        rect(g, x + 1, 13, x + 3, 13, 'e'); px(g, x + 1, 12, 'e');
+      });
+    } },
+    { id: 'daiyame', name: 'ダイヤのめ', rare: 'r', gacha: true, cap: 'n', make: function (g) {
+      [17, 27].forEach(function (x) {
+        rect(g, x, 11, x + 3, 14, 'w');
+        rect(g, x + 1, 11, x + 2, 11, 'e'); rect(g, x, 12, x + 3, 13, 'e'); rect(g, x + 1, 14, x + 2, 14, 'e');
+        px(g, x + 1, 12, 'w');
+      });
+    } },
+    { id: 'yozorame', name: 'よぞらのめ', rare: 'sr', gacha: true, cap: 'r', make: function (g) {
+      rect(g, 17, 11, 20, 14, 'e'); rect(g, 27, 11, 30, 14, 'e');
+      px(g, 18, 12, 'w'); rect(g, 18, 12, 19, 12, 'w'); px(g, 19, 13, 'w');   // 星の ひとみ
+      px(g, 28, 12, 'w'); rect(g, 28, 12, 29, 12, 'w'); px(g, 29, 13, 'w');
     } }
   ];
   eyeStyles.forEach(function (s) { const g = grid(); s.make(g); s.rows = rows(g); });
@@ -316,6 +366,30 @@ MQ.face = (function () {
       rect(g, 14, 30, 33, 33, 'g'); rect(g, 14, 33, 33, 33, 'd');             // 金の ベルト
       rect(g, 21, 29, 26, 34, 'g'); rect(g, 22, 30, 25, 33, 'w');             // バックル
       rect(g, 18, 22, 29, 23, 'd');                                          // えり
+    } },
+    /* ===== ここから カプセル限定 第2弾（v14.8） ===== */
+    { id: 'happi', name: 'はっぴ', rare: 'r', gacha: true, cap: 'n', make: function (g) {
+      rect(g, 15, 22, 17, 35, 'd'); rect(g, 30, 22, 32, 35, 'd');            // まえの あわせ
+      rect(g, 15, 32, 32, 33, 'w'); rect(g, 15, 34, 32, 35, 'd');            // すその しま
+      rect(g, 22, 25, 25, 28, 'w'); rect(g, 23, 26, 24, 27, 'd');            // せなかの もん
+    } },
+    { id: 'mechasuit', name: 'メカスーツ', rare: 'r', gacha: true, cap: 'n', make: function (g) {
+      rect(g, 14, 25, 33, 25, 'd'); rect(g, 14, 30, 33, 30, 'd');            // パネルの 線
+      rect(g, 23, 26, 24, 29, 'd');
+      rect(g, 21, 26, 22, 29, 'g'); rect(g, 25, 26, 26, 29, 'g');            // 光る コア
+      rect(g, 9, 22, 14, 24, 'd'); rect(g, 33, 22, 38, 24, 'd');             // かたの パーツ
+    } },
+    { id: 'uchufuku', name: 'うちゅうふく', rare: 'sr', gacha: true, cap: 'r', make: function (g) {
+      rect(g, 14, 29, 33, 31, 'g'); rect(g, 21, 28, 26, 32, 'w');            // ベルトと バックル
+      rect(g, 17, 23, 20, 26, 'w'); rect(g, 18, 24, 19, 25, 'd');            // むねの バッジ
+      rect(g, 9, 22, 14, 23, 'w'); rect(g, 33, 22, 38, 23, 'w');             // かたの 白い わ
+    } },
+    { id: 'prismrobe', name: 'プリズムローブ', rare: 'sr', gacha: true, cap: 'r', make: function (g) {
+      rect(g, 15, 22, 17, 35, 'w'); rect(g, 30, 22, 32, 35, 'w');            // 白い ふち
+      [[20, 26], [26, 24], [23, 31]].forEach(function (p) {
+        px(g, p[0], p[1] - 1, 'g'); rect(g, p[0] - 1, p[1], p[0] + 1, p[1], 'g'); px(g, p[0], p[1] + 1, 'g');   // ひし形の 宝石
+      });
+      rect(g, 15, 34, 32, 35, 'g');
     } }
   ];
   clothStyles.forEach(function (s) { const g = grid(); s.make(g); s.rows = rows(g); });
@@ -351,7 +425,25 @@ MQ.face = (function () {
       px(g, 18, 8, 'f'); rect(g, 17, 9, 19, 9, 'f'); px(g, 18, 10, 'f');       // 左の レンズの 上に 星
     } },
     { id: 'aurorame', name: 'オーロラメガネ', rare: 'sr', gacha: true, cap: 'sr',
-      palette: { f: '#b48cff', l: '#e0d0ff' }, make: function (g) { frames(g, true); } }
+      palette: { f: '#b48cff', l: '#e0d0ff' }, make: function (g) { frames(g, true); } },
+    /* ===== ここから カプセル限定 第2弾（v14.8） ===== */
+    { id: 'monocle', name: 'モノクル', rare: 'r', gacha: true, cap: 'n',
+      palette: { f: '#ffd447', l: '#fdfdff' }, make: function (g) {
+      rect(g, 16, 10, 21, 15, 'f'); rect(g, 17, 11, 20, 14, 'l');           // 左だけの まる メガネ
+      px(g, 21, 16, 'f'); px(g, 22, 17, 'f');                                // くさり
+    } },
+    { id: 'omen', name: 'きつねの おめん', rare: 'sr', gacha: true, cap: 'r',
+      palette: { f: '#f4f0e6', l: '#e8443a' }, make: function (g) {
+      rect(g, 26, 9, 34, 16, 'f');                                          // 顔の よこの おめん
+      rect(g, 28, 11, 30, 12, 'l'); rect(g, 32, 11, 33, 12, 'l');           // 赤い もよう
+      rect(g, 29, 14, 32, 14, 'l');
+      rect(g, 27, 8, 28, 8, 'f'); rect(g, 32, 8, 33, 8, 'f');               // みみ
+    } },
+    { id: 'gingame', name: 'ギンガメガネ', rare: 'sr', gacha: true, cap: 'sr',
+      palette: { f: '#232a52', l: '#8fd8ff' }, make: function (g) {
+      frames(g, true);
+      px(g, 29, 9, 'f'); rect(g, 28, 10, 30, 10, 'f'); px(g, 29, 11, 'f');   // 右の レンズの 上に 星
+    } }
   ];
   glassStyles.forEach(function (s) { const g = grid(); s.make(g); s.rows = rows(g); });
 
@@ -395,6 +487,32 @@ MQ.face = (function () {
     { id: 'kaminari', name: 'かみなり', rare: 'sr', gacha: true, cap: 'sr', make: function (g) {
       rect(g, 33, 14, 35, 15, 'g'); rect(g, 32, 16, 34, 17, 'g');
       rect(g, 33, 18, 35, 19, 'g'); px(g, 32, 15, 'G');
+    } },
+    /* ===== ここから カプセル限定 第2弾（v14.8） ===== */
+    { id: 'kappasara', name: 'カッパの さら', rare: 'r', gacha: true, cap: 'n', make: function (g) {
+      rect(g, 18, 0, 29, 2, 'g'); rect(g, 20, 0, 27, 1, 'w');               // 金の さらに 水
+      rect(g, 17, 1, 17, 2, 'g'); rect(g, 30, 1, 30, 2, 'g');
+    } },
+    { id: 'mikazuki', name: 'みかづき', rare: 'r', gacha: true, cap: 'n', make: function (g) {
+      rect(g, 13, 14, 14, 15, 'g'); rect(g, 12, 16, 13, 17, 'g');           // ほほの 三日月
+      rect(g, 13, 18, 14, 19, 'g'); px(g, 14, 15, 'G');
+    } },
+    { id: 'mechamimi', name: 'メカの みみ', rare: 'r', gacha: true, cap: 'n', make: function (g) {
+      rect(g, 9, 10, 12, 14, 'd'); rect(g, 10, 11, 11, 13, 'g');            // 左の パーツ
+      rect(g, 35, 10, 38, 14, 'd'); rect(g, 36, 11, 37, 13, 'g');           // 右の パーツ
+      px(g, 10, 9, 'w'); px(g, 37, 9, 'w');                                 // アンテナの 光
+    } },
+    { id: 'kitsunebi', name: 'きつねび', rare: 'sr', gacha: true, cap: 'sr', make: function (g) {
+      rect(g, 8, 10, 10, 14, 'w'); rect(g, 9, 8, 9, 10, 'w'); rect(g, 9, 11, 9, 13, 'd');   // 左の あおい ほのお
+      rect(g, 37, 10, 39, 14, 'w'); rect(g, 38, 8, 38, 10, 'w'); rect(g, 38, 11, 38, 13, 'd');
+    } },
+    { id: 'nagareboshi', name: 'ながれぼし', rare: 'sr', gacha: true, cap: 'sr', make: function (g) {
+      px(g, 34, 8, 'g'); rect(g, 33, 9, 35, 9, 'g'); px(g, 34, 10, 'g');    // 星
+      rect(g, 36, 6, 38, 6, 'G'); rect(g, 38, 4, 40, 4, 'G');               // ながれる 光の しっぽ
+    } },
+    { id: 'hoshikuzu', name: 'ほしくずの わ', rare: 'sr', gacha: true, cap: 'sr', make: function (g) {
+      px(g, 12, 4, 'g'); px(g, 8, 12, 'w'); px(g, 11, 20, 'g');             // 頭の まわりの ほしくず
+      px(g, 35, 4, 'w'); px(g, 39, 12, 'g'); px(g, 36, 20, 'w');
     } }
   ];
   accStyles.forEach(function (s) { const g = grid(); s.make(g); s.rows = rows(g); });

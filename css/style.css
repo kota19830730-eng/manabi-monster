@@ -4325,3 +4325,16 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 
 .modebanner--wk { border-color: #b27cff; box-shadow: 0 0 18px rgba(178,124,255,.7); }
 .modebanner b.modebanner__wk { color: #f0dcff; }
+
+/* カプセルの コンプリート（v14.8）：そろった 台に 金の 王かん・金の バー。シークレットは ？？？ */
+.capstage.is-comp .capcomp { position: absolute; left: 50%; top: -6px; width: 44px; height: 20px; transform: translateX(-50%); z-index: 2; filter: drop-shadow(0 0 6px rgba(255,212,71,.8)); }
+.capcomp i { position: absolute; bottom: 6px; width: 8px; height: 10px; background: #ffd447; }
+.capcomp i:nth-child(1) { left: 4px; }
+.capcomp i:nth-child(2) { left: 18px; height: 14px; bottom: 6px; }
+.capcomp i:nth-child(3) { right: 4px; }
+.capcomp b { position: absolute; left: 2px; right: 2px; bottom: 0; height: 7px; background: linear-gradient(#ffe89a, #d19a24); }
+.capbar--comp .capbar__fill { background: linear-gradient(#ffe89a, #d1a53a); }
+.capbar--comp .capbar__t { color: #4a3208; text-shadow: none; }
+.capsecret { margin: 4px 0 0; text-align: center; font-size: 12px; font-weight: 700; color: #9fb2dd; letter-spacing: 1px; }
+.capline--comp { color: #ffd447; }
+.capres__comp { margin: 4px 0 0; text-align: center; font-size: 13px; font-weight: 700; color: #ffd447; text-shadow: 0 0 8px rgba(255,212,71,.5); }
