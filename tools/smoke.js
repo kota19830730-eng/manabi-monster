@@ -5144,7 +5144,11 @@ function stripComments(src) {
   check(MQ.battle.answer('999').outcome === 'retry', 'ギンガ: 1回めは いつもどおり もう1回');
   const r2 = MQ.battle.answer('999');
   check(r2.outcome === 'shielded', 'ギンガ: 2回めも にげられない（shielded）');
-  check(MQ.battle.answer('999').outcome === 'shielded', 'ギンガ: 何回でも まもる');
+  check(MQ.battle.answer('999').outcome === 'shielded', 'ギンガ: 2回め まもる');
+  check(MQ.battle.answer('999').outcome === 'shielded', 'ギンガ: 3回め まもる');
+  // 2026-09-19：1問 3回まで。4回めは ふつうに にげて 答えが 出る（前は ずっと＝答えが 出ずに くり返した）
+  const r5 = MQ.battle.answer('999');
+  check(MQ.battle.GINGA_SAVES === 3 && r5.outcome === 'wrong' && r5.answerText != null, 'ギンガ: 4回めは にげて 答えが 出る: ' + r5.outcome);
   // core：はやとき 2ばい・パーフェクト ＋5（summary）
   MQ.battle.start({ stage: st, mode: 'normal', enemies: ['slime'], mobs: 1, chest: false, gear: Object.assign(MQ.hero.gearPower({}), { fastX2: true, perfectCoin: 5 }) });
   while (!MQ.battle.isOver()) { const qq = MQ.battle.current(); if (!qq) break; MQ.battle.answer(correctValue(qq)); MQ.battle.next(); }

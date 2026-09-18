@@ -884,7 +884,6 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         await wait(400);
         const map = $('#screen-map .map');
         const wg = MQ.content.activeWorld().grade;
-        if (g === 6) { say('小6 チップ: じゅんびちゅう → いまの 地図 小' + wg + (wg === 5 ? ' ok' : ' MISSING')); continue; }
         say('小' + g + ' チップ → 地図 ' + (map && map.className.indexOf('map--g' + g) >= 0 && wg === g ? 'ok' : 'MISSING ' + (map && map.className)) + ' / ノード ' + $$('#screen-map .node').length + ' / ゾーン見出し ' + $$('#screen-map .biome').length);
       }
       // 先生用 レポートの HTML（印刷は 実機でしか 見られない ので 中身だけ）
@@ -2043,7 +2042,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('aiparent: ' + (sec ? 'ok' : 'MISSING') + ' status=' + ($('.ai__status') ? $('.ai__status').textContent : ''));
       const chk = Array.prototype.filter.call(document.querySelectorAll('.ai__row .btn'), function (b) { return b.textContent === MQ.text.fit('しらべる'); })[0];
       if (chk) { chk.click(); await wait(100); say('aiparent check: ' + $('.ai__status').textContent); }
-      if (sec) { const wrap = $('#screen-dex .wrap'); wrap.scrollTop = sec.offsetTop - 8; }
+      if (sec) sec.scrollIntoView();   // v7.4 から せっていは おうちの人ページ（#screen-dex では ない）
       dump();
       return;
     }

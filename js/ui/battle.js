@@ -1450,7 +1450,8 @@ MQ.ui.battle = (function () {
       writeModel = true;
       writeMsg = r.reason === 'blob' ? 'ぬりつぶしじゃ なくて、字を かいてね。おてほんを 見て もう1回！'
         : r.reason === 'scribble' ? 'なぐりがきは ✕だよ。1画ずつ ていねいに かいてね！'
-        : r.reason === 'strokes' ? '「' + q.answer + '」は ' + r.expected + '画（かく）だよ。1画ずつ かいてね！'
+        // 答えの 字は raw（小1で「山」が「やま」に なる のを ふせぐ）。「画（かく）」は 小3で「画（書く）」に 化けた ので「画」だけ
+        : r.reason === 'strokes' ? ['「', h('span', { text: q.answer, raw: true }), '」は ' + r.expected + '画だよ。1画ずつ かいてね！']
         : 'うーん、形が ちがうみたい。おてほんを 見て もう1回！';
       submit(false);
       return;
@@ -1624,7 +1625,12 @@ MQ.ui.battle = (function () {
       if (gbe && gbe.kind === 'broke') d.msg.textContent = 'ガードくだき！ ' + GUARD_NAMES[gbe.type] + 'が こわれた…　1回めで ' + gbe.need + 'もん れんぞく 正解すると なおる！';
       else if (gbe && gbe.kind === 'crack') d.msg.textContent = 'ガードくだき！ でも ' + GUARD_NAMES[gbe.type] + 'は ぶじ！ もう1回 こたえよう！';
       if (res.skill === 'kamae') MQ.sfx.kamae();
-      if (q.type === 'write' && writeMsg) { d.msg.textContent = writeMsg; writeMsg = ''; }
+      if (q.type === 'write' && writeMsg) {
+        d.msg.textContent = '';
+        if (Array.isArray(writeMsg)) d.msg.appendChild(h('span', null, writeMsg));
+        else d.msg.textContent = writeMsg;
+        writeMsg = '';
+      }
       showHint(res.hint, q, value);
       input = '';
       writeState = 'draw';
@@ -1726,7 +1732,7 @@ MQ.ui.battle = (function () {
         : res.burst ? 'ばくれつ こうげき！ ' + res.dmg + 'ダメージ！ '
         : res.blocked ? 'ガードされた！ でも なかまの こうげきが 入った！ '   // 本気モード＋相棒（v12.7）
         : 'いいぞ！ ') + 'あと ' + res.hpLeft + 'かい だ！';
-      wait(1700 + (bsp && bsp.set ? Math.max(0, bsp.ms - 1100) : 0), advanceBoss);   // セットわざ（v14.2）は 見おわるまで まつ
+      wait(1700 + (bsp ? Math.max(0, bsp.ms - 1100) : 0), advanceBoss);   // 大きな わざ（ビッグバン・スターバースト・セットわざ）は 見おわるまで まつ（ザコと 同じ）
       return;
     }
 
@@ -1763,7 +1769,10 @@ MQ.ui.battle = (function () {
      こうしないと 1行に ならんで 画面から はみ出る。 */
   function feedback(head, note, cls) {
     d.feedback.textContent = '';
-    d.feedback.appendChild(h('b', { class: 'feedback__head', text: head }));
+    // head は 文字 か [文字, 部品, …]（答えの ぶんは raw の 部品）
+    d.feedback.appendChild(Array.isArray(head)
+      ? h('b', { class: 'feedback__head' }, head)
+      : h('b', { class: 'feedback__head', text: head }));
     if (note) d.feedback.appendChild(h('span', { class: 'feedback__note', text: note, raw: true }));
     // よみあげ（v5.3）：ふきだしの 中の 英語も 聞ける
     if (note && MQ.speech && MQ.ui.listenButton) {
@@ -1779,7 +1788,8 @@ MQ.ui.battle = (function () {
   function ok(note) { feedback('せいかい！', note, 'feedback--ok'); }
 
   // まちがい・時間切れ・にげられた ときの「こたえは ○○。」
-  function sayAnswer(res) { feedback('こたえは ' + res.answerText + '。', res.note); }
+  // 答えは raw（辞書を 当てない）。当てると「山」の よみの 問題で 答えが「山」に なったり、小1で かん字の 答えが ひらがなに なる
+  function sayAnswer(res) { feedback(['こたえは ', h('span', { text: String(res.answerText), raw: true }), '。'], res.note); }
 
   function wait(ms, fn) {
     clearTimeout(timer);
@@ -2973,7 +2983,10 @@ MQ.ui.battle = (function () {
 
       /* ---- にげた敵 ---- */
       sum.revengeBeaten.forEach(function (key) {
-        MQ.content.subjectAreas().forEach(function (a) { MQ.save.removeEscaped(p, a.id, key); });
+        // 塔で にげた 敵は 'tower' に 入って いる（塔の 問題に areaId が ない）。ここも 消さないと とっくんに ずっと のこる
+        MQ.content.subjectAreas().map(function (a) { return a.id; }).concat(['tower']).forEach(function (id) {
+          MQ.save.removeEscaped(p, id, key);
+        });
       });
       /* ふくしゅう（v11.1）
            ・1回めで 正解した ふくしゅう問題 → おぼえた ので 消す
@@ -2987,7 +3000,10 @@ MQ.ui.battle = (function () {
           (sum.escaped || []).forEach(function (en) { gone[en.key] = true; });
           (sum.review || []).forEach(function (en) {
             if (gone[en.key]) return;
-            MQ.review.add(p, en.areaId || ctx.area.id, en);
+            const rArea = en.areaId || ctx.area.id;
+            // ボスの 問題は ザコの すがたで もどす（にげた敵と 同じ）。ボスの まま だと たおして「ボスを たおした」に なる
+            if (String(en.enemyId).indexOf('boss-') === 0) en.enemyId = MQ.enemies.pickIds(rArea, 1)[0];
+            MQ.review.add(p, rArea, en);
           });
         }
       }

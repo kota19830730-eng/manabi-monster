@@ -75,24 +75,34 @@ MQ.letter = (function () {
     let coins = 0, mission = null;
     if (l.areaId && MQ.missions) {
       const ms = MQ.missions.ensure(player);
-      const already = ms.list.filter(function (m) { return m.letter; })[0];
-      if (already) {
-        mission = already;                                   // 前の てがみの ぶんが のこって いたら つかい回さない
-      } else {
-        mission = {
-          id: 'area', target: 1, count: 0, done: false,
-          param: l.areaId, name: l.areaName, letter: true,
-          reward: l.reward || MQ.missions.REWARD_EACH,
-          text: 'おうちの人から：' + l.areaName + 'で 1かい たたかう'
-        };
-        ms.list.push(mission);
-      }
+      // 前の てがみの ミッションは つかい回さない（おわって いても のこって いても、この てがみの ぶんに 入れかえる。
+      // 前は つかい回して いて、同じ日の 2通めの ごほうびが 出なかった）
+      ms.list = ms.list.filter(function (m) { return !m.letter; });
+      mission = missionOf(l);
+      ms.list.push(mission);
     } else {
       coins = l.reward || 0;
       player.coins = (player.coins || 0) + coins;
       l.done = true;                                         // する ことは ない ので これで おしまい
     }
     return { coins: coins, mission: mission };
+  }
+
+  // てがみの ミッション（1つ）
+  function missionOf(l) {
+    return {
+      id: 'area', target: 1, count: 0, done: false,
+      param: l.areaId, name: l.areaName, letter: true,
+      reward: l.reward || (MQ.missions ? MQ.missions.REWARD_EACH : 1),
+      text: 'おうちの人から：' + l.areaName + 'で 1かい たたかう'
+    };
+  }
+  /* 読んだ けれど まだ できて いない てがみの ミッション（日づけが かわった ときに ミッションの 作り直しで 消えない ように・missions.ensure が よぶ）。
+     ない ときは null */
+  function carryMission(player) {
+    const l = get(player);
+    if (!l || !l.read || l.done || !l.areaId || !l.areaName) return null;
+    return missionOf(l);
   }
 
   function clear(player) { if (player) player.letter = null; }
@@ -110,6 +120,7 @@ MQ.letter = (function () {
 
   return {
     MAX: MAX, MAX_REWARD: MAX_REWARD,
-    get: get, pending: pending, write: write, read: read, clear: clear, status: status, areas: areas
+    get: get, pending: pending, write: write, read: read, clear: clear, status: status, areas: areas,
+    carryMission: carryMission
   };
 })();

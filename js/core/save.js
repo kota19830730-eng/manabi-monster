@@ -244,9 +244,17 @@ MQ.save = (function () {
     try {
       window.localStorage.setItem(KEY, JSON.stringify(state));
     } catch (e) {
-      // 保存できない環境でも ゲームは 続けられる
+      // 保存できない環境でも ゲームは 続けられる。
+      // ただし 容量が いっぱいの ときは だまって いると つぎに ひらいた とき 今日の ぶんが 消える → 1回だけ 知らせる
+      const full = e && (e.code === 22 || e.code === 1014 || /quota/i.test(String(e.name) + String(e.message)));
+      if (full && !quotaWarned) {
+        quotaWarned = true;
+        try { if (MQ.guard && MQ.guard.record) MQ.guard.record({ msg: 'セーブが いっぱいで ほぞん できない（' + e.name + '）' }); } catch (e2) { /* なにもしない */ }
+        try { if (MQ.ui && MQ.ui.toast) MQ.ui.toast('ほぞんする ばしょが いっぱいだよ。おうちの人に 見せてね'); } catch (e3) { /* なにもしない */ }
+      }
     }
   }
+  var quotaWarned = false;   // var：読みこみ中に persist が 呼ばれても こわれない ように
 
   function get() {
     return state || load();
@@ -453,7 +461,7 @@ MQ.save = (function () {
     escapedIn: escapedIn, revengeReady: revengeReady, revengeAfterMs: revengeAfterMs, addEscaped: addEscaped, removeEscaped: removeEscaped, countEscaped: countEscaped,
     playGrade: playGrade, areaKey: areaKey, setPlayGrade: setPlayGrade,
     allEscaped: allEscaped, countAllEscaped: countAllEscaped,
-    addLog: addLog, addCustom: addCustom, removeCustom: removeCustom,
+    addLog: addLog, addCustom: addCustom, removeCustom: removeCustom, MAX_CUSTOM: MAX_CUSTOM,
     exportText: exportText, importText: importText,
     mergeAbc: mergeAbc,
     BAG_MAX: BAG_MAX

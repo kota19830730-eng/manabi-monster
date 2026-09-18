@@ -176,7 +176,13 @@ MQ.capsule = (function () {
       if (order[i] === 'sr') {
         const sec = list.filter(function (x) { return x.secret; });
         const norm = list.filter(function (x) { return !x.secret; });
-        if (sec.length && norm.length) list = rnd() < SECRET_RATE ? sec : norm;
+        if (sec.length && norm.length) {
+          const want = rnd() < SECRET_RATE ? sec : norm;
+          const other = want === sec ? norm : sec;
+          const open = function (l) { return l.some(function (x) { return !has(p, x.id); }); };
+          // えらんだ がわが ぜんぶ 持って いる もので、もう いっぽうに まだの ものが あれば そっち（①まだの もの 先に）
+          list = (!open(want) && open(other)) ? other : want;
+        }
       }
       const fresh = list.filter(function (x) { return !has(p, x.id); });
       const from = fresh.length ? fresh : list;   // ① まだの もの → ② ぜんぶ 持って いたら かぶり

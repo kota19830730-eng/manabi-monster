@@ -22,6 +22,15 @@ MQ.ui.dojo = (function () {
   function player() { return MQ.save.current(); }
   function strip(s) { return String(s || '').replace(/<[^>]+>/g, ''); }
   function F(s, v) { return MQ.dojo.fmt(s, v); }
+  /* 「こたえは ○○。 せつめい」の ふきだし。○○と せつめいは 問題の 中身 なので raw
+     （辞書を 当てると 小2いじょうで「やま」の 答えが「山」に なる） */
+  function ansSay(ans, note, tail) {
+    const t = String(T.ansIs).split('$');
+    const out = [t[0], h('span', { text: String(ans), raw: true }), t.slice(1).join('$')];
+    if (note) out.push(' ', h('span', { text: strip(note), raw: true }));
+    if (tail) out.push(' ' + tail);
+    return out;
+  }
   function dots() { return ['せつめい', 'いっしょに', 'ひとりで']; }
 
   /* =======================================================
@@ -113,9 +122,13 @@ MQ.ui.dojo = (function () {
     const main = root.querySelector('.dojo__main');
     if (main) { main.innerHTML = ''; main.appendChild(node); main.scrollTop = 0; }
   }
+  // text は 文字 か [文字, 部品, …]（答え・せつめいは raw の 部品＝学年の 辞書を 当てない）
   function say(text) {
     const b = root && root.querySelector('.dojo__say');
-    if (b) b.textContent = S ? S.sen.name + '「' + text + '」' : text;
+    if (b && Array.isArray(text)) {
+      b.textContent = '';
+      b.appendChild(h('span', null, S ? [S.sen.name + '「'].concat(text, ['」']) : text));
+    } else if (b) b.textContent = S ? S.sen.name + '「' + text + '」' : text;
     const w = root && root.querySelector('.dojo__bubble');
     if (w) { w.classList.remove('is-pop'); void w.offsetWidth; w.classList.add('is-pop'); }
   }
@@ -207,9 +220,9 @@ MQ.ui.dojo = (function () {
       kids.push(nextBtn(T.seeAns, function () { guided(i, 'answer'); }));
     } else {
       const ans = MQ.dojo.answerText(q);
-      say(F(T.ansIs, ans) + (q.note ? ' ' + strip(q.note) : ''));
+      say(ansSay(ans, q.note));
       if (q.hint) kids.push(hintBox(q));
-      kids.push(h('div', { class: 'dojo__answer' }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: ans })]));
+      kids.push(h('div', { class: 'dojo__answer' }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: ans, raw: true })]));
       kids.push(nextBtn(i + 1 < qs.length ? T.nextQ : T.toPractice, function () { guided(i + 1, 'ask'); }));
     }
     paint(h('div', { class: 'dojo__pane' }, [h('p', { class: 'dojo__label', text: T.guidedLabel + ' ' + (i + 1) + ' / ' + qs.length })].concat(kids)));
@@ -230,9 +243,9 @@ MQ.ui.dojo = (function () {
     } else if (phase === 'retry') {
       say(MQ.dojo.missText(S.ses.lesson, q, given, T));
     } else if (phase === 'ok') {
-      say(MQ.dojo.praise(T) + (q.note ? ' ' + strip(q.note) : ''));
+      say(q.note ? [MQ.dojo.praise(T), ' ', h('span', { text: strip(q.note), raw: true })] : MQ.dojo.praise(T));
     } else if (phase === 'reveal') {
-      say(F(T.ansIs, MQ.dojo.answerText(q)) + ' ' + (q.note ? strip(q.note) + ' ' : '') + T.reveal);
+      say(ansSay(MQ.dojo.answerText(q), q.note, T.reveal));
     }
     if (q.hint) kids.push(hintBox(q));
     if (phase === 'ask' || phase === 'retry') {

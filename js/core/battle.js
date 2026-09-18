@@ -82,6 +82,7 @@ MQ.battle = (function () {
   const CHARGE_MOB = 3;
   const CHARGE_BOSS = 3;
   const COUNTER_MUL = 1.5;
+  const GINGA_SAVES = 3;       // ギンガの たてが 1問で まもる 回数（2026-09-19・ユーザー決定。その あとは ふつうに にげて 答えが 出る）
   const COUNTER_DMG = 2;
 
   /* ■ 敵がわの 攻防（v8.1）。ぜんぶ「うばう」でなく「ボーナスの チャンス」（ユーザー決定 2026-09-06）
@@ -507,6 +508,7 @@ MQ.battle = (function () {
       },
       itemsUsed: [],
       frozenQ: null,     // 時とめが 効いている 問題の id
+      gingaQ: null, gingaN: 0,   // ギンガの たてが まもった 問題と 回数（1問 GINGA_SAVES 回まで）
       guidedQ: null,     // みちしるべを 使った 問題の id
       stage: stage,
       mode: mode,
@@ -999,11 +1001,13 @@ MQ.battle = (function () {
     // ボスの わざの 問題（v8.1）：かまえは そのまま・ぶんしんは ボーナスなし・すきは とじる（演出だけ）
     const plNow = (s.phase === 'boss' && !q.called && s.bossPlan) ? s.bossPlan[s.bossAsked] : null;
     const skillNow = plNow ? plNow.kind : null;
+    // ガードくだき（2026-09-14）：ボスの 大わざで まちがえた。
+    // bossOpen を 消す 前に 見る（先に 消すと「すきだらけ」の 問題が 予告なしで 大わざ あつかいに なる）
+    guardOnMiss(q, wasRetry);
     if (!wasRetry && s.phase === 'boss' && !q.called) {
       s.bossOpen = false;
       if (skillNow === 'clone' && plNow.pos === 0) s.cloneClean = false;
     }
-    guardOnMiss(q, wasRetry);                        // ガードくだき（2026-09-14）：ボスの 大わざで まちがえた
     if (!wasRetry && !s.timeAttack) {
       s.retry = true;
       s.retryGiven = givenText(q, value);
@@ -1016,9 +1020,13 @@ MQ.battle = (function () {
     }
 
     // てっぺき まもり：2回目に まちがえても にげられない（答えは 見せずに もう1回）
-    // ギンガの たて（v14.8）：たてが へらずに ずっと まもる（ガードくだきでも こわれない）
-    if ((s.buff.shield > 0 || s.gear.noEscape) && !s.timeAttack) {
-      if (!s.gear.noEscape) s.buff.shield--;
+    // ギンガの たて（v14.8）：たてが へらずに まもる（ガードくだきでも こわれない）。
+    // 2026-09-19：1問 GINGA_SAVES 回まで（前は ずっと＝解けない 問題で 答えが 出ずに くり返し、いつも ★3 だった）
+    if (s.gingaQ !== q.id) { s.gingaQ = q.id; s.gingaN = 0; }
+    const ginga = s.gear.noEscape && s.gingaN < GINGA_SAVES;
+    if ((s.buff.shield > 0 || ginga) && !s.timeAttack) {
+      if (ginga) s.gingaN++;
+      else s.buff.shield--;
       if (s.frozenQ !== q.id) s.combo = 0;
       if (q.groupId) s.groupClean = false;
       return { outcome: 'shielded', left: s.buff.shield, combo: s.combo, hint: makeHint(q), hit: hit };
@@ -1351,7 +1359,7 @@ MQ.battle = (function () {
       escaped: s.escapedNow.map(function (q) {
         return {
           key: q.id, q: plain(q), enemyId: q.enemyId,
-          stageId: s.stage.id, areaId: q.areaId || null,
+          stageId: q.stageId || s.stage.id, areaId: q.areaId || null,   // ごちゃまぜ・とっくんは 問題の もとの ステージ（ふくしゅうと 同じ）
           at: new Date().toISOString()
         };
       }),
@@ -1387,7 +1395,7 @@ MQ.battle = (function () {
     guards: guards, guardEvent: function () { return s ? s.gbEvent : null; },
     GB_GAIN_MAX: GB_GAIN_MAX, GB_REPAIR: GB_REPAIR, GB_REPAIR_XP: GB_REPAIR_XP,
     _setBossHp: function (n) { if (s) { s.bossHp = n; if (n > s.bossHpMax) s.bossHpMax = n; } },   // テスト用
-    CHARGE_MOB: CHARGE_MOB, CHARGE_BOSS: CHARGE_BOSS, COUNTER_MUL: COUNTER_MUL, COUNTER_DMG: COUNTER_DMG,
+    CHARGE_MOB: CHARGE_MOB, CHARGE_BOSS: CHARGE_BOSS, COUNTER_MUL: COUNTER_MUL, COUNTER_DMG: COUNTER_DMG, GINGA_SAVES: GINGA_SAVES,
     // 敵がわの 攻防（v8.1）
     ELITE_HP: ELITE_HP, WEAK_MUL: WEAK_MUL, WEAK_DMG: WEAK_DMG, BOSS_SKILLS: BOSS_SKILLS,
     XP_REVIEW: XP.review,                            // ふくしゅう（v11.1）

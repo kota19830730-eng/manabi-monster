@@ -123,7 +123,11 @@ MQ.missions = (function () {
     if (!p) return null;
     const day = dayKey();
     if (!p.missions || !Array.isArray(p.missions.list) || p.missions.day !== day) {
-      p.missions = { day: day, list: generate(p), claimedAll: false };
+      const list = generate(p);
+      // 読んだ まま まだ できて いない おうちの人の てがみの ミッションは あしたにも のこす（前は 日づけで 消えて ごほうびが 出なかった）
+      const carry = (MQ.letter && MQ.letter.carryMission) ? MQ.letter.carryMission(p) : null;
+      if (carry) list.push(carry);
+      p.missions = { day: day, list: list, claimedAll: false };
     }
     return p.missions;
   }

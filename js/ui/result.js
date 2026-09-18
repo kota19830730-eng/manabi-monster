@@ -354,7 +354,11 @@ MQ.ui.result = (function () {
       MQ.bgm.then(tower ? 'ending' : 'victory');   // ファンファーレが 鳴りおわったら つづける
     } else {
       MQ.bgm.stop();
-      setTimeout(function () { MQ.bgm.play('map'); }, 1800);
+      // 1.8秒 いないに「つぎの ステージへ」を おすと バトルの 曲が 地図の 曲に 上書きされて いた → けっか画面の ままの ときだけ
+      setTimeout(function () {
+        const sc = document.getElementById('screen-result');
+        if (sc && sc.classList.contains('is-active')) MQ.bgm.play('map');
+      }, 1800);
     }
   }
 

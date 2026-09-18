@@ -246,7 +246,7 @@ MQ.hero = (function () {
   /* ギンガ（げきレア 第2弾・v14.8）だけの 力。オーロラと 同じく「正解した ときの もらいが ふえる」だけ */
   const GINGA_POWER = {
     weapon: { key: 'fastX2',      text: 'はやとき ボーナスが 2ばいに なる',       short: 'はやとき 2ばい' },
-    shield: { key: 'noEscape',    text: 'たてが へらずに ずっと まもって くれる', short: 'ずっと まもる' },
+    shield: { key: 'noEscape',    text: 'たてが へらずに 1もん 3かいまで まもって くれる', short: '3かい まもる' },   // 2026-09-19 上限つき（前は「ずっと」）
     helm:   { key: 'setX2',       text: 'セットわざの ゲージが 2ばい たまる',     short: 'セット 2ばい' },
     armor:  { key: 'palXp2',      text: 'なかまの けいけんちが 2ばいに なる',     short: 'なかま そだつ' },
     cape:   { key: 'perfectCoin', text: 'パーフェクトの とき コイン ＋5',         short: 'パーフェクト ＋5' }

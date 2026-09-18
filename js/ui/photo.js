@@ -2845,6 +2845,12 @@ MQ.ui.photo = (function () {
       if (!outUrl) { MQ.ui.toast('まず しゃしんを とるか、ドット絵を かいてね'); return; }
       const name = (nameIn.value || '').trim();
       if (!name) { MQ.ui.toast('なまえを 入れてね'); return; }
+      // 40体（MQ.save.MAX_CUSTOM）を こえると いちばん 古い 子が だまって 消えて いた → つくる 前に とめる
+      const cp = MQ.save.current();
+      if (cp && (cp.custom || []).length >= MQ.save.MAX_CUSTOM) {
+        MQ.ui.toast('じぶんの モンスターは ' + MQ.save.MAX_CUSTOM + '体まで。いらない 子を 消してから つくってね');
+        return;
+      }
       const mon = { id: 'my-' + MQ.util.uid(), name: name, area: areaId, png: outUrl };
       if (aiUsed) mon.ai = true;
       if (edited) mon.edited = true;

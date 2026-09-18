@@ -141,9 +141,13 @@ MQ.pals = (function () {
     const to = cur.enemy.evo;
     if (!enemyOf(to)) return null;
     const rec = p.pals[cur.id];
+    /* 進化先を もう 持って いる（お店・なかまに なりたそう で 2段階めを 先に もらった）ときは
+       上書きせず 1体に まとめる。いちばん 育った ほうの けいけんちと、つけた なまえを のこす（mergeAbc と 同じ 考え方） */
+    const old = p.pals[to] || null;
     delete p.pals[cur.id];
-    p.pals[to] = { exp: rec.exp, got: rec.got, from: cur.id };
-    if (rec.name) p.pals[to].name = rec.name;      // つけた なまえは そのまま（v5.2）
+    p.pals[to] = { exp: Math.max(rec.exp || 0, old ? old.exp || 0 : 0), got: rec.got, from: cur.id };
+    const nm = rec.name || (old && old.name);
+    if (nm) p.pals[to].name = nm;                  // つけた なまえは そのまま（v5.2）
     p.pal = to;
     // 図かんにも のせる（進化した すがたを 見た ことに する）
     if (p.dex) {
