@@ -23,7 +23,12 @@
     capsule: 'アンテナの まるい ヘルメット・カプセルの かた当てと たて・光の 刃の けん',
     aurora: '金の 王冠の かぶと・はねの かた当て・クリスタルの たて・光る ふちの けん'
   };
-  const AURA = { kihon: 'みどりの つぶ', tetsu: '白い 光の つぶ', ryu: 'ほのお', densetsu: '金の 光の はしら', hoshi: 'またたく 星', yami: '黒い けむりと 火の粉', capsule: '水色の あわ', aurora: 'むらさきの 光の はしら' };
+  const AURA = { kihon: 'みどりの つぶ', tetsu: '白い 光の つぶ', ryu: 'ほのお', densetsu: '金の 光の はしら', hoshi: 'またたく 星', yami: '黒い けむりと 火の粉', capsule: '水色の あわ', aurora: 'むらさきの 光の はしら',
+    prism: 'にじの きらめき', ginga: '星あかり', majin: 'ほのおと 金の 火の粉', ankoku: '黒い けむりと 赤い 火花' };
+  NOTE.prism = 'すいしょうの かぶと（3本の けっしょう）・むねに ひし形の 宝石・六角形の たて・すいしょうの けん';
+  NOTE.ginga = 'よぞらの かぶと（金の 三日月）・うずまきの ぎんが・土星の わの たて・星が ながれる けん';
+  NOTE.majin = '金の つの 2本と 第三の 目・マグマの ひび・左かたに 3本の つの・あくまの 顔の たて・つめの けん・こうもりの はね';
+  NOTE.ankoku = '黒い 鉄の かぶと（赤い スリット・ひれ）・赤い すじの X・3まい かさねの かた当て・黒い 大きな たて・赤い しんの 大けん・ぼろぼろの マント';
   const look = MQ.hero.lookOf({});
   const root = document.getElementById('lab');
   let scale = 1.8;

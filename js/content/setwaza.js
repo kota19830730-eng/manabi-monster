@@ -47,7 +47,12 @@
     { grade: 'prism',    gradeName: 'プリズム', id: 'set-prism',    name: '分光烈破',   ruby: 'スペクトル・ブレイク',     lines: ['ひかりよ、ななつに わかれて きりさけ！'], color: '#bfefff',
       ready: true, pose: 'sweep', mo: 'ice', scene: 'mo-dash-thru', hit: 360, down: 1650, ms: 2300, tier: 4 },
     { grade: 'ginga',    gradeName: 'ギンガ',   id: 'set-ginga',    name: '超新星ノ轟砲', ruby: 'スーパーノヴァ・カノン',   lines: ['ほしよ、もえつきて ほえろ！'],          color: '#9a6aff',
-      ready: true, pose: 'point', mo: 'nova', scene: 'mo-rise', hit: 560, down: 1700, ms: 2300, tier: 4 }
+      ready: true, pose: 'point', mo: 'nova', scene: 'mo-rise', hit: 560, down: 1700, ms: 2300, tier: 4 },
+    // まじん・あんこく（v14.11・2026-09-19・ユーザーが C 案を えらんだ）
+    { grade: 'majin',    gradeName: 'まじん',   id: 'set-majin',    name: '獄炎魔皇拳', ruby: 'ヘルファイア・ブラスト',   lines: ['じごくの ほのおよ、うちくだけ！'],        color: '#ff6a2a',
+      ready: true, pose: 'raise', mo: 'star', scene: null, hit: 640, down: 1720, ms: 2300, tier: 4 },
+    { grade: 'ankoku',   gradeName: 'あんこく', id: 'set-ankoku',   name: '黒炎帝王剣', ruby: 'ブラック・カリバー',       lines: ['くろき ほのおよ、すべてを きりさけ！'],     color: '#ff2a3a',
+      ready: true, pose: 'sky', mo: 'fire', scene: 'mo-dash-sp', hit: 520, down: 1700, ms: 2300, tier: 4 }
   ];
   const byIdMap = {}, byGradeMap = {}, byNameMap = {};
   LIST.forEach(function (w) { byIdMap[w.id] = w; byGradeMap[w.grade] = w; byNameMap[w.gradeName] = w; });

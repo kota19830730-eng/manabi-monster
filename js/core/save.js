@@ -176,6 +176,9 @@ MQ.save = (function () {
     // 敵がわの 攻防（v8.1）：たおした 中ボス・弱点を ついた 数（しょうごう用）
     if (typeof p.elites !== 'number') p.elites = 0;
     if (typeof p.weakHits !== 'number') p.weakHits = 0;
+    // まじん・あんこくの そうび（v14.11）：ごちゃまぜで ボスを たおした 数・本気で ボスを たおした 数
+    if (typeof p.mixWins !== 'number') p.mixWins = 0;
+    if (typeof p.hardWins !== 'number') p.hardWins = 0;
     /* あたらしい こと！（v8.3）：さいごに 見た お知らせの 版。
        古い セーブは null＝まだ 見て いない → たまった ぶんを まとめて 見せる。
        あたらしく 作った 子は newPlayer で いまの 版に する（はじめてなので 何も 出さない） */

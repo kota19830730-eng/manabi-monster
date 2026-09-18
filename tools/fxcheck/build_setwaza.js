@@ -10,7 +10,7 @@ const css = [...idx.matchAll(/<link rel="stylesheet" href="(css\/[^"]+)"/g)].map
 const js = [...idx.matchAll(/<script src="(js\/[^"]+)"/g)].map(m => m[1]);
 const stage = /<div id="stage" class="stage">[\s\S]*?<\/div>\s*\n(?=<!--|<script)/.exec(idx)[0];
 const safe = s => s.replace(/<\/script/gi, '<\\/script');
-let out = '<title>セットわざ 8つ</title>\n';
+let out = '<title>セットわざ まじん・あんこく</title>\n';
 out += '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=BIZ+UDPGothic:wght@400;700&display=swap">\n';
 out += '<style>\n' + css.map(f => '/* ' + f + ' */\n' + fs.readFileSync(ROOT + f, 'utf8')).join('\n') + '\n';
 out += fs.readFileSync(FX + 'demo_panel.css', 'utf8') + '\n</style>\n';

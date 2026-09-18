@@ -12,7 +12,7 @@
   // つぶの 数と 動く 長さ（グレードごと）。[左 %, 待ち 秒]
   const BACK = [[8, .3], [30, 1.1], [62, .6], [90, 1.7], [20, 2.1], [48, 1.5], [78, .9], [38, 2.4]];
   const FRONT = [[14, 0], [82, .7], [22, 1.4], [74, 2.0]];
-  const DUR = { kihon: 3.0, tetsu: 2.4, ryu: 1.5, densetsu: 2.2, hoshi: 2.8, yami: 3.2, capsule: 2.6, aurora: 2.4 };
+  const DUR = { kihon: 3.0, tetsu: 2.4, ryu: 1.5, densetsu: 2.2, hoshi: 2.8, yami: 3.2, capsule: 2.6, aurora: 2.4, majin: 1.6, ankoku: 3.0 };
   const PILLARS = { densetsu: [26, 70], aurora: [18, 40, 62, 80] };
 
   function grade(player) {

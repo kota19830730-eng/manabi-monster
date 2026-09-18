@@ -43,7 +43,9 @@
     p.appendChild(note);
     const row = document.createElement('div');
     row.className = 'mihon__row';
-    MQ.setwaza.list().forEach(function (w) {
+    // 見て もらう ときは 新しい わざを 先頭に（FIRST に id を 書く）
+    const FIRST = ['set-majin', 'set-ankoku'];
+    MQ.setwaza.list().sort(function (x, y) { return (FIRST.indexOf(y.id) >= 0 ? 1 : 0) - (FIRST.indexOf(x.id) >= 0 ? 1 : 0); }).forEach(function (w) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'mihon__b mihon__b--' + w.id;
       b.style.background = 'linear-gradient(#0000, #0006), ' + w.color;

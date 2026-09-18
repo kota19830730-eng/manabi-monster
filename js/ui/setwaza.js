@@ -1198,6 +1198,235 @@
         P(E, { x: R(E, 0, K.size().W), y: R(E, 0, F.bot), vx: 0, vy: R(E, 10, 30), life: R(E, 500, 900), s0: R(E, 1.5, 3), s1: 0.5, ramp: NEBU, fi: 0.3 });
       }
     } });
+
+    /* ---- 獄炎魔皇拳（ヘルファイア・ブラスト）：まじんの セット（v14.11） ----
+       ユーザー「灼熱の 拳感を もっと 出して」（2026-09-19）→ こぶしは 溶岩の 色で 光り（面は emis・ひびが 白く 光る）、
+       ほのおを まといながら 落ち（うしろに ほのおの 尾）、着弾で 溶岩の しぶき・地面の ひび・火柱。2発めは 空から いん石の ように。
+       0〜620   ため：主人公の 足もとに ほのおの 輪・けんの 先に ほのおの 玉。空から 灼熱の こぶしが おりて きて 上で とまる（ほのおが 上に ふき上がる）
+       620      1発め：こぶしが てきに 落ちる → 溶岩の しぶき・ひび・ほのおの 輪
+       920〜    こぶしが 上がる → 1120 2発め（大きく・速く・ほのおの 尾）
+       1550     獄炎の 大ばくはつ：火柱・しょうげきの わ 3つ・光の すじ・溶岩の かけら
+       1600〜   よいん：火の粉が のぼる */
+    const HELL = ramp(['#ffffff', '#ffe0a0', '#ff8a2a', '#e0300e', '#7a1230', '#2a0510']);
+    const LAVA = ramp(['#ffffff', '#fff2b0', '#ffb030', '#ff5a1a', '#b81a0a']);
+    const HELLS = ramp(['#3a0714', '#240410', '#100208']);
+    // 灼熱の こぶし（3D の 箱を 組む）。x＝まん中・yTop＝落ちた ときの こぶしの 下・from＝上で まつ 高さ・drop＝落ちはじめ（この 物の 年れい ms）・fall＝落ちる 長さ
+    function demonFist(E, x, yTop, o) {
+      const cracks = [];
+      for (let i = 0; i < 6; i++) cracks.push([R(E, -0.45, 0.45), R(E, -0.2, 0.3), R(E, -0.3, 0.3), R(E, -0.25, 0.25)]);
+      const t = thing(E, { life: o.life, top: true, landed: false, pos: null, draw: function (g) {
+        const age = t.age, s = o.size;
+        let y, a = 1, heat = 1;
+        if (age < o.drop) { const k = age / o.drop; a = Math.min(1, age / 160); y = yTop - o.from + Math.sin(age * 0.008) * 4 - (1 - k) * 30; }
+        else if (age < o.drop + o.fall) { const k = (age - o.drop) / o.fall; y = yTop - o.from * (1 - k * k); heat = 1.3; }
+        else {
+          if (!t.landed) { t.landed = true; if (o.onLand) o.onLand(); }
+          const k = age - o.drop - o.fall;
+          y = yTop + Math.sin(k * 0.06) * Math.max(0, 1 - k / 260) * 4;
+          if (o.up && k > o.up) y = yTop - Math.min(o.from, (k - o.up) * 0.5);   // 上がって いく
+        }
+        t.pos = { x: x, y: y, s: s, falling: age >= o.drop && !t.landed };
+        const pulse = 0.85 + 0.15 * Math.sin(age * 0.02);
+        const palm = [150, 30, 36], fin = [232, 78, 36];
+        // 熱の 光（大きく・オレンジ）
+        g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.55 * a * heat * pulse;
+        g.drawImage(glowOf([255, 120, 40]), x - s * 2.1, y - s * 2.0, s * 4.2, s * 3.8);
+        g.globalAlpha = 0.5 * a;
+        g.drawImage(glowOf([255, 230, 150]), x - s * 0.9, y - s * 1.1, s * 1.8, s * 1.6);
+        g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+        // てのひら（下）・4本の ゆび（上・溶岩の 色で 光る）・おやゆび
+        mesh(g, SH.BOX, { x: x, y: y - s * 0.32, s: s, sx: 1.05, sy: 0.62, sz: 0.8, ry: 0.42, rx: 0.22, col: palm, a: a, edge: 0.5, spec: 0.5 });
+        for (let i = 0; i < 4; i++) {
+          const fx = x - s * 0.7 + i * s * 0.46;
+          mesh(g, SH.BOX, { x: fx, y: y - s * 0.86, s: s * 0.42, sx: 0.85, sy: 1.05, sz: 0.9, ry: 0.42, rx: 0.22, col: fin, a: a, emis: true, edge: 0.55, spec: 0.9 });
+          mesh(g, SH.GEM, { x: fx, y: y - s * 1.16, s: s * 0.15, ry: age * 0.002, col: [255, 214, 90], a: a, emis: true, edge: 0.5, spec: 1 });   // 金の つめ
+        }
+        mesh(g, SH.BOX, { x: x + s * 0.98, y: y - s * 0.34, s: s * 0.36, sx: 0.8, sy: 1.1, sz: 0.8, ry: 0.42, rx: 0.22, col: fin, a: a, emis: true, edge: 0.55 });   // おやゆび
+        // 溶岩の ひび（白く 光る 線）と こうの 光る もん
+        g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+        cracks.forEach(function (c, i) {
+          const cx = x + c[0] * s, cy = y - s * 0.32 + c[1] * s * 0.5, ex = cx + c[2] * s * 0.6, ey = cy + c[3] * s * 0.4;
+          const al = a * (0.55 + 0.45 * Math.sin(age * 0.015 + i));
+          g.lineWidth = 3.5; g.strokeStyle = 'rgba(255,120,40,' + 0.6 * al + ')'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(ex, ey); g.stroke();
+          g.lineWidth = 1.4; g.strokeStyle = 'rgba(255,245,200,' + al + ')'; g.stroke();
+        });
+        g.globalAlpha = 0.95 * a * pulse;
+        g.drawImage(glowOf([255, 160, 60]), x - s * 0.36, y - s * 0.64, s * 0.72, s * 0.62);
+        g.globalAlpha = 1;
+      } });
+      return t;
+    }
+    // こぶしから 出る ほのお（上へ ふき上がる）と、落ちる ときの ほのおの 尾（上に のこる）
+    function fistFire(E, fist, k) {
+      const p = fist && fist.pos; if (!p) return;
+      for (let i = 0; i < n(E, k); i++) {
+        // こぶし ぜんたいから ほのおが ふき出す（上へ）。落ちて いる ときは 上に 尾を ひく
+        K.flameP(E, p.x + R(E, -p.s * 1.15, p.s * 1.15), p.y - R(E, 0, p.s * 1.2), { ramp: HELL, vx: R(E, -40, 40), vy: p.falling ? R(E, -40, 80) : R(E, -260, -140), ay: -60, drag: 0.5, life: R(E, 300, 520), s0: R(E, 13, 22), s1: 3, a: 0.75 });
+        P(E, { x: p.x + R(E, -p.s * 1.1, p.s * 1.1), y: p.y - R(E, 0, p.s), vx: R(E, -80, 80), vy: p.falling ? R(E, -80, 40) : R(E, -240, -100), ay: 100, drag: 0.7, life: R(E, 260, 520), s0: 3, s1: 0.8, m: 's', ramp: LAVA });
+      }
+      // こぶしの まわりを 回る 火の粉
+      if (E.step % 2 === 0) P(E, { m: 'o', draw: 's', cx: p.x, cy: p.y - p.s * 0.5, ang: R(E, 0, 6.3), rad: R(E, p.s * 1.1, p.s * 1.7), w: 5, dr: -R(E, 240, 360), rise: -20, oy: 0, sq: 0.7, life: 420, s0: 3, s1: 1.2, ramp: LAVA, orbit: true, kill: 8 });
+    }
+    // 地面の ひび（マグマ）：x,y から 7本 ひろがって 消える
+    function lavaCracks(E, x, y, len, life) {
+      const arms = [];
+      for (let i = 0; i < 7; i++) { const an = -Math.PI * 0.95 + i * (Math.PI * 1.9 / 6) + R(E, -0.16, 0.16); arms.push({ a: an, l: len * R(E, 0.6, 1), j: R(E, -10, 10) }); }
+      thing(E, { life: life, draw: function (g, u) {
+        const e = 1 - Math.pow(1 - Math.min(1, u / 0.22), 3), a = u < 0.55 ? 1 : 1 - (u - 0.55) / 0.45;
+        g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+        arms.forEach(function (ar) {
+          const ex = x + Math.cos(ar.a) * ar.l * e, ey = y + Math.sin(ar.a) * ar.l * e * 0.32, mx = (x + ex) / 2 + ar.j * e, my = (y + ey) / 2;
+          g.lineWidth = 7; g.strokeStyle = 'rgba(255,90,42,' + 0.5 * a + ')'; g.beginPath(); g.moveTo(x, y); g.lineTo(mx, my); g.lineTo(ex, ey); g.stroke();
+          g.lineWidth = 2.2; g.strokeStyle = 'rgba(255,240,180,' + 0.95 * a + ')'; g.stroke();
+        });
+        // ひびの 下から にじむ 光
+        g.globalAlpha = 0.6 * a; g.drawImage(glowOf([255, 110, 40]), x - len * 1.1, y - len * 0.45, len * 2.2, len * 0.9); g.globalAlpha = 1;
+      } });
+    }
+    // 溶岩の しぶき（3D の 光る かたまり＋光の つぶ）
+    function lavaSplash(E, x, y, k, v0, v1) {
+      for (let i = 0; i < n(E, k); i++) {
+        const an = -Math.PI / 2 + R(E, -1.2, 1.2), v = R(E, v0, v1);
+        P(E, { x: x + R(E, -8, 8), y: y, vx: Math.cos(an) * v, vy: Math.sin(an) * v, ay: 520, drag: 0.5, life: R(E, 520, 900), s0: R(E, 6, 12), s1: 2, m: 'M', mesh: SH.ROCKS[i % SH.ROCKS.length] || SH.GEM,
+          col: i % 3 ? [255, 120, 40] : [255, 220, 120], emis: true, rx: R(E, 0, 6), ry: R(E, 0, 6), rz: R(E, 0, 6), vrx: R(E, -8, 8), vry: R(E, -8, 8), vrz: R(E, -6, 6), edge: 0.5, spec: 0.9, fo: 0.6 });
+      }
+      K.burst(E, x, y, Math.round(k * 2.5), { ramp: LAVA, v0: v0 * 0.8, v1: v1 * 1.1, g: 480, drag: 0.7, l0: 420, l1: 800, s: 3, up: true });
+    }
+    fxc.define('set-majin', { dur: 2300, run: function (E, F, S, Hr) {
+      const size = Math.max(32, Math.min(48, F.w * 0.52));
+      if (at(E, 10)) {
+        K.ring(E, Hr.x, Hr.y + 40, 6, 96, 520, '#ff6a2a', 6, 0.3);
+        K.orb(E, S.x, S.y - 12, 4, 26, 600, '#ff8a2a', { shrinkAt: 0.9 });
+        E.fist1 = demonFist(E, F.x, F.top - 4, { size: size, from: 120, drop: 470, fall: 150, up: 300, life: 1150, onLand: function () {
+          K.flash(E, '#ffffff', 0.55, 200); K.flash(E, '#ff6a2a', 0.35, 520);
+          K.ring(E, F.x, F.bot, 8, 180, 560, '#ff8a2a', 8, 0.35);
+          lavaCracks(E, F.x, F.bot, 130, 900);
+          lavaSplash(E, F.x, F.bot - 6, 12, 200, 520);
+          K.chunks(E, F.x, F.bot - 4, 8, '#4a1a12', { up: true, lift: 160 });
+          K.smoke(E, F.x, F.top, 5, { ramp: HELLS, a: 0.5 });
+          K.glint(E, F.x, F.y, 90, 300);
+        } });
+      }
+      if (E.t < 600) {
+        K.flameP(E, Hr.x + R(E, -34, 34), Hr.y + 36, { ramp: HELL, vx: R(E, -20, 20), vy: R(E, -220, -130), ay: -40, drag: 0.5, life: R(E, 360, 520), s0: R(E, 8, 13), s1: 2, a: 0.55 });
+        P(E, { m: 'o', draw: 's', cx: S.x, cy: S.y - 12, ang: R(E, 0, 6.3), rad: R(E, 50, 110), w: 5, dr: -R(E, 200, 320), rise: 0, oy: 0, sq: 0.9, life: 420, s0: 2.6, s1: 1.2, ramp: HELL, orbit: true, kill: 6 });
+        if (E.step % 2 === 0) P(E, { x: F.x + R(E, -F.w * 0.8, F.w * 0.8), y: F.bot + R(E, -4, 4), vx: R(E, -20, 20), vy: R(E, -110, -50), drag: 0.9, life: R(E, 520, 900), s0: R(E, 6, 10), s1: R(E, 14, 22), m: 'm', ramp: HELLS, a: 0.55, fi: 0.15, fo: 0.45 });
+      }
+      // こぶしが ほのおを まとう（1発め）
+      if (E.t < 1150) fistFire(E, E.fist1, E.t < 470 ? 4 : 5);
+      if (at(E, 600)) K.glint(E, S.x, S.y - 12, 80, 260);
+      if (during(E, 640, 1260) && E.step % 2 === 0) {
+        K.flameP(E, F.x + R(E, -F.w * 0.7, F.w * 0.7), F.bot + R(E, -4, 4), { ramp: HELL, vx: R(E, -20, 20), vy: R(E, -220, -120), ay: -40, drag: 0.5, life: R(E, 320, 520), s0: R(E, 8, 14), s1: 2, a: 0.5 });
+      }
+      // 2発め：大きな こぶしが いん石の ように 落ちる
+      if (at(E, 1120)) {
+        E.fist2 = demonFist(E, F.x, F.top - 2, { size: size * 1.4, from: 180, drop: 260, fall: 170, life: 1180, onLand: function () {
+          K.flash(E, '#ffffff', 0.9, 280); K.flash(E, '#ff5a1a', 0.45, 760);
+          K.firePillar(E, F, 800);
+          rings3(E, F.x, F.y, 1560, ['#ffffff', '#ffb030', '#ff3a1a']);
+          K.ring(E, F.x, F.bot, 12, 260, 760, '#ff8a2a', 9, 0.35);
+          lavaCracks(E, F.x, F.bot, 180, 1000);
+          lavaSplash(E, F.x, F.bot - 8, 22, 260, 700);
+          K.rays(E, F.x, F.y, 18, 320, 860, '#ff8a2a', 0.7);
+          K.burst(E, F.x, F.y, 70, { ramp: HELL, v0: 220, v1: 680, g: 300, drag: 1.1, l0: 560, l1: 1000, s: 3 });
+          K.chunks(E, F.x, F.bot - 6, 14, '#4a1a12', { up: true, lift: 200, v0: 180, v1: 500, s0: 6, s1: 12 });
+          gemShards(E, F.x, F.y, 10, [[255, 214, 90], [255, 120, 40]], { v0: 160, v1: 460, s0: 6, s1: 10 });
+          K.smoke(E, F.x, F.top, 8, { ramp: HELLS, a: 0.5 });
+          K.glint(E, F.x, F.y - 10, 170, 520);
+        } });
+      }
+      if (E.t >= 1120 && E.t < 1560) fistFire(E, E.fist2, 7);
+      if (during(E, 1560, 2200) && E.step % 2 === 0) {
+        P(E, { x: F.x + R(E, -F.w * 0.8, F.w * 0.8), y: F.bot + R(E, -6, 4), vx: R(E, -40, 40), vy: R(E, -300, -160), ay: -30, drag: 0.5, life: R(E, 520, 820), s0: R(E, 3, 5), s1: 1, ramp: HELL, fo: 0.5 });
+        if (E.step % 4 === 0) K.flameP(E, F.x + R(E, -F.w * 0.9, F.w * 0.9), F.bot + R(E, -4, 4), { ramp: HELL, vx: R(E, -20, 20), vy: R(E, -240, -140), ay: -40, drag: 0.5, life: R(E, 360, 560), s0: R(E, 9, 15), s1: 2, a: 0.5 });
+      }
+    } });
+
+    /* ---- 黒炎帝王剣（ブラック・カリバー）：あんこくの セット（v14.11） ----
+       0〜500   ため：主人公の まわりから 黒い けむりが たちのぼり、けんに 黒い ほのお（赤い しん）。赤い 火花が うずを まく
+       500〜520 天に かかげた けんを ふり下ろす → 黒い ほのおの 大剣が 上から てきへ（ここで 当たる）
+       560〜1400 黒い ほのおが てきを つつむ・赤い X の 光・黒い かけら
+       1500     黒い 柱：黒い 光の 柱が 立ち、赤い しょうげきの わ 3つ・光の すじ・岩
+       1560〜   よいん：赤い 火の粉が ふる */
+    const REDF = ramp(['#ffffff', '#ffb0b8', '#ff2a3a', '#a00a20', '#3a0410']);
+    const BLKS = ramp(['#2a0a14', '#140408', '#050104']);
+    // 黒い ほのおの 大剣（上から ふり下ろす。まわりは 黒・まん中は 赤く 光る）
+    function blackBlade(E, x, yBot, w, life) {
+      thing(E, { life: life, top: true, draw: function (g, u) {
+        const grow = Math.min(1, u / 0.16), a = u < 0.5 ? 1 : 1 - (u - 0.5) / 0.5, top = -30, hh = (yBot - top) * grow;
+        const wob = Math.sin(u * 40) * 2;
+        function blade(k) {
+          g.beginPath(); g.moveTo(x - w * k + wob, top); g.lineTo(x + w * k + wob, top); g.lineTo(x + w * k * 0.9, top + hh - w * 1.6); g.lineTo(x, top + hh); g.lineTo(x - w * k * 0.9, top + hh - w * 1.6); g.closePath();
+        }
+        g.globalCompositeOperation = 'source-over';
+        g.fillStyle = 'rgba(8,4,10,' + 0.92 * a + ')'; blade(1.15); g.fill();
+        g.fillStyle = 'rgba(30,10,18,' + 0.9 * a + ')'; blade(0.9); g.fill();
+        g.globalCompositeOperation = 'lighter';
+        const gr = g.createLinearGradient(x - w * 0.4, 0, x + w * 0.4, 0);
+        gr.addColorStop(0, 'rgba(255,42,58,0)'); gr.addColorStop(0.5, 'rgba(255,120,130,' + a + ')'); gr.addColorStop(1, 'rgba(255,42,58,0)');
+        g.fillStyle = gr; blade(0.4); g.fill();
+        g.globalAlpha = 0.6 * a;
+        g.drawImage(glowOf([255, 42, 58]), x - w * 2.6, top, w * 5.2, hh + 30);
+        g.globalAlpha = 1;
+      } });
+    }
+    // 黒い 光の 柱（まん中は 黒・ふちが 赤く 光る）
+    function darkPillar(E, F, life) {
+      thing(E, { life: life, top: true, draw: function (g, u) {
+        const e = 1 - Math.pow(1 - Math.min(1, u / 0.2), 3), a = u < 0.5 ? 1 : 1 - (u - 0.5) / 0.5, w = (F.w * 0.7 + 20) * e;
+        g.globalCompositeOperation = 'source-over';
+        g.fillStyle = 'rgba(6,2,8,' + 0.9 * a + ')'; g.fillRect(F.x - w / 2, 0, w, F.bot);
+        g.globalCompositeOperation = 'lighter';
+        [[-1, 0], [1, 0]].forEach(function (sd) {
+          const gx = F.x + sd[0] * w / 2;
+          const gr = g.createLinearGradient(gx - sd[0] * 14, 0, gx + sd[0] * 14, 0);
+          gr.addColorStop(0, 'rgba(255,42,58,0)'); gr.addColorStop(0.5, 'rgba(255,90,110,' + 0.9 * a + ')'); gr.addColorStop(1, 'rgba(255,42,58,0)');
+          g.fillStyle = gr; g.fillRect(gx - 14, 0, 28, F.bot);
+        });
+        g.globalAlpha = 0.5 * a; g.drawImage(glowOf([255, 42, 58]), F.x - w, 0, w * 2, F.bot); g.globalAlpha = 1;
+      } });
+    }
+    // 黒い ほのお：黒い 四角（光を 足さない）の 上に 赤い しん
+    function blackFlame(E, x, y, k) {
+      for (let i = 0; i < n(E, k); i++) {
+        P(E, { x: x + R(E, -8, 8), y: y, vx: R(E, -24, 24), vy: R(E, -200, -110), ay: -30, drag: 0.6, life: R(E, 380, 620), s0: R(E, 9, 14), s1: 3, m: 'm', ramp: BLKS, a: 0.85, fi: 0.1, fo: 0.5 });
+        if (i % 2 === 0) P(E, { x: x + R(E, -6, 6), y: y - 4, vx: R(E, -16, 16), vy: R(E, -180, -100), ay: -30, drag: 0.6, life: R(E, 300, 480), s0: R(E, 3, 5), s1: 1, ramp: REDF, fo: 0.6 });
+      }
+    }
+    fxc.define('set-ankoku', { dur: 2300, run: function (E, F, S, Hr) {
+      if (at(E, 10)) { K.ring(E, Hr.x, Hr.y + 40, 6, 90, 480, '#ff2a3a', 5, 0.3); K.orb(E, S.x, S.y - 12, 4, 22, 500, '#ff2a3a', { shrinkAt: 0.9 }); }
+      if (E.t < 500) {
+        if (E.step % 2 === 0) P(E, { x: Hr.x + R(E, -30, 30), y: Hr.y + 40, vx: R(E, -20, 20), vy: R(E, -120, -50), drag: 0.9, life: R(E, 520, 900), s0: R(E, 6, 10), s1: R(E, 14, 22), m: 'm', ramp: BLKS, a: 0.6, fi: 0.15, fo: 0.45 });
+        blackFlame(E, S.x, S.y - 8, 1);
+        P(E, { m: 'o', draw: 's', cx: S.x, cy: S.y - 12, ang: R(E, 0, 6.3), rad: R(E, 50, 110), w: 4, dr: -R(E, 200, 320), rise: 0, oy: 0, sq: 0.9, life: 420, s0: 2.4, s1: 1, ramp: REDF, orbit: true, kill: 6 });
+      }
+      if (at(E, 480)) { K.flash(E, '#ff2a3a', 0.3, 200); K.glint(E, S.x, S.y - 12, 90, 260); }
+      if (at(E, 500)) blackBlade(E, F.x, F.bot + 6, 22, 560);
+      if (at(E, 560)) {
+        K.flash(E, '#ffffff', 0.6, 200); K.flash(E, '#ff2a3a', 0.35, 520);
+        K.ring(E, F.x, F.bot, 8, 170, 560, '#ff2a3a', 7, 0.3);
+        xBeams(E, F.x, F.y, F.h + 100, 560, [255, 42, 58]);
+        K.burst(E, F.x, F.y, 40, { ramp: REDF, v0: 200, v1: 560, g: 380 });
+        gemShards(E, F.x, F.y, 14, [[40, 40, 56], [255, 42, 58], [120, 120, 140]], { mesh: SH.CHIPS[2], v0: 200, v1: 520, lift: 120, s0: 6, s1: 12, glow: false });
+        K.chunks(E, F.x, F.bot - 4, 8, '#2a2a34', { up: true, lift: 150 });
+      }
+      if (during(E, 600, 1420)) blackFlame(E, F.x + R(E, -F.w * 0.6, F.w * 0.6), F.bot, 1);
+      if (during(E, 700, 1400) && E.step % 3 === 0) K.slash(E, F.x + R(E, -10, 10), F.y + R(E, -10, 10), F.h * 0.4 + 16, R(E, -3, 0), R(E, 0, 3), 300, '#ff5a6a', 8);
+      if (at(E, 1500)) {
+        K.flash(E, '#ffffff', 0.7, 240); K.flash(E, '#ff2a3a', 0.45, 800);
+        darkPillar(E, F, 760);
+        rings3(E, F.x, F.y, 1500, ['#ffffff', '#ff8a96', '#ff2a3a']);
+        K.ring(E, F.x, F.bot, 12, 250, 760, '#ff2a3a', 8, 0.3);
+        K.rays(E, F.x, F.y, 16, 300, 860, '#ff5a6a', -0.6);
+        K.slabs(E, F, 8);
+        K.burst(E, F.x, F.y, 60, { ramp: REDF, v0: 220, v1: 640, g: 300, drag: 1.1, l0: 560, l1: 1000, s: 2.8 });
+        K.chunks(E, F.x, F.bot - 6, 12, '#2a2a34', { up: true, lift: 200, v0: 180, v1: 500, s0: 6, s1: 12 });
+        K.smoke(E, F.x, F.top, 8, { ramp: BLKS, a: 0.6 });
+      }
+      if (during(E, 1520, 2200) && E.step % 2 === 0) {
+        P(E, { x: R(E, F.x - 110, F.x + 90), y: -4, vx: R(E, -20, 20), vy: R(E, 90, 170), ay: 200, life: 900, s0: 2, s1: 1, m: 's', ramp: REDF, fo: 0.6 });
+      }
+    } });
   }
   defineAll();
 

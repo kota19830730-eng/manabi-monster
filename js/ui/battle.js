@@ -2940,6 +2940,11 @@ MQ.ui.battle = (function () {
       p.counters = (p.counters || 0) + (sum.counters || 0);   // カウンター（v7.7・しょうごう用）
       p.elites = (p.elites || 0) + (sum.elites || 0);         // 中ボス・弱点（v8.1・しょうごう用）
       p.weakHits = (p.weakHits || 0) + (sum.weakHits || 0);
+      // まじん・あんこく（v14.11）：ごちゃまぜで ボスを たおした 数・本気で ボスを たおした 数
+      if (sum.bossBeaten && !ctx.tokkun) {
+        if (ctx.mix) p.mixWins = (p.mixWins || 0) + 1;
+        if (sum.bossHard) p.hardWins = (p.hardWins || 0) + 1;
+      }
       // フィーバー教科（v7.2）：教科ごとの たたかった 回数（いちばん やって いない 教科を さがす ため）
       if (MQ.fever && !ctx.tokkun && !ctx.stage.tower && !ctx.mix) MQ.fever.addPlay(p, ctx.area.id);
       // とくい・にがて（v7.1）：1問ごとの 結果を 単元ごとに ためる（おうちの人ページ用）
@@ -3074,6 +3079,15 @@ MQ.ui.battle = (function () {
           p.gear.push(g.id); p.equipped[g.slot] = g.id; out.densetsu.push(g);
           MQ.save.addLog(p, '★を あつめて ' + g.name + ' を 手に入れた');
         }
+      }
+
+      /* ---- まじん・あんこく の 一式（v14.11）：ごちゃまぜ／本気で ボスを たおした 数が 3・6・9・12・15 に なったとき ---- */
+      if (!ctx.tokkun && MQ.hero.nextMajin) {
+        [MQ.hero.nextMajin(p, p.mixWins || 0), MQ.hero.nextAnkoku(p, p.hardWins || 0)].forEach(function (g) {
+          if (!g) return;
+          p.gear.push(g.id); p.equipped[g.slot] = g.id; out.densetsu.push(g);
+          MQ.save.addLog(p, (g.grade === 'majin' ? 'ごちゃまぜで ' : '本気で ') + 'ボスを たおして ' + g.name + ' を 手に入れた');
+        });
       }
 
       out.fullSet = MQ.hero.equippedSetOf(p);

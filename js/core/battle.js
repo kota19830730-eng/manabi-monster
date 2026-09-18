@@ -613,6 +613,10 @@ MQ.battle = (function () {
     return { level: att ? CHARGE_MOB : k % CHARGE_MOB, need: CHARGE_MOB, attacking: att, boss: false };
   }
   function attacking() { const c = chargeInfo(); return !!(c && c.attacking); }
+  // クリティカルの けいけんち。まじんの けん（v14.11）で 2ばい
+  function critXp() { return XP.critBonus * (s.gear.critX2 ? 2 : 1); }
+  // リベンジ・ふくしゅうの ボーナス。まじんの よろい（v14.11）で 2ばい
+  function revengeMul() { return s.gear.revengeX2 ? 2 : 1; }
 
   /* ---- ガードくだき（2026-09-14）。きまりは 上の GB_ の ところ ---- */
   // ボスの 問題で まちがえた（1回めも 2回めも ここを 通る）
@@ -622,7 +626,8 @@ MQ.battle = (function () {
     if (wasRetry || s.timeAttack || !attacking()) return;
     const t = s.buff.shield > 0 ? 'shield' : s.buff.freeze > 0 ? 'freeze' : null;
     if (!t) { s.gbEvent = { kind: 'none' }; return; }
-    if (!s.bossHard) { s.gb.cracks++; s.gbEvent = { kind: 'crack', type: t }; return; }   // ふつうは へらない
+    // ふつうは へらない。あんこくの たて（v14.11）を つけて いれば 本気でも へらない（ヒビの 演出だけ）
+    if (!s.bossHard || s.gear.gbSafe) { s.gb.cracks++; s.gbEvent = { kind: 'crack', type: t }; return; }
     s.buff[t]--;
     s.gb.broken.push(t);
     s.gb.breaks++;
@@ -816,7 +821,7 @@ MQ.battle = (function () {
       if (q.chest) {
         const palHit = palHitNow();
         const xp = gain(XP.chest + (palHit ? palPower().xp : 0) + s.gear.xpAdd);
-        const coins = q.coins || 1;        // たからばこ よび（金色）は 2まい
+        const coins = (q.coins || 1) * (s.gear.chestX2 ? 2 : 1);   // たからばこ よび（金色）は 2まい・まじんの マント（v14.11）で 2ばい
         s.coins += coins;
         s.chestOpened = true;
         s.chestCount++;
@@ -828,7 +833,7 @@ MQ.battle = (function () {
         const palHit = palHitNow();
         let xp = wasRetry ? XP.mobRetry : XP.mob;
         if (palHit) xp += palPower().xp;
-        if (crit) xp += XP.critBonus;
+        if (crit) xp += critXp();
         const setHit = setHitNow();          // セットわざ（v14.2）
         if (setHit) xp += MQ.setwaza.XP;
         xp += s.gear.xpAdd;
@@ -852,7 +857,8 @@ MQ.battle = (function () {
         if (palHit) dmg = Math.min(dmg + Math.min(PAL_BOSS_MAX, palPower().dmg), s.bossHp);   // 相棒の 追い打ち（ボスには 1まで・v12.7）
         // カウンター（v7.7）：ボスの 大わざの 問題に 1回めで 正解 → 2ダメージ
         const counter = !wasRetry && attacking();
-        if (counter) { dmg = Math.min(Math.max(dmg, COUNTER_DMG), s.bossHp); s.counters++; }
+        // あんこくの よろい（v14.11）：本気モードの カウンターは 3ダメージ
+        if (counter) { dmg = Math.min(Math.max(dmg, COUNTER_DMG + (s.bossHard && s.gear.hardCounter3 ? 1 : 0)), s.bossHp); s.counters++; }
         // 弱点（v8.1・塔）：弱点の 教科の 問題に 1回めで 正解 → 2ダメージ
         const weakHit = !!q.weak && !wasRetry;
         if (weakHit) { dmg = Math.min(Math.max(dmg, WEAK_DMG), s.bossHp); s.weakHits++; }
@@ -876,7 +882,7 @@ MQ.battle = (function () {
         if (!blocked) s.buff.dmg = 1;        // ガードされた ときは ばくれつを のこす（v12.7）
         const gbXp = guardAfterBossHit(counter, wasRetry);   // ガードくだき（2026-09-14）：はね返し・なおす
         let xp = (wasRetry ? (last ? XP.lastHitRetry : XP.bossHitRetry) : (last ? XP.lastHit : XP.bossHit)) * Math.max(1, dmg);
-        if (crit) xp += XP.critBonus;
+        if (crit) xp += critXp();
         if (broke) xp += XP.kamaeBreak;
         if (cloneKO) xp += XP.cloneBonus;
         xp += gbXp;
@@ -884,7 +890,8 @@ MQ.battle = (function () {
         s.bossHp -= dmg;
         const defeated = s.bossHp <= 0;
         // ボスを たおすと コイン 1（v2.0 第2段階）＋ オーロラの マント（げきレア・v9.0）で もう ＋2
-        const bossCoins = (1 + (s.gear.bossCoin || 0)) * (s.bossHard ? HARD_MUL : 1);
+        // あんこくの マント（v14.11）：本気で たおすと さらに ＋3
+        const bossCoins = (1 + (s.gear.bossCoin || 0)) * (s.bossHard ? HARD_MUL : 1) + (s.bossHard && s.gear.hardCoin ? 3 : 0);
         let enrageNow = false, finalNow = false;
         if (defeated) {
           xp += last ? XP.lastBonus : XP.bossBonus;
@@ -899,6 +906,8 @@ MQ.battle = (function () {
           if (s.finalAt && s.bossHp <= s.finalAt && !s.final) { s.final = true; s.enraged = true; finalNow = true; }
         }
         if (s.bossHard) xp *= HARD_MUL;      // 本気モードは けいけんち 2ばい（v12.7）
+        if (s.bossHard && defeated && s.gear.hardXp) xp = Math.round(xp * 1.5);   // あんこくの けん（v14.11）：本気で たおすと さらに 1.5ばい
+        if (s.bossHard && !wasRetry && s.gear.hardHitXp) xp += 10;                  // あんこくの かぶと（v14.11）：本気の ボスに 1回めで 正解 → ＋10（ばいには しない）
         xp = gain(xp);
         noteReview(q, wasRetry);
         if (!defeated && s.bossAsked >= s.bossMax) { s.phase = 'done'; s.bossFled = true; s.endedAt = now(); }
@@ -919,26 +928,26 @@ MQ.battle = (function () {
       let xp = wasRetry ? XP.mobRetry : XP.mob;
       if (palHit) xp += palPower().xp;
       if (q.rare) xp *= XP.rareMul;
-      if (crit) xp += XP.critBonus;
+      if (crit) xp += critXp();
 
       const multi = groupResult(q);
       if (multi) {
-        const bonus = multi >= 3 ? XP.tripleKO : XP.doubleKO;
+        const bonus = (multi >= 3 ? XP.tripleKO : XP.doubleKO) * (s.gear.koX2 ? 2 : 1);   // まじんの かぶと（v14.11）で 2ばい
         xp += bonus;
         s.multiKO.push(multi);
       }
       if (q.groupPos === 0) s.groupClean = !wasRetry;
 
       // リベンジ（にげた敵が もどってきた）を たおしたら ボーナス（v3.1）
-      if (q.revenge) xp += XP.revenge;
+      if (q.revenge) xp += XP.revenge * revengeMul();
       // ふくしゅう（v11.1）：まえに まちがえた 問題に **1回めで** 正解 → ボーナス（おぼえた）
-      if (q.review && !wasRetry) xp += XP.review;
+      if (q.review && !wasRetry) xp += XP.review * revengeMul();
       // ばくれつ こうげき：この 1体ぶんの けいけんちが ばいに
       let burst = 0;
       if (s.buff.dmg > 1) { burst = s.buff.dmg; xp *= burst; s.buff.dmg = 1; }
       // カウンター（v7.7）：てきの こうげきの 問題に 1回めで 正解 → けいけんち 1.5ばい
       const counter = !wasRetry && attacking();
-      if (counter) { xp = Math.round(xp * COUNTER_MUL); s.counters++; }
+      if (counter) { xp = Math.round(xp * (s.gear.counterX3 ? 3 : COUNTER_MUL)); s.counters++; }   // まじんの たて（v14.11）で 3ばい
       // 弱点（v8.1・ごちゃまぜ）：弱点の 教科の 問題に 1回めで 正解 → けいけんち 1.5ばい
       const weakHit = !!q.weak && !wasRetry;
       if (weakHit) { xp = Math.round(xp * WEAK_MUL); s.weakHits++; }
@@ -1364,7 +1373,7 @@ MQ.battle = (function () {
         };
       }),
       revengeBeaten: s.revengeBeaten,
-      revengeBonus: s.revengeBeaten.length * XP.revenge,
+      revengeBonus: s.revengeBeaten.length * XP.revenge * revengeMul(),
       /* ふくしゅう（v11.1）。にげた敵と 同じ 形で かえす（画面が MQ.review に わたす） */
       review: s.reviewNow.map(function (q) {
         return {
@@ -1375,7 +1384,7 @@ MQ.battle = (function () {
       }),
       reviewDone: s.reviewDone.slice(),
       reviewHits: s.reviewHits,
-      reviewBonus: s.reviewHits * XP.review,
+      reviewBonus: s.reviewHits * XP.review * revengeMul(),
       results: s.results.slice(),      // とくい・にがて（v7.1）
       typeOk: Object.assign({}, s.typeOk),
       itemsUsed: s.itemsUsed.slice(),

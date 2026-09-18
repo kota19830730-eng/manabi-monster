@@ -927,8 +927,8 @@ const trIds = MQ.treasure.list.map(function (t) { return t.id; });
 check(new Set(trIds).size === trIds.length, 'たからものの id が かぶっていない');
 
 /* ---- 主人公・そうび ---- */
-check(MQ.hero.gear.length === 50, 'そうび 50点（5部位 × 10グレード・v14.8 で プリズム／ギンガ）: ' + MQ.hero.gear.length);
-check(MQ.hero.grades.length === 10, 'グレード 10しゅるい: ' + MQ.hero.grades.length);
+check(MQ.hero.gear.length === 60, 'そうび 60点（5部位 × 12グレード・v14.11 で まじん／あんこく）: ' + MQ.hero.gear.length);
+check(MQ.hero.grades.length === 12, 'グレード 12しゅるい: ' + MQ.hero.grades.length);
 (function () {
   // v5.4：かたちが グレードごとに ちがう（前は 色だけ ちがった）
   MQ.hero.slots.forEach(function (slot) {
@@ -3563,7 +3563,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
   // しょうごう
   check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
-  check(MQ.hero.titles.length === 61, 'しょうごう 61（v13.16 で ぴかぴか マスター・v14.8 で コンプリート 3つ）: ' + MQ.hero.titles.length);
+  check(MQ.hero.titles.length === 64, 'しょうごう 64（v14.8 で コンプリート 3つ・v14.11 で まじん・あんこく 3つ）: ' + MQ.hero.titles.length);
   // 古い セーブ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
   check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');
@@ -5015,7 +5015,7 @@ function stripComments(src) {
    ======================================================= */
 (function () {
   const SW = MQ.setwaza;
-  check(!!SW && SW.list().length === 10, 'v14.2: セットわざは 10（カプセル 第2弾の プリズム・ギンガを ふくむ）');
+  check(!!SW && SW.list().length === 12, 'v14.2: セットわざは 12（v14.11 の まじん・あんこくを ふくむ）');
   const POSES = ['raise', 'thrust', 'guard', 'sweep', 'sky', 'point', 'spread', 'charge'];
   const MOS = ['fire', 'leaf', 'ice', 'wind', 'bolt', 'star', 'nova', 'starburst'];
   const uiSet = fs.readFileSync(path.join(base, 'js/ui/setwaza.js'), 'utf8');
@@ -5157,6 +5157,82 @@ function stripComments(src) {
   check(sm.perfectCoins === 5, 'ギンガの マント: パーフェクトで コイン ＋5: ' + sm.perfectCoins);
   console.log('v14.8 カプセル 第2弾: シークレット 3・コンプリート・ギンガの 力 OK');
 })();
+/* ---- v14.11 まじん・あんこくの そうび（ごちゃまぜ／本気で ボスを たおした 数・専用の 力 10こ）---- */
+(function () {
+  const H = MQ.hero;
+  ['majin', 'ankoku'].forEach(function (gid) {
+    const g = H.grades.filter(function (x) { return x.id === gid; })[0];
+    check(!!g && g.powerNo === 6 && g.setMulNo === 6 && !g.capsule, 'v14.11: ' + gid + ' は やみと 同じ つよさ・カプセルでは ない');
+    check(H.isSpecial(gid + '-weapon'), 'v14.11: ' + gid + ' は ★2では 出ない');
+    const eq = {}; H.slots.forEach(function (s) { eq[s] = gid + '-' + s; });
+    const pw = H.gearPower({ gear: Object.keys(eq).map(function (k) { return eq[k]; }), equipped: eq });
+    check(pw.xpAdd === 10 && Math.abs(pw.setMul - 1.6) < 1e-9 && pw.coins === 3, 'v14.11: ' + gid + ' 一式＝やみ級（＋10・×1.6・コイン＋3）');
+    const T = gid === 'majin' ? H.majinPower : H.ankokuPower;
+    H.slots.forEach(function (s) { check(pw[T[s].key] === true, 'v14.11: ' + gid + ' の ' + s + ' の 力 ' + T[s].key); });
+    check(H.gear.filter(function (x) { return x.grade === gid; }).every(function (x) { return !!x.extraText && !!x.extraShort; }), 'v14.11: ' + gid + ' の 力の 文');
+  });
+  // もらい方：数が 3・6・9・12・15 に なる たびに 1点
+  check(H.nextMajin({ gear: [] }, 2) === null && H.nextMajin({ gear: [] }, 3).id === 'majin-weapon', 'v14.11: ごちゃまぜ 3回で まじんの けん');
+  check(H.nextMajin({ gear: ['majin-weapon'] }, 5) === null && H.nextMajin({ gear: ['majin-weapon'] }, 6).id === 'majin-shield', 'v14.11: つぎは 6回で たて');
+  check(H.nextAnkoku({ gear: [] }, 3).id === 'ankoku-weapon' && H.nextAnkoku({ gear: ['ankoku-weapon', 'ankoku-shield', 'ankoku-helm', 'ankoku-armor', 'ankoku-cape'] }, 99) === null, 'v14.11: あんこくも 同じ・そろえば null');
+  check(H.leftFor({ gear: ['majin-weapon'] }, 'majin', 4) === 2 && H.leftFor({ gear: [] }, 'ankoku', 0) === 3, 'v14.11: あと 何回（leftFor）');
+  // core：まじんの 力（クリティカル 2ばい・ダブルKO 2ばい・たからばこの コイン 2ばい・カウンター 3ばい）
+  const st = { id: 'x', name: 'x', make: function (n) { const out = []; for (let i = 0; i < n; i++) out.push({ type: 'number', prompt: i + '+1', answer: String(i + 1), unit: 'u', id: 'q' + i, lv: 1 }); return out; } };
+  const G0 = H.gearPower({});
+  MQ.battle.start({ stage: st, mode: 'normal', enemies: ['slime'], mobs: 4, chest: false, attacks: true, gear: Object.assign({}, G0, { critX2: true, counterX3: true }) });
+  let sawCrit = 0, sawCounter = 0;
+  while (!MQ.battle.isOver()) {
+    const qq = MQ.battle.current(); if (!qq) break;
+    const c = MQ.battle.chargeInfo();
+    const r = MQ.battle.answer(correctValue(qq));
+    if (r.outcome === 'correct' && r.crit) sawCrit++;
+    if (r.outcome === 'correct' && c && c.attacking && r.counter) sawCounter++;
+    MQ.battle.next();
+  }
+  check(sawCrit >= 1, 'v14.11: まじんの けん つきの たたかいで クリティカルが 出る（' + sawCrit + '）');
+  MQ.battle.start({ stage: st, mode: 'normal', enemies: ['slime'], mobs: 4, chest: true, gear: Object.assign({}, G0, { chestX2: true }) });
+  let chestCoins = 0;
+  while (!MQ.battle.isOver()) { const qq = MQ.battle.current(); if (!qq) break; const r = MQ.battle.answer(correctValue(qq)); if (r.outcome === 'chest') chestCoins = r.coins; MQ.battle.next(); }
+  check(chestCoins === 2, 'v14.11: まじんの マント：たからばこの コインが 2まい（' + chestCoins + '）');
+  // core：あんこくの 力（本気モード：ガードを 1回 やぶる・カウンター 3・コイン＋3・けいけんち 1.5ばい・ガードくだきで こわれない）
+  const stB = MQ.content.findStage('sansu3-6').stage;
+  function bossRun(gear, hard, fn) {
+    MQ.battle.start(Object.assign({ stage: stB, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false, attacks: true }, MQ.battle.BOSS_SET.normal, { gear: Object.assign({}, G0, gear || {}) }));
+    while (MQ.battle.phase() === 'mob') { MQ.battle.answer(correctValue(MQ.battle.current())); MQ.battle.next(); }
+    if (hard) MQ.battle.setBossHard(true);
+    return fn();
+  }
+  // かぶと：本気の ボスに 1回めで 正解 → ＋10（同じ 道すじで フラグ あり／なしを くらべる。ザコ 3体の あとなので コンボも 同じ）
+  const hx = bossRun({ hardHitXp: true }, true, function () { return MQ.battle.answer(correctValue(MQ.battle.current())); });
+  const hx0 = bossRun({}, true, function () { return MQ.battle.answer(correctValue(MQ.battle.current())); });
+  check(hx.outcome === 'bosshit' && hx.dmg === 1 && hx.xp - hx0.xp === 10, 'v14.11: あんこくの かぶと：本気の ボスに 1回めで 正解 → ＋10（' + hx.xp + ' − ' + hx0.xp + '）');
+  const hxR = bossRun({ hardHitXp: true }, true, function () { const q = MQ.battle.current(); MQ.battle.answer('999'); return MQ.battle.answer(correctValue(q)); });
+  const hxR0 = bossRun({}, true, function () { const q = MQ.battle.current(); MQ.battle.answer('999'); return MQ.battle.answer(correctValue(q)); });
+  check(hxR.blocked && hxR.dmg === 0 && hxR.xp === hxR0.xp, 'v14.11: あんこくの かぶと：2回めの 正解は ガードの まま・＋10 も なし');
+  // ガードくだき：あんこくの たてが あれば 本気でも まもりが へらない
+  // ボスの わざの 問題には ため が 出ない ので、ため の 問題が 来る まで（本気の ガードで ボスを たおさずに）進める。わざの ならびは くじ なので 何回か ためす
+  function gbRun(gear) {
+    for (let tries = 0; tries < 20; tries++) {
+      const ev = bossRun(gear, true, function () {
+        let ev = null;
+        for (let i = 0; i < 12 && MQ.battle.phase() === 'boss'; i++) {
+          const q = MQ.battle.current(), c = MQ.battle.chargeInfo();
+          if (c && c.attacking) { const g0 = MQ.battle.guards().shield; MQ.battle.answer('999'); ev = { before: g0, after: MQ.battle.guards().shield, kind: (MQ.battle.guardEvent() || {}).kind }; MQ.battle.answer(correctValue(q)); MQ.battle.next(); break; }
+          MQ.battle.answer('999'); MQ.battle.answer(correctValue(q)); MQ.battle.next();   // 2回めの 正解＝本気の ガード（ダメージ 0）
+        }
+        return ev;
+      });
+      if (ev) return ev;
+    }
+    return null;
+  }
+  const gbA = gbRun({ gbSafe: true, safe: 1 });
+  const gbB = gbRun({ safe: 1 });
+  check(!!gbB && gbB.before === 1 && gbB.after === 0 && gbB.kind === 'broke', 'v14.11: たてが なければ 本気の ガードくだきで たてが こわれる（' + JSON.stringify(gbB) + '）');
+  check(!!gbA && gbA.before === gbA.after && gbA.kind === 'crack', 'v14.11: あんこくの たて：本気の ガードくだきでも たてが へらない（' + JSON.stringify(gbA) + '）');
+  console.log('v14.11 まじん・あんこく OK');
+})();
+
 /* ---- v13.19 そうびの 見た目（js/content/gearart.js・js/ui/gearaura.js）----
    8グレード × 5部位を りんかくから 描き直した。3D の 部品分け（vox.js の fromHero）の きまりを まもって いるかを 見る */
 (function () {

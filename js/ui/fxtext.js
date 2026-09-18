@@ -48,7 +48,10 @@
     'set-capsule':  { ink: '#0a3a5a', shadow: '#041a2a', glow: '#4fd3ff', glow2: '#ff7ad0', ruby: '#dff6ff', grad: ['#ffffff', '#e0f8ff', '#8fe2ff'] },
     'set-aurora':   { ink: '#0f3f48', shadow: '#061c22', glow: '#7cf9c4', glow2: '#c48bff', ruby: '#e6fff6', grad: ['#ffffff', '#eafff6', '#a6f5d6'] },
     'set-prism':    { ink: '#1a3a6a', shadow: '#0a1830', glow: '#bfefff', glow2: '#ff9ae0', ruby: '#f2fbff', grad: ['#ffffff', '#fff6d6', '#9fe8ff'] },
-    'set-ginga':    { ink: '#1a1050', shadow: '#080420', glow: '#9a6aff', glow2: '#b8c4ff', ruby: '#e8ecff', grad: ['#ffffff', '#e8ecff', '#b8a4ff'] }
+    'set-ginga':    { ink: '#1a1050', shadow: '#080420', glow: '#9a6aff', glow2: '#b8c4ff', ruby: '#e8ecff', grad: ['#ffffff', '#e8ecff', '#b8a4ff'] },
+    // v14.11 まじん・あんこく
+    'set-majin':    { ink: '#3a0714', shadow: '#14020a', glow: '#ff6a2a', glow2: '#ffb830', ruby: '#ffe0c0', grad: ['#ffffff', '#ffe0a0', '#ff8a4a'] },
+    'set-ankoku':   { ink: '#0a0a12', shadow: '#000000', glow: '#ff2a3a', glow2: '#8a8aa0', ruby: '#ffd0d4', grad: ['#ffffff', '#e0e0ea', '#ff7a88'] }
   };
   const PLAIN = { ink: '#14102c', shadow: '#06040e', glow: '#ffd447', grad: ['#ffffff', '#fff6dc', '#ffe08a'] };
 

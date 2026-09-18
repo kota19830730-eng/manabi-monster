@@ -94,3 +94,16 @@
 .gaura--ginga .gaura__p { background: #ffffff; width: .4em; height: .4em; animation-name: gauraRiseSlow; }
 .gaura--ginga .gaura__p:nth-child(odd) { background: #ffe45a; }
 .gaura--ginga .gaura__p:nth-child(3n) { background: #8fd8ff; width: .6em; height: .6em; }
+
+/* v14.11：まじん（ほのおと 金の 火の粉）・あんこく（黒い けむりと 赤い 火花） */
+.ga--majin { --ga1: rgba(255,90,42,.95); --ga2: rgba(255,184,48,.5); }
+.ga--ankoku { --ga1: rgba(255,42,58,.9); --ga2: rgba(70,70,90,.6); }
+.gaura--majin .gaura__glow { background: radial-gradient(ellipse at 50% 76%, rgba(255,90,42,.8) 0, rgba(160,20,60,.35) 45%, rgba(80,0,30,0) 70%); }
+.gaura--majin .gaura__floor { background: radial-gradient(ellipse, rgba(255,120,40,.95), transparent 70%); }
+.gaura--majin .gaura__p { background: #ff6a2a; width: .7em; height: .7em; }
+.gaura--majin .gaura__p:nth-child(odd) { background: #ffb830; width: .45em; height: .45em; }
+.gaura--majin .gaura__p:nth-child(3n) { background: #7a1230; width: .9em; height: .9em; animation-name: gauraRiseSlow; }
+.gaura--ankoku .gaura__glow { background: radial-gradient(ellipse at 50% 66%, rgba(255,42,58,.55) 0, rgba(40,40,60,.5) 45%, rgba(10,10,20,0) 70%); }
+.gaura--ankoku .gaura__floor { background: radial-gradient(ellipse, rgba(20,20,30,.95), transparent 72%); }
+.gaura--ankoku .gaura__p { background: rgba(24,24,34,.9); width: 1.1em; height: 1.1em; animation-name: gauraRiseSlow; }
+.gaura--ankoku .gaura__p:nth-child(3n) { background: #ff2a3a; width: .4em; height: .4em; animation-name: gauraRise; }

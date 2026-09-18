@@ -179,8 +179,18 @@ MQ.ui.dex = (function () {
     const gearBlocks = MQ.hero.grades.map(function (g) {
       const items = MQ.hero.gear.filter(function (x) { return x.grade === g.id; });
       const got = items.filter(function (x) { return player.gear.indexOf(x.id) !== -1; }).length;
+      // v14.11：セットわざの 名前と「あと N つ」。まじん・あんこくは あと 何回で つぎの 1点かも
+      const waza = MQ.setwaza && MQ.setwaza.byGrade ? MQ.setwaza.byGrade(g.id) : null;
+      // 技名は 漢字の まま（raw＝学年の 辞書を 当てない。当てると「獄ほのお魔皇拳」に なる）
+      const wazaTxt = waza ? (got === 5 ? '　✓ ' : '　あと ' + (5 - got) + 'つで ') : (got === 5 ? '　✓' : '');
+      let countTxt = null;
+      if (g.id === 'majin' || g.id === 'ankoku') {
+        const left = MQ.hero.leftFor(player, g.id, g.id === 'majin' ? (player.mixWins || 0) : (player.hardWins || 0));
+        if (left != null) countTxt = (g.id === 'majin' ? 'ごちゃまぜで ボスを あと ' : '本気で ボスを あと ') + left + '回 たおすと つぎの 1つ';
+      }
       return h('div', {}, [
-        h('h3', { class: 'label', text: g.name + ' 一式　' + got + ' / 5' + (got === 5 ? '　✓' : '') }),
+        h('h3', { class: 'label' }, [h('span', { text: g.name + ' 一式　' + got + ' / 5' + wazaTxt }), waza ? h('span', { class: 'label__waza', text: waza.name, raw: true }) : null]),
+        countTxt ? h('p', { class: 'gearcount', text: countTxt }) : null,
         h('div', { class: 'grid' }, items.map(function (item) {
           const owned = player.gear.indexOf(item.id) !== -1;
           const on = player.equipped[item.slot] === item.id;

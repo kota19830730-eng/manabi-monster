@@ -71,3 +71,10 @@
 .ci--set-ginga.ci--full .ci__bg   { background: radial-gradient(ellipse at 50% 70%, #ffffff 0%, #b8c4ff 12%, #6a4aff 26%, rgba(24,12,70,.95) 48%, rgba(2,0,8,.98) 82%); }
 .ci--set-prism .ci__tx { color: #f2fbff; }
 .ci--set-ginga .ci__tx { color: #e8ecff; }
+/* v14.11 まじん・あんこく */
+.arena__spsky[data-sp="set-majin"]    { background: linear-gradient(rgba(20,2,6,.97) 0%, rgba(70,10,20,.92) 55%, rgba(140,40,20,.78) 100%); }
+.arena__spsky[data-sp="set-ankoku"]   { background: linear-gradient(rgba(0,0,0,.98) 0%, rgba(14,10,18,.95) 55%, rgba(50,8,16,.82) 100%); }
+.ci--set-majin.ci--full .ci__bg   { background: radial-gradient(ellipse at 50% 70%, #ffffff 0%, #ffd070 10%, #ff6a2a 22%, #a01030 36%, rgba(40,4,12,.95) 56%, rgba(10,0,4,.98) 82%); }
+.ci--set-ankoku.ci--full .ci__bg  { background: radial-gradient(ellipse at 50% 70%, #ffffff 0%, #ffb0b8 8%, #ff2a3a 18%, #3a0810 34%, rgba(12,10,16,.96) 56%, rgba(0,0,0,.98) 82%); }
+.ci--set-majin .ci__tx { color: #ffe0c0; }
+.ci--set-ankoku .ci__tx { color: #ffd0d4; }

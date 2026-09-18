@@ -251,6 +251,23 @@ MQ.hero = (function () {
     armor:  { key: 'palXp2',      text: 'なかまの けいけんちが 2ばいに なる',     short: 'なかま そだつ' },
     cape:   { key: 'perfectCoin', text: 'パーフェクトの とき コイン ＋5',         short: 'パーフェクト ＋5' }
   };
+  /* まじん（v14.11・ごちゃまぜで ボスを たおすと）だけの 力。もらいが ふえる だけ（正解した とき） */
+  const MAJIN_POWER = {
+    weapon: { key: 'critX2',    text: 'クリティカルの けいけんちが 2ばい（＋10）', short: 'クリティカル 2ばい' },
+    shield: { key: 'counterX3', text: 'カウンター（ザコ）の けいけんちが 3ばい',   short: 'カウンター 3ばい' },
+    helm:   { key: 'koX2',      text: 'ダブルKO・トリプルKO の ボーナスが 2ばい',  short: 'KO ボーナス 2ばい' },
+    armor:  { key: 'revengeX2', text: 'リベンジ・ふくしゅうの ボーナスが 2ばい',   short: 'リベンジ 2ばい' },
+    cape:   { key: 'chestX2',   text: 'たからばこの コインが 2ばい',              short: 'たからばこ 2ばい' }
+  };
+  /* あんこく（v14.11・本気で ボスを たおすと）だけの 力。本気の ボス戦が 少し 楽に なる（ふつうの ボスは 変わらない） */
+  const ANKOKU_POWER = {
+    weapon: { key: 'hardXp',       text: '本気で ボスを たおすと けいけんち さらに 1.5ばい', short: '本気 けいけんち 1.5ばい' },
+    shield: { key: 'gbSafe',       text: 'ガードくだきで まもりが こわれない',            short: 'まもり こわれない' },
+    helm:   { key: 'hardHitXp',    text: '本気の ボスに 1回めで 正解する たびに けいけんち ＋10', short: '本気で ＋10' },   // 「ガードを 1回 やぶる」は 勝率 93% に 上がりすぎた（実測）ので やめた
+    armor:  { key: 'hardCounter3', text: '本気モードの カウンターは ボスに 3ダメージ',      short: '本気 カウンター 3' },
+    cape:   { key: 'hardCoin',     text: '本気で ボスを たおすと コイン ＋3',              short: '本気で コイン ＋3' }
+  };
+  const EXTRA_POWER = { aurora: null, ginga: null, majin: MAJIN_POWER, ankoku: ANKOKU_POWER };
   const AURORA_POWER = {
     weapon: { key: 'critEasy', text: 'クリティカルが 2コンボから 出る',   short: 'クリティカル 早い' },
     shield: { key: 'pierce',   text: '中ボスを 一発で たおせる',           short: '中ボス 一発' },
@@ -288,7 +305,12 @@ MQ.hero = (function () {
     { id: 'prism', no: 9, name: 'プリズム', how: 'カプセルマシン（第2だん）',
       capsule: true, cap: 'n', powerNo: 2, setCoins: 3 },
     { id: 'ginga', no: 10, name: 'ギンガ', how: 'カプセルマシン（第2だん・げきレア）',
-      capsule: true, cap: 'sr', powerNo: 6, setCoins: 6, setMulNo: 6, ginga: true }
+      capsule: true, cap: 'sr', powerNo: 6, setCoins: 6, setMulNo: 6, ginga: true },
+    /* v14.11（2026-09-19）：がんばりの ごほうび 2つ。数字は やみと 同じ（こえない）＋ 専用の 力 5つ ずつ。
+       まじん … ごちゃまぜ バトルで ボスを たおした 数が MAJIN_WINS に なるたび 1点
+       あんこく … 本気モードで ボスを たおした 数が ANKOKU_WINS に なるたび 1点 */
+    { id: 'majin',  no: 11, name: 'まじん',   how: 'ごちゃまぜで ボスを たおす', powerNo: 6, setMulNo: 6, majin: true },
+    { id: 'ankoku', no: 12, name: 'あんこく', how: '本気で ボスを たおす',       powerNo: 6, setMulNo: 6, ankoku: true }
   ];
 
   const GEAR_DEF = {
@@ -366,6 +388,21 @@ MQ.hero = (function () {
       helm:   { name: 'ギンガの かぶと' },
       armor:  { name: 'ギンガの よろい' },
       cape:   { name: 'ギンガの マント' }
+    },
+    // v14.11：まじん（赤黒＋金の つの＋ほのお）・あんこく（黒い 鉄＋赤い 光）
+    majin: {
+      weapon: { name: 'まじんの つめけん' },
+      shield: { name: 'まじんの たて' },
+      helm:   { name: 'まじんの かぶと' },
+      armor:  { name: 'まじんの よろい' },
+      cape:   { name: 'まじんの はね' }
+    },
+    ankoku: {
+      weapon: { name: 'あんこくの 大けん' },
+      shield: { name: 'あんこくの たて' },
+      helm:   { name: 'あんこくの かぶと' },
+      armor:  { name: 'あんこくの よろい' },
+      cape:   { name: 'あんこくの マント' }
     }
   };
 
@@ -389,13 +426,14 @@ MQ.hero = (function () {
         cap: g.cap || null,                 // カプセルマシンでの レアさ
         aurora: !!g.aurora,
         ginga: !!g.ginga,   // ギンガだけの 力（v14.8）
+        majin: !!g.majin, ankoku: !!g.ankoku,   // v14.11
         // カプセル限定は powerNo（＝ほかの グレードと 同じ つよさ）を 見る
         power: GEAR_POWER[slot].vals[(g.powerNo || g.no) - 1],
         powerText: GEAR_POWER[slot].text(GEAR_POWER[slot].vals[(g.powerNo || g.no) - 1]),
         powerShort: GEAR_POWER[slot].short(GEAR_POWER[slot].vals[(g.powerNo || g.no) - 1]),
         // オーロラだけの 力（げきレア）。ほかの グレードは null
-        extraText: g.aurora ? AURORA_POWER[slot].text : (g.ginga ? GINGA_POWER[slot].text : null),
-        extraShort: g.aurora ? AURORA_POWER[slot].short : (g.ginga ? GINGA_POWER[slot].short : null)
+        extraText: g.aurora ? AURORA_POWER[slot].text : (g.ginga ? GINGA_POWER[slot].text : (EXTRA_POWER[g.id] ? EXTRA_POWER[g.id][slot].text : null)),
+        extraShort: g.aurora ? AURORA_POWER[slot].short : (g.ginga ? GINGA_POWER[slot].short : (EXTRA_POWER[g.id] ? EXTRA_POWER[g.id][slot].short : null))
       });
     });
   });
@@ -418,7 +456,7 @@ MQ.hero = (function () {
        でんせつ … まなびの かけら（1つ＝1点）＋ ラスボスで 5点目
        ほし     … ★3の ステージが 3・6・9・12・15 に なったとき（v5.4）
        さいごの塔を クリアする たびに 1点（v5.4） */
-  const SPECIAL_GRADES = ['densetsu', 'hoshi', 'yami', 'capsule', 'aurora', 'prism', 'ginga'];
+  const SPECIAL_GRADES = ['densetsu', 'hoshi', 'yami', 'capsule', 'aurora', 'prism', 'ginga', 'majin', 'ankoku'];
   function isDensetsu(id) { return String(id).indexOf('densetsu-') === 0; }
   function isSpecial(id) {
     return SPECIAL_GRADES.some(function (g) { return String(id).indexOf(g + '-') === 0; });
@@ -456,6 +494,28 @@ MQ.hero = (function () {
     return gearById['hoshi-' + ORDER[have]];
   }
 
+  /* まじん・あんこく（v14.11）：数（ごちゃまぜで ボスを たおした 数／本気で ボスを たおした 数）が
+     表の 数に なる たびに 1点。ほしと 同じ 形。もらえる ぶんだけ かえす（1回の たたかいで 1点） */
+  const MAJIN_WINS = [3, 6, 9, 12, 15];
+  const ANKOKU_WINS = [3, 6, 9, 12, 15];
+  function nextByCount(player, gradeId, table, count) {
+    const owned = (player && player.gear) || [];
+    const have = ORDER.filter(function (slot) { return owned.indexOf(gradeId + '-' + slot) !== -1; }).length;
+    if (have >= ORDER.length) return null;
+    if ((count || 0) < table[have]) return null;
+    return gearById[gradeId + '-' + ORDER[have]];
+  }
+  function nextMajin(player, mixWins) { return nextByCount(player, 'majin', MAJIN_WINS, mixWins); }
+  function nextAnkoku(player, hardWins) { return nextByCount(player, 'ankoku', ANKOKU_WINS, hardWins); }
+  // あと 何回で つぎの 1点か（メニューの 表示用）。ぜんぶ そろって いれば null
+  function leftFor(player, gradeId, count) {
+    const table = gradeId === 'majin' ? MAJIN_WINS : ANKOKU_WINS;
+    const owned = (player && player.gear) || [];
+    const have = ORDER.filter(function (slot) { return owned.indexOf(gradeId + '-' + slot) !== -1; }).length;
+    if (have >= ORDER.length) return null;
+    return Math.max(0, table[have] - (count || 0));
+  }
+
   /* いま つけている そうびの 効果を まとめる（core/battle.js に わたす）
        { xpAdd, safe, special, keep, coins, setMul, setName } */
   function gearPower(player) {
@@ -465,13 +525,17 @@ MQ.hero = (function () {
       // オーロラ（げきレア）だけの 力。つけて いる ぶんだけ true に なる
       critEasy: false, pierce: false, tierUp: false, palPlus: 0, bossCoin: 0,
       // ギンガ（げきレア 第2弾・v14.8）だけの 力
-      fastX2: false, noEscape: false, setX2: false, palXp2: false, perfectCoin: 0
+      fastX2: false, noEscape: false, setX2: false, palXp2: false, perfectCoin: 0,
+      // まじん・あんこく（v14.11）だけの 力
+      critX2: false, counterX3: false, koX2: false, revengeX2: false, chestX2: false,
+      hardXp: false, gbSafe: false, hardHitXp: false, hardCounter3: false, hardCoin: false
     };
     ORDER.forEach(function (slot) {
       const g = eq[slot] && gearById[eq[slot]];
       if (!g) return;
       // きたえた ぶん（v13.15）。場所ごとに 足す（べつの そうびに かえても のこる）
       out[GEAR_POWER[slot].key] += g.power + forgeBonus(player, slot);
+      if (EXTRA_POWER[g.grade]) out[EXTRA_POWER[g.grade][slot].key] = true;   // まじん・あんこく（v14.11）
       if (g.ginga) {
         const gx = GINGA_POWER[slot];
         if (gx.key === 'perfectCoin') out.perfectCoin += 5;   // パーフェクトで コイン ＋5
@@ -929,6 +993,10 @@ MQ.hero = (function () {
     { id: 't-gearset',   name: 'そろいの きし',          how: 'そうびを 1しゅるい そろえる', test: function (p) { return !!fullSetOf(p); } },
     { id: 't-hoshiset',  name: 'ほしの ゆうしゃ',        how: 'ほしの そうびを そろえる',    test: function (p) { return hasSet(p, 'hoshi'); } },
     { id: 't-yamiset',   name: 'やみを まとう者',        how: 'やみの そうびを そろえる',    test: function (p) { return hasSet(p, 'yami'); } },
+    // まじん・あんこく（v14.11）
+    { id: 't-majinset',  name: 'まじんを したがえる者',  how: 'まじんの そうびを そろえる',  test: function (p) { return hasSet(p, 'majin'); } },
+    { id: 't-ankokuset', name: 'あんこくの きし',        how: 'あんこくの そうびを そろえる', test: function (p) { return hasSet(p, 'ankoku'); } },
+    { id: 't-majinankoku', name: 'まじんと あんこくの 王', how: 'まじんと あんこくを ぜんぶ そろえる', test: function (p) { return hasSet(p, 'majin') && hasSet(p, 'ankoku'); } },
     { id: 't-gearall',   name: 'そうび マスター',        how: 'そうびを 30点 ぜんぶ あつめる', test: function (p) { return (p.gear || []).length >= gear.length; } },
     // てきの こうげきを はね返す（v7.7）
     { id: 't-counter10', name: 'カウンターの たつじん',  how: 'カウンターを 10回 きめる',    test: function (p) { return (p.counters || 0) >= 10; } },
@@ -998,6 +1066,8 @@ MQ.hero = (function () {
     gear: gear, grades: grades, slots: ORDER, slotName: SLOT_NAME,
     getGear: getGear, nextGear: nextGear, nextDensetsu: nextDensetsu, isDensetsu: isDensetsu,
     nextHoshi: nextHoshi, nextYami: nextYami, isSpecial: isSpecial, hoshiStars: HOSHI_STARS,
+    nextMajin: nextMajin, nextAnkoku: nextAnkoku, majinWins: MAJIN_WINS, ankokuWins: ANKOKU_WINS, leftFor: leftFor,
+    majinPower: MAJIN_POWER, ankokuPower: ANKOKU_POWER,
     capsuleGear: capsuleGear, isCapsuleGear: isCapsuleGear, hasAuroraSet: hasAuroraSet, setCoinsOf: setCoinsOf,
     gearPower: gearPower, slotPower: slotPower, gearSlotPower: GEAR_POWER, auroraPower: AURORA_POWER, gingaPower: GINGA_POWER, setMulFor: setMulFor,
     fullSetOf: fullSetOf, hasSet: hasSet, equippedSetOf: equippedSetOf, fullSetGrade: fullSetGrade, labels: labels,
