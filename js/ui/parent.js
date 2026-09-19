@@ -478,6 +478,7 @@ MQ.ui.parent = (function () {
     main.push(wrapSec(S.judge()));
     main.push(wrapSec(S.capsule(p)));
     main.push(wrapSec(S.records(p)));
+    main.push(installSection());
     main.push(wrapSec(S.ai()));
 
     /* この子の 記録（名前・学年・消す） */
@@ -532,6 +533,38 @@ MQ.ui.parent = (function () {
     main.push(h('p', { class: 'pp-muted pp-small pp-center', text: 'バージョン ' + (MQ.version || '－') }));
     kids.push(h('div', { class: 'pp-main' }, main));
     return kids;
+  }
+
+  /* =======================================================
+     ホーム画面に入れる（2026-09-19・ユーザー「iOSでもインストールできるとうれしい」）
+     App Store は つかわない。Safari の「ホーム画面に追加」で アプリの ように ひらける（index.html に apple-touch-icon ほか）。
+     iPhone・iPad は Safari の タブと ホーム画面の アイコンで 記録が 別々 なので、移し方も 書く。
+     ======================================================= */
+  function installSection() {
+    const ua = navigator.userAgent || '';
+    const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+    let standalone = !!navigator.standalone;
+    try { standalone = standalone || window.matchMedia('(display-mode: standalone)').matches; } catch (e) { /* なにもしない */ }
+    const line = function (t, cls) { return h('p', { class: 'pp-small' + (cls ? ' ' + cls : ''), style: { margin: '4px 0' }, text: t }); };
+    const body = [];
+    if (standalone) {
+      body.push(line('いまは ホーム画面のアイコンから開いています。このまま使えます。'));
+    } else {
+      body.push(line('App Store からのインストールは不要です。ブラウザの機能で、ホーム画面にアイコンを置いてアプリのように使えます（画面が広くなり、オフラインでも遊べます）。'));
+    }
+    body.push(h('h3', { class: 'pp-h pp-h--s', style: { margin: '10px 0 2px' }, text: 'iPhone・iPad' + (ios && !standalone ? '（この端末）' : '') }));
+    body.push(line('1. このページを Safari で開く（LINE などアプリの中のブラウザではできません）'));
+    body.push(line('2. 共有ボタン（四角から上向きの矢印）を押す。iPhone は画面の下、iPad は右上にあります'));
+    body.push(line('3. 「ホーム画面に追加」→「追加」を押す'));
+    body.push(line('4. これからは ホーム画面の「まなびモンスター」のアイコンから開く'));
+    body.push(line('注意：Safari のタブとアイコンでは記録が別々です。Safari で遊んだ記録を移すときは、上の「きろくの ほぞん」で記録をコピー（またはファイルに保存）→ アイコンから開いて、同じ場所の「きろくを もどす」を押してください。', 'pp-muted'));
+    body.push(line('音が出ないときは、本体の消音（マナーモード）を切ってください。', 'pp-muted'));
+    body.push(h('h3', { class: 'pp-h pp-h--s', style: { margin: '10px 0 2px' }, text: 'Android（Chrome）' + (/Android/.test(ua) && !standalone ? '（この端末）' : '') }));
+    body.push(line('右上の「︙」→「アプリをインストール」または「ホーム画面に追加」を押す'));
+    return h('section', { class: 'pp-section', id: 'pp-install' }, [
+      sec('ホーム画面に入れる', 'アプリのように使う'),
+      h('div', { class: 'pp-card pp-pad' }, body)
+    ]);
   }
 
   /* =======================================================

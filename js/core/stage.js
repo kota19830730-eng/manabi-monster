@@ -29,18 +29,43 @@ MQ.stage = (function () {
   let scale = 1;
   let height = 720;
 
+  /* iPhone・iPad の ホームバー・ノッチ（safe area）の よけ幅（2026-09-19）。
+     index.html は viewport-fit=cover なので、ホーム画面から ひらくと 画面の いちばん 下まで 使える かわりに
+     ホームバー（下の 横線）が ボタンや ヒントに かぶって いた → その ぶんを のぞいた まん中に おく。
+     env() が ない ブラウザ（Chrome の パソコン・Android の 多く）は ぜんぶ 0 ＝ いままでと 同じ */
+  let probe = null;
+  function insets() {
+    const z = { t: 0, r: 0, b: 0, l: 0 };
+    try {
+      if (!probe) {
+        probe = document.createElement('div');
+        probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+          'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);';
+        (document.body || document.documentElement).appendChild(probe);
+      }
+      const cs = window.getComputedStyle(probe);
+      z.t = parseFloat(cs.paddingTop) || 0; z.r = parseFloat(cs.paddingRight) || 0;
+      z.b = parseFloat(cs.paddingBottom) || 0; z.l = parseFloat(cs.paddingLeft) || 0;
+    } catch (e) { /* 0 の まま */ }
+    return z;
+  }
+
   function fit() {
     el = el || document.getElementById('stage');
     if (!el) return;
 
-    const vw = window.innerWidth || W;
-    const vh = window.innerHeight || 720;
+    const ins = insets();
+    const vw = Math.max(200, (window.innerWidth || W) - ins.l - ins.r);
+    const vh = Math.max(300, (window.innerHeight || 720) - ins.t - ins.b);
 
     scale = Math.min(vw / W, vh / H_MIN);
     height = Math.max(H_MIN, Math.min(H_MAX, Math.round(vh / scale)));
 
     el.style.width = W + 'px';
     el.style.height = height + 'px';
+    // よけ幅が ある ときだけ まん中を ずらす（ない ときは CSS の 50% の まま）
+    el.style.left = (ins.l || ins.r) ? (ins.l + vw / 2) + 'px' : '';
+    el.style.top = (ins.t || ins.b) ? (ins.t + vh / 2) + 'px' : '';
     el.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
 
     document.documentElement.style.setProperty('--stage-h', height + 'px');
