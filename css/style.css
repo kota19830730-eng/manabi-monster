@@ -4341,3 +4341,167 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .capsecret { margin: 4px 0 0; text-align: center; font-size: 12px; font-weight: 700; color: #9fb2dd; letter-spacing: 1px; }
 .capline--comp { color: #ffd447; }
 .capres__comp { margin: 4px 0 0; text-align: center; font-size: 13px; font-weight: 700; color: #ffd447; text-shadow: 0 0 8px rgba(255,212,71,.5); }
+
+
+/* =======================================================
+   ボスの 先制こうげき（2026-09-19・js/ui/battle.js の ambush）
+   動かすのは transform と opacity だけ（v13.10 の きまり）
+   ======================================================= */
+/* ① ため：うしろに 引いて ぶるぶる（2D も 3D も .enemy ごと） */
+.enemy.is-windup { animation: ambWindup .45s ease-in both; z-index: 5; }
+@keyframes ambWindup {
+  0%   { transform: translateX(0) scale(1); }
+  40%  { transform: translateX(10px) scale(1.04, .96); }
+  55%  { transform: translateX(13px) scale(1.06, .95); }
+  70%  { transform: translateX(11px) scale(1.06, .95); }
+  85%  { transform: translateX(14px) scale(1.06, .95); }
+  100% { transform: translateX(12px) scale(1.05, .96); }
+}
+.ambushbang {
+  position: absolute; left: 50%; top: -6px; z-index: 9; transform: translateX(-50%);
+  font-family: var(--f-head); font-size: 44px; line-height: 1; color: #ff3b30; pointer-events: none;
+  -webkit-text-stroke: 6px #fff; paint-order: stroke fill; animation: ambBang .9s ease-out both;
+}
+@keyframes ambBang {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(10px) scale(.3); }
+  18%  { opacity: 1; transform: translateX(-50%) translateY(-6px) scale(1.25); }
+  30%  { transform: translateX(-50%) translateY(0) scale(1); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(1); }
+}
+/* ため の 赤い 光（ボスの うしろ・3D に filter を かけない ため べつの 要素で） */
+.ambushaura {
+  position: absolute; left: 50%; top: 50%; width: 170px; height: 150px; margin: -80px 0 0 -85px; z-index: -1; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 50, 30, .75), rgba(255, 50, 30, .25) 45%, rgba(255, 50, 30, 0) 70%);
+  animation: ambAura .45s ease-in-out 3 alternate both;
+}
+@keyframes ambAura { 0% { opacity: .2; transform: scale(.8); } 100% { opacity: 1; transform: scale(1.1); } }
+/* ② つっこむ：もとの 場所 → 主人公の 目の前（--rush）→ もどる（0.75秒・当たるのは 33%） */
+.enemy.is-rush { animation: ambRush .9s both; z-index: 7; }
+.enemy.is-rush--quick { animation-duration: .45s; }
+/* はなつ わざ（ほのお・かみなり・こおり・やみ）：前に のり出して そる */
+.enemy.is-cast { animation: ambCast .8s both; z-index: 7; }
+@keyframes ambCast {
+  0%   { transform: translateX(12px) scale(1.05, .96); }
+  15%  { transform: translateX(-22px) scale(1.12, .92); }
+  60%  { transform: translateX(-16px) scale(1.08, .95); }
+  100% { transform: translateX(0) scale(1); }
+}
+@keyframes ambRush {
+  0%   { transform: translateX(12px) scale(1.05, .96); animation-timing-function: cubic-bezier(.6, 0, .9, .5); }
+  33%  { transform: translateX(calc(-1 * var(--rush, 150px))) scale(1.12, .94); animation-timing-function: ease-out; }
+  40%  { transform: translateX(calc(-1 * var(--rush, 150px) + 10px)) scale(1.08); }
+  62%  { transform: translateX(calc(-1 * var(--rush, 150px) + 16px)) scale(1.04); animation-timing-function: ease-in-out; }
+  100% { transform: translateX(0) scale(1); }
+}
+/* 画面の ふちが 赤く なる（ため から もどる まで） */
+.ambushvig {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 55%, transparent 45%, rgba(210, 20, 20, .55) 100%);
+  animation: ambVig 1.9s ease-in-out both;
+}
+@keyframes ambVig { 0% { opacity: 0; } 20% { opacity: .75; } 30% { opacity: .5; } 40% { opacity: 1; } 75% { opacity: .7; } 100% { opacity: 0; } }
+/* 光の たて（主人公の 前）：出て きて 受けとめ → くだける／ヒビ */
+.ambushshield {
+  position: absolute; left: 70px; top: 6px; z-index: 7; width: 46px; height: 56px; pointer-events: none;
+  --sh-a: #9fd8ff; --sh-b: #2e6fd6; --sh-rim: #ffd447;
+  animation: ambShieldIn .25s ease-out both;
+}
+.ambushshield--freeze { --sh-a: #ffffff; --sh-b: #9aa6c0; --sh-rim: #c9a7ff; }
+.ambushshield::before, .ambushshield__in {
+  position: absolute; inset: 0; clip-path: polygon(0 0, 100% 0, 100% 58%, 50% 100%, 0 58%);
+}
+.ambushshield::before { content: ''; background: var(--sh-rim); }
+.ambushshield__in { inset: 4px 4px 6px; background: linear-gradient(135deg, var(--sh-a) 0 30%, var(--sh-b) 30% 100%); opacity: .95; }
+.ambushshield::after {
+  content: ''; position: absolute; left: -10px; top: -8px; right: -10px; bottom: -8px; z-index: -1; border-radius: 50%;
+  background: radial-gradient(circle, rgba(160, 220, 255, .75), rgba(160, 220, 255, 0) 70%);
+}
+@keyframes ambShieldIn { 0% { opacity: 0; transform: scale(.3) translateX(-10px); } 100% { opacity: 1; transform: scale(1); } }
+.ambushshield.is-shatter::before, .ambushshield.is-shatter .ambushshield__in, .ambushshield.is-shatter::after { animation: ambShieldGone .18s ease-in both; }
+@keyframes ambShieldGone { 0% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(1.35); } }
+.ambushshield.is-crack { animation: ambShieldCrack .9s ease-out both; }
+@keyframes ambShieldCrack { 0% { transform: translateX(0); } 12% { transform: translateX(-8px) rotate(-6deg); } 30% { transform: translateX(0) rotate(2deg); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateX(0); } }
+.ambushshard {
+  position: absolute; left: 50%; top: 45%; width: 12px; height: 12px; margin: -6px 0 0 -6px;
+  background: linear-gradient(135deg, var(--sh-a), var(--sh-b)); box-shadow: inset 0 0 0 2px var(--sh-rim);
+  animation: ambShard .8s cubic-bezier(.2, .7, .4, 1) both;
+}
+.ambushshard:nth-child(3n) { width: 8px; height: 14px; }
+.ambushshard:nth-child(3n + 1) { width: 14px; height: 9px; }
+@keyframes ambShard {
+  0%   { opacity: 1; transform: translate(0, 0) rotate(0); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 26px)) rotate(var(--rot)); }
+}
+/* ③ しょうげき・つめあと（アリーナの 中・主人公の 前） */
+.ambushhit { position: absolute; z-index: 8; width: 0; height: 0; pointer-events: none; }
+.ambushhit__core, .ambushhit__ring { position: absolute; left: -40px; top: -40px; width: 80px; height: 80px; border-radius: 50%; }
+.ambushhit__core { background: radial-gradient(circle, #fff 0 25%, rgba(255, 230, 150, .9) 40%, rgba(255, 90, 40, 0) 70%); animation: ambCore .45s ease-out both; }
+.ambushhit__ring { border: 5px solid rgba(255, 240, 200, .95); animation: ambRing .5s ease-out both; }
+@keyframes ambCore { 0% { opacity: 1; transform: scale(.2); } 40% { opacity: 1; transform: scale(1.3); } 100% { opacity: 0; transform: scale(1.7); } }
+@keyframes ambRing { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(2.1); } }
+.ambushclaw {
+  position: absolute; left: -46px; top: -3px; width: 92px; height: 7px; border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255, 60, 40, 0), #fff 30%, #fff 70%, rgba(255, 60, 40, 0));
+  box-shadow: 0 0 8px 2px rgba(255, 40, 30, .9);
+  transform-origin: 100% 50%; animation: ambClaw .7s ease-out both;
+}
+.ambushclaw:nth-of-type(3) { --cy: -16px; }
+.ambushclaw:nth-of-type(4) { --cy: 0px; animation-delay: .04s; }
+.ambushclaw:nth-of-type(5) { --cy: 16px; animation-delay: .08s; }
+@keyframes ambClaw {
+  0%   { opacity: 1; transform: translateY(var(--cy)) rotate(-38deg) scaleX(0); }
+  25%  { opacity: 1; transform: translateY(var(--cy)) rotate(-38deg) scaleX(1); }
+  75%  { opacity: .9; }
+  100% { opacity: 0; transform: translateY(var(--cy)) rotate(-38deg) scaleX(1); }
+}
+/* 主人公が ふっとぶ（2D も 3D も .hero ごと・しりもち ぎみに） */
+.hero.is-smashed { animation: ambSmashed .7s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes ambSmashed {
+  0%   { transform: translateX(0) rotate(0); }
+  14%  { transform: translateX(-30px) translateY(-8px) rotate(-14deg); }
+  34%  { transform: translateX(-24px) translateY(0) rotate(-6deg) scale(1.04, .94); }
+  60%  { transform: translateX(-8px) rotate(-2deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+/* 帯（赤い「ガードくだき！」） */
+.ambushband {
+  position: absolute; left: 50%; bottom: 58px; z-index: 9; transform: translateX(-50%) rotate(-5deg);
+  padding: 4px 16px; background: linear-gradient(#ff8a7a, #e0281e 55%, #9c0f0f); border: 3px solid #3a0606; border-radius: 10px;
+  font-family: var(--f-head); font-size: 21px; color: #fff; white-space: nowrap; pointer-events: none;
+  -webkit-text-stroke: 4px #3a0606; paint-order: stroke fill;
+  animation: ambBand 1.3s ease-out .16s both;
+}
+@keyframes ambBand {
+  0%   { opacity: 0; transform: translateX(-50%) rotate(-5deg) scale(1.8); }
+  12%  { opacity: 1; transform: translateX(-50%) rotate(-5deg) scale(.92); }
+  20%  { transform: translateX(-50%) rotate(-5deg) scale(1.04); }
+  28%  { transform: translateX(-50%) rotate(-5deg) scale(1); }
+  82%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) rotate(-5deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .enemy.is-windup, .enemy.is-rush, .hero.is-smashed, .ambushvig, .ambushclaw, .ambushband, .ambushshard { animation-duration: .01s; }
+}
+
+/* 大わざの しゅるいごとの 色（ため の 光・わざの あいだの 空） */
+.ambushaura--fire { background: radial-gradient(ellipse, rgba(255, 140, 30, .8), rgba(255, 80, 20, .3) 45%, rgba(255, 60, 20, 0) 70%); }
+.ambushaura--bolt { background: radial-gradient(ellipse, rgba(120, 190, 255, .8), rgba(70, 120, 255, .3) 45%, rgba(70, 120, 255, 0) 70%); }
+.ambushaura--ice  { background: radial-gradient(ellipse, rgba(190, 240, 255, .85), rgba(100, 190, 240, .3) 45%, rgba(100, 190, 240, 0) 70%); }
+.ambushaura--dark { background: radial-gradient(ellipse, rgba(190, 120, 255, .8), rgba(120, 50, 220, .3) 45%, rgba(120, 50, 220, 0) 70%); }
+.ambushaura--gold { background: radial-gradient(ellipse, rgba(255, 220, 90, .85), rgba(255, 170, 30, .3) 45%, rgba(255, 170, 30, 0) 70%); }
+.ambushaura--quake { background: radial-gradient(ellipse, rgba(255, 190, 110, .75), rgba(200, 120, 50, .3) 45%, rgba(200, 120, 50, 0) 70%); }
+.arena__spsky[data-sp="amb-fire"]  { background: linear-gradient(rgba(24, 4, 0, .9) 0%, rgba(90, 20, 6, .82) 55%, rgba(160, 50, 10, .62) 100%); }
+.arena__spsky[data-sp="amb-bolt"]  { background: linear-gradient(rgba(2, 4, 18, .92) 0%, rgba(10, 20, 60, .84) 55%, rgba(30, 50, 110, .64) 100%); }
+.arena__spsky[data-sp="amb-ice"]   { background: linear-gradient(rgba(4, 14, 26, .9) 0%, rgba(16, 50, 80, .82) 55%, rgba(60, 120, 150, .6) 100%); }
+.arena__spsky[data-sp="amb-slash"] { background: linear-gradient(rgba(20, 0, 2, .9) 0%, rgba(70, 6, 10, .82) 55%, rgba(120, 20, 20, .6) 100%); }
+.arena__spsky[data-sp="amb-quake"] { background: linear-gradient(rgba(18, 10, 2, .9) 0%, rgba(60, 36, 12, .82) 55%, rgba(110, 70, 30, .6) 100%); }
+.arena__spsky[data-sp="amb-dark"]  { background: linear-gradient(rgba(6, 0, 14, .94) 0%, rgba(30, 6, 56, .86) 55%, rgba(70, 20, 100, .66) 100%); }
+.arena__spsky[data-sp="amb-gold"]  { background: linear-gradient(rgba(18, 12, 0, .9) 0%, rgba(70, 50, 8, .82) 55%, rgba(130, 96, 20, .6) 100%); }
+/* ザコの はんげき：小さい たて・小さい しょうげき・かるく よろける */
+.ambushshield--mini { left: 72px; top: 16px; width: 34px; height: 42px; }
+.ambushhit--small .ambushhit__core, .ambushhit--small .ambushhit__ring { left: -26px; top: -26px; width: 52px; height: 52px; }
+.hero.is-smashed--lite { animation: ambSmashLite .5s ease-out both; }
+@keyframes ambSmashLite { 0% { transform: translateX(0); } 25% { transform: translateX(-14px) rotate(-7deg); } 60% { transform: translateX(-6px) rotate(-2deg); } 100% { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .enemy.is-cast, .hero.is-smashed--lite { animation-duration: .01s; } }

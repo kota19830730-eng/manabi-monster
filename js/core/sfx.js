@@ -156,6 +156,16 @@ MQ.sfx = (function () {
     weak:    function () { tone(1319, 0.07, 'square', 0.12); tone(1661, 0.07, 'square', 0.12, 0.06); tone(2093, 0.2, 'square', 0.12, 0.12); noise(0.1, 0.25, 0.1, 4000, 'highpass'); },
     // たての かまえ（ガチッ）／ガードブレイク（パリーン）
     kamae:   function () { noise(0.06, 0.3, 0, 2500, 'highpass'); tone(330, 0.14, 'square', 0.16, 0, 240); },
+    // 先制こうげき（2026-09-19）：ボスが ためる（ぐおお → キーン）／つっこんで たたきつける（ドゴォン）
+    ambushWarn: function () { tone(70, 0.5, 'sawtooth', 0.18, 0, 150); noise(0.45, 0.16, 0, 500, 'lowpass'); tone(1760, 0.07, 'square', 0.09, 0.38); tone(2349, 0.12, 'square', 0.08, 0.44); },
+    // 大わざ（2026-09-19）：ほのお（ごおお）・かみなり（バリバリ）・こおり（ヒュオオ キラキラ）・やみ（ずうん）・こばん（ジャラジャラ）
+    amb_fire:  function () { noise(0.6, 0.36, 0, 700, 'lowpass'); noise(0.5, 0.22, 0.05, 2400, 'bandpass'); tone(80, 0.6, 'sawtooth', 0.14, 0, 150); },
+    amb_bolt:  function () { for (let i = 0; i < 5; i++) noise(0.05, 0.4, i * 0.06, 5000, 'highpass'); tone(1200, 0.3, 'square', 0.08, 0, 180); tone(90, 0.3, 'square', 0.16, 0.18, 50); },
+    amb_ice:   function () { noise(0.5, 0.3, 0, 3000, 'highpass'); [2637, 3136, 3520, 2794].forEach(function (f, i) { tone(f, 0.12, 'triangle', 0.08, 0.08 + i * 0.07); }); },
+    amb_dark:  function () { tone(60, 0.6, 'sine', 0.3, 0, 110); tone(62, 0.6, 'sawtooth', 0.08, 0, 115); noise(0.4, 0.14, 0.1, 600, 'lowpass'); },
+    amb_gold:  function () { [1568, 2093, 1760, 2349, 1976, 2637].forEach(function (f, i) { tone(f, 0.08, 'square', 0.07, i * 0.05); }); noise(0.3, 0.1, 0, 5000, 'highpass'); },
+    ambushRush: function () { noise(0.22, 0.28, 0, 1800, 'bandpass'); tone(300, 0.2, 'sawtooth', 0.08, 0, 900); },
+    ambushSmash: function () { noise(0.32, 0.55, 0, 900, 'lowpass'); tone(95, 0.4, 'square', 0.24, 0, 38); tone(55, 0.5, 'sine', 0.32, 0, 30); noise(0.08, 0.3, 0, 5000, 'highpass'); },
     guardBreak: function () { noise(0.12, 0.4, 0, 6000, 'highpass'); tone(2637, 0.08, 'square', 0.12); tone(3520, 0.16, 'square', 0.1, 0.06); tone(160, 0.18, 'square', 0.18, 0.08, 60); },
     // ぶんしん（ふわん と 2つに）
     clone:   function () { tone(440, 0.18, 'triangle', 0.12, 0, 880); tone(440, 0.18, 'triangle', 0.12, 0.1, 880); noise(0.16, 0.12, 0.05, 2000); },

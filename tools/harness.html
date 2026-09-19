@@ -162,6 +162,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/scenery.js"></script>
 <script src="../js/ui/fxcanvas.js"></script>
 <script src="../js/ui/fxtext.js"></script>
+<script src="../js/ui/bossfx.js"></script>
 <script src="../js/ui/setwaza.js"></script>
 <script src="../js/ui/news.js"></script>
 <script src="../js/ui/look.js"></script>
@@ -3078,6 +3079,25 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
        #bossguard         … 本気で 2回めの 正解 → ガード
        #lastfinal         … ラスボス（HP9 の 玉）の さいごの 力
        ログ：パネル・ピルの 字・HP の 玉・クラス・ふきだし */
+    /* ボスの 先制こうげき（2026-09-19）：ボスが 出て すぐ まもりを こわす → ふつう／本気の パネル
+       #ambush … たて あり（こわれる）／#ambush:none … まもり なし（くらうだけ）／#ambush:last … ラスボス
+       動きは tools/fxcheck/rt_ambush.js（SLOW=5 で スローに して 撮る）で 見る */
+    if (mode.indexOf('ambush') === 0) {
+      const what = mode.split(':')[1] || '';
+      fresh(what === 'last' ? { frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true } } : undefined);
+      if (what === 'none') MQ.save.update(function (pl) { pl.equipped.shield = null; pl.equipped.armor = null; pl.bag = []; });
+      const g0 = { shield: 0, freeze: 0 };
+      if (what === 'last') { MQ.ui.battle.start('tower3'); await wait(2700); }
+      else { MQ.ui.battle.start('sansu3-6'); await wait(400); await playBattle('ambush', { stopAtBoss: true }); await wait(1800); }
+      const gA = MQ.battle.guards();
+      say('ambush: 出たとき locked=' + !$('.bosspick') + ' たて' + gA.shield + ' よろい' + gA.freeze);
+      await wait(900);
+      say('ambush: ため ！=' + !!$('.ambushbang') + ' 赤い光=' + !!$('.ambushaura') + ' ふち=' + !!$('.ambushvig') + ' ボス=' + ($('.enemy--boss') || {}).className + ' / ' + $('.arena__msg').textContent);
+      for (let i = 0; i < 40 && !$('.bosspick'); i++) await wait(100);
+      const g = MQ.battle.guards();
+      say('ambush: おわり パネル=' + !!$('.bosspick') + ' たて' + g.shield + ' よろい' + g.freeze + ' こわれた=' + g.broken.join() + ' なおる点=' + $$('.guardfix i').length + ' / ' + $('.arena__msg').textContent);
+      dump(); return;
+    }
     if (['bosspick', 'bosshard', 'bossfinal', 'bossrecap', 'bossguard', 'lastfinal'].indexOf(mode.split(':')[0]) >= 0) {
       const sub = mode.split(':');
       const bossLog = function (tag) {
@@ -3096,6 +3116,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         fresh({ frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true } });
         MQ.ui.battle.start('tower3');
         await wait(3200);
+        for (let i = 0; i < 60 && !$('.bosspick'); i++) await wait(100);   // 先制こうげき（2026-09-19）の あとに パネル
         bossLog('last pick');
         $('.bosspick__btn--norm').click();
         await wait(300);

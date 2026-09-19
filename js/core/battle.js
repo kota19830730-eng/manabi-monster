@@ -656,6 +656,23 @@ MQ.battle = (function () {
     s.gbEvent = (ev.block || ev.repaired || ev.streak) ? ev : null;
     return xp;
   }
+  /* ■ 先制こうげき（2026-09-19・ユーザー「ボス戦の 緊迫感を。いきなり 攻撃して ガード（たてを 壊す）ぐらい してほしい」）
+       ボスが あらわれた すぐ あと（まだ 問題に 答える 前）に 1回だけ いきなり つっこんで きて、まもりを 1つ こわす
+       （たてが 先・なければ よろい）。こわれた まもりは ガードくだきと 同じく、ボスの 問題に 1回めで GB_REPAIR 問
+       れんぞく 正解すると なおる（けいけんち ＋GB_REPAIR_XP）。まもりが ない 子は くらう 演出だけ（何も へらない）。
+       あんこくの たて（gbSafe）は ヒビだけ。てきの こうげき なし・タイムアタック・とっくん・はじめての たたかい では おきない。
+       画面（ui/battle.js の ambush）が ボスの 登場の あと 1回 よぶ。かえす もの：{ kind: 'broke'|'crack'|'none', type } か null */
+  function bossAmbush() {
+    if (!s || s.phase !== 'boss' || s.ambushed || !s.attacks || s.timeAttack) return null;
+    s.ambushed = true;
+    const t = s.buff.shield > 0 ? 'shield' : s.buff.freeze > 0 ? 'freeze' : null;
+    if (!t) return { kind: 'none' };
+    if (s.gear.gbSafe) { s.gb.cracks++; return { kind: 'crack', type: t }; }
+    s.buff[t]--;
+    s.gb.broken.push(t);
+    s.gb.breaks++;
+    return { kind: 'broke', type: t, need: GB_REPAIR };
+  }
   function guards() {
     if (!s) return { shield: 0, freeze: 0, broken: [], streak: 0, need: GB_REPAIR, blocks: 0, breaks: 0, cracks: 0, repairs: 0, gained: 0 };
     return {
@@ -1407,6 +1424,8 @@ MQ.battle = (function () {
     chargeInfo: chargeInfo, attacking: attacking,    // てきの ため → カウンター（v7.7）
     // ガードくだき（2026-09-14）：まもりの ようすと、いまの 答えで おきた こと（{ kind: 'crack'|'broke'|'hit'|'none', … } か null）
     guards: guards, guardEvent: function () { return s ? s.gbEvent : null; },
+    bossAmbush: bossAmbush,                          // 先制こうげき（2026-09-19）
+    attacksOn: function () { return !!(s && s.attacks && !s.timeAttack); },   // ザコ・中ボスの はんげき（演出）を 出すか
     GB_GAIN_MAX: GB_GAIN_MAX, GB_REPAIR: GB_REPAIR, GB_REPAIR_XP: GB_REPAIR_XP,
     _setBossHp: function (n) { if (s) { s.bossHp = n; if (n > s.bossHpMax) s.bossHpMax = n; } },   // テスト用
     CHARGE_MOB: CHARGE_MOB, CHARGE_BOSS: CHARGE_BOSS, COUNTER_MUL: COUNTER_MUL, COUNTER_DMG: COUNTER_DMG, GINGA_SAVES: GINGA_SAVES,

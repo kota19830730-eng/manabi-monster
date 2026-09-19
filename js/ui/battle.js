@@ -1614,13 +1614,16 @@ MQ.ui.battle = (function () {
 
     if (res.outcome === 'retry') {
       // てきの こうげきの 問題で まちがえた → くらった（演出だけ・v7.7）。ほかは よけられた
-      if (res.hit) struckFx(); else dodge();
+      const strikeMs = counterStrike(q, res);   // 2026-09-19：ザコ・中ボスの はんげき（演出だけ）
+      if (strikeMs == null) { if (res.hit) struckFx(); else dodge(); }
       comboShow(res.combo || 0);
       d.msg.textContent = res.hit ? (res.frozen ? 'くらった！ でも 時とめで コンボは そのまま！ もう1回！' : 'くらった！ でも だいじょうぶ。もう1回 こたえよう！')
         : res.frozen ? 'おしい！ でも 時とめで コンボは そのまま！ もう1回！'
         : res.skill === 'kamae' ? 'たてで ふせがれた！ でも だいじょうぶ。もう1回！'
         : res.elite ? 'おしい！ 中ボスは 手ごわい。もう1回！'
-        : q.boss ? 'おしい！ ふせがれた。もう1回！' : 'おしい！ ' + e.name + ' に よけられた。もう1回！';
+        : q.boss ? 'おしい！ ふせがれた。もう1回！'
+        : strikeMs != null ? 'おしい！ ' + e.name + 'の はんげき！ でも だいじょうぶ。もう1回！'
+        : 'おしい！ ' + e.name + ' に よけられた。もう1回！';
       // ガードくだき（2026-09-14）：ボスの 大わざで まちがえた
       if (gbe && gbe.kind === 'broke') d.msg.textContent = 'ガードくだき！ ' + GUARD_NAMES[gbe.type] + 'が こわれた…　1回めで ' + gbe.need + 'もん れんぞく 正解すると なおる！';
       else if (gbe && gbe.kind === 'crack') d.msg.textContent = 'ガードくだき！ でも ' + GUARD_NAMES[gbe.type] + 'は ぶじ！ もう1回 こたえよう！';
@@ -1638,7 +1641,7 @@ MQ.ui.battle = (function () {
       if (q.type === 'write') { d.prompt.innerHTML = writePrompt(q); fitPrompt(); renderWriteKeys(q); memo.clear(); }
       else if (q.type !== 'choice') renderDisplays();
       startCountdown();
-      wait(500, function () { locked = false; });
+      wait(Math.max(500, strikeMs || 0), function () { locked = false; });
       return;
     }
 
@@ -1815,6 +1818,7 @@ MQ.ui.battle = (function () {
      ======================================================= */
   function bossIntro() {
     bossOnScreen = false;
+    ambushTok++;   // 前の 先制こうげきの のこりの タイマーを 止める
     MQ.bgm.play('boss');
     MQ.sfx.alarm();
     d.msg.textContent = '';
@@ -1830,7 +1834,7 @@ MQ.ui.battle = (function () {
     wait(1700, function () {
       d.warning.hidden = true;
       renderQuestion();
-      bossPick();
+      ambush(bossPick);   // 2026-09-19：出て すぐ いきなり こうげき → ふつう／本気の パネル
     });
   }
 
@@ -1871,10 +1875,205 @@ MQ.ui.battle = (function () {
     ]);
     d.panel.appendChild(d.pick);
   }
+  /* =======================================================
+     ボスの 先制こうげき ＋ てきの はんげき（2026-09-19）
+     ユーザー「ボス戦の 緊迫感を。いきなり 攻撃して ガード（盾を 壊す）ぐらい」→「A（ふつうでも 本当に こわれる）」
+     「派手さを もっと。ドラゴン系なら 火を 吐くなど」「ザコや 中ボスも まちがえたら 同じ モーションで ガードが こわれる 演出を。ザコは 派手じゃなくて OK」
+       ボス  … 出て すぐ 1回（ルールは core の bossAmbush＝まもりが 本当に 1つ こわれる・2問 れんぞく 正解で なおる）
+       中ボス … まちがえた とき（1回め）。ザコより 少し 強め（ユーザー「中ボスも そんなに 派手じゃなくて いい」）。**演出だけ**
+       ザコ  … まちがえた とき（1回め）。すばやく つっこんで 小さな たてが くだける。**演出だけ**
+     大わざは ボスの しゅるいで 6つ（AMB_STYLE・光は js/ui/bossfx.js）：
+       ①ため（赤い「！」・赤い 光・画面の ふち）→ ②はなつ（ほのお・かみなり・こおり・やみの 玉）か つっこむ（大ぎり・じしん）
+       → ③当たる（光の たてが くだける・主人公が ふっとぶ・ゆれ・帯）→ ④もどる
+     てきの こうげき なし（おうちの人ページ）・はじめての たたかい・とっくん・タイムアタックでは 出ない（ザコ・中ボスは いままでの よける 動き）
+     ======================================================= */
+  const AMB = { wind: 700 };                                          // ボスが 出て から ため まで（ms）
+  const STRIKE = { rush: 450, hit: 750, back: 1250, end: 1950 };      // 大わざの 中の 時間（ため を 0・bossfx.js の IMP と そろえる）
+  // [わざ, わざの 名前, 口の よこ, 口の たて]（口＝絵の 左上から の わりあい。ほのお・かみなり・こおり・やみ の はなつ ところ）
+  const AMB_STYLE = {
+    'boss-dragon': ['fire', 'ほのおの ブレス', 0.1, 0.3], 'boss-maou': ['fire', 'やみの ほのお', 0.3, 0.35], 'boss-kaizoku': ['fire', 'たいほう ドカン', 0.12, 0.5],
+    'boss-namazu': ['bolt', 'ビリビリ ほうでん', 0.18, 0.45], 'boss-knight': ['bolt', 'でんげき ビーム', 0.3, 0.3], 'boss-griffon': ['bolt', 'かみなりの つばさ', 0.22, 0.3],
+    'boss-mizuchi': ['ice', 'みずの ブレス', 0.12, 0.3], 'boss-blizzard': ['ice', 'ブリザード', 0.3, 0.35],
+    'boss-oni': ['slash', 'なぎなた 大ぎり'], 'boss-haniwa': ['slash', 'はにわ 大ぎり'], 'boss-tengu': ['slash', 'かまいたち'], 'boss-dark': ['slash', 'やみの 大けん'],
+    'boss-saidon': ['quake', 'いわくだき とっしん'], 'boss-titan': ['quake', 'だいち わり'], 'boss-slime': ['quake', 'ジャンボ プレス'], 'boss-prince': ['quake', 'ぷるぷる プレス'],
+    'boss-majin': ['dark', 'すうじの のろい', 0.3, 0.3], 'boss-fude': ['dark', 'すみの ばくだん', 0.25, 0.4], 'boss-obake': ['dark', 'おばけ ボール', 0.3, 0.4],
+    'boss-hades': ['dark', 'めいかいの ほのお', 0.3, 0.3], 'boss-koban': ['gold', 'こばん シャワー', 0.3, 0.4]
+  };
+  const MELEE = { slash: true, quake: true };
+  let ambushTok = 0;
+  function styleOf(id) { return AMB_STYLE[id] || ['slash', 'はんげき']; }
+  function stageK() { return (MQ.stage && MQ.stage.size) ? (MQ.stage.size().scale || 1) : 1; }
+  // ボスの 左はし → 主人公の 右はし（たての ぶん 少し 手まえで 止まる）
+  function rushDist(f, extra) {
+    const fr = f.getBoundingClientRect(), hr = d.hero.getBoundingClientRect();
+    return Math.max(50, Math.round((fr.left - hr.right) / stageK() + (extra == null ? 26 : extra)));
+  }
+  // 光の たて（主人公の 前）。くだける／ヒビ
+  function lightShield(type, mini) {
+    const sh = h('span', { class: 'ambushshield ambushshield--' + (type || 'shield') + (mini ? ' ambushshield--mini' : '') }, [h('i', { class: 'ambushshield__in' })]);
+    d.hero.appendChild(sh);
+    return sh;
+  }
+  function shatter(sh, type, pieces) {
+    sh.classList.add('is-shatter');
+    for (let i = 0; i < pieces; i++) {
+      const a = (i / pieces) * Math.PI * 2 + 0.3;
+      const c = h('i', { class: 'ambushshard ambushshard--' + (type || 'shield') });
+      c.style.setProperty('--dx', Math.round(Math.cos(a) * (34 + (i % 3) * 14) - 18) + 'px');
+      c.style.setProperty('--dy', Math.round(Math.sin(a) * (30 + (i % 2) * 16) - 10) + 'px');
+      c.style.setProperty('--rot', ((i % 2 ? 1 : -1) * (140 + i * 30)) + 'deg');
+      sh.appendChild(c);
+    }
+    setTimeout(function () { sh.remove(); }, 900);
+  }
+  function hitMark(claws, small) {
+    const ar = d.arena.getBoundingClientRect(), hr = d.hero.getBoundingClientRect(), k = stageK();
+    const kids = [h('i', { class: 'ambushhit__ring' }), h('i', { class: 'ambushhit__core' })];
+    if (claws) for (let i = 0; i < 3; i++) kids.push(h('i', { class: 'ambushclaw' }));
+    const hit = h('div', { class: 'ambushhit' + (small ? ' ambushhit--small' : '') }, kids);
+    hit.style.left = ((hr.left + hr.width * 0.72 - ar.left) / k) + 'px';
+    hit.style.top = ((hr.top + hr.height * 0.42 - ar.top) / k) + 'px';
+    d.arena.appendChild(hit);
+    setTimeout(function () { hit.remove(); }, 900);
+  }
+  function knock(cls, ms) {
+    d.hero.classList.remove('is-smashed', 'is-smashed--lite', 'is-struck');
+    void d.hero.offsetWidth;
+    d.hero.classList.add(cls);
+    if (V3()) MQ.ui.v3.play(d.hero, 'mo-hurt', 600);
+    setTimeout(function () { d.hero.classList.remove(cls); }, ms);
+  }
+
+  // ボスが 出た すぐ あと（bossIntro／towerIntro から）。おわったら then（ふつう／本気の パネル）
+  function ambush(then) {
+    const ev = MQ.battle.bossAmbush ? MQ.battle.bossAmbush() : null;
+    if (!ev) { then(); return; }
+    const tk = ++ambushTok;
+    locked = true;
+    if (d.msg) d.msg.classList.remove('is-quiet');
+    setTimeout(function () {
+      if (tk !== ambushTok || !d.cur || !d.cur.isConnected || MQ.battle.phase() !== 'boss') return;
+      bigStrike({ tk: tk, ev: ev, boss: true, enemyId: MQ.battle.bossId(), onEnd: function () { locked = false; then(); } });
+    }, AMB.wind);
+  }
+
+  /* 大わざ（ボス・中ボス）。o.ev＝core の 出来事（{ kind: 'broke'|'crack'|'none', type }）か 演出だけ（{ kind: 'show' }） */
+  function bigStrike(o) {
+    const tk = o.tk, f0 = d.cur, ev = o.ev;
+    const alive = function () { return tk === ambushTok && d.cur === f0 && f0 && f0.isConnected; };
+    const at = function (ms, fn) { setTimeout(function () { if (alive()) fn(); }, ms); };
+    const st = styleOf(o.enemyId), kind = st[0], melee = !!MELEE[kind];
+    const e = MQ.enemies.get(o.enemyId) || { name: 'てき' };
+    const gtype = ev.kind === 'show' ? 'shield' : (ev.type || null);
+    let vig = null, shield = null;
+    // ① ため
+    d.msg.textContent = e.name + 'の ' + st[1] + '！';
+    MQ.sfx.ambushWarn();
+    vig = h('div', { class: 'ambushvig' });
+    d.arena.appendChild(vig);
+    skyOn('amb-' + kind);
+    const bang = h('span', { class: 'ambushbang', text: '！' });
+    f0.appendChild(bang);
+    setTimeout(function () { bang.remove(); }, 900);
+    const aura = h('span', { class: 'ambushaura ambushaura--' + kind });
+    f0.insertBefore(aura, f0.firstChild);
+    setTimeout(function () { aura.remove(); }, 1300);
+    f0.classList.remove('is-appear', 'is-enrage', 'is-lunge', 'is-dodge');
+    void f0.offsetWidth;
+    f0.classList.add('is-windup');
+    const fxc = MQ.ui.fxc;
+    if (fxc && fxc.attach(d.root) && fxc.ok() && fxc.has('amb-' + kind)) {
+      if (MQ.ui.bossfx) MQ.ui.bossfx.set({ mouth: [st[2] == null ? 0.3 : st[2], st[3] == null ? 0.4 : st[3]] });
+      const img = f0.querySelector('.enemy__img3d, .enemy__img') || f0;
+      fxc.play('amb-' + kind, { foe: boxOf(img, 0), hero: boxOf(d.hero.querySelector('.hero__img3d') || d.heroImg, 0), height: d.arena.offsetHeight });
+    }
+    // ② はなつ・つっこむ
+    at(STRIKE.rush, function () {
+      f0.classList.remove('is-windup');
+      if (melee) f0.style.setProperty('--rush', rushDist(f0) + 'px');
+      void f0.offsetWidth;
+      f0.classList.add(melee ? 'is-rush' : 'is-cast');
+      if (V3()) MQ.ui.v3.play(f0, 'mo-attack', 700);
+      if (MQ.sfx['amb_' + kind]) MQ.sfx['amb_' + kind](); else MQ.sfx.ambushRush();
+      if (gtype) shield = lightShield(gtype, false);
+    });
+    // ③ 当たる
+    at(STRIKE.hit, function () {
+      MQ.sfx.ambushSmash();
+      flash(false);
+      shake(true);
+      quake(kind === 'quake' ? 3 : 2);
+      hitMark(kind === 'slash', false);
+      knock('is-smashed', 800);
+      const real = ev.kind === 'broke' || ev.kind === 'crack';
+      const band = h('div', { class: 'ambushband', text: ev.kind === 'none' ? 'ふいうち！' : ev.kind === 'crack' ? 'ガード！' : 'ガードくだき！' });
+      d.arena.appendChild(band);
+      setTimeout(function () { band.remove(); }, 1300);
+      if (shield) {
+        if (ev.kind === 'crack') { shield.classList.add('is-crack'); setTimeout(function () { MQ.sfx.guard(); }, 90); const sh = shield; setTimeout(function () { sh.remove(); }, 900); }
+        else { shatter(shield, gtype, 9); setTimeout(function () { MQ.sfx.guardBreak(); }, 90); }
+      }
+      if (real) {
+        // 頭の よこの アイコンも いっしょに（本当に こわれた／ヒビ）
+        syncBuffs();
+        const ico = d.guard ? d.guard.querySelector('.guardico--' + gtype) : null;
+        if (ev.kind === 'broke') { kickCls(ico, 'is-break', 900); guardPop(GUARD_NAMES[gtype] + 'が こわれた！', 'bad'); }
+        else { kickCls(ico, 'is-crack', 900); guardPop('ヒビ！ でも ぶじ', 'ok'); }
+      }
+      if (ev.kind === 'broke') d.msg.textContent = 'ガードくだき！ ' + GUARD_NAMES[gtype] + 'が こわされた！';
+      else if (ev.kind === 'crack') d.msg.textContent = 'ガード！ ' + GUARD_NAMES[gtype] + 'に ヒビ！ でも ぶじだ！';
+      else if (ev.kind === 'show') d.msg.textContent = 'ガードが くだけた！ でも だいじょうぶ。もう1回 こたえよう！';
+      else d.msg.textContent = 'ふいうちを くらった！ でも まけないぞ！';
+    });
+    // ④ もどる
+    at(STRIKE.back, function () {
+      f0.classList.remove('is-rush', 'is-cast');
+      if (ev.kind === 'broke') d.msg.textContent = GUARD_NAMES[gtype] + 'が こわされた！ ボスに 1回目で ' + ev.need + '問 れんぞく 正解すると なおるぞ！';
+    });
+    setTimeout(function () {
+      if (vig) vig.remove();
+      if (tk !== ambushTok) return;
+      skyOff();
+      if (MQ.ui.fxc) MQ.ui.fxc.fade();
+      if (f0) f0.classList.remove('is-windup', 'is-rush', 'is-cast');
+      if (o.onEnd && alive()) o.onEnd();
+    }, STRIKE.end);
+  }
+
+  /* ザコ・中ボスの はんげき（まちがえた とき・演出だけ）：すばやく つっこんで たてが くだける。0.5秒で また 答えられる。
+     mid＝中ボス（たてが 大きい・ゆれも 大きい・つめあと） */
+  function mobStrike(hit, mid) {
+    const f = d.cur;
+    if (!f) return;
+    const tk = ++ambushTok;
+    f.classList.remove('is-appear', 'is-enrage', 'is-lunge', 'is-dodge', 'is-rush', 'is-rush--quick');
+    f.style.setProperty('--rush', rushDist(f, 18) + 'px');
+    void f.offsetWidth;
+    f.classList.add('is-rush', 'is-rush--quick');
+    if (V3()) MQ.ui.v3.play(f, 'mo-attack', 450);
+    const sh = lightShield('shield', !mid);
+    setTimeout(function () {
+      if (tk !== ambushTok) { sh.remove(); return; }
+      MQ.sfx.enemyHit();
+      setTimeout(function () { MQ.sfx.guardBreak(); }, 40);
+      shatter(sh, 'shield', mid ? 9 : 6);
+      hitMark(!!mid, !mid);
+      knock(mid ? 'is-smashed' : 'is-smashed--lite', mid ? 700 : 520);
+      if (mid) { shake(true); flash(false); } else if (hit) shake(false);
+    }, 150);
+    setTimeout(function () { if (f) f.classList.remove('is-rush', 'is-rush--quick'); }, 480);
+  }
+  // まちがえた とき：てきの こうげきが あり なら はんげき（ザコ・中ボス）。かえりち＝答えられる までの ms（なし＝null）
+  function counterStrike(q, res) {
+    if (!MQ.battle.attacksOn || !MQ.battle.attacksOn() || MQ.battle.phase() !== 'mob' || q.chest) return null;
+    mobStrike(!!res.hit, !!res.elite);
+    return 500;
+  }
   function closePick() { if (d.pick && d.pick.parentNode) d.pick.parentNode.removeChild(d.pick); d.pick = null; }
 
   function towerIntro() {
     bossOnScreen = false;
+    ambushTok++;
     MQ.sfx.towerIntro();
     d.msg.textContent = '';
     d.foes.innerHTML = '';
@@ -1895,7 +2094,7 @@ MQ.ui.battle = (function () {
     wait(2600, function () {
       d.warning.hidden = true;
       renderQuestion();
-      bossPick();
+      ambush(bossPick);
     });
   }
 
@@ -3356,6 +3555,8 @@ MQ.ui.battle = (function () {
   }
 
   return {
+    ambushTimes: function () { return { wind: AMB.wind, strike: STRIKE }; },   // 先制こうげきの 時間（harness）
+    demoQuestion: function () { build(); renderQuestion(); },   // 見本：core を 進めた あとの 問題を 出す（中ボスの はんげきを 見る）
     demoWarning: function (last) { build(); if (last) towerIntro(); else bossIntro(); },   // v13.6：harness #warning
     demoEnd: function () { endSpecial(true); },   // v13.6：見本の ページで つぎの わざの 前に もどす
     start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,

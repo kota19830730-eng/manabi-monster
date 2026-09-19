@@ -4125,6 +4125,69 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   while (B.phase() === 'mob') { const qq = B.current(); B.answer(bad(qq)); if (B.guardEvent()) mobEv = true; if (B.isRetry()) B.answer(right(qq)); B.next(); }
   check(!mobEv, 'ガードくだき: ザコでは おきない');
 })();
+/* ===== ボスの 先制こうげき（2026-09-19）=====
+   ボスが あらわれて すぐ 1回だけ いきなり こうげきして、まもりを 1つ こわす（たてが 先・なければ よろい）。
+   こわれた まもりは ガードくだきと 同じく 2問 れんぞく 正解で なおる。まもり なしは none・あんこくの たては ヒビ。
+   てきの こうげき なし・タイムアタック・ザコの あいだは おきない。1たたかい 1回だけ */
+(function () {
+  const B = MQ.battle;
+  const st = MQ.content.findStage('sansu3-6').stage;
+  function right(q) { return q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : q.type === 'divrem' ? { q: q.answer.q, r: q.answer.r } : q.answer; }
+  function toBoss(o) {
+    B.start(Object.assign({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false, attacks: true, bossHp: 20, bossMax: 14, gear: { safe: 2, keep: 1 } }, o || {}));
+    check(B.bossAmbush() === null, '先制こうげき: ザコの あいだは おきない');
+    while (B.phase() === 'mob') { B.answer(right(B.current())); B.next(); }
+    B._setBossPlan({});
+  }
+  check(typeof B.bossAmbush === 'function', '先制こうげき: 公開');
+  toBoss();
+  let ev = B.bossAmbush();
+  check(ev && ev.kind === 'broke' && ev.type === 'shield' && ev.need === B.GB_REPAIR, '先制こうげき: たてが こわれる ' + JSON.stringify(ev));
+  check(B.guards().shield === 1 && B.guards().broken.join() === 'shield' && B.guards().breaks === 1, '先制こうげき: たてが 1つ へって こわれた 一覧に ' + JSON.stringify(B.guards()));
+  check(B.bossAmbush() === null, '先制こうげき: 1たたかい 1回だけ');
+  // なおす：ボスの 問題に 1回めで 2問 れんぞく 正解（大わざの 問題でも ふつうの 問題でも）
+  let fixed = false;
+  for (let i = 0; i < 3 && !fixed; i++) { B.answer(right(B.current())); const e = B.guardEvent(); if (e && e.repaired) fixed = true; B.next(); }
+  check(fixed && B.guards().shield >= 2 && B.guards().broken.length === 0, '先制こうげき: 2問 れんぞくで なおる ' + JSON.stringify(B.guards()));
+  // よろいだけ → よろい
+  toBoss({ gear: { safe: 0, keep: 1 } });
+  ev = B.bossAmbush();
+  check(ev && ev.kind === 'broke' && ev.type === 'freeze' && B.guards().freeze === 0, '先制こうげき: よろいだけなら よろい ' + JSON.stringify(ev));
+  // まもり なし → none（何も へらない）
+  toBoss({ gear: null });
+  ev = B.bossAmbush();
+  check(ev && ev.kind === 'none' && B.guards().broken.length === 0, '先制こうげき: まもり なしは none ' + JSON.stringify(ev));
+  // あんこくの たて（gbSafe）→ ヒビだけ
+  toBoss({ gear: { safe: 2, keep: 1, gbSafe: true } });
+  ev = B.bossAmbush();
+  check(ev && ev.kind === 'crack' && B.guards().shield === 2 && B.guards().broken.length === 0, '先制こうげき: あんこくの たては ヒビだけ ' + JSON.stringify(ev));
+  // てきの こうげき なし・タイムアタック では おきない
+  toBoss({ attacks: false });
+  check(B.bossAmbush() === null && B.guards().shield === 2, '先制こうげき: てきの こうげき なし では おきない');
+  toBoss({ timeAttack: 20 });
+  check(B.bossAmbush() === null, '先制こうげき: タイムアタック では おきない');
+  // 塔（ラスボス）は はじめから ボス
+  B.start({ stage: st, mode: 'tower', bossId: 'boss-maou', attacks: true, gear: { safe: 1 } });
+  ev = B.bossAmbush();
+  check(ev && ev.kind === 'broke' && ev.type === 'shield', '先制こうげき: ラスボスも ' + JSON.stringify(ev));
+  // ザコ・中ボスの はんげき（演出）を 出すか
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false, attacks: true });
+  check(B.attacksOn() === true, '先制こうげき: はんげき あり');
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 3, chest: false, attacks: false });
+  check(B.attacksOn() === false, '先制こうげき: てきの こうげき なし では はんげき なし');
+  // どの ボスにも 大わざが ある（ui/battle.js の AMB_STYLE）・光の 台本（bossfx.js）・読みこみ順
+  const uiB = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8');
+  const fxB = fs.readFileSync(path.join(base, 'js/ui/bossfx.js'), 'utf8');
+  let nBoss = 0;
+  (fs.readFileSync(path.join(base, 'js/content/enemies.js'), 'utf8').match(/id: 'boss-[a-z0-9-]+'/g) || []).map(function (x) { return { id: x.slice(5, -1) }; }).forEach(function (e) {
+    const m = new RegExp("'" + e.id + "': \\['([a-z]+)'").exec(uiB);
+    check(m && fxB.indexOf("'amb-" + m[1] + "'") > 0, '先制こうげき: ' + e.id + ' の 大わざ ' + (m ? m[1] : 'なし'));
+    nBoss++;
+  });
+  check(nBoss >= 21, '先制こうげき: ボス ' + nBoss + '体 ぜんぶ');
+  check(INDEX_HTML.indexOf('js/ui/bossfx.js') > INDEX_HTML.indexOf('js/ui/fxcanvas.js') && INDEX_HTML.indexOf('js/ui/fxcanvas.js') > 0, '先制こうげき: bossfx.js は fxcanvas.js の あと');
+  check(fs.readFileSync(path.join(base, 'sw.js'), 'utf8').indexOf('./js/ui/bossfx.js') > 0 && fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8').indexOf('js/ui/bossfx.js') > 0, '先制こうげき: sw と harness に bossfx.js');
+})();
 /* ===== 教科書（出版社）えらび（v12.4）===== */
 (function () {
   const TB = MQ.textbooks;
