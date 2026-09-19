@@ -1756,7 +1756,8 @@ MQ.ui.battle = (function () {
     markChoices(q, value);
     flee();
     comboShow(0);
-    d.msg.textContent = res.called ? e.name + ' に にげられた… でも ボスとの たたかいは つづく！'
+    d.msg.textContent = res.golden ? e.name + ' は にげあしが はやい！ 1回で にげられた…'   // 2026-09-19
+      : res.called ? e.name + ' に にげられた… でも ボスとの たたかいは つづく！'
       : res.elite ? '中ボスの ' + e.name + ' に にげられた… また あとで！'
       : e.name + ' に にげられた…';
     sayAnswer(res);
@@ -3017,7 +3018,8 @@ MQ.ui.battle = (function () {
       sum.escaped.forEach(function (en) {
         const areaId = en.areaId || ctx.area.id;
         // ボスの問題は、つぎは ザコの姿で もどってくる
-        if (String(en.enemyId).indexOf('boss-') === 0) en.enemyId = MQ.enemies.pickIds(areaId, 1)[0];
+        // ゴールデンスライムも ザコの すがたで もどす（ゴールデンの まま だと リベンジで コインを 何度でも もらえる）
+        if (String(en.enemyId).indexOf('boss-') === 0 || en.enemyId === MQ.enemies.goldenId()) en.enemyId = MQ.enemies.pickIds(areaId, 1)[0];
         en.areaId = areaId;
         MQ.save.addEscaped(p, areaId, en);
       });

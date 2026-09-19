@@ -1017,7 +1017,11 @@ MQ.battle = (function () {
       s.bossOpen = false;
       if (skillNow === 'clone' && plNow.pos === 0) s.cloneClean = false;
     }
-    if (!wasRetry && !s.timeAttack) {
+    // ゴールデンスライム（2026-09-19・ユーザー「まちがえたら にげる」）：1回 まちがえたら すぐ にげる（もう1回も たても なし）。
+    // にげた 問題は ふつうの にげた敵と 同じく あとで もどる（すがたは ザコ・ui/battle.js の applyRewards）
+    const goldFlee = !q.chest && q.enemyId === goldenId() && !s.timeAttack;
+    if (goldFlee && !wasRetry && s.buff.freeze > 0) { s.buff.freeze--; s.frozenQ = q.id; }   // 時とめは コンボだけ まもる
+    if (!wasRetry && !s.timeAttack && !goldFlee) {
       s.retry = true;
       s.retryGiven = givenText(q, value);
       // 時とめ：この 問題では コンボが 切れない
@@ -1033,7 +1037,7 @@ MQ.battle = (function () {
     // 2026-09-19：1問 GINGA_SAVES 回まで（前は ずっと＝解けない 問題で 答えが 出ずに くり返し、いつも ★3 だった）
     if (s.gingaQ !== q.id) { s.gingaQ = q.id; s.gingaN = 0; }
     const ginga = s.gear.noEscape && s.gingaN < GINGA_SAVES;
-    if ((s.buff.shield > 0 || ginga) && !s.timeAttack) {
+    if (!goldFlee && (s.buff.shield > 0 || ginga) && !s.timeAttack) {
       if (ginga) s.gingaN++;
       else s.buff.shield--;
       if (s.frozenQ !== q.id) s.combo = 0;
@@ -1053,6 +1057,7 @@ MQ.battle = (function () {
     }
 
     s.escapedNow.push(q);
+    if (goldFlee) return { outcome: 'wrong', golden: true, called: !!q.called, answerText: answerText(q), note: q.note };
     // ボスが 呼んだ ザコ（v8.1）に にげられた：ボスとの たたかいは そのまま つづく
     if (q.called) {
       return { outcome: 'wrong', called: true, answerText: answerText(q), note: q.note };

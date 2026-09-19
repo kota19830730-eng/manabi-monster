@@ -5306,6 +5306,26 @@ function stripComments(src) {
   console.log('v13.19: そうびの 見た目 OK（8グレード × 5部位）');
 })();
 
+/* ---- ゴールデンスライムは まちがえたら にげる（2026-09-19）---- */
+(function () {
+  const B = MQ.battle;
+  const st = { id: 'gx', name: 'gx', make: function (n) { const o = []; for (let i = 0; i < n; i++) o.push({ type: 'number', prompt: 'g' + i + '+1', answer: i + 1, unit: 'u', id: 'gq' + i, lv: 1 + (i % 3) }); return o; } };
+  const items = [{ id: 'g', name: 'g', power: 'golden', val: 1, uses: 1, mobOnly: true }, { id: 's', name: 's', power: 'shield', val: 2, uses: 1 }];
+  B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 4, chest: false, areaId: 'sansu', items: items });
+  B.useItem('s');
+  const ug = B.useItem('g');
+  const gq = B.current();
+  check(ug.ok && gq.enemyId === 'slime-golden', 'ゴールデン: いまの てきが ゴールデン');
+  const r1 = B.answer(wrongValue(gq));
+  check(r1.outcome === 'wrong' && r1.golden === true && r1.answerText != null && !B.isRetry(), 'ゴールデン: 1回 まちがえたら にげる（たてが あっても）: ' + r1.outcome);
+  B.next();
+  const nq = B.current();
+  check(nq && nq.enemyId !== 'slime-golden' && B.answer(wrongValue(nq)).outcome === 'retry', 'ゴールデン: ふつうの ザコは いままで どおり もう1回');
+  const esc = B.summary().escaped;
+  check(esc.some(function (e) { return e.key === gq.id; }), 'ゴールデン: にげた 問題は にげた敵に 入る');
+  console.log('ゴールデンスライムは まちがえたら にげる OK');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);
