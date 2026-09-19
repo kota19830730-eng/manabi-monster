@@ -797,3 +797,18 @@
 @media (prefers-reduced-motion: reduce) {
   .v3--b64 .p { animation: none !important; }
 }
+
+/* ---------------------------------------------------------
+   ラスボス 6体の 動き（2026-09-19・96マス・部品は js/content/boss3d.js の LASTB）：.v3--b64last
+   正面の つばさは 左右 べつ（wingR は .v3--b64front の b64FlapY・wingL は 反対むき）。
+   ハデスの ほのおの かみ（mane）は ゆらゆら。動かすのは transform だけ（v13.10）。
+   --------------------------------------------------------- */
+.v3--b64last.mo-menace .p--wingL, .v3--b64last.mo-title .p--wingL { animation: b64FlapYL 1.8s ease-in-out infinite; }
+.v3--b64last.mo-walk .p--wingL, .v3--b64last.mo-hop .p--wingL { animation: b64FlapYL .3s ease-in-out 2; }
+.v3--b64last.mo-attack .p--wingL, .v3--b64last.mo-lunge .p--wingL, .v3--b64last.mo-hurt .p--wingL { animation: b64FlapYLBig .6s ease-in-out both; }
+.v3--b64last.mo-menace .p--mane, .v3--b64last.mo-title .p--mane { animation: obMane 1.4s ease-in-out infinite; }
+@keyframes b64FlapYL { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(22deg); } }
+@keyframes b64FlapYLBig { 0%, 100% { transform: rotateY(0deg); } 40% { transform: rotateY(48deg); } 70% { transform: rotateY(-8deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .v3--b64last .p { animation: none !important; }
+}

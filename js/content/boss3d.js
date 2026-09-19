@@ -186,6 +186,80 @@
     }
   };
 
+  /* ---------- ラスボス 6体（2026-09-19・96マス・絵の 正本は tools/bossart/final3.js） ----------
+     座標・厚み・奥ゆきは 64マスの つもりで 書き、scale（1.5）ばいして 96マスに する。正面（kind 'front'）。
+     つばさは 左右 べつの 部品（wingL／wingR）・ハデスの ほのおの かみ（mane）は motion3d.css の .v3--b64last で ゆれる。 */
+  const LASTB = {
+    maou: [
+      { tag: 'wingL',  cls: 'wingL',  joint: [20, 24], thick: 3,  z: -5, parent: 'body', floor: false },
+      { tag: 'wingR',  cls: 'wingR',  joint: [44, 24], thick: 3,  z: -5, parent: 'body', floor: false },
+      { tag: 'cape',   cls: 'cape',   joint: [32, 24], thick: 2,  z: -5, parent: 'body', floor: false },
+      { tag: 'body',   cls: 'body',   joint: [32, 48], thick: 12 },
+      { tag: 'head',   cls: 'head',   joint: [32, 24], thick: 11, z: 3, parent: 'body' },
+      { tag: 'armL',   cls: 'armL',   joint: [16, 30], thick: 6,  parent: 'body' },
+      { tag: 'orbs',   cls: 'orbs',   joint: [12, 40], thick: 2,  z: 4, floor: false },
+      { tag: 'armR',   cls: 'armR',   joint: [48, 30], thick: 6,  parent: 'body' },
+      { tag: 'weapon', cls: 'weapon', joint: [54, 44], thick: 2,  z: 5, parent: 'armR', floor: false },
+      { tag: 'legA',   cls: 'legA',   joint: [25, 46], thick: 8 },
+      { tag: 'legB',   cls: 'legB',   joint: [38, 46], thick: 8 }
+    ],
+    obakeking: [
+      { tag: 'cape',    cls: 'cape',    joint: [32, 18], thick: 2,  z: -7, parent: 'body', floor: false },
+      { tag: 'body',    cls: 'body',    joint: [32, 58], thick: 16 },
+      { tag: 'crown',   cls: 'crown',   joint: [32, 11], thick: 7,  parent: 'body' },
+      { tag: 'armL',    cls: 'armL',    joint: [8, 28],  thick: 5,  parent: 'body' },
+      { tag: 'armR',    cls: 'armR',    joint: [56, 28], thick: 5,  parent: 'body' },
+      { tag: 'weapon',  cls: 'weapon',  joint: [59, 30], thick: 2,  z: 5, parent: 'armR', floor: false },
+      { tag: 'orbs',    cls: 'orbs',    joint: [32, 20], thick: 2,  z: 4, floor: false },
+      { tag: 'minionA', cls: 'minionA', joint: [5, 58],  thick: 5,  z: 6 },
+      { tag: 'minionB', cls: 'minionB', joint: [59, 58], thick: 5,  z: 6 }
+    ],
+    kaizoku: [
+      { tag: 'body',   cls: 'body',   joint: [32, 52], thick: 12 },
+      { tag: 'head',   cls: 'head',   joint: [32, 28], thick: 12, z: 2, parent: 'body' },
+      { tag: 'sack',   cls: 'sack',   joint: [11, 28], thick: 5,  z: 2, parent: 'body', floor: false },
+      { tag: 'armL',   cls: 'armL',   joint: [15, 32], thick: 6,  parent: 'body' },
+      { tag: 'armR',   cls: 'armR',   joint: [49, 32], thick: 6,  parent: 'body' },
+      { tag: 'weapon', cls: 'weapon', joint: [52, 46], thick: 2,  z: 5, parent: 'armR', floor: false },
+      { tag: 'legA',   cls: 'legA',   joint: [25, 50], thick: 8 },
+      { tag: 'legB',   cls: 'legB',   joint: [38, 50], thick: 8 }
+    ],
+    dark: [
+      { tag: 'cape',   cls: 'cape',   joint: [32, 20], thick: 2,  z: -6, parent: 'body', floor: false },
+      { tag: 'body',   cls: 'body',   joint: [32, 48], thick: 13 },
+      { tag: 'head',   cls: 'head',   joint: [32, 23], thick: 12, z: 2, parent: 'body' },
+      { tag: 'armL',   cls: 'armL',   joint: [15, 29], thick: 6,  parent: 'body' },
+      { tag: 'orbs',   cls: 'orbs',   joint: [10, 42], thick: 2,  z: 4, floor: false },
+      { tag: 'armR',   cls: 'armR',   joint: [49, 29], thick: 6,  parent: 'body' },
+      { tag: 'weapon', cls: 'weapon', joint: [52, 46], thick: 2,  z: 5, parent: 'armR', floor: false },
+      { tag: 'legA',   cls: 'legA',   joint: [25, 46], thick: 8 },
+      { tag: 'legB',   cls: 'legB',   joint: [38, 46], thick: 8 }
+    ],
+    blizzard: [
+      { tag: 'cape',   cls: 'cape',   joint: [32, 20], thick: 2,  z: -7, parent: 'body', floor: false },
+      { tag: 'body',   cls: 'body',   joint: [32, 48], thick: 13 },
+      { tag: 'head',   cls: 'head',   joint: [32, 24], thick: 11, z: 3, parent: 'body' },
+      { tag: 'crown',  cls: 'crown',  joint: [32, 10], thick: 6,  parent: 'head' },
+      { tag: 'armL',   cls: 'armL',   joint: [15, 28], thick: 6,  parent: 'body' },
+      { tag: 'orbs',   cls: 'orbs',   joint: [9, 36],  thick: 2,  z: 4, floor: false },
+      { tag: 'armR',   cls: 'armR',   joint: [49, 28], thick: 6,  parent: 'body' },
+      { tag: 'weapon', cls: 'weapon', joint: [52, 44], thick: 2,  z: 5, parent: 'armR', floor: false },
+      { tag: 'legA',   cls: 'legA',   joint: [25, 46], thick: 8 },
+      { tag: 'legB',   cls: 'legB',   joint: [38, 46], thick: 8 }
+    ],
+    hades: [
+      { tag: 'mane',   cls: 'mane',   joint: [32, 20], thick: 3,  z: -4, parent: 'head', floor: false },
+      { tag: 'cape',   cls: 'cape',   joint: [32, 20], thick: 2,  z: -7, parent: 'body', floor: false },
+      { tag: 'body',   cls: 'body',   joint: [32, 60], thick: 13 },
+      { tag: 'head',   cls: 'head',   joint: [32, 24], thick: 11, z: 3, parent: 'body' },
+      { tag: 'armL',   cls: 'armL',   joint: [15, 29], thick: 6,  parent: 'body' },
+      { tag: 'orbs',   cls: 'orbs',   joint: [10, 40], thick: 2,  z: 4, floor: false },
+      { tag: 'armR',   cls: 'armR',   joint: [49, 29], thick: 6,  parent: 'body' },
+      { tag: 'weapon', cls: 'weapon', joint: [53, 44], thick: 2,  z: 5, parent: 'armR', floor: false }
+    ]
+  };
+  Object.keys(LASTB).forEach(function (k) { CFG[k] = { kind: 'front', scale: 1.5, last: true, parts: LASTB[k] }; });
+
   function has(shape) { return !!CFG[shape] && !!(MQ.enemies && MQ.enemies.shapes && MQ.enemies.shapes[shape]); }
   function ry(shape) { return CFG[shape] && CFG[shape].ry != null ? CFG[shape].ry : null; }
 
@@ -195,18 +269,20 @@
     const shape = MQ.enemies.shapes[e.shape];
     const base = e.base || 64;
     const pal = MQ.enemies.paletteOf(e, !!opts.enrage);
+    const S = cfg.scale || 1;   // ラスボス（96マス）は 64マスの つもりの 数を 1.5ばい
     const groups = cfg.parts.map(function (p) {
       const rects = shape.filter(function (r) { return r[6] === p.tag; });
       let pp = pal;
       if (p.dark) { pp = {}; Object.keys(pal).forEach(function (k) { pp[k] = MQ.blocks.darker(pal[k], p.dark); }); }
       return {
         cls: p.cls, bx: MQ.blocks.el(rects, pp, { raw: true, base: base }),
-        joint: p.joint, parent: p.parent, thick: p.thick, z: p.z || 0, floor: p.floor
+        joint: [p.joint[0] * S, p.joint[1] * S], parent: p.parent, thick: Math.round(p.thick * S), z: (p.z || 0) * S, floor: p.floor
       };
     });
     const v = MQ.vox.fromGroups(groups, { unit: opts.unit || 2, hide: opts.hide, shadow: opts.shadow });
     v.classList.add('v3--' + e.shape + 'boss');
     if (cfg.kind) { v.classList.add('v3--b64'); v.classList.add('v3--b64' + cfg.kind); }   // v14.7：序盤・中盤の ボスと 作り直しの 3体の 動き
+    if (cfg.last) v.classList.add('v3--b64last');   // ラスボス（2026-09-19）：左の つばさ・ほのおの かみ
     return v;
   }
 

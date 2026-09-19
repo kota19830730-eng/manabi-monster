@@ -674,7 +674,9 @@ MQ.vox = (function () {
        箱に すっぽり 入る 光る 部品（目・コア）は **切りぬかない 層**に 置く
        （切りぬくと グローが 四角い 帯に 見える）。それ いがいは 箱の 形に 切りぬく。 */
     const inner = function (r, clip) {
-      const f = clip ? frontFace(r.w * U, r.h * U) : face(r.w * U, r.h * U, null, null);
+      /* 切りぬかない 層（光る 目・コア）は 0.5px 手まえに。前の 面と ぴったり 同じ 平面だと、
+         回した とき z-fighting で 前の 面が 勝ち、目が 黒く 消える（2026-09-19・ハデスの 目で 発覚） */
+      const f = clip ? frontFace(r.w * U, r.h * U) : face(r.w * U, r.h * U, 'translateZ(.5px)', null);
       f.className = 'f fr' + (clip ? ' fr--clip' : ' fr--free');
       if (clip) {
         f.style.overflow = 'hidden';

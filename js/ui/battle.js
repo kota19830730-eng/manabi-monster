@@ -474,7 +474,8 @@ MQ.ui.battle = (function () {
       else if ((e.rank || 2) === 3) { cls += ' enemy--r3'; size = 86; }   // 強そうなのは 大きく
       else if ((e.rank || 2) === 1) { cls += ' enemy--r1'; size = 60; }   // よわそうなのは 小さく
       if (e.by === 'photo' && !boss && ids.length === 1) size = 96;          // じぶんの 絵の モンスターは 大きく（64マスの ドットが つぶれない・v3.2）
-      if (e.base && e.base !== 48) size = Math.round(size * e.base / 48);    // 64マスの ボス（v14.6）：1ドットの 大きさを ほかの ボスと そろえる（96 → 128）
+      if (e.base && e.base !== 48) size = Math.round(size * Math.min(e.base, 64) / 48);    // 64マスの ボス（v14.6）：1ドットの 大きさを ほかの ボスと そろえる（96 → 128）
+      if (boss && last && e.base === 96) size = twin ? 72 : 112;              // ラスボス（96マス・2026-09-19）：大きさは いままでの 112px の まま ドットだけ こまかく（128 でも 王かんが アリーナの 上で 切れた）
       if (boss && e.tier === 1) size = Math.round(size * 0.94);                // 序盤の ボス（v14.7）は すこし 小さく（128 → 120）
       if (q.rare && i === pos) cls += ' enemy--rare';
       if (q.revenge && i === pos) cls += ' enemy--revenge';   // リベンジ：赤い オーラ＋リボン（v3.1）
@@ -1614,13 +1615,17 @@ MQ.ui.battle = (function () {
 
     if (res.outcome === 'retry') {
       // てきの こうげきの 問題で まちがえた → くらった（演出だけ・v7.7）。ほかは よけられた
-      const strikeMs = counterStrike(q, res);   // 2026-09-19：ザコ・中ボスの はんげき（演出だけ）
+      // 2026-09-19：ザコ・中ボス・ボス・ラスボスの はんげき（演出だけ）。
+      // ガードくだき（gbe＝ヒビ／こわれた）の 問題では 出さない：光の たてが 2重に なる うえ、
+      // mobStrike が ambushTok を ふやして 大わざの のこりの 演出を 止める（claude-69 の 指摘）
+      const strikeMs = gbe ? null : counterStrike(q, res);
       if (strikeMs == null) { if (res.hit) struckFx(); else dodge(); }
       comboShow(res.combo || 0);
       d.msg.textContent = res.hit ? (res.frozen ? 'くらった！ でも 時とめで コンボは そのまま！ もう1回！' : 'くらった！ でも だいじょうぶ。もう1回 こたえよう！')
         : res.frozen ? 'おしい！ でも 時とめで コンボは そのまま！ もう1回！'
         : res.skill === 'kamae' ? 'たてで ふせがれた！ でも だいじょうぶ。もう1回！'
         : res.elite ? 'おしい！ 中ボスは 手ごわい。もう1回！'
+        : q.boss && strikeMs != null ? e.name + 'の ' + styleOf(q.enemyId)[1] + '！ でも だいじょうぶ。もう1回 こたえよう！'
         : q.boss ? 'おしい！ ふせがれた。もう1回！'
         : strikeMs != null ? 'おしい！ ' + e.name + 'の はんげき！ でも だいじょうぶ。もう1回！'
         : 'おしい！ ' + e.name + ' に よけられた。もう1回！';
@@ -1891,13 +1896,13 @@ MQ.ui.battle = (function () {
   const STRIKE = { rush: 450, hit: 750, back: 1250, end: 1950 };      // 大わざの 中の 時間（ため を 0・bossfx.js の IMP と そろえる）
   // [わざ, わざの 名前, 口の よこ, 口の たて]（口＝絵の 左上から の わりあい。ほのお・かみなり・こおり・やみ の はなつ ところ）
   const AMB_STYLE = {
-    'boss-dragon': ['fire', 'ほのおの ブレス', 0.1, 0.3], 'boss-maou': ['fire', 'やみの ほのお', 0.3, 0.35], 'boss-kaizoku': ['fire', 'たいほう ドカン', 0.12, 0.5],
+    'boss-dragon': ['fire', 'ほのおの ブレス', 0.1, 0.3], 'boss-maou': ['fire', 'やみの ほのお', 0.4, 0.33], 'boss-kaizoku': ['fire', 'たいほう ドカン', 0.42, 0.44],
     'boss-namazu': ['bolt', 'ビリビリ ほうでん', 0.18, 0.45], 'boss-knight': ['bolt', 'でんげき ビーム', 0.3, 0.3], 'boss-griffon': ['bolt', 'かみなりの つばさ', 0.22, 0.3],
-    'boss-mizuchi': ['ice', 'みずの ブレス', 0.12, 0.3], 'boss-blizzard': ['ice', 'ブリザード', 0.3, 0.35],
+    'boss-mizuchi': ['ice', 'みずの ブレス', 0.12, 0.3], 'boss-blizzard': ['ice', 'ブリザード', 0.44, 0.36],
     'boss-oni': ['slash', 'なぎなた 大ぎり'], 'boss-haniwa': ['slash', 'はにわ 大ぎり'], 'boss-tengu': ['slash', 'かまいたち'], 'boss-dark': ['slash', 'やみの 大けん'],
     'boss-saidon': ['quake', 'いわくだき とっしん'], 'boss-titan': ['quake', 'だいち わり'], 'boss-slime': ['quake', 'ジャンボ プレス'], 'boss-prince': ['quake', 'ぷるぷる プレス'],
-    'boss-majin': ['dark', 'すうじの のろい', 0.3, 0.3], 'boss-fude': ['dark', 'すみの ばくだん', 0.25, 0.4], 'boss-obake': ['dark', 'おばけ ボール', 0.3, 0.4],
-    'boss-hades': ['dark', 'めいかいの ほのお', 0.3, 0.3], 'boss-koban': ['gold', 'こばん シャワー', 0.3, 0.4]
+    'boss-majin': ['dark', 'すうじの のろい', 0.3, 0.3], 'boss-fude': ['dark', 'すみの ばくだん', 0.25, 0.4], 'boss-obake': ['dark', 'おばけ ボール', 0.4, 0.56],
+    'boss-hades': ['dark', 'めいかいの ほのお', 0.42, 0.34], 'boss-koban': ['gold', 'こばん シャワー', 0.3, 0.4]
   };
   const MELEE = { slash: true, quake: true };
   let ambushTok = 0;
@@ -2063,9 +2068,22 @@ MQ.ui.battle = (function () {
     }, 150);
     setTimeout(function () { if (f) f.classList.remove('is-rush', 'is-rush--quick'); }, 480);
   }
-  // まちがえた とき：てきの こうげきが あり なら はんげき（ザコ・中ボス）。かえりち＝答えられる までの ms（なし＝null）
+  /* ボス・ラスボスの はんげき（2026-09-19・ユーザー「間違えたら もちろん ボス系も ラスボスも 攻撃するように」）：
+     ボスの しゅるいの 色の オーラを まとって つっこみ、大きな たてが くだける（中ボスと 同じ 強さの 演出）。**演出だけ**・何も へらない */
+  function bossStrike(enemyId) {
+    const f = d.cur;
+    if (!f) return;
+    const st = styleOf(enemyId);
+    const aura = h('span', { class: 'ambushaura ambushaura--' + st[0] });
+    f.insertBefore(aura, f.firstChild);
+    setTimeout(function () { aura.remove(); }, 800);
+    mobStrike(true, true);
+  }
+  // まちがえた とき：てきの こうげきが あり なら はんげき（ザコ・中ボス・ボス・ラスボス）。かえりち＝答えられる までの ms（なし＝null）
   function counterStrike(q, res) {
-    if (!MQ.battle.attacksOn || !MQ.battle.attacksOn() || MQ.battle.phase() !== 'mob' || q.chest) return null;
+    if (!MQ.battle.attacksOn || !MQ.battle.attacksOn() || q.chest) return null;
+    if (q.boss && !q.called) { bossStrike(q.enemyId); return 500; }
+    if (MQ.battle.phase() !== 'mob' && !q.called) return null;
     mobStrike(!!res.hit, !!res.elite);
     return 500;
   }

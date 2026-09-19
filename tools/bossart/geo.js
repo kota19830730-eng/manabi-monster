@@ -4,6 +4,8 @@
    rect(x, y, w, h, 色, フラグ)    … そのまま
    できた 行は 横に つなぎ、同じ はばの 行は たてにも つなぐ（四角の 数を へらす） */
 const C = 2;   // ブロックの 大きさ（マス）
+let BASE = 64; // 絵の はば（ラスボスは 96マス・final3.js が setBase で かえて もどす）
+function setBase(b) { BASE = b || 64; }
 
 function inPoly(px, py, pts) {
   let inside = false;
@@ -16,7 +18,7 @@ function inPoly(px, py, pts) {
 /* セルの 集まり（Set of "cx,cy"）→ 四角 */
 function cellsToRects(cells, key, fl) {
   const rows = {};
-  cells.forEach(function (s) { const a = s.split(','); const cx = +a[0], cy = +a[1]; if (cx < 0 || cy < 0 || cx * C >= 64 || cy * C >= 64) return; (rows[cy] = rows[cy] || []).push(cx); });   // 64マスの 外は すてる
+  cells.forEach(function (s) { const a = s.split(','); const cx = +a[0], cy = +a[1]; if (cx < 0 || cy < 0 || cx * C >= BASE || cy * C >= BASE) return; (rows[cy] = rows[cy] || []).push(cx); });   // 64マスの 外は すてる
   let runs = [];
   Object.keys(rows).map(Number).sort(function (a, b) { return a - b; }).forEach(function (cy) {
     const xs = rows[cy].sort(function (a, b) { return a - b; });
@@ -66,4 +68,4 @@ function join() { return [].concat.apply([], Array.prototype.slice.call(argument
 /* 左右 反転（base の はばで） */
 function flipX(shape, base) { return shape.map(function (p) { return [base - p[0] - p[2], p[1], p[2], p[3], p[4], p[5]]; }); }
 
-module.exports = { poly: poly, line: line, rect: rect, join: join, flipX: flipX };
+module.exports = { poly: poly, line: line, rect: rect, join: join, flipX: flipX, setBase: setBase };

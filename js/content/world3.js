@@ -894,7 +894,7 @@ MQ.content = (function () {
     const area = towerArea();
     const st = area && area.stages[0];
     const id = (st && st.bossId) || 'boss-maou';
-    return (MQ.enemies && MQ.enemies.get(id)) || { id: id, name: 'まおう' };
+    return (MQ.enemies && MQ.enemies.get(id)) || { id: id, name: 'デビルカイザー' };
   }
   // いま あそんでいる 学年の 塔の ステージ id（'tower3' / 'tower4'）
   function towerStageId() {

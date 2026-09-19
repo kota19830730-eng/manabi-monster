@@ -3186,6 +3186,29 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       if (ms) { freeze(); document.getAnimations().forEach(function (an) { an.pause(); an.currentTime = ms; }); }
       return;
     }
+    /* ラスボスの 作り直し（2026-09-19・96マス）：#lastall[:<ms>][:enrage|:2d]＝ラスボス 6体（小1〜小6） */
+    if (mode.indexOf('lastall') === 0) {
+      fresh();
+      const bits = mode.split(':');
+      const ms = +(bits[1] || 0);
+      const enr = bits.indexOf('enrage') >= 0, flat = bits.indexOf('2d') >= 0;
+      const ryb = bits.filter(function (b) { return /^ry-?[0-9]+$/.test(b); })[0], ry = ryb ? +ryb.slice(2) : undefined;
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999;background:#2b2150;display:grid;grid-template-columns:repeat(3,300px);gap:8px;padding:8px;align-content:start';
+      ['boss-obake', 'boss-kaizoku', 'boss-maou', 'boss-dark', 'boss-blizzard', 'boss-hades'].forEach(function (id) {
+        const b = MQ.enemies.get(id);
+        const c = document.createElement('div');
+        c.style.cssText = 'position:relative;height:300px;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.12)';
+        c.appendChild(flat ? MQ.enemies.node(id, { size: 280, enrage: enr }) : MQ.ui.v3.monster(id, 280, { mo: 'mo-menace', enrage: enr, ry: ry }));
+        const l = document.createElement('div'); l.textContent = b.name; l.style.cssText = 'position:absolute;left:4px;top:2px;font:13px sans-serif;color:#fff'; c.appendChild(l);
+        if (!flat) { const v = MQ.ui.v3.monster(id, 280, { mo: 'mo-menace', enrage: enr, ry: ry }).querySelector('.v3'); say(id + ': parts=' + (v ? v.dataset.parts : '-') + ' boxes=' + (v ? v.dataset.boxes : '-') + ' faces=' + (v ? v.dataset.faces : '-')); }
+        wrap.appendChild(c);
+      });
+      document.body.appendChild(wrap);
+      await wait(300);
+      if (ms) { freeze(); document.getAnimations().forEach(function (an) { an.pause(); an.currentTime = ms; }); }
+      return;
+    }
     /* ボスの 作り直し（v14.6）：#boss64[:<ms>]＝2体を 2D・3D・おこった で ならべる／#bossof:<ステージ>＝その ボス戦まで */
     if (mode.indexOf('boss64') === 0) {
       fresh();

@@ -760,7 +760,7 @@ check(JSON.stringify(kinds) === JSON.stringify(['sansu', 'kokugo', 'romaji', 'ri
   p5.frags[MQ.content.fragKey('eigo', p5)] = true;
   check(MQ.content.towerOpen(p5) === true, 'かけら 5つで 小4の 塔が 開く');
   MQ.content.setActive(MQ.content.world3);
-  check(MQ.content.lastBoss().name === 'まおう' && MQ.content.towerStageId() === 'tower3', '小3の lastBoss: ' + MQ.content.lastBoss().name);
+  check(MQ.content.lastBoss().name === 'デビルカイザー' && MQ.content.towerStageId() === 'tower3', '小3の lastBoss: ' + MQ.content.lastBoss().name);
   MQ.content.setActive(null);
   MQ.terms.forcePlayer(null);
   check(!!MQ.treasure.forStage('tower4'), '小4の 塔の たからもの');
@@ -3828,7 +3828,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     [5, 'ぎんがの ビッグバン！', '銀河のビッグバン！'],
     [3, 'けす', '消す'],
     [3, 'てき', 'てき'],
-    [3, 'まおう', 'まおう'],
+    [3, 'デビルカイザー', 'デビルカイザー'],
     [3, 'たおした', 'たおした'],
     [3, 'ぜんぶの 教科が まざる', '全部の 教科が まざる'],
     [3, 'いろいろ', 'いろいろ'],
@@ -4372,6 +4372,23 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     ['sansu', 'kokugo', 'rikashakai', 'shakai', 'eigo'].forEach(function (a) { for (let i = 0; i < 20; i++) MQ.enemies.pickIds(a, 12, i / 19).forEach(function (id) { pool[id] = 1; }); });
     check(areaBosses.every(function (b) { return !pool[b.id]; }), 'エリアボスは ザコに まざらない');
     console.log('v14.7 ボスを ふやす: 15体・序盤／中盤／終盤 OK（算数 18ステージ ' + cnt[1] + '・' + cnt[2] + '・' + cnt[3] + '）');
+  })();
+
+  /* ラスボス 6体の 作り直し（2026-09-19）：ぜんぶ 96マス・部品つき・第2形態あり（絵の 正本は tools/bossart/final3.js） */
+  (function () {
+    ['boss-obake', 'boss-kaizoku', 'boss-maou', 'boss-dark', 'boss-blizzard', 'boss-hades'].forEach(function (id) {
+      const e = MQ.enemies.get(id);
+      const art = MQ.monsterArt.mons[e.shape] || [];
+      check(!!e && e.last === true, id + ': last の しるし');
+      check(e.base === 96 && art.length >= 100, id + ': 96マスの 絵（' + art.length + 'こ）');
+      check(art.every(function (r) { return r[0] >= 0 && r[1] >= 0 && r[0] + r[2] <= 96 && r[1] + r[3] <= 96; }), id + ': 96マスに おさまる');
+      check(!!e.phase2, id + ': 第2形態の 色');
+      const cfg = MQ.vox.boss3d && MQ.vox.boss3d.CFG[e.shape];
+      check(!!cfg && cfg.last === true && cfg.scale === 1.5, id + ': 3D の 部品の 表（96マス）');
+      if (cfg) cfg.parts.forEach(function (p) { check(art.some(function (r) { return r[6] === p.tag; }), id + ': 部品 ' + p.tag + ' の 絵が ある'); });
+      check(art.every(function (r) { return cfg && cfg.parts.some(function (p) { return p.tag === r[6]; }); }), id + ': どの 四角も どこかの 部品に 入る');
+    });
+    console.log('ラスボス 6体の 作り直し: 96マス・部品・第2形態 OK');
   })();
   ['../css/motion3d.css', '../js/core/vox.js', '../js/content/chest3d.js', '../js/ui/three.js'].forEach(function (f) { check(harness.indexOf(f) >= 0, 'harness.html に ' + f); });
 

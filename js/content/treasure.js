@@ -74,7 +74,7 @@ MQ.treasure = (function () {
     { stage: 'eigo3-4', id: 'tr-tenki',   name: 'てんきの ほし',          shape: 'star',      colors: c('#8FD3FF') },
 
     /* ---- さいごの塔（ラスボスを たおすと） ---- */
-    { stage: 'tower3',  id: 'tr-maou',    name: 'まおうの かんむり',      shape: 'crown',     colors: c('#8A2438', '#3A0E18') },
+    { stage: 'tower3',  id: 'tr-maou',    name: 'カイザーの かんむり',      shape: 'crown',     colors: c('#8A2438', '#3A0E18') },
 
     /* ---- 小1 さんすうの やま（11）・こくごの もり（5）（v2.2）。名前は ひらがな ---- */
     { stage: 'sansu1-1',  id: 'tr1-kazu',    name: 'かずの たま',            shape: 'orb',       colors: c('#FF9A4A', '#A8542A') },

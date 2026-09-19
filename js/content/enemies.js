@@ -538,30 +538,33 @@ MQ.enemies = (function () {
       colors: { A: '#B8874A', B: '#7A5426', W: '#EEF2F8', y: '#F2C14E', R: '#D13B30', e: '#FFB43A', k: '#1D1A24' },
       phase2: { A: '#C8743A', R: '#FF3B30', e: '#FF3A1A' } },
     /* </areabosses> */
-    /* 小4の ラスボス（v4.8）。塔は 学年ごとに あるので、
-       どの ラスボスが 出るかは world3.js の towerStage の bossId が 決める。 */
-    { id: 'boss-dark', area: 'tower4', name: 'ダークロード', shape: 'dark', last: true,
-      colors: { A: '#4A3A7A', B: '#241844', r: '#C24BFF', y: '#F2C14E', w: '#E8E4FF' },
-      phase2: { A: '#7A3AA8', B: '#3C1466', r: '#FF3B30', y: '#FFF3B8', w: '#FFFFFF' } },
-    /* 小1・小2の ラスボス（v6.4）。名前は ひらがな・カタカナだけ */
-    { id: 'boss-obake', area: 'tower1', name: 'おばけキング', shape: 'obakeking', last: true,
-      colors: { A: '#F2EEFF', B: '#B9A9E6', y: '#F2C14E', r: '#C24BFF', e: '#2A2440', w: '#FFFFFF', k: '#2A2440' },
-      phase2: { A: '#E2D0FF', B: '#8E6AD8', y: '#FFE08A', r: '#FF3B30', e: '#FF3B30', w: '#FFFFFF', k: '#2A2440' } },
-    { id: 'boss-kaizoku', area: 'tower2', name: 'かいぞくキャプテン', shape: 'kaizoku', last: true,
-      colors: { A: '#C42B2B', B: '#3A2418', s: '#F5C9A0', y: '#F2C14E', k: '#181828', w: '#F4F4F4', e: '#1A1A2A' },
-      phase2: { A: '#FF3B30', B: '#2A1810', s: '#F5C9A0', y: '#FFE08A', k: '#181828', w: '#FFFFFF', e: '#FF3B30' } },
-    /* 小5の ラスボス（v6.9） */
-    { id: 'boss-blizzard', area: 'tower5', name: 'ブリザードキング', shape: 'blizzard', last: true,
-      colors: { A: '#BFE6FF', B: '#1F4FA8', C: '#7FC4F2', y: '#F2C14E', w: '#F4FBFF', e: '#38E0FF', k: '#122040' },
-      phase2: { A: '#D6C8FF', B: '#3A1F8A', C: '#A48CF2', y: '#FFE08A', w: '#FFFFFF', e: '#FF3B30', k: '#122040' } },
-    /* 小6の ラスボス（v11.0）：冥界の 神を イメージした メイオウハデス */
-    { id: 'boss-hades', area: 'tower6', name: 'メイオウハデス', shape: 'hades', last: true,
-      colors: { A: '#2A2438', B: '#12101F', C: '#A96BE0', k: '#241E36', y: '#F2C14E', w: '#F2F2F2', e: '#FF3B30', r: '#B04BFF' },
-      phase2: { A: '#3A3050', B: '#1A1630', C: '#8FD3FF', k: '#2A2440', y: '#FFE08A', w: '#FFFFFF', e: '#FFD447', r: '#7FD8FF' } },
-    /* ラスボス。HPを 2つ けずると 第2形態（色が かわる）に なる */
-    { id: 'boss-maou', area: 'tower', name: 'まおう', shape: 'maou', last: true,
-      colors: { A: '#7A2436', B: '#3A0E18', r: '#FF3B30', y: '#FFD447', w: '#F2F2F2' },
-      phase2: { A: '#A81828', B: '#5A0A12', r: '#FFD447', y: '#FFF3B8', w: '#FFE08A' } }
+    /* <lastbosses> ここから tools/bossart/emit.js が 書く（手で さわらない・正本は tools/bossart/final3.js）
+       ラスボス 6体（96マス・2026-09-19 作り直し）。どの ラスボスが 出るかは world3.js の towerStage の bossId が 決める。 */
+    // 小4の ラスボス（v4.8）
+    { id: 'boss-dark', area: 'tower4', name: 'ダークロード', shape: 'dark', base: 96, last: true,
+      colors: { s: '#4A4066', B: '#2A2440', m: '#241030', W: '#7A1428', y: '#F2C14E', r: '#C24BFF', e: '#E85BFF', w: '#E8E4FF', k: '#0E0A18', D: '#6A5F8E' },
+      phase2: { r: '#FF3B30', e: '#FF5A1A', s: '#5A3A70', W: '#C2182A' } },
+    // 小1の ラスボス（v6.4）。名前は ひらがな・カタカナだけ
+    { id: 'boss-obake', area: 'tower1', name: 'おばけキング', shape: 'obakeking', base: 96, last: true,
+      colors: { A: '#F2EEFF', B: '#B9A9E6', m: '#7A2FB8', W: '#FFF4D6', y: '#F2C14E', r: '#C24BFF', e: '#2A2440', w: '#FFFFFF', k: '#2A1030', p: '#FF7AA8', g: '#6FE0FF' },
+      phase2: { A: '#E2D0FF', B: '#8E6AD8', e: '#FF3B30', g: '#FF7AE0', r: '#FF3B30' } },
+    // 小2の ラスボス（v6.4）
+    { id: 'boss-kaizoku', area: 'tower2', name: 'かいぞくキャプテン', shape: 'kaizoku', base: 96, last: true,
+      colors: { A: '#C42B2B', B: '#7E1818', C: '#F0BF94', D: '#3A2418', m: '#2F3A6A', y: '#F2C14E', w: '#F4F4F4', k: '#1C1828', e: '#1A1A2A', s: '#D8DEE8', G: '#3FBF4F', R: '#E8443A' },
+      phase2: { A: '#FF3B30', e: '#FF3B30', m: '#1A2250' } },
+    // 小5の ラスボス（v6.9）
+    { id: 'boss-blizzard', area: 'tower5', name: 'ブリザードキング', shape: 'blizzard', base: 96, last: true,
+      colors: { A: '#6FB8E8', B: '#2F64A8', C: '#A4CBE8', m: '#1F3F9A', W: '#EEF6FF', y: '#F2C14E', w: '#F4FBFF', e: '#38E0FF', r: '#7FF0FF', s: '#CFEFFF', k: '#122040', D: '#244F8F' },
+      phase2: { A: '#D6C8FF', C: '#E6DCFF', e: '#FF3B30', r: '#C9A8FF', m: '#3A1F8A' } },
+    // 小6の ラスボス（v11.0）：冥界の 神
+    { id: 'boss-hades', area: 'tower6', name: 'メイオウハデス', shape: 'hades', base: 96, last: true,
+      colors: { A: '#2A2438', B: '#12101F', C: '#A96BE0', D: '#8C9AC0', m: '#3A1E5A', y: '#F2C14E', w: '#E8E4F0', e: '#FF3B30', r: '#B04BFF', b: '#6FD8FF', k: '#0C0A14', p: '#FFC06A' },
+      phase2: { r: '#4AD8FF', b: '#FFFFFF', e: '#FFD447', C: '#8FD3FF' } },
+    // 小3の ラスボス（2026-09-19 まおう → デビルカイザーに 改名。id は そのまま）。HPを けずると 第2形態
+    { id: 'boss-maou', area: 'tower', name: 'デビルカイザー', shape: 'maou', base: 96, last: true,
+      colors: { A: '#B8323E', B: '#6E1622', C: '#7A2250', D: '#2B2140', m: '#3A1030', y: '#F2C14E', w: '#EFE3C8', r: '#FF3B30', e: '#C24BFF', s: '#4A3F5E', k: '#140C18', p: '#FFD0A0' },
+      phase2: { A: '#E0283A', e: '#FF6A1A', r: '#FFD447', C: '#7A1A3A' } }
+    /* </lastbosses> */
   ];
 
   // おこったときの 色（ボスの HPが1に なったとき）
