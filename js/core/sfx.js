@@ -241,7 +241,7 @@ MQ.sfx = (function () {
     },
     /* ひっさつわざ（v2.5）。level＝1〜4（コンボの だんかい）、id＝わざの 名前
        1 = 教科の わざ（fire ほのお／leaf はっぱ／ice こおり／wind かぜ）
-       2 = いなずま おとし／3 = ひかりの メテオ／4 = ぎんがの ビッグバン */
+       2 = サンダー ドライブ／3 = メテオ ストーム／4 = ビッグバン インパクト */
     special: function (level, id) {
       const lv = level || 1;
       // スターバースト ストライク（20コンボ〜・v7.5。名前は v9.5 で 変えた・v13.8 で さいごに 大ばくはつ）：
@@ -306,6 +306,69 @@ MQ.sfx = (function () {
         [523, 659, 784, 1047].forEach(function (f) { tone(f, 0.5, 'square', 0.08, 0.44); });
         noise(0.5, 0.2, 0.6, 7000, 'highpass');
         [2093, 2637, 3136, 4186].forEach(function (f, i) { tone(f, 0.12, 'square', 0.1, 0.8 + i * 0.07); });
+        return;
+      }
+      if (id === 'triple') {
+        // トリプル スラッシュ：シュッ シュッ シャキーン（3連斬り・260・370・480ms）
+        [0.26, 0.37, 0.48].forEach(function (t, i) {
+          sweep(0.08, 0.3, t - 0.05, 7000, 1800, 'bandpass');
+          noise(0.05, 0.26, t, 5200, 'highpass');
+          tone(1760 + i * 440, 0.1, 'square', 0.13, t);
+        });
+        tone(2637, 0.22, 'triangle', 0.12, 0.5);
+        tone(110, 0.3, 'sawtooth', 0.16, 0.5, 48);
+        return;
+      }
+      /* v14.12 教科の 大わざ（8〜10コンボ・tier 2）。当たる 時間は js/ui/fxcanvas.js の 台本と そろえる */
+      if (id === 'blaze') {
+        // クリムゾン クロス：もえあがる ゴォォ → ザシュッ（0.44）→ ザシュッ（0.62）＋ボワァッ → ドーン（0.88）
+        noise(0.5, 0.42, 0, 900);
+        sweep(0.4, 0.28, 0.02, 400, 2200, 'bandpass');
+        tone(2093, 0.1, 'square', 0.16, 0.44);
+        noise(0.1, 0.3, 0.44, 4000, 'bandpass');
+        tone(2637, 0.14, 'square', 0.16, 0.62);
+        noise(0.12, 0.34, 0.62, 4200, 'bandpass');
+        noise(0.9, 0.46, 0.62, 700);
+        tone(78, 0.8, 'sawtooth', 0.24, 0.62, 34);
+        noise(0.8, 0.5, 0.88, 520);
+        tone(60, 0.7, 'sawtooth', 0.22, 0.88, 28);
+        [523, 659, 784].forEach(function (f) { tone(f, 0.4, 'square', 0.05, 0.9); });
+        return;
+      }
+      if (id === 'storm') {
+        // リーフ ハリケーン：風と はっぱ サササッ → ザシュッ ×3（0.34・0.5・0.66）→ ゴオオ（うず）→ バサァッ（0.95）
+        sweep(0.5, 0.3, 0, 500, 3000, 'bandpass');
+        for (let i = 0; i < 8; i++) noise(0.05, 0.2, 0.04 + i * 0.04, 3200, 'bandpass');
+        [0.34, 0.5, 0.66].forEach(function (t, i) { tone(1760 + i * 330, 0.1, 'square', 0.15, t); noise(0.06, 0.26, t, 5000, 'highpass'); });
+        sweep(0.55, 0.3, 0.4, 300, 1800, 'bandpass');
+        noise(0.6, 0.38, 0.95, 1200, 'bandpass');
+        tone(2637, 0.3, 'triangle', 0.12, 0.95);
+        tone(90, 0.5, 'sawtooth', 0.2, 0.95, 44);
+        return;
+      }
+      if (id === 'icicle') {
+        // アイシクル レイン：キーン（ためる）→ ヒュン ヒュン（落ちる）→ ガシャッ（0.62 大きい 1本）→ パリーン（1.0 くだける）
+        [1568, 2093, 2637, 3136, 3951].forEach(function (f, i) { tone(f, 0.12, 'triangle', 0.1, i * 0.06); });
+        tone(4186, 0.4, 'triangle', 0.08, 0.3);
+        [0.5, 0.56, 0.78, 0.84].forEach(function (t) { tone(2400, 0.08, 'triangle', 0.08, t - 0.08, 900); noise(0.05, 0.2, t, 6000, 'highpass'); });
+        sweep(0.12, 0.26, 0.5, 5000, 800, 'bandpass');
+        noise(0.4, 0.46, 0.62, 1600);
+        tone(70, 0.6, 'sawtooth', 0.22, 0.62, 34);
+        for (let i = 0; i < 6; i++) noise(0.06, 0.3, 1.0 + i * 0.04, 7000, 'highpass');
+        [4186, 3520, 4699, 3136, 5274].forEach(function (f, i) { tone(f, 0.14, 'triangle', 0.13, 1.0 + i * 0.045); });
+        return;
+      }
+      if (id === 'gale') {
+        // ツイン トルネード：ビュン ×2（0.4・0.56）→ ゴオオオ（2つの うずが よって くる）→ ドドン（0.76 合体）→ ブワッ（1.08）
+        sweep(0.3, 0.3, 0, 800, 3200, 'bandpass');
+        [0.4, 0.56].forEach(function (t) { sweep(0.14, 0.34, t - 0.06, 5000, 900, 'bandpass'); tone(1400, 0.12, 'triangle', 0.1, t - 0.04, 3200); });
+        sweep(0.5, 0.38, 0.3, 200, 1400, 'bandpass');
+        sweep(0.5, 0.3, 0.3, 260, 1700, 'bandpass');
+        noise(0.7, 0.44, 0.76, 700);
+        tone(72, 0.7, 'sawtooth', 0.22, 0.76, 36);
+        tone(600, 0.5, 'triangle', 0.1, 0.78, 2400);
+        noise(0.5, 0.36, 1.08, 1000, 'bandpass');
+        tone(84, 0.45, 'sawtooth', 0.18, 1.08, 40);
         return;
       }
       if (lv === 2) {

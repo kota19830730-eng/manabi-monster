@@ -626,7 +626,7 @@ MQ.ui.battle = (function () {
      いまの コンボ（＋かぶとの ぶん）から、つぎの わざの さかいめを さがす */
   function nextSpecialAt(combo) {
     const c = combo + specialBoost();
-    const mins = SPECIALS.map(function (x) { return x.min; }).concat([TIER1_MIN]);
+    const mins = specialMins();
     let best = null;
     mins.forEach(function (m) { if (m > c && (best === null || m < best)) best = m; });
     return best;   // null＝もう いちばん 上
@@ -659,7 +659,7 @@ MQ.ui.battle = (function () {
       return;
     }
     const c = n + specialBoost();
-    const prevMins = SPECIALS.map(function (x) { return x.min; }).concat([TIER1_MIN])
+    const prevMins = specialMins()
       .filter(function (m) { return m <= c; });
     const from = prevMins.length ? Math.max.apply(null, prevMins) : 0;
     const need = next - from;                        // この だんかいの 玉の 数
@@ -1004,7 +1004,7 @@ MQ.ui.battle = (function () {
   function chargeNote(combo) {
     const sp = specialOf(combo);
     if (sp) return 'つぎの 正解で ' + sp.name;
-    const next = TIER1_MIN - specialBoost();
+    const next = TIER0_MIN - specialBoost();
     return 'ひっさつまで あと ' + Math.max(0, next - combo) + '！';
   }
 
@@ -2168,12 +2168,26 @@ MQ.ui.battle = (function () {
   /* =======================================================
      ひっさつわざ（v2.5：7しゅるい。コンボが つづくほど はでに なる）
 
+       v14.12（2026-09-20）で はしごを 6だんに（ユーザー「スターバーストまで なかなか いかない・
+       コンボごとに 種類を ふやしたい」「段階を経て ド派手に」）。
+       1回の たたかいは 17〜18問 なので 20コンボ（前の スターバースト）には 全問正解でも とどかなかった。
+       さいごを 17に して「パーフェクトなら かならず スターバースト」。
+       3〜4 コンボ … トリプル スラッシュ（v14.12・銀の 3連斬り・0.8秒・カットインなし＝テンポを 止めない）
+                      クリティカルが 出はじめる 3コンボと 同じ。正答 60% の 子でも 9わりの たたかいで 出る（実測）
        5〜7 コンボ … 教科の わざ（その問題の 教科で 変わる。塔では 問題ごと）
                       算数＝ほのお ギリ／国語＝はっぱ カッター／
                       理科社会＝こおりの やいば／英語＝かぜの たつまき
-       8〜11コンボ … いなずま おとし！（青白い かみなり・2本）
-      12〜15コンボ … ひかりの メテオ！（金の いん石 5つ）
-      16 コンボ〜  … ぎんがの ビッグバン！（すいこんで 虹色の 大ばくはつ）
+       8〜10コンボ … 教科の 大わざ（v14.12・ELEMENTS2）
+                      算数＝クリムゾン クロス／国語＝リーフ ハリケーン／
+                      理科社会＝アイシクル レイン／英語＝ツイン トルネード
+      11〜12コンボ … サンダー ドライブ！（青白い かみなり・v14.12 で 改名）
+      13〜14コンボ … メテオ ストーム！（金の いん石・v14.12 で 改名）
+       名前の きまり（v14.12）：**教科で 変わる わざ（5・8）は 日本語ふう・どの 教科でも 同じ わざ（3・11・13・15・17）は カタカナ英語 2語**
+      15〜16コンボ … ビッグバン インパクト！（すいこんで 虹色の 大ばくはつ）
+      17 コンボ〜  … スターバースト ストライク！（パーフェクトなら かならず とどく）
+       名前は カタカナ英語の 2語（メテオ・ビッグバン・スターバースト ストライクと 同じ 系統）。
+       漢字＋カタカナの ルビの 中二病ふうは セットわざ だけ（ユーザー決定）。オノマトペ案は「ダサい」で やめた。
+       実在の ゲームの 技名は 使わない（「つららおとし」は ほかの ゲームの 技名 そのもの だった）
 
      絵は ぜんぶ CSS の 四角。画像ファイルは 使いません。
      ・敵の まわりの 絵 …… d.fx（.fx・アリーナの 中）
@@ -2181,12 +2195,14 @@ MQ.ui.battle = (function () {
      ・画面の ゆれ ………… d.root に is-quake-1〜4（コンボが 高いほど 大きく 長く）
      ・敵の ふっとび ……… is-blast / is-blast-big / is-blast-max
      ======================================================= */
+  const TIER0_MIN = 3;       // v14.12：3連斬り（いちばん 下の だん）
   const TIER1_MIN = 5;
+  const ELEM2_MIN = 8;       // v14.12：教科の 大わざ
   const SPECIALS = [
-    { min: 20, tier: 5, id: 'starburst', name: 'スターバースト ストライク！', ms: 2500 },   // v7.5（名前は v9.5 で 変えた）・v13.8 で さいごの 大ばくはつの ぶん 長く
-    { min: 16, tier: 4, id: 'nova', name: 'ぎんがの ビッグバン！', ms: 1900 },
-    { min: 12, tier: 3, id: 'star', name: 'ひかりの メテオ！',     ms: 1350 },
-    { min: 8,  tier: 2, id: 'bolt', name: 'いなずま おとし！',     ms: 1100 }
+    { min: 17, tier: 5, id: 'starburst', name: 'スターバースト ストライク！', ms: 2500 },   // v7.5（名前は v9.5 で 変えた）・v13.8 で さいごの 大ばくはつの ぶん 長く・v14.12 で 20 → 17
+    { min: 15, tier: 4, id: 'nova', name: 'ビッグバン インパクト！', ms: 1900 },      // v14.12 で 16 → 15・名前も（ユーザー「15を ビッグバンバースト」→ 17の スターバーストと かぶる ので インパクト）             // v14.12 で 16 → 15
+    { min: 13, tier: 3, id: 'star', name: 'メテオ ストーム！',       ms: 1350 },             // v14.12 で 12 → 13
+    { min: 11, tier: 2, id: 'bolt', name: 'サンダー ドライブ！',     ms: 1100 }              // v14.12 で 8 → 11
   ];
   // 5〜7 コンボの わざ（教科ごと）
   const ELEMENTS = {
@@ -2194,6 +2210,17 @@ MQ.ui.battle = (function () {
     leaf: { min: 5, tier: 1, id: 'leaf', name: 'はっぱ カッター！', ms: 950 },
     ice:  { min: 5, tier: 1, id: 'ice',  name: 'こおりの やいば！', ms: 1000 },
     wind: { min: 5, tier: 1, id: 'wind', name: 'かぜの たつまき！', ms: 1000 }
+  };
+  /* 3〜4 コンボ（v14.12・ユーザー「3コンボ目に 連続切りみたいな 名前の 技が あっても いいかも」）。
+     教科に よらず 同じ・0.8秒・**カットインは 出さない**（ci: false）＝ 1回の たたかいで 何回も 出る ので テンポを 止めない */
+  const TIER0 = { min: 3, tier: 1, id: 'triple', name: 'トリプル スラッシュ！', ms: 800, ci: false };
+  /* 8〜10 コンボの 大わざ（v14.12・教科ごと）。id は 英字だけ（smoke が 名前を [a-z]+ で 読む）。
+     tier は 2（画面が 広がる・カットイン・ゆれ 2）。サンダー ドラとしより 1だん 下の 派手さ */
+  const ELEMENTS2 = {
+    fire: { min: 8, tier: 2, id: 'blaze',  name: 'クリムゾン クロス！', ms: 1250 },   // 真紅の 十字＝X の 2連斬り → 炎の うず
+    leaf: { min: 8, tier: 2, id: 'storm',  name: 'リーフ ハリケーン！', ms: 1250 },   // 3連斬り → はっぱの 大あらし
+    ice:  { min: 8, tier: 2, id: 'icicle', name: 'アイシクル レイン！', ms: 1250 },   // 空から つららの 雨
+    wind: { min: 8, tier: 2, id: 'gale',   name: 'ツイン トルネード！', ms: 1250 }    // 2つの たつまきが 合体
   };
   /* v12.2：わざごとの 3D の 動き（css/motion3d.css の mo-sp-<id>／mo-hit-<id>）。
      scene＝主人公の 器の 走り方（null＝その場）／hit＝てきに 当たる 時間（やられ方は CSS の delay で 同じ 時間に 始まる）／
@@ -2206,7 +2233,13 @@ MQ.ui.battle = (function () {
     bolt:      { scene: 'mo-dash-jump', hit: 600,  down: 1000 },
     star:      { scene: null,           hit: 620,  down: 1000 },
     nova:      { scene: 'mo-rise',      hit: 550,  down: 1150 },
-    starburst: { scene: 'mo-dash-sp',   hit: 500,  down: 1600, palHit: 1300 }   // 相棒は さいごの 一閃に 合わせる
+    starburst: { scene: 'mo-dash-sp',   hit: 500,  down: 1600, palHit: 1300 },  // 相棒は さいごの 一閃に 合わせる
+    triple:    { scene: 'mo-dash-sp',   hit: 260,  down: 720 },                 // v14.12 3連斬り（260・370・480）
+    // v14.12 教科の 大わざ（光の 台本 js/ui/fxcanvas.js の 当たる 時間と そろえる）
+    blaze:     { scene: 'mo-dash-sp',   hit: 440,  down: 1000, palHit: 620 },   // X の 2連斬り（440・620）→ ほのおの うず
+    storm:     { scene: 'mo-dash-sp',   hit: 340,  down: 1000, palHit: 660 },   // 3連斬り（340・500・660）→ はっぱの あらし
+    icicle:    { scene: null,           hit: 620,  down: 1050 },                // その場で けんを 天に → つららが 落ちる（大きい 1本が 620）
+    gale:      { scene: 'mo-dash-sp',   hit: 400,  down: 1050, palHit: 760 }    // 2つの たつまきが 1つに（760）
   };
   /* v12.2.1 ③：相棒も わざに 合わせる（ユーザー「③お願いします」2026-09-11）。
      5〜11コンボ＝主人公の うしろを ついて 走り、当たる ころに いっしょに とび出す（mo-pal-follow）。
@@ -2215,7 +2248,7 @@ MQ.ui.battle = (function () {
   let palJoinUntil = 0;
   // 主人公の オーラと コンボの 色
   const NAME_SIZE = { nova: 30, starburst: 26 };   // 技名の 字の 大きさ（長い 名前だけ 小さく。ほかは tier で 34／38／36）
-  const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff', starburst: '#b8ffe6' };
+  const FX_COLOR = { fire: '#ff9a3c', leaf: '#7ee06a', ice: '#9fe6ff', wind: '#e6f6ff', bolt: '#9fd8ff', star: '#ffd447', nova: '#ffffff', starburst: '#b8ffe6', triple: '#e8f0ff', blaze: '#ff6a1a', storm: '#5fd84a', icicle: '#bff0ff', gale: '#d6f0ff' };
   const NOVA_COLORS = ['#ff5e7a', '#ffd447', '#7cf9c4', '#4fd3ff', '#c48bff', '#ffffff'];
 
   function elementOf(areaId) {
@@ -2241,13 +2274,20 @@ MQ.ui.battle = (function () {
   function specialTierUp() {
     return !!(MQ.battle.specialTierUp && MQ.battle.specialTierUp());
   }
+  // v14.12：はしごの さかいめ（ためゲージが 見る）
+  function specialMins() {
+    return SPECIALS.map(function (x) { return x.min; }).concat([ELEM2_MIN, TIER1_MIN, TIER0_MIN]);
+  }
   function specialOf(combo) {
     const c = combo + specialBoost();
     const up = specialTierUp() ? 1 : 0;
     for (let i = 0; i < SPECIALS.length; i++) {
       if (c >= SPECIALS[i].min) return SPECIALS[Math.max(0, i - up)];
     }
-    if (c >= TIER1_MIN) return up ? SPECIALS[SPECIALS.length - 1] : ELEMENTS[currentElement()];
+    const el = currentElement();
+    if (c >= ELEM2_MIN) return up ? SPECIALS[SPECIALS.length - 1] : ELEMENTS2[el];   // 大わざの 1つ 上は いなずま
+    if (c >= TIER1_MIN) return up ? ELEMENTS2[el] : ELEMENTS[el];                    // 教科わざの 1つ 上は 大わざ
+    if (c >= TIER0_MIN) return up ? ELEMENTS[el] : TIER0;                            // 3連斬りの 1つ 上は 教科わざ
     return null;
   }
   /* セットわざ（v14.2・js/content/setwaza.js）：ゲージが いっぱいに なった 正解は コンボの わざの かわりに これ。
@@ -2264,7 +2304,9 @@ MQ.ui.battle = (function () {
   }
   function specialById(id) {
     if (String(id).indexOf('set-') === 0) { const sw = setSpecial(id); if (sw) return sw; }
+    if (id === TIER0.id) return TIER0;
     if (ELEMENTS[id]) return ELEMENTS[id];
+    for (const k in ELEMENTS2) if (ELEMENTS2[k].id === id) return ELEMENTS2[k];
     for (let i = 0; i < SPECIALS.length; i++) if (SPECIALS[i].id === id) return SPECIALS[i];
     return SPECIALS[0];
   }
@@ -2294,8 +2336,10 @@ MQ.ui.battle = (function () {
     return box;
   }
 
+  const ELEM2_BASE = { blaze: 'fire', storm: 'leaf', icicle: 'ice', gale: 'wind' };   // v14.12：Canvas が ない ときは 教科わざの 絵を 借りる
   function buildFx(sp) {
     const out = [];
+    if (ELEM2_BASE[sp.id]) sp = Object.assign({}, sp, { id: ELEM2_BASE[sp.id] });
 
     /* ---- スターバースト ストライク（20コンボ〜・v7.5。名前は v9.5 で 変えた）：
        空に 虹の カーテンが ゆれ、光の 柱が 立ち、雪のような 光が ふる ---- */
@@ -2400,7 +2444,7 @@ MQ.ui.battle = (function () {
       out.push(sparks(18, 'fx__sparks--wind', 100, { delay: 0.15 }));
     }
 
-    /* ---- いなずま おとし：空が 2回 光る → 太い 雷＋細い 雷 → 地面に ひび ---- */
+    /* ---- サンダー ドライブ：空が 2回 光る → 太い 雷＋細い 雷 → 地面に ひび ---- */
     if (sp.id === 'bolt') {
       out.push(h('span', { class: 'fx__sky fx__sky--bolt' }));
       const bolt = h('span', { class: 'fx__bolt' });
@@ -2427,7 +2471,7 @@ MQ.ui.battle = (function () {
       out.push(sparks(28, 'fx__sparks--bolt', 100));
     }
 
-    /* ---- ひかりの メテオ：5つの いん石 → 大ばくはつ＋12本の 光 ---- */
+    /* ---- メテオ ストーム：5つの いん石 → 大ばくはつ＋12本の 光 ---- */
     if (sp.id === 'star') {
       out.push(h('span', { class: 'fx__sky fx__sky--gold' }));
       const met = h('span', { class: 'fx__meteor' });
@@ -2443,7 +2487,7 @@ MQ.ui.battle = (function () {
       out.push(sparks(30, 'fx__sparks--gold', 120));
     }
 
-    /* ---- ぎんがの ビッグバン：まっくら → 星を すいこむ → まっしろ → 虹の わ＋光＋うずまき ---- */
+    /* ---- ビッグバン インパクト：まっくら → 星を すいこむ → まっしろ → 虹の わ＋光＋うずまき ---- */
     if (sp.id === 'nova') {
       out.push(h('span', { class: 'fx__sky fx__sky--dark' }));
       out.push(sparks(16, 'fx__sparks--nova', 120, { inward: true, colors: NOVA_COLORS, dur: 0.5 }));
@@ -2559,7 +2603,7 @@ MQ.ui.battle = (function () {
           5つの 形（band／slash／face／duo＝相棒と／full＝16コンボ〜）・わざごとの ポーズ・毎回 ちがう せりふ
      ルールは 変えない（見た目だけ）。わざの 長さ（sp.ms）も 変えない。
      ======================================================= */
-  const BIG_TIER = 2;        // 8コンボ（いなずま おとし）から 画面を 広げる
+  const BIG_TIER = 2;        // 8コンボ（教科の 大わざ）から 画面を 広げる
   const BIG_RATIO = 0.56;    // 広げた ときの アリーナの 高さ（ステージの 56%）
   const SP_LINES = {
     fire: ['もえろ！', 'ほのおの けん！', 'もえる 一げきだ！'],
@@ -2569,10 +2613,15 @@ MQ.ui.battle = (function () {
     bolt: ['かみなりよ！', 'しびれろ！', '空から いくぞ！'],
     star: ['ほしよ ふれ！', 'メテオ いくぞ！', 'ひかりの あめだ！'],
     nova: ['ぜんぶの 力を あつめる！', 'これが 本気だ！', 'うちゅうの 力だ！'],
-    starburst: ['これで きめる！', 'さいごの 一げき！', 'ほしの 力よ！']
+    starburst: ['これで きめる！', 'さいごの 一げき！', 'ほしの 力よ！'],
+    triple: ['3れんぞく！', 'つづけて いくぞ！', 'はやわざだ！'],
+    blaze: ['ほのおの 十字を うけろ！', 'もえつきろ！', 'くれないの ほのおよ！'],
+    storm: ['はっぱよ、まきあがれ！', 'きりきざめ！', 'みどりの あらしだ！'],
+    icicle: ['つららよ、ふりそそげ！', 'こおりの 雨だ！', 'つらぬけ！'],
+    gale: ['ふたつの かぜよ！', 'ひとつに なれ！', 'ふきとばせ！']
   };
   const PAL_LINES = ['{p}、いっしょに いくぞ！', '{p}と いっしょに！', 'いくぞ、{p}！'];
-  const CI_POSE = { fire: 'raise', leaf: 'thrust', ice: 'guard', wind: 'sweep', bolt: 'sky', star: 'point', nova: 'spread', starburst: 'charge' };
+  const CI_POSE = { fire: 'raise', leaf: 'thrust', ice: 'guard', wind: 'sweep', bolt: 'sky', star: 'point', nova: 'spread', starburst: 'charge', triple: 'thrust', blaze: 'charge', storm: 'sweep', icicle: 'sky', gale: 'spread' };
   const CI_MS = { 1: 760, 2: 900, 3: 980, 4: 1050, 5: 1150 };   // カットインが 出て いる 長さ
   let ciLast = '', lineLast = '', growT = null, ciForce = null, instantGrow = false, ciLateT = null;
   /* v14.3 カットインを 軽く（ユーザーが 見本で 3案を くらべて「B案でお願いします」2026-09-14）：
@@ -2587,7 +2636,7 @@ MQ.ui.battle = (function () {
   function ciPoses() {
     const u = [];
     const add = function (p) { if (p && u.indexOf(p) < 0) u.push(p); };
-    try { add(CI_POSE[currentElement()]); } catch (e) {}
+    try { add(CI_POSE[currentElement()]); add(CI_POSE[ELEMENTS2[currentElement()].id]); } catch (e) {}
     ['bolt', 'star', 'nova', 'starburst'].forEach(function (k) { add(CI_POSE[k]); });
     Object.keys(CI_POSE).forEach(function (k) { add(CI_POSE[k]); });
     return u;
@@ -2627,7 +2676,9 @@ MQ.ui.battle = (function () {
     const fit = function (t) { return MQ.text && MQ.text.fit ? MQ.text.fit(t) : t; };
     const list = [];
     SPECIALS.forEach(function (x) { list.push(x.name); });
+    list.push(TIER0.name);
     Object.keys(ELEMENTS).forEach(function (k) { list.push(ELEMENTS[k].name); });
+    Object.keys(ELEMENTS2).forEach(function (k) { list.push(ELEMENTS2[k].name); });
     Object.keys(SP_LINES).forEach(function (k) { SP_LINES[k].forEach(function (x) { list.push(x); }); });
     PAL_LINES.forEach(function (x) { list.push(x.replace('{p}', palNow ? palNow.name : '')); });
     if (MQ.setwaza && MQ.setwaza.list) MQ.setwaza.list().forEach(function (w) { list.push(w.name, w.ruby || '', (w.lines || []).join('')); });
@@ -2811,7 +2862,8 @@ MQ.ui.battle = (function () {
     }
     playScreenFx(sp, withPal, arenaH, dlt, canvas);
     clearTimeout(ciLateT);
-    if (ciOpt.late && sp.tier >= BIG_TIER) ciLateT = setTimeout(function () { if (d && d.fxs) cutIn(sp, withPal, arenaH); }, ciOpt.late);   // v14.3 案A
+    if (sp.ci === false && !withPal) { /* v14.12 3連斬り：カットインなし（何回も 出る ので テンポを 止めない） */ }
+    else if (ciOpt.late && sp.tier >= BIG_TIER) ciLateT = setTimeout(function () { if (d && d.fxs) cutIn(sp, withPal, arenaH); }, ciOpt.late);   // v14.3 案A
     else cutIn(sp, withPal, arenaH);
     MQ.sfx.special(sp.tier, sp.id);
     if (!canvas) flash(true);

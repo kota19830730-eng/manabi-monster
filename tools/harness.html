@@ -2086,13 +2086,13 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode.indexOf('spatk') === 0) {
       const want = mode.split(':')[1] || 'fire';
       const at = mode.split(':')[2] ? parseFloat(mode.split(':')[2]) : null;
-      const need = { fire: 5, leaf: 5, ice: 5, wind: 5, bolt: 8, star: 12, nova: 16, starburst: 20 }[want] || 5;
+      const need = { triple: 3, fire: 5, leaf: 5, ice: 5, wind: 5, blaze: 8, storm: 8, icicle: 8, gale: 8, bolt: 11, star: 13, nova: 15, starburst: 17 }[want] || 5;   // v14.12 の はしご
       fresh();
       MQ.save.update(function (pl) { pl.equipped.helm = null; });
-      MQ.ui.battle.start(want === 'leaf' ? 'kokugo3-1' : want === 'ice' ? 'rikashakai3-1' : want === 'wind' ? 'eigo3-1' : 'sansu3-2');
+      MQ.ui.battle.start(want === 'leaf' || want === 'storm' ? 'kokugo3-1' : want === 'ice' || want === 'icicle' ? 'rikashakai3-1' : want === 'wind' || want === 'gale' ? 'eigo3-1' : 'sansu3-2');
       await wait(400);
       let guard = 0;
-      while (MQ.battle.combo() < need - 1 && guard++ < 40) { answerViaUI(true); await wait(1700); }
+      while (MQ.battle.combo() < need - 1 && guard++ < 40) { answerViaUI(true); await wait(2400); }   // v14.12：8〜10コンボの 大わざ（1.25秒）の あいだは 答えられない ので 長めに
       guard = 0;
       while (MQ.battle.current() && MQ.battle.current().chest && guard++ < 5) { answerViaUI(true); await wait(1700); }
       const foeEl = $('.foes .enemy');

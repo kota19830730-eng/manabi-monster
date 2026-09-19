@@ -337,7 +337,7 @@
   64%  { transform: translateX(calc(var(--dash, 160px) + 24px)); animation-timing-function: ease-in-out; }
   100% { transform: translateX(0); }
 }
-/* 高く ジャンプして てきの 真上から 落ちる（いなずま おとし）：55% で 着地＝当たる */
+/* 高く ジャンプして てきの 真上から 落ちる（サンダー ドライブ）：55% で 着地＝当たる */
 .mo-dash-jump { animation: moDashJump var(--dms, 1.1s) both; }
 @keyframes moDashJump {
   0%   { transform: translate(0, 0); animation-timing-function: ease-in; }
@@ -350,7 +350,7 @@
   80%  { transform: translate(var(--dash, 160px), 0); animation-timing-function: ease-in-out; }
   100% { transform: translate(0, 0); }
 }
-/* その場で 空中に うかぶ（ぎんがの ビッグバン）：12〜26% うかんで → 30% で 落ちる＝ばくはつ */
+/* その場で 空中に うかぶ（ビッグバン インパクト）：12〜26% うかんで → 30% で 落ちる＝ばくはつ */
 .mo-rise { animation: moRise var(--dms, 1.9s) both; }
 @keyframes moRise {
   0%   { transform: translateY(0); animation-timing-function: ease-out; }
@@ -496,7 +496,7 @@
   100% { transform: translateX(0) translateY(0) rotateY(0) rotateZ(0); }
 }
 
-/* ---------- 8コンボ：いなずま おとし＝高く ジャンプ → 真上から 落下斬り（1.1s・mo-dash-jump・55% で 着地） ---------- */
+/* ---------- 11コンボ：サンダー ドライブ＝高く ジャンプ → 真上から 落下斬り（1.1s・mo-dash-jump・55% で 着地） ---------- */
 .mo-sp-bolt { animation: spBoltRoot 1.1s ease-in-out both; }
 .mo-sp-bolt .p--armR { animation: spBoltArm 1.1s ease-in-out both; }
 .mo-sp-bolt .p--sword { animation: spBoltSword 1.1s ease-in-out both; }
@@ -536,7 +536,7 @@
 }
 @keyframes hitBoltLeg { 0%, 100% { transform: rotateX(0); } 10%, 30%, 50%, 70% { transform: rotateX(12deg); } 20%, 40%, 60%, 80% { transform: rotateX(-12deg); } }
 
-/* ---------- 12コンボ：ひかりの メテオ＝しゃがんで ためる → けんを 天に かかげる → 見上げた まま（1.35s・その場） ---------- */
+/* ---------- 13コンボ：メテオ ストーム＝しゃがんで ためる → けんを 天に かかげる → 見上げた まま（1.35s・その場） ---------- */
 .mo-sp-star { animation: spStarRoot 1.35s ease-in-out both; }
 .mo-sp-star .p--armR { animation: spStarArm 1.35s ease-in-out both; }
 .mo-sp-star .p--sword { animation: spStarSword 1.35s ease-in-out both; }
@@ -570,7 +570,7 @@
 @keyframes hitStarLegA { 0%, 100% { transform: rotateZ(0); } 30%, 70% { transform: rotateZ(-26deg); } }
 @keyframes hitStarLegB { 0%, 100% { transform: rotateZ(0); } 30%, 70% { transform: rotateZ(26deg); } }
 
-/* ---------- 16コンボ：ぎんがの ビッグバン＝空中に うかんで 両うでを 広げる → 落下と 同時に 爆発（1.9s・mo-rise・30% で 落ちる） ---------- */
+/* ---------- 15コンボ：ビッグバン インパクト＝空中に うかんで 両うでを 広げる → 落下と 同時に 爆発（1.9s・mo-rise・30% で 落ちる） ---------- */
 .mo-sp-nova { animation: spNovaRoot 1.9s ease-in-out both; }
 .mo-sp-nova .p--armR { animation: spNovaArm 1.9s ease-in-out both; }
 .mo-sp-nova .p--sword { animation: spNovaSword 1.9s ease-in-out both; }
@@ -657,6 +657,231 @@
   100%  { transform: translate(0, 0) rotateZ(0) rotateX(0); }
 }
 @keyframes hitBurstBody { 0%, 57% { transform: rotateX(0); } 62%, 80% { transform: rotateX(16deg); } 100% { transform: rotateX(0); } }
+
+/* =========================================================
+   v14.12 教科の 大わざ（8〜10コンボ）の 動き。長さは 1.25s（sp.ms）。
+   当たる 時間は js/ui/battle.js の SP_MOTION と js/ui/fxcanvas.js の 台本と そろえる。
+   体は 回さない（背中の 面が ない）・ジャンプは 60px まで（v12.2 の きまり）
+   ========================================================= */
+
+
+/* ---------- 3コンボ：トリプル スラッシュ＝走って 3回 すばやく 斬る（.8s・mo-dash-sp・260／370／480ms） ---------- */
+.mo-sp-triple { animation: spTripleRoot .8s ease-in-out both; }
+.mo-sp-triple .p--armR { animation: spTripleArm .8s linear both; }
+.mo-sp-triple .p--sword { animation: spTripleSword .8s linear both; }
+.mo-sp-triple .p--armL { animation: spTripleArmL .8s ease-in-out both; }
+.mo-sp-triple .p--legA { animation: moDashLegA .8s ease-in-out both; }
+.mo-sp-triple .p--legB { animation: moDashLegB .8s ease-in-out both; }
+@keyframes spTripleRoot {
+  0%, 22% { transform: rotateX(0) rotateY(0); }
+  32%  { transform: rotateX(-6deg) rotateY(-10deg); }
+  46%  { transform: rotateX(4deg) rotateY(10deg); }
+  60%  { transform: rotateX(-4deg) rotateY(-8deg); }
+  74%  { transform: rotateX(2deg) rotateY(0); }
+  100% { transform: rotateX(0) rotateY(0); }
+}
+@keyframes spTripleArm {
+  0%, 22% { transform: rotateZ(0) rotateX(0); }
+  28%  { transform: rotateZ(22deg) rotateX(16deg); }
+  33%  { transform: rotateZ(-100deg) rotateX(6deg); }
+  41%  { transform: rotateZ(18deg) rotateX(14deg); }
+  46%  { transform: rotateZ(-100deg) rotateX(6deg); }
+  55%  { transform: rotateZ(20deg) rotateX(14deg); }
+  60%  { transform: rotateZ(-104deg) rotateX(4deg); }
+  76%  { transform: rotateZ(-40deg) rotateX(0); }
+  100% { transform: rotateZ(0) rotateX(0); }
+}
+@keyframes spTripleSword { 0%, 22% { transform: rotateZ(0); } 33% { transform: rotateZ(-40deg); } 46% { transform: rotateZ(30deg); } 60% { transform: rotateZ(-40deg); } 100% { transform: rotateZ(0); } }
+@keyframes spTripleArmL { 0%, 22% { transform: rotateZ(0); } 33%, 60% { transform: rotateZ(26deg); } 100% { transform: rotateZ(0); } }
+/* やられ方：3回 すばやく はねる（.26s から） */
+.mo-hit-triple { animation: hitTriple .56s linear .26s both; }
+.mo-hit-triple .p--wingL { animation: moFlapL .14s ease-in-out .26s 3; }
+.mo-hit-triple .p--wingR { animation: moFlapR .14s ease-in-out .26s 3; }
+@keyframes hitTriple {
+  0%   { transform: translate(0, 0) rotateZ(0); }
+  8%   { transform: translate(6px, -6px) rotateZ(5deg); }
+  18%  { transform: translate(1px, 0) rotateZ(0); }
+  28%  { transform: translate(6px, -6px) rotateZ(-5deg); }
+  38%  { transform: translate(1px, 0) rotateZ(0); }
+  50%  { transform: translate(9px, -9px) rotateZ(7deg); }
+  70%  { transform: translate(3px, 0) rotateZ(2deg); }
+  100% { transform: translate(0, 0) rotateZ(0); }
+}
+
+/* ---------- クリムゾン クロス（算数）＝ふりかぶって たてに 斬る（440ms）→ かえす 刀で よこに 斬る（620ms）＝X の 2連斬り（mo-dash-sp） ---------- */
+.mo-sp-blaze { animation: spBlazeRoot 1.25s ease-in-out both; }
+.mo-sp-blaze .p--armR { animation: spBlazeArm 1.25s ease-in-out both; }
+.mo-sp-blaze .p--sword { animation: spBlazeSword 1.25s ease-in-out both; }
+.mo-sp-blaze .p--armL { animation: spBlazeArmL 1.25s ease-in-out both; }
+.mo-sp-blaze .p--head { animation: spBlazeHead 1.25s ease-in-out both; }
+.mo-sp-blaze .p--legA, .mo-sp-blaze .p--legB { animation: spBlazeLeg 1.25s ease-in-out both; }
+@keyframes spBlazeRoot {
+  0%, 18% { transform: translateY(0) rotateY(0) rotateX(0); }
+  27%  { transform: translateY(-26px) rotateY(0) rotateX(-8deg); }
+  35%  { transform: translateY(0) rotateY(0) rotateX(12deg); }
+  42%  { transform: translateY(0) rotateY(-20deg) rotateX(2deg); }
+  50%  { transform: translateY(0) rotateY(18deg) rotateX(8deg); }
+  66%  { transform: translateY(0) rotateY(4deg) rotateX(4deg); }
+  100% { transform: translateY(0) rotateY(0) rotateX(0); }
+}
+@keyframes spBlazeArm {
+  0%, 18% { transform: rotateZ(0) rotateX(0); }
+  28%, 31% { transform: rotateZ(0) rotateX(160deg); }
+  35%, 39% { transform: rotateZ(0) rotateX(-30deg); }
+  44%  { transform: rotateZ(30deg) rotateX(20deg); }
+  50%, 60% { transform: rotateZ(-108deg) rotateX(10deg); }
+  76%  { transform: rotateZ(-40deg) rotateX(0); }
+  100% { transform: rotateZ(0) rotateX(0); }
+}
+@keyframes spBlazeSword { 0%, 18% { transform: rotateX(0); } 28%, 31% { transform: rotateX(-160deg); } 35%, 39% { transform: rotateX(-110deg); } 44%, 100% { transform: rotateX(0); } }
+@keyframes spBlazeArmL { 0%, 18% { transform: rotateX(0) rotateZ(0); } 28% { transform: rotateX(-40deg) rotateZ(0); } 35% { transform: rotateX(25deg) rotateZ(0); } 50% { transform: rotateX(0) rotateZ(34deg); } 100% { transform: rotateX(0) rotateZ(0); } }
+@keyframes spBlazeHead { 0%, 20% { transform: rotateX(0) rotateY(0); } 30% { transform: rotateX(-8deg) rotateY(0); } 35% { transform: rotateX(14deg) rotateY(0); } 50% { transform: rotateX(4deg) rotateY(12deg); } 100% { transform: rotateX(0) rotateY(0); } }
+@keyframes spBlazeLeg { 0%, 20% { transform: rotateX(0); } 27%, 31% { transform: rotateX(34deg); } 35%, 100% { transform: rotateX(0); } }
+/* やられ方：2回 斬られて のけぞる → もえて ぶるぶる（.44s から） */
+.mo-hit-blaze { animation: hitBlaze .8s ease-out .44s both; }
+.mo-hit-blaze .p--body { animation: hitBodyBack .8s ease-out .44s both; }
+.mo-hit-blaze .p--legA, .mo-hit-blaze .p--legB { animation: hitLegFold .8s ease-out .44s both; }
+.mo-hit-blaze .p--wingL { animation: moFlapBigL .4s ease-out .44s 2; }
+.mo-hit-blaze .p--wingR { animation: moFlapBigR .4s ease-out .44s 2; }
+@keyframes hitBlaze {
+  0%   { transform: translateZ(0) translateX(0) translateY(0) rotateX(0); }
+  10%  { transform: translateZ(-10px) translateX(0) translateY(-4px) rotateX(12deg); }
+  20%  { transform: translateZ(-4px) translateX(0) translateY(0) rotateX(4deg); }
+  30%  { transform: translateZ(-16px) translateX(6px) translateY(-8px) rotateX(20deg); }
+  42%  { transform: translateZ(-12px) translateX(-3px) translateY(4px) rotateX(18deg); }
+  52%  { transform: translateZ(-12px) translateX(3px) translateY(4px) rotateX(18deg); }
+  62%  { transform: translateZ(-12px) translateX(-3px) translateY(4px) rotateX(18deg); }
+  72%  { transform: translateZ(-10px) translateX(2px) translateY(4px) rotateX(16deg); }
+  100% { transform: translateZ(0) translateX(0) translateY(0) rotateX(0); }
+}
+
+/* ---------- リーフ ハリケーン（国語）＝体を ひねって 3連斬り（340・500・660ms）（mo-dash-sp） ---------- */
+.mo-sp-storm { animation: spStormRoot 1.25s ease-in-out both; }
+.mo-sp-storm .p--armR { animation: spStormArm 1.25s ease-in-out both; }
+.mo-sp-storm .p--armL { animation: spStormArmL 1.25s ease-in-out both; }
+.mo-sp-storm .p--head { animation: spStormHead 1.25s ease-in-out both; }
+.mo-sp-storm .p--legA { animation: moDashLegA 1.25s ease-in-out both; }
+.mo-sp-storm .p--legB { animation: moDashLegB 1.25s ease-in-out both; }
+@keyframes spStormRoot {
+  0%, 18% { transform: rotateY(0) rotateX(0); }
+  24%  { transform: rotateY(-24deg) rotateX(-4deg); }
+  27%  { transform: rotateY(18deg) rotateX(6deg); }
+  34%  { transform: rotateY(-22deg) rotateX(-4deg); }
+  40%  { transform: rotateY(20deg) rotateX(8deg); }
+  47%  { transform: rotateY(-22deg) rotateX(-6deg); }
+  53%  { transform: rotateY(22deg) rotateX(10deg); }
+  70%  { transform: rotateY(0) rotateX(2deg); }
+  100% { transform: rotateY(0) rotateX(0); }
+}
+@keyframes spStormArm {
+  0%, 18% { transform: rotateZ(0) rotateX(0); }
+  24%  { transform: rotateZ(28deg) rotateX(20deg); }
+  27%  { transform: rotateZ(-105deg) rotateX(10deg); }
+  34%  { transform: rotateZ(28deg) rotateX(20deg); }
+  40%  { transform: rotateZ(-105deg) rotateX(10deg); }
+  47%  { transform: rotateZ(0) rotateX(165deg); }
+  53%  { transform: rotateZ(0) rotateX(-30deg); }
+  72%  { transform: rotateZ(-40deg) rotateX(0); }
+  100% { transform: rotateZ(0) rotateX(0); }
+}
+@keyframes spStormArmL { 0%, 18% { transform: rotateZ(0); } 27%, 53% { transform: rotateZ(30deg); } 100% { transform: rotateZ(0); } }
+@keyframes spStormHead { 0%, 18% { transform: rotateY(0); } 27%, 53% { transform: rotateY(12deg); } 100% { transform: rotateY(0); } }
+/* やられ方：3回 ゆさぶられて → はっぱの うずで 少し うかぶ（.34s から） */
+.mo-hit-storm { animation: hitStorm .9s ease-out .34s both; transform-origin: 50% 100%; }
+.mo-hit-storm .p--wingL { animation: moFlapBigL .3s ease-out .34s 3; }
+.mo-hit-storm .p--wingR { animation: moFlapBigR .3s ease-out .34s 3; }
+@keyframes hitStorm {
+  0%   { transform: translateX(0) translateY(0) rotateZ(0) rotateY(0); }
+  8%   { transform: translateX(-8px) translateY(0) rotateZ(-12deg) rotateY(0); }
+  18%  { transform: translateX(7px) translateY(0) rotateZ(10deg) rotateY(0); }
+  26%  { transform: translateX(-4px) translateY(0) rotateZ(-6deg) rotateY(0); }
+  36%  { transform: translateX(8px) translateY(-6px) rotateZ(12deg) rotateY(0); }
+  50%  { transform: translateX(0) translateY(-16px) rotateZ(-4deg) rotateY(30deg); }
+  66%  { transform: translateX(-2px) translateY(-18px) rotateZ(4deg) rotateY(8deg); }
+  84%  { transform: translateX(0) translateY(0) rotateZ(-2deg) rotateY(0); }
+  100% { transform: translateX(0) translateY(0) rotateZ(0) rotateY(0); }
+}
+
+/* ---------- アイシクル レイン（理科社会）＝しゃがんで ためる → けんを 天に かかげて つららを よぶ → 40% で てきを さす（その場） ---------- */
+.mo-sp-icicle { animation: spIcicleRoot 1.25s ease-in-out both; }
+.mo-sp-icicle .p--armR { animation: spIcicleArm 1.25s ease-in-out both; }
+.mo-sp-icicle .p--sword { animation: spIcicleSword 1.25s ease-in-out both; }
+.mo-sp-icicle .p--armL { animation: spIcicleArmL 1.25s ease-in-out both; }
+.mo-sp-icicle .p--head { animation: spIcicleHead 1.25s ease-in-out both; }
+.mo-sp-icicle .p--legA, .mo-sp-icicle .p--legB { animation: spStarLeg 1.25s ease-in-out both; }
+@keyframes spIcicleRoot {
+  0%   { transform: translateY(0) rotateX(0); }
+  8%, 16% { transform: translateY(7px) rotateX(-10deg); }
+  24%, 38% { transform: translateY(-6px) rotateX(6deg); }
+  44%, 80% { transform: translateY(0) rotateX(-10deg); }
+  100% { transform: translateY(0) rotateX(0); }
+}
+@keyframes spIcicleArm {
+  0% { transform: rotateZ(0) rotateX(0); }
+  8%, 16% { transform: rotateZ(0) rotateX(20deg); }
+  24%, 38% { transform: rotateZ(0) rotateX(176deg); }
+  44%, 80% { transform: rotateZ(-92deg) rotateX(0); }
+  100% { transform: rotateZ(0) rotateX(0); }
+}
+@keyframes spIcicleSword { 0% { transform: rotateX(0); } 8%, 16% { transform: rotateX(-20deg); } 24%, 38% { transform: rotateX(-176deg); } 44%, 100% { transform: rotateX(0); } }
+@keyframes spIcicleArmL { 0% { transform: rotateX(0); } 8%, 16% { transform: rotateX(20deg); } 24%, 38% { transform: rotateX(-30deg); } 44%, 80% { transform: rotateX(40deg); } 100% { transform: rotateX(0); } }
+@keyframes spIcicleHead { 0% { transform: rotateX(0); } 8%, 16% { transform: rotateX(10deg); } 24%, 38% { transform: rotateX(-18deg); } 44%, 80% { transform: rotateX(-4deg); } 100% { transform: rotateX(0); } }
+/* やられ方：つららが ささる たびに びくっ → こおって 止まり かたむく（.58s から・大きい 1本は .62s） */
+.mo-hit-icicle { animation: hitIcicle .7s ease-in .58s both; transform-origin: 50% 100%; }
+.mo-hit-icicle .p, .mo-hit-icicle .p--body { animation: none; }
+@keyframes hitIcicle {
+  0%   { transform: translateY(0) scale(1, 1) rotateZ(0); }
+  6%   { transform: translateY(3px) scale(1.12, .84) rotateZ(0); }
+  16%  { transform: translateY(0) scale(.98, 1.02) rotateZ(0); }
+  24%  { transform: translateY(0) scale(1, 1) rotateZ(0); }
+  34%  { transform: translateY(2px) scale(1.06, .92) rotateZ(2deg); }
+  44%  { transform: translateY(0) scale(1, 1) rotateZ(-1deg); }
+  56%  { transform: translateY(0) scale(1, 1) rotateZ(1deg); }
+  76%  { transform: translateY(0) scale(1, 1) rotateZ(-12deg); }
+  100% { transform: translateY(0) scale(1, 1) rotateZ(-12deg); }
+}
+
+/* ---------- ツイン トルネード（英語）＝ふりかぶって 2回 風を 斬り（400・560）→ 空中で けんを ぐるぐる（mo-dash-sp） ---------- */
+.mo-sp-gale { animation: spGaleRoot 1.25s ease-in-out both; }
+.mo-sp-gale .p--armR { animation: spGaleArm 1.25s ease-in-out both; }
+.mo-sp-gale .p--sword { animation: spGaleSword 1.25s linear both; }
+.mo-sp-gale .p--armL { animation: spGaleArmL 1.25s ease-in-out both; }
+.mo-sp-gale .p--legA, .mo-sp-gale .p--legB { animation: spWindLeg 1.25s ease-in-out both; }
+@keyframes spGaleRoot {
+  0%, 18% { transform: translateY(0) rotateZ(0) rotateY(0); }
+  32%  { transform: translateY(0) rotateZ(0) rotateY(-18deg); }
+  45%  { transform: translateY(0) rotateZ(0) rotateY(16deg); }
+  54%  { transform: translateY(-34px) rotateZ(-4deg) rotateY(0); }
+  64%  { transform: translateY(-38px) rotateZ(4deg) rotateY(0); }
+  74%  { transform: translateY(-34px) rotateZ(-3deg) rotateY(0); }
+  84%  { transform: translateY(0) rotateZ(0) rotateY(0); }
+  100% { transform: translateY(0) rotateZ(0) rotateY(0); }
+}
+@keyframes spGaleArm {
+  0%, 18% { transform: rotateZ(0) rotateX(0); }
+  26%  { transform: rotateZ(30deg) rotateX(20deg); }
+  32%  { transform: rotateZ(-105deg) rotateX(10deg); }
+  39%  { transform: rotateZ(30deg) rotateX(20deg); }
+  45%  { transform: rotateZ(-105deg) rotateX(10deg); }
+  52%, 76% { transform: rotateZ(-92deg) rotateX(0); }
+  88%, 100% { transform: rotateZ(0) rotateX(0); }
+}
+/* 手首：空中で 4回転（けんには 背中の 面が ある ので 回して よい） */
+@keyframes spGaleSword { 0%, 50% { transform: rotateZ(0); } 78% { transform: rotateZ(-1440deg); } 100% { transform: rotateZ(-1440deg); } }
+@keyframes spGaleArmL { 0%, 18% { transform: rotateZ(0); } 32%, 76% { transform: rotateZ(34deg); } 100% { transform: rotateZ(0); } }
+/* やられ方：たつまきで もちあげられて ぐるっと 回され → どすんと 落ちる（.4s から・右へ だけ 回す） */
+.mo-hit-gale { animation: hitGale .85s ease-out .4s both; }
+.mo-hit-gale .p--wingL { animation: moFlapL .18s ease-in-out .4s 4; }
+.mo-hit-gale .p--wingR { animation: moFlapR .18s ease-in-out .4s 4; }
+@keyframes hitGale {
+  0%   { transform: translateX(0) translateY(0) rotateY(0) rotateZ(0); }
+  14%  { transform: translateX(-6px) translateY(-4px) rotateY(24deg) rotateZ(-6deg); }
+  40%  { transform: translateX(0) translateY(-30px) rotateY(58deg) rotateZ(6deg); }
+  62%  { transform: translateX(4px) translateY(-36px) rotateY(12deg) rotateZ(-8deg); }
+  78%  { transform: translateX(0) translateY(0) rotateY(0) rotateZ(4deg); }
+  88%  { transform: translateX(0) translateY(-5px) rotateY(0) rotateZ(-2deg); }
+  100% { transform: translateX(0) translateY(0) rotateY(0) rotateZ(0); }
+}
 
 /* v12.2：3D の ときは 2D の「大きく とびこむ」（specialbigfx＝.hero を 36px 右へ・1.3倍）を 止める。
    走る・とぶ は 器（mo-dash-*）と 部品の 動きで 見せる。うしろの オーラ（::before）は のこす */

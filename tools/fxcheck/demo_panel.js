@@ -1,9 +1,14 @@
 (function () {
+  /* v14.12：はしごの じゅん（5 → 8 → 11 → 13 → 15 → 17）。NEW＝教科の 大わざ */
   const SP = [
-    ['starburst', 'スターバースト', 20], ['fire', 'ほのお ギリ', 5], ['leaf', 'はっぱ カッター', 5], ['ice', 'こおりの やいば', 5], ['wind', 'かぜの たつまき', 5],
-    ['bolt', 'いなずま おとし', 8], ['star', 'ひかりの メテオ', 12], ['nova', 'ぎんがの ビッグバン', 16]
+    ['triple', 'トリプル スラッシュ', 3, true],
+    ['fire', 'ほのお ギリ', 5], ['leaf', 'はっぱ カッター', 5], ['ice', 'こおりの やいば', 5], ['wind', 'かぜの たつまき', 5],
+    ['blaze', 'クリムゾン クロス', 8, true], ['storm', 'リーフ ハリケーン', 8, true], ['icicle', 'アイシクル レイン', 8, true], ['gale', 'ツイン トルネード', 8, true],
+    ['bolt', 'サンダー ドライブ', 11], ['star', 'メテオ ストーム', 13], ['nova', 'ビッグバン インパクト', 15], ['starburst', 'スターバースト', 17]
   ];
-  let busy = false, endT = null, pal = false;
+  // 「はしごを じゅんに」：算数の 子が コンボを のばした ときの ながれ
+  const LADDER = ['triple', 'fire', 'blaze', 'bolt', 'star', 'nova', 'starburst'];
+  let busy = false, endT = null, pal = false, chain = null;
   function setup() {
     try { localStorage.clear(); } catch (e) {}
     MQ.save.load();
@@ -21,28 +26,38 @@
     MQ.save.update(function (pl) { MQ.pals.setActive(pl, pal ? 'drago-1' : null); });
     MQ.ui.battle.start('rikashakai3-1');
   }
-  function run(id) {
+  function run(id, then) {
     if (busy) return;
     busy = true;
     if (MQ.ui.battle.demoEnd) MQ.ui.battle.demoEnd();
     const sp = MQ.ui.battle.demoSpecial(id, { pal: pal });
     clearTimeout(endT);
-    endT = setTimeout(function () { if (MQ.ui.battle.demoEnd) MQ.ui.battle.demoEnd(); busy = false; }, (sp && sp.ms ? sp.ms : 1200) + 700);
+    endT = setTimeout(function () { if (MQ.ui.battle.demoEnd) MQ.ui.battle.demoEnd(); busy = false; if (then) then(); }, (sp && sp.ms ? sp.ms : 1200) + 700);
+  }
+  function runLadder(i) {
+    if (i >= LADDER.length) { chain = null; return; }
+    chain = i;
+    run(LADDER[i], function () { setTimeout(function () { runLadder(i + 1); }, 350); });
   }
   function buildPanel() {
     const p = document.createElement('div');
     p.className = 'mihon';
     const note = document.createElement('div');
     note.className = 'mihon__note';
-    note.textContent = 'ボタンを 押すと その わざが 出ます（音も 出ます）。スターバーストは さいごに 大ばくはつ。';
+    note.textContent = 'ボタンで わざが 出ます（音も 出ます）。NEW＝あたらしい わざ（3コンボと 8コンボ）。「はしご」は 算数の 子が 3 → 17コンボまで のばした ときの ながれ。';
     p.appendChild(note);
     const row = document.createElement('div');
     row.className = 'mihon__row';
+    const lad = document.createElement('button');
+    lad.type = 'button'; lad.className = 'mihon__b mihon__b--ladder';
+    lad.innerHTML = '<small>3 → 17コンボ</small>はしごを じゅんに';
+    lad.onclick = function () { if (busy || chain !== null) return; runLadder(0); };
+    row.appendChild(lad);
     SP.forEach(function (s) {
       const b = document.createElement('button');
-      b.type = 'button'; b.className = 'mihon__b mihon__b--' + s[0];
-      b.innerHTML = '<small>' + s[2] + 'コンボ</small>' + s[1];
-      b.onclick = function () { run(s[0]); };
+      b.type = 'button'; b.className = 'mihon__b mihon__b--' + s[0] + (s[3] ? ' is-new' : '');
+      b.innerHTML = '<small>' + s[2] + 'コンボ' + (s[3] ? '・NEW' : '') + '</small>' + s[1];
+      b.onclick = function () { if (chain !== null) return; run(s[0]); };
       row.appendChild(b);
     });
     const tog = document.createElement('button');
@@ -51,13 +66,6 @@
     tog.onclick = function () { if (busy) return; pal = !pal; sync(); startBattle(); };
     sync();
     row.appendChild(tog);
-    [['old', 'まえの 音'], ['neu', 'あたらしい 音']].forEach(function (q) {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'mihon__b mihon__b--snd';
-      b.innerHTML = '<small>スターバーストの</small>' + q[1];
-      b.onclick = function () { const au = new Audio(window.__SND[q[0]]); au.play(); };
-      row.appendChild(b);
-    });
     p.appendChild(row);
     document.body.appendChild(p);
   }

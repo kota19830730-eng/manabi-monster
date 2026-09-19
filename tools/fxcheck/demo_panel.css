@@ -6,4 +6,9 @@
 .mihon__b--bolt { background: #3050d0; } .mihon__b--star { background: #b8801d; } .mihon__b--nova { background: #6b2fb8; } .mihon__b--starburst { background: linear-gradient(90deg, #1d8f7a, #6b2fb8, #b8801d); }
 .mihon__b--pal.is-on { background: #b8801d; }
 .mihon__note { color: #cfd8f0; font: 500 11px 'Zen Maru Gothic', system-ui, sans-serif; margin: 0 2px 5px; }
-.mihon__b--snd { background: #3a3f56; border: 1px solid #ffd447; }
+
+/* v14.12 教科の 大わざ（NEW）と はしご */
+.mihon__b--triple { background: #56617f; }
+.mihon__b--blaze { background: #b01c24; } .mihon__b--storm { background: #1f7a38; } .mihon__b--icicle { background: #1d5a9c; } .mihon__b--gale { background: #4a6a94; }
+.mihon__b.is-new { box-shadow: 0 3px 0 #141a38, 0 0 0 2px #ffd447 inset; }
+.mihon__b--ladder { background: linear-gradient(90deg, #c2451a, #b01c24, #3050d0, #b8801d, #6b2fb8, #1d8f7a); min-width: 110px; }

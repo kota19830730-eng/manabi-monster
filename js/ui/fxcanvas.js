@@ -676,7 +676,8 @@
     } });
   }
   // たつまき：3D の 輪を 7だん つみ上げて それぞれ 回す（上ほど ひろい・すけて うしろの 面も 見える）
-  function tornado(E, F, life) {
+  function tornado(E, F, life, col) {
+    col = col || [190, 236, 255];
     const NR = 7, rings = [];
     for (let i = 0; i < NR; i++) rings.push({ k: i / (NR - 1), ry: R(E, 0, 6), sp: (i % 2 ? 11 : 15) + R(E, -2, 2), ph: R(E, 0, 6) });
     thing(E, { life: life, draw: function (g, u) {
@@ -688,7 +689,7 @@
         const rad = (10 + (F.w * 0.34 + 18) * k) * (0.6 + 0.4 * grow);
         const y = F.bot - 6 - step * (i + 0.5);
         const wob = Math.sin(u * 13 + k * 3.5 + r.ph) * 7 * k;
-        mesh(g, BAND, { x: F.x + wob, y: y, s: rad, sy: step * 0.62 / rad, rx: -0.28, ry: r.ry + u * r.sp, col: [190, 236, 255], a: 0.26 * fade, both: true, emis: true, edge: 0.22 * fade });
+        mesh(g, BAND, { x: F.x + wob, y: y, s: rad, sy: step * 0.62 / rad, rx: -0.28, ry: r.ry + u * r.sp, col: col, a: 0.26 * fade, both: true, emis: true, edge: 0.22 * fade });
       }
     } });
   }
@@ -759,6 +760,72 @@
       });
     } });
   }
+  /* v14.12 クリムゾン クロス：まっすぐな 真紅の 刃（ななめ）。70ms で 先まで のびて → しばらく もえて → うすく なる。
+     2本 かさねて X に する。hold＝もえて いる 長さ（ms） */
+  function xBlade(E, x, y, len, ang, hold, hex) {
+    const c = rgbOf(hex), life = hold + 260, ca = Math.cos(ang), sa = Math.sin(ang);
+    thing(E, { life: life, top: true, draw: function (g) {
+      const age = this.age, grow = Math.min(1, age / 70);
+      const a = age < hold ? 1 : 1 - (age - hold) / 260;
+      const flick = 1 + Math.sin(age * 0.09) * 0.12;
+      const x0 = x - ca * len, y0 = y - sa * len, x1 = x0 + ca * len * 2 * grow, y1 = y0 + sa * len * 2 * grow;
+      const blade = function (w, col) {
+        const nx = -sa * w / 2, ny = ca * w / 2;
+        g.beginPath();
+        g.moveTo(x0, y0);
+        g.lineTo((x0 + x1) / 2 + nx, (y0 + y1) / 2 + ny);
+        g.lineTo(x1, y1);
+        g.lineTo((x0 + x1) / 2 - nx, (y0 + y1) / 2 - ny);
+        g.closePath(); g.fillStyle = col; g.fill();
+      };
+      g.globalCompositeOperation = 'lighter';
+      blade(34 * flick, css(c, 0.22 * a));
+      blade(16 * flick, css(c, 0.75 * a));
+      blade(6, css([255, 240, 220], a));
+    } });
+  }
+
+  /* v14.12 アイシクル レイン：空に 3D の つららが できて（grow）→ dropAt で 落ちて（110ms）地面に ささる → shatterAt で くだける。
+     tx＝落ちる 場所・ty＝先が とどく 高さ。size＝大きさ（まん中の 1本が いちばん 大きい） */
+  function icicle(E, tx, ty, size, dropAt, shatterAt, onHit) {
+    const y0 = 8 + size * 1.2, fall = 110, spin = R(E, 0, 6);
+    const t = thing(E, { life: shatterAt - E.t, stuck: false, top: true,
+      update: function () {
+        if (!t.stuck && E.t >= dropAt + fall) { t.stuck = true; if (onHit) onHit(tx, ty); }
+      },
+      draw: function (g) {
+        const born = Math.min(1, t.age / 200);
+        let tipY;
+        if (E.t < dropAt) tipY = y0 + size * 2.3 * born;
+        else { const u = Math.min(1, (E.t - dropAt) / fall); tipY = y0 + size * 2.3 + (ty - y0 - size * 2.3) * u * u; }
+        const cy = tipY - size * 2.3;
+        const s = size * (0.35 + 0.65 * born);
+        g.globalCompositeOperation = 'lighter';
+        g.globalAlpha = 0.6;
+        g.drawImage(glowOf([150, 220, 255]), tx - s * 1.8, cy - s * 1.4, s * 3.6, s * 3.6);
+        g.globalAlpha = 1;
+        g.globalCompositeOperation = 'source-over';
+        mesh(g, CRYSTAL, { x: tx, y: cy, s: s, sx: 1.05, sy: 2.3, sz: 1.05, rz: Math.PI, ry: spin + (t.stuck ? 0 : E.t * 0.004), rx: -0.25, col: ICE, a: 0.93, edge: 0.75 });
+      } });
+    return t;
+  }
+  /* v14.12 ツイン トルネード：3D の 輪を つみ上げた うずの 柱。x・bot・高さ・はばを 呼ぶ がわが きめる */
+  function vortexCol(g, x, bot, hh, wd, u, rings, col, a) {
+    const NR = rings.length, step = hh / NR;
+    for (let i = 0; i < NR; i++) {
+      const r = rings[i], k = r.k;
+      const rad = 10 + wd * k;
+      const y = bot - step * (i + 0.5);
+      const wob = Math.sin(u * 15 + k * 3.5 + r.ph) * 8 * k;
+      mesh(g, BAND, { x: x + wob, y: y, s: rad, sy: step * 0.62 / rad, rx: -0.28, ry: r.ry + u * r.sp, col: col, a: 0.28 * a, both: true, emis: true, edge: 0.24 * a });
+    }
+  }
+  function vortexRings(E, NR) {
+    const out = [];
+    for (let i = 0; i < NR; i++) out.push({ k: i / (NR - 1), ry: R(E, 0, 6), sp: (i % 2 ? 13 : 18) + R(E, -2, 2), ph: R(E, 0, 6) });
+    return out;
+  }
+
   // 小さな ばくはつ（スターバーストの つづけざまの ばくはつ）
   function pop(E, x, y, big) {
     flash(E, big ? '#ffffff' : '#fff2d0', big ? 0.3 : 0.16, 160);
@@ -896,7 +963,231 @@
       }
     } },
 
-    /* ---- いなずま おとし（8コンボ・v13.7 で 3D）：空が 光る → 3D の 光の 柱と ふとい 雷が 落ちる → 地面の いたが めくれて 岩が とぶ ---- */
+    /* ---- トリプル スラッシュ（3コンボ・v14.12）：走って 銀の 3連斬り（260・370・480ms）。
+       短く 軽く（0.8秒・粒は 少なめ）＝ 1回の たたかいで 何回も 出る ---- */
+    triple: { dur: 850, run: function (E, F, S, Hr) {
+      trail(E, Hr, F, 20, 250, RAMP.wind, 3, 7);
+      [[260, -0.78, 0.9, '#ffffff', 15], [370, -0.12, -0.85, '#dfe8ff', 13], [480, -0.5, 0.95, '#ffffff', 17]].forEach(function (c, i) {
+        if (at(E, c[0])) {
+          slash(E, F.x, F.y + (i - 1) * 6, F.h * 0.5 + 22, Math.PI * c[1], Math.PI * c[2], 300, c[3], c[4]);
+          flash(E, '#eef4ff', i === 2 ? 0.3 : 0.16, 140);
+          burst(E, F.x, F.y, i === 2 ? 22 : 12, { ramp: RAMP.wind, v0: 140, v1: 400, g: 280, l0: 260, l1: 480 });
+          if (i === 2) {
+            ring(E, F.x, F.y, 8, 120, 420, '#ffffff', 5, 1);
+            glint(E, F.x, F.y, 78, 300);
+            chunks(E, F.x, F.bot - 4, 4, '#8a8a9a', { up: true, s0: 3, s1: 6 });
+          }
+        }
+      });
+    } },
+
+    /* =========================================================
+       v14.12 教科の 大わざ（8〜10コンボ）。教科わざ（5コンボ）の 一段 上・いなずま おとし（11コンボ）の 一段 下の 派手さ。
+       当たる 時間は battle.js の SP_MOTION と そろえる
+       ========================================================= */
+    /* ---- クリムゾン クロス（算数）：ほのおを まとって 走る → X の 2連斬り（440・620）→
+       3D の ほのおが うずを まいて 火柱に → 2どめの ふん火（880）→ 火の 雨 ---- */
+    blaze: { dur: 1300, run: function (E, F, S, Hr) {
+      trail(E, Hr, F, 30, 440, RAMP.fire, 5, 13);
+      if (during(E, 30, 440) && E.step % 2 === 0) {
+        const q = trailPos(E, Hr, F, 30, 440);
+        flameP(E, q.x + R(E, -10, 4), q.y + R(E, -24, 20), { vx: R(E, -110, -40), vy: R(E, -110, -30), life: R(E, 240, 380), s0: R(E, 10, 15), s1: 2 });
+      }
+      if (E.t < 300 && E.step % 2 === 0) P(E, { x: Hr.x + R(E, -40, 40), y: Hr.y + R(E, -50, 20), vx: 0, vy: R(E, -140, -60), life: 320, s0: 3, s1: 1, ramp: RAMP.ember });
+      if (at(E, 420)) flash(E, '#ffb050', 0.35, 200);
+      const XL = Math.max(F.w, F.h) * 0.75 + 34;
+      if (at(E, 440)) {
+        xBlade(E, F.x, F.y, XL, -Math.PI / 4, 520, '#ff2a3a');          // ／
+        burst(E, F.x, F.y, 26, { v0: 180, v1: 480, g: 420 });
+      }
+      if (at(E, 620)) {
+        flash(E, '#ffffff', 0.45, 180);
+        flash(E, '#ff6a1a', 0.3, 520);
+        xBlade(E, F.x, F.y, XL, Math.PI / 4, 340, '#ff2a3a');            // ＼ ＝ 真紅の X（440 の ／ と かさなる）
+        glint(E, F.x, F.y, 110, 360);
+        ring(E, F.x, F.bot, 10, 190, 640, '#ff7a1e', 8, 0.3);
+        ring(E, F.x, F.y, 10, 150, 520, '#ffd45a', 6, 1);
+        burst(E, F.x, F.y, 50, { up: true, v0: 220, v1: 620, g: 520 });
+        chunks(E, F.x, F.bot - 4, 14, '#8a5a3a', { up: true, lift: 180, s0: 5, s1: 11 });
+        firePillar(E, F, 660);
+      }
+      if (during(E, 620, 1120)) {
+        for (let i = 0; i < n(E, 2); i++) {
+          flameP(E, 0, 0, { cx: F.x, cy: F.bot - 4, ang: R(E, 0, 6.3), cone: 0.5, w: R(E, 8, 12) * (i % 2 ? 1 : -1), rise: R(E, 170, 270), oy: 0, sq: 0.34, orbit: true,
+            life: R(E, 420, 620), s0: R(E, 11, 16), s1: 3 });
+        }
+        P(E, { x: F.x + R(E, -F.w * 0.6, F.w * 0.6), y: F.bot, vx: R(E, -50, 50), vy: R(E, -260, -460), ay: -40, drag: 0.4, life: R(E, 400, 640), s0: R(E, 2, 4), s1: 1, ramp: RAMP.ember, fo: 0.45 });
+      }
+      if (at(E, 880)) {
+        flash(E, '#fff0c0', 0.35, 220);
+        ring(E, F.x, F.bot, 12, 260, 700, '#ffb030', 9, 0.3);
+        rays(E, F.x, F.y, 14, 200, 600, '#ff8a2a', 0.5);
+        burst(E, F.x, F.y - 10, 60, { up: true, v0: 260, v1: 700, g: 480, l0: 500, l1: 900, s: 3 });
+        for (let i = 0; i < n(E, 10); i++) {
+          const a = -Math.PI / 2 + R(E, -1.2, 1.2), v = R(E, 220, 460);
+          flameP(E, F.x, F.y, { vx: Math.cos(a) * v, vy: Math.sin(a) * v, ay: 420, drag: 0.6, life: R(E, 500, 800), s0: R(E, 12, 18), s1: 3 });
+        }
+      }
+      if (during(E, 900, 1250) && E.step % 2 === 0) {
+        flameP(E, R(E, 20, W - 20), -10, { vx: R(E, -40, 40), vy: R(E, 260, 420), life: R(E, 500, 700), s0: R(E, 7, 11), s1: 3 });
+      }
+      if (during(E, 700, 1150) && E.step % 3 === 0) smoke(E, F.x, F.top, 1);
+    } },
+
+    /* ---- リーフ ハリケーン（国語）：まわりから 3D の はっぱが あつまる → 3連斬り（340・500・660）→
+       みどりの たつまき＋はっぱの うず → はっぱが 画面いっぱいに はじける（950） ---- */
+    storm: { dur: 1300, run: function (E, F, S, Hr) {
+      trail(E, Hr, F, 30, 330, RAMP.leaf, 4, 8);
+      if (E.t < 340 && E.step % 2 === 0) {
+        for (let i = 0; i < n(E, 2); i++) {
+          const fromTop = E.rnd() < 0.5, x0 = fromTop ? R(E, 40, W - 20) : R(E, -10, 40), y0 = fromTop ? -10 : R(E, 10, F.bot);
+          leafP(E, x0, y0, { vx: (F.x - x0) * 2.6, vy: (F.y - y0) * 2.6, life: 380, s0: R(E, 11, 15), s1: 10 });
+        }
+      }
+      const pop3 = function (k) {
+        for (let i = 0; i < n(E, k); i++) {
+          const a = R(E, 0, Math.PI * 2), v = R(E, 140, 380);
+          leafP(E, F.x + R(E, -8, 8), F.y + R(E, -8, 8), { vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, ay: 160, drag: 1.4, life: R(E, 520, 820), s0: R(E, 12, 17), s1: 6 });
+        }
+      };
+      [[340, -0.85, 0.9, '#7ee06a'], [500, -0.15, -0.9, '#b8f07a'], [660, -0.5, 1.0, '#ffffff']].forEach(function (c, i) {
+        if (at(E, c[0])) {
+          flash(E, i === 2 ? '#ffffff' : '#c8ffa8', i === 2 ? 0.4 : 0.25, 180);
+          slash(E, F.x, F.y, F.h * 0.5 + 28, Math.PI * c[1], Math.PI * c[2], 360, c[3], 17);
+          burst(E, F.x, F.y, 20, { ramp: RAMP.leaf, v0: 140, v1: 400, g: 200 });
+          pop3(i === 2 ? 14 : 8);
+          if (i === 2) ring(E, F.x, F.bot, 10, 170, 560, '#7ee06a', 7, 0.3);
+        }
+      });
+      if (at(E, 380)) tornado(E, F, 780, [150, 235, 120]);
+      if (during(E, 380, 1000)) {
+        for (let i = 0; i < n(E, 3); i++) {
+          leafP(E, 0, 0, { cx: F.x, cy: F.bot - 6, ang: R(E, 0, 6.3), cone: 0.5, w: R(E, 9, 13), rise: R(E, 140, 240), oy: 0, sq: 0.36, orbit: true,
+            life: R(E, 520, 760), s0: R(E, 10, 15), s1: 7 });
+        }
+        if (E.step % 2 === 0) P(E, { m: 'o', draw: 'g', cx: F.x, cy: F.bot - 8, ang: R(E, 0, 6.3), cone: 0.46, w: R(E, 10, 14), rise: R(E, 120, 220), oy: 0, sq: 0.36,
+          life: R(E, 480, 700), s0: 3, s1: 1, ramp: RAMP.leaf, orbit: true });
+      }
+      if (at(E, 950)) {
+        flash(E, '#e6ffd0', 0.45, 260);
+        ring(E, F.x, F.y, 12, 260, 700, '#b8f07a', 8, 1);
+        ring(E, F.x, F.bot, 10, 230, 700, '#3fbf4a', 7, 0.3);
+        rays(E, F.x, F.y, 14, 220, 620, '#7ee06a', -0.5);
+        burst(E, F.x, F.y, 40, { ramp: RAMP.leaf, v0: 200, v1: 560, g: 120, l0: 500, l1: 900 });
+        for (let i = 0; i < n(E, 26); i++) {
+          const a = R(E, 0, Math.PI * 2), v = R(E, 200, 520);
+          leafP(E, F.x, F.y, { vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, ay: 120, drag: 1.2, life: R(E, 700, 1000), s0: R(E, 13, 19), s1: 8 });
+        }
+      }
+      if (E.t > 950 && E.step % 2 === 0) {
+        leafP(E, R(E, 0, W), -10, { vx: R(E, -30, 30), vy: R(E, 90, 150), sway: R(E, 40, 80), ph: R(E, 0, 6), life: R(E, 800, 1100), s0: R(E, 9, 13), s1: 8 });
+      }
+    } },
+
+    /* ---- アイシクル レイン（理科・社会）：その場で けんを 天に → 空に 3D の つららが 5本 できる →
+       つぎつぎ 落ちて ささる（まん中の 大きい 1本が 620）→ 地面から 結晶の 花 → ぜんぶ くだける（1000） ---- */
+    icicle: { dur: 1300, run: function (E, F, S, Hr) {
+      if (E.t < 460 && E.step % 2 === 0) {
+        P(E, { x: F.x + R(E, -120, 110), y: R(E, 0, 50), vx: R(E, -30, 30), vy: R(E, -10, 20), life: 420, s0: R(E, 6, 10), s1: R(E, 14, 20), m: 'm', ramp: RAMP.ice, a: 0.25, fi: 0.3, fo: 0.5 });
+        P(E, { x: S.x + R(E, -8, 8), y: S.y + R(E, -8, 8), vx: R(E, -20, 20), vy: R(E, -180, -90), life: 320, s0: 3, s1: 1, ramp: RAMP.ice });
+      }
+      if (at(E, 60)) pillar(E, S.x, S.y, 4, S.y + 10, 420, '#bff0ff');
+      const small = function (x, y) {
+        flash(E, '#dff6ff', 0.18, 140);
+        ring(E, x, y, 6, 80, 380, '#9fe6ff', 4, 0.35);
+        burst(E, x, y, 16, { ramp: RAMP.ice, v0: 120, v1: 340, g: 360 });
+        chunks(E, x, y, 4, '#dff2ff', { up: true, s0: 3, s1: 6 });
+      };
+      const big = function (x, y) {
+        flash(E, '#ffffff', 0.6, 220);
+        flash(E, '#9fe6ff', 0.25, 520);
+        ring(E, F.x, F.bot, 10, 200, 620, '#9fe6ff', 8, 0.3);
+        ring(E, x, y, 10, 150, 480, '#ffffff', 6, 1);
+        burst(E, x, y, 40, { ramp: RAMP.ice, v0: 160, v1: 480, g: 300 });
+        iceBloom(E, F, 440);
+      };
+      const w = F.w * 0.5 + 26;
+      if (at(E, 80)) icicle(E, F.x - w * 1.35, F.bot + 2, 13, 470, 1000, small);
+      if (at(E, 120)) icicle(E, F.x + w * 1.1, F.bot + 2, 12, 520, 1000, small);
+      if (at(E, 160)) icicle(E, F.x, F.y + 6, 22, 510, 1000, big);
+      if (at(E, 200)) icicle(E, F.x - w * 0.7, F.bot + 2, 11, 700, 1000, small);
+      if (at(E, 240)) icicle(E, F.x + w * 0.55, F.bot + 2, 10, 760, 1000, small);
+      if (at(E, 1000)) {
+        flash(E, '#ffffff', 0.55, 240);
+        ring(E, F.x, F.y, 12, 230, 600, '#e6fbff', 8, 1);
+        rays(E, F.x, F.y, 12, 200, 520, '#bff0ff', 0.4);
+        for (let i = 0; i < n(E, 44); i++) {
+          const a = R(E, 0, Math.PI * 2), v = R(E, 160, 460);
+          P(E, { x: F.x + R(E, -F.w * 0.9, F.w * 0.9), y: F.y + R(E, -F.h * 0.5, F.h * 0.5), vx: Math.cos(a) * v, vy: Math.sin(a) * v - 140, ay: 760, drag: 0.3,
+            life: R(E, 520, 820), s0: R(E, 9, 18), s1: 3, m: 'x', rot: R(E, 0, 6), vr: R(E, -10, 10), rot2: R(E, 0, 6), vr2: R(E, -8, 8), fo: 0.7 });
+        }
+        burst(E, F.x, F.y, 50, { ramp: RAMP.ice, v0: 180, v1: 520, g: 260 });
+      }
+      if (E.step % 3 === 0) P(E, { x: R(E, 0, W), y: -4, vx: R(E, -20, 20), vy: R(E, 50, 100), life: 1000, s0: R(E, 2, 4), s1: 2, ramp: RAMP.ice, fo: 0.7 });
+    } },
+
+    /* ---- ツイン トルネード（英語）：風の すじ → 2つの たつまきが 左右から よって きて（400〜760）→
+       1つの 大きな たつまきに なって 空まで とどく → 岩と はっぱが 大きく 回る → ふきとばす（1080） ---- */
+    gale: { dur: 1300, run: function (E, F, S, Hr) {
+      trail(E, Hr, F, 30, 380, RAMP.wind, 4, 8);
+      if (E.t < 760 && E.step % 2 === 0) {
+        const fromL = E.step % 4 === 0;
+        P(E, { x: fromL ? -20 : W + 20, y: R(E, 12, F.bot), vx: (fromL ? 1 : -1) * R(E, 700, 1000), vy: R(E, -20, 20), life: 450, s0: 2, s1: 1, m: 's', trail: 0.05, ramp: RAMP.wind, a: 0.7 });
+      }
+      if (at(E, 400)) {
+        flash(E, '#ffffff', 0.25, 180);
+        slash(E, F.x, F.y, F.h * 0.5 + 26, -Math.PI * 0.9, Math.PI * 0.9, 360, '#e6f6ff', 15);
+        burst(E, F.x, F.y, 20, { ramp: RAMP.wind, v0: 140, v1: 360, g: 100 });
+        const rL = vortexRings(E, 6), rR = vortexRings(E, 6), rB = vortexRings(E, 9);
+        const xL = F.x - F.w * 0.5 - 70, xR = Math.min(W - 24, F.x + F.w * 0.5 + 50);
+        thing(E, { life: 800, draw: function (g, u) {
+          const age = this.age, fade = u > 0.82 ? (1 - u) / 0.18 : 1;
+          g.globalCompositeOperation = 'lighter';
+          if (age < 360) {
+            const e = age / 360, ee = e * e, grow = Math.min(1, age / 140);
+            const hh = (F.h + 30) * (0.4 + 0.6 * grow);
+            vortexCol(g, xL + (F.x - xL) * ee, F.bot - 4, hh, 26, age / 800, rL, [210, 240, 255], 1);
+            vortexCol(g, xR + (F.x - xR) * ee, F.bot - 4, hh, 26, age / 800, rR, [210, 240, 255], 1);
+          } else {
+            const e = Math.min(1, (age - 360) / 160);
+            const hh = (F.h + 30) + (F.bot - 4 - (F.h + 30)) * e;   // 空まで とどく
+            vortexCol(g, F.x, F.bot - 4, hh, F.w * 0.5 + 34, age / 800, rB, [220, 244, 255], fade);
+          }
+        } });
+      }
+      if (at(E, 560)) slash(E, F.x, F.y, F.h * 0.5 + 26, -Math.PI * 0.15, -Math.PI * 0.9, 340, '#ffffff', 14);
+      if (at(E, 760)) {
+        flash(E, '#ffffff', 0.45, 220);
+        ring(E, F.x, F.bot, 12, 230, 620, '#e6f6ff', 8, 0.3);
+        rays(E, F.x, F.y, 14, 220, 560, '#dff2ff', 0.8);
+        burst(E, F.x, F.bot - 10, 36, { ramp: RAMP.wind, v0: 160, v1: 420, g: 80 });
+      }
+      if (during(E, 760, 1120)) {
+        for (let i = 0; i < n(E, 3); i++) {
+          P(E, { m: 'o', draw: 's', cx: F.x, cy: F.bot, ang: R(E, 0, 6.3), rad: 8, cone: 0.6, w: R(E, 13, 18), dr: 0, rise: R(E, 220, 360), oy: -R(E, 0, 30), sq: 0.3,
+            life: R(E, 420, 640), s0: 2.6, s1: 1, ramp: RAMP.wind, orbit: true, a: 0.9 });
+        }
+        if (E.step % 2 === 0) {
+          const rock = E.step % 4 === 0;
+          P(E, { m: 'M', mesh: rock ? CHIPS[E.step % 4] : LEAF, col: rock ? rgbOf('#9a7a4a') : GREENS[E.step % 4], cx: F.x, cy: F.bot, ang: R(E, 0, 6.3), rad: 20, cone: 0.62, w: 11,
+            rise: R(E, 160, 280), oy: 0, sq: 0.3, life: 720, s0: rock ? R(E, 5, 9) : R(E, 7, 11), s1: 3, rx: R(E, 0, 6), ry: R(E, 0, 6), rz: R(E, 0, 6), vrx: 8, vry: 10, vrz: 5,
+            orbit: true, edge: rock ? 0 : 0.4, spec: 0.3 });
+        }
+        if (E.step % 3 === 0) smoke(E, F.x, F.bot - 4, 1, { ramp: RAMP.dust, a: 0.35 });
+      }
+      if (at(E, 1080)) {
+        flash(E, '#ffffff', 0.4, 240);
+        ring(E, F.x, F.y, 12, 280, 640, '#ffffff', 9, 1);
+        burst(E, F.x, F.y, 50, { ramp: RAMP.wind, v0: 240, v1: 640, g: 60, l0: 400, l1: 800 });
+        chunks(E, F.x, F.y, 12, '#9a7a4a', { v0: 200, v1: 480 });
+        for (let i = 0; i < n(E, 12); i++) {
+          const a = R(E, 0, Math.PI * 2), v = R(E, 220, 520);
+          leafP(E, F.x, F.y, { vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, ay: 140, drag: 1.2, life: R(E, 600, 900), s0: R(E, 10, 14), s1: 6 });
+        }
+      }
+    } },
+
+    /* ---- サンダー ドライブ（11コンボ・v13.7 で 3D・v14.12 で 改名）：空が 光る → 3D の 光の 柱と ふとい 雷が 落ちる → 地面の いたが めくれて 岩が とぶ ---- */
     bolt: { dur: 1250, run: function (E, F) {
       if (at(E, 140)) { flash(E, '#cfe6ff', 0.25, 90); bolt(E, R(E, 30, 180), -10, R(E, 40, 200), R(E, 40, 90), 150, { w: 1.4 }); }
       if (at(E, 300)) { flash(E, '#cfe6ff', 0.25, 90); bolt(E, R(E, 220, 380), -10, R(E, 200, 360), R(E, 40, 90), 150, { w: 1.4 }); }
@@ -922,7 +1213,7 @@
       }
     } },
 
-    /* ---- ひかりの メテオ（12コンボ・v13.7 で 3D）：けんから 光の 柱 → ごつごつした 3D の いん石が つぎつぎ → 大ばくはつ ---- */
+    /* ---- メテオ ストーム（13コンボ・v13.7 で 3D・v14.12 で 改名）：けんから 光の 柱 → ごつごつした 3D の いん石が つぎつぎ → 大ばくはつ ---- */
     star: { dur: 1500, run: function (E, F, S) {
       if (at(E, 120)) pillar(E, S.x, S.y, 5, S.y + 20, 520, '#ffd447');
       if (E.t < 520) P(E, { x: S.x + R(E, -50, 50), y: S.y + R(E, -10, 40), vx: 0, vy: R(E, -160, -80), life: 380, s0: 3, s1: 1, ramp: RAMP.gold });
@@ -958,7 +1249,7 @@
       });
     } },
 
-    /* ---- ぎんがの ビッグバン（16コンボ・v13.7 で 3D）：3D の 星を すいこむ → まっしろ →
+    /* ---- ビッグバン インパクト（15コンボ・v13.7 で 3D・v14.12 で 改名）：3D の 星を すいこむ → まっしろ →
        虹の わ・3D の 結晶の 輪・3D の 星が とびちる → 銀河の うず ---- */
     nova: { dur: 2000, run: function (E, F) {
       if (E.t < 520) {

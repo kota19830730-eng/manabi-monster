@@ -33,6 +33,13 @@
     star:      { ink: '#8a5a08', shadow: '#4d3103', glow: '#ffd447', grad: ['#ffffff', '#fff8dc', '#ffe08a'] },
     nova:      { ink: '#3a1d6b', shadow: '#1c0b3a', glow: '#ff5e7a', glow2: '#4fd3ff', grad: ['#ffffff', '#ffffff', '#ffe9a8'] },
     starburst: { ink: '#12405a', shadow: '#06202e', glow: '#7cf9c4', glow2: '#c48bff', grad: ['#ffffff', '#effff9', '#b8ffe6'] },
+    // v14.12 3連斬り（銀）
+    triple:    { ink: '#2e3c5c', shadow: '#161e30', glow: '#dfe8ff', grad: ['#ffffff', '#f4f8ff', '#c8d8f0'] },
+    // v14.12 教科の 大わざ（教科わざより 光を 2まい）
+    blaze:     { ink: '#8a1a04', shadow: '#420b02', glow: '#ff6a1a', glow2: '#ffc83a', grad: ['#ffffff', '#ffe8b0', '#ff9a4a'] },
+    storm:     { ink: '#155a22', shadow: '#08300f', glow: '#5fd84a', glow2: '#d8ff7a', grad: ['#ffffff', '#ebffd8', '#9fea7a'] },
+    icicle:    { ink: '#144e80', shadow: '#082a48', glow: '#9fe6ff', glow2: '#ffffff', grad: ['#ffffff', '#eafaff', '#a6e4ff'] },
+    gale:      { ink: '#2e507c', shadow: '#172a44', glow: '#d6f0ff', glow2: '#9fd8ff', grad: ['#ffffff', '#ffffff', '#cfe8ff'] },
     // アイテムの わざ（こうげき・まもり・ちえ・うん）
     atk:  { ink: '#8f2406', shadow: '#4d1303', glow: '#ff5e3a', grad: ['#ffffff', '#fff2ea', '#ffc0a0'] },
     def:  { ink: '#123f78', shadow: '#0a2246', glow: '#5ab0ff', grad: ['#ffffff', '#f0f8ff', '#b0d8ff'] },

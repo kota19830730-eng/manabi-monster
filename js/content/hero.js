@@ -949,7 +949,7 @@ MQ.hero = (function () {
     { id: 't-tr8',       name: 'たからもの ハンター',    how: 'たからものを 8こ あつめる',   test: function (p) { return treasureCount(p) >= 8; } },
     { id: 't-perfect',   name: 'パーフェクト けんし',    how: 'ぜんもん 正解で クリア',      test: function (p) { return hasPerfect(p); } },
     { id: 't-fast5',     name: 'はやわざ けんし',        how: 'はやとき ボーナスを 5回',    test: function (p) { return (p.fastCount || 0) >= 5; } },
-    { id: 't-inazuma',   name: 'いなずま つかい',        how: '8コンボ',                  test: function (p) { return (p.bestCombo || 0) >= 8; } },
+    { id: 't-inazuma',   name: 'サンダー つかい',        how: '11コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 11; } },   // v14.12：わざの さかいめに 合わせた（前は 8）
     { id: 't-item10',    name: 'アイテム マスター',      how: 'アイテムを 10回 つかう',     test: function (p) { return (p.itemUses || 0) >= 10; } },
     { id: 't-mission10', name: 'ミッションの たつじん',   how: 'ミッションを 10こ クリア',   test: function (p) { return (p.missionsDone || 0) >= 10; } },
     { id: 't-revenge5',  name: 'リベンジ マスター',      how: 'リベンジを 5回 せいこう',    test: function (p) { return (p.revengeWins || 0) >= 5; } },
@@ -962,8 +962,9 @@ MQ.hero = (function () {
     { id: 't-star30',    name: 'ほしの チャンピオン',    how: '★を 30こ あつめる',         test: function (p) { return starSum(p) >= 30; } },
     { id: 't-pika5',     name: 'ぴかぴか コレクター',    how: 'ぴかぴかを 5こ あつめる',    test: function (p) { return goldCount(p) >= 5; } },
     { id: 't-pika20',    name: 'ぴかぴか マスター',      how: 'ぴかぴかを 20こ あつめる',   test: function (p) { return goldCount(p) >= 20; } },   // v13.16
-    { id: 't-meteo',     name: 'メテオ つかい',          how: '12コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 12; } },
-    { id: 't-bigbang',   name: 'ぎんがの ゆうしゃ',      how: '16コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 16; } },
+    { id: 't-meteo',     name: 'メテオ つかい',          how: '13コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 13; } },   // v14.12（前は 12）
+    { id: 't-bigbang',   name: 'ビッグバンの ゆうしゃ',  how: '15コンボ',                 test: function (p) { return (p.bestCombo || 0) >= 15; } },   // v14.12（前は 16）
+    { id: 't-starburst', name: 'スターバーストの ゆうしゃ', how: '17コンボ',               test: function (p) { return (p.bestCombo || 0) >= 17; } },   // v14.12：パーフェクトなら とどく
     { id: 't-frag',      name: 'かけらの もちぬし',      how: 'かけらを 4つ あつめる',      test: function (p) {
       // かけらは 学年ごと（v4.5）。同じ 学年で 4つ そろえば もらえる
       const by = {};

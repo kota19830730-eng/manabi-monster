@@ -1661,9 +1661,9 @@ body {
        .fx--leaf  はっぱ カッター！ みどりの はっぱの あらし（国語）
        .fx--ice   こおりの やいば！ 水色の こおりが とんで われる（理科社会）
        .fx--wind  かぜの たつまき！ 白い たつまき（英語）
-     .fx--bolt  8〜11 コンボ … いなずま おとし！青白い かみなり
-     .fx--star 12〜15 コンボ … ひかりの メテオ！金の いん石
-     .fx--nova 16    コンボ〜 … ぎんがの ビッグバン！虹色の 大ばくはつ
+     .fx--bolt  11〜12コンボ … サンダー ドライブ！青白い かみなり
+     .fx--star 13〜14コンボ … メテオ ストーム！金の いん石
+     .fx--nova 15    コンボ〜 … ビッグバン インパクト！虹色の 大ばくはつ
 
    ぜんぶ CSS の 四角。敵は 画面の 右がわに いるので、
    エフェクトも 右がわ（right: 40〜80px あたり）に そろえてある。
@@ -1921,7 +1921,7 @@ body {
   100% { transform: translateX(240px); opacity: 0; }
 }
 
-/* ---- いなずま おとし ---- */
+/* ---- サンダー ドライブ ---- */
 .fx__bolt {
   position: absolute; right: 38px; bottom: 60px; width: 64px; height: 124px;
   filter: drop-shadow(0 0 3px #1d55a8) drop-shadow(0 0 3px #1d55a8)
@@ -1943,7 +1943,7 @@ body {
 }
 @keyframes crackfx { 0% { transform: scaleX(0); opacity: 0; } 30% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
 
-/* ---- ひかりの メテオ ---- */
+/* ---- メテオ ストーム ---- */
 .fx__meteor { position: absolute; right: 74px; bottom: 96px; }
 .fx__meteor i {
   position: absolute; left: 0; top: 0; width: 26px; height: 26px;
@@ -1983,7 +1983,7 @@ body {
   100% { opacity: 0; }
 }
 
-/* ---- ぎんがの ビッグバン ---- */
+/* ---- ビッグバン インパクト ---- */
 .fx__core {
   position: absolute; right: 74px; bottom: 84px;
   width: 20px; height: 20px; margin: 0 -10px -10px 0;
@@ -2021,6 +2021,12 @@ body {
 .combo--bolt { color: #d8f0ff; text-shadow: 0 3px 0 #1a5fb0, 0 0 18px rgba(120,200,255,.95); }
 .combo--star { color: #fff3c0; text-shadow: 0 3px 0 #b8801d, 0 0 22px rgba(255,212,71,1); }
 .combo--nova { color: #fff; text-shadow: 0 3px 0 #3a1d6b, 0 0 12px #ff5e7a, 0 0 24px #4fd3ff; }
+/* v14.12 3連斬り・教科の 大わざ */
+.combo--triple { color: #eef4ff; text-shadow: 0 3px 0 #3a4a70, 0 0 14px rgba(220,235,255,.95); }
+.combo--blaze  { color: #ffe0a0; text-shadow: 0 3px 0 #a8260a, 0 0 18px rgba(255,110,30,1); }
+.combo--storm  { color: #e6ffd4; text-shadow: 0 3px 0 #16632a, 0 0 18px rgba(95,216,74,1); }
+.combo--icicle { color: #f0fcff; text-shadow: 0 3px 0 #15548a, 0 0 18px rgba(170,230,255,1); }
+.combo--gale   { color: #ffffff; text-shadow: 0 3px 0 #3a5a88, 0 0 18px rgba(214,240,255,1); }
 
 /* ---- 画面ぜんたいの 演出（.battle の 直下。z-index は アイテムの モーダルより 下） ---- */
 .fxscreen { position: absolute; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
@@ -2045,6 +2051,11 @@ body {
 .fxscreen--wind { --fs-c1: rgba(255,255,255,.85); --fs-c2: rgba(230,246,255,.4); --fs-c3: rgba(90,130,180,.18); }
 .fxscreen--bolt { --fs-c1: rgba(255,255,255,.9);  --fs-c2: rgba(150,205,255,.5); --fs-c3: rgba(20,50,120,.3); }
 .fxscreen--star { --fs-c1: rgba(255,252,225,.95); --fs-c2: rgba(255,214,120,.55); --fs-c3: rgba(120,70,0,.3); }
+.fxscreen--triple { --fs-c1: rgba(255,255,255,.8);  --fs-c2: rgba(220,235,255,.36); --fs-c3: rgba(60,80,120,.16); }
+.fxscreen--blaze  { --fs-c1: rgba(255,240,200,.85); --fs-c2: rgba(255,120,40,.5);  --fs-c3: rgba(140,30,0,.26); --fs-line: rgba(255,200,140,.75); }
+.fxscreen--storm  { --fs-c1: rgba(240,255,220,.85); --fs-c2: rgba(110,220,90,.48); --fs-c3: rgba(10,90,30,.24);  --fs-line: rgba(200,255,170,.72); }
+.fxscreen--icicle { --fs-c1: rgba(255,255,255,.9);  --fs-c2: rgba(170,230,255,.5); --fs-c3: rgba(20,80,160,.26); --fs-line: rgba(210,245,255,.78); }
+.fxscreen--gale   { --fs-c1: rgba(255,255,255,.9);  --fs-c2: rgba(214,240,255,.46); --fs-c3: rgba(80,120,180,.22); --fs-line: rgba(235,248,255,.8); }
 .fxscreen--nova .fxscreen__tint { background: radial-gradient(circle at var(--fs-x, 348px) var(--fs-y, 112px), rgba(255,255,255,1), rgba(196,139,255,.7) 26%, rgba(79,211,255,.45) 48%, rgba(20,8,50,.85) 80%); }
 /* 集中線（8コンボ〜）：敵の ところから 画面の 外へ のびる 細い 四角 */
 .fxscreen__lines { position: absolute; left: var(--fs-x, 348px); top: var(--fs-y, 112px); }   /* v12.2：中心は てき */

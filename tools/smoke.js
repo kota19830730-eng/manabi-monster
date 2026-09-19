@@ -3563,7 +3563,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
   // しょうごう
   check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
-  check(MQ.hero.titles.length === 64, 'しょうごう 64（v14.8 で コンプリート 3つ・v14.11 で まじん・あんこく 3つ）: ' + MQ.hero.titles.length);
+  check(MQ.hero.titles.length === 65, 'しょうごう 65（v14.8 で コンプリート 3つ・v14.11 で まじん・あんこく 3つ・v14.12 で スターバーストの ゆうしゃ）: ' + MQ.hero.titles.length);
   // 古い セーブ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
   check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');
@@ -5404,6 +5404,79 @@ function stripComments(src) {
   const esc = B.summary().escaped;
   check(esc.some(function (e) { return e.key === gq.id; }), 'ゴールデン: にげた 問題は にげた敵に 入る');
   console.log('ゴールデンスライムは まちがえたら にげる OK');
+})();
+
+/* ---- v14.12 ひっさつわざの はしご（5 → 8 → 11 → 13 → 15 → 17）＋ 教科の 大わざ 4つ ----
+   ユーザー「スターバーストまで なかなか いかない・コンボごとに 種類を ふやしたい」「段階を経て ド派手に」。
+   1回の たたかいは 17〜18問 なので、さいごは 17（パーフェクトなら かならず とどく） */
+(function () {
+  const uiB = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8');
+  const fxc = fs.readFileSync(path.join(base, 'js/ui/fxcanvas.js'), 'utf8');
+  const mo = fs.readFileSync(path.join(base, 'css/motion3d.css'), 'utf8');
+  const spx = fs.readFileSync(path.join(base, 'css/specialfx.css'), 'utf8');
+  const sty = fs.readFileSync(path.join(base, 'css/style.css'), 'utf8');
+  const txt = fs.readFileSync(path.join(base, 'js/ui/fxtext.js'), 'utf8');
+  const sfx = fs.readFileSync(path.join(base, 'js/core/sfx.js'), 'utf8');
+  // さかいめ
+  const mins = {};
+  uiB.replace(/\{ min: (\d+),\s+tier: (\d), id: '([a-z]+)'/g, function (m, mn, t, id) { mins[id] = { min: +mn, tier: +t }; return m; });
+  const want = { triple: 3, fire: 5, leaf: 5, ice: 5, wind: 5, blaze: 8, storm: 8, icicle: 8, gale: 8, bolt: 11, star: 13, nova: 15, starburst: 17 };
+  Object.keys(want).forEach(function (id) {
+    check(mins[id] && mins[id].min === want[id], 'v14.12: ' + id + ' は ' + want[id] + 'コンボ（' + (mins[id] && mins[id].min) + '）');
+  });
+  check(/const ELEM2_MIN = 8;/.test(uiB) && /const TIER0_MIN = 3;/.test(uiB), 'v14.12: さかいめ TIER0_MIN = 3・ELEM2_MIN = 8');
+  // 3連斬りは カットインを 出さない（何回も 出る ので テンポを 止めない）
+  check(/ci: false/.test(uiB) && /sp.ci === false/.test(uiB), 'v14.12: トリプル スラッシュは カットインなし');
+  check(fxc.indexOf('    triple: { dur:') >= 0 && mo.indexOf('.mo-sp-triple {') >= 0 && mo.indexOf('.mo-hit-triple {') >= 0 &&
+    spx.indexOf('.arena__spsky[data-sp="triple"]') >= 0 && sty.indexOf('.combo--triple ') >= 0 && sty.indexOf('.fxscreen--triple ') >= 0 &&
+    txt.indexOf('    triple:    { ink:') >= 0 && sfx.indexOf("if (id === 'triple')") >= 0, 'v14.12: トリプル スラッシュの 光・動き・色・音');
+  check(/specialMins\(\)/.test(uiB) && uiB.indexOf('.concat([TIER1_MIN])') < 0, 'v14.12: ためゲージは specialMins() を 見る（大わざの さかいめも 入る）');
+  // 大わざ 4つ：光・動き・空・画面の 光・コンボの 色・技名の 色・音・せりふ・ポーズ・うごきの 時間
+  ['blaze', 'storm', 'icicle', 'gale'].forEach(function (id) {
+    check(mins[id].tier === 2, 'v14.12: ' + id + ' は tier 2（画面が 広がる）');
+    check(new RegExp('\\n    ' + id + ': \\{ dur: \\d+, run:').test(fxc), 'v14.12: ' + id + ' の 光の 台本（fxcanvas.js）');
+    check(mo.indexOf('.mo-sp-' + id + ' {') >= 0 && mo.indexOf('.mo-hit-' + id + ' {') >= 0, 'v14.12: ' + id + ' の 3D の 動き（mo-sp／mo-hit）');
+    check(spx.indexOf('.arena__spsky[data-sp="' + id + '"]') >= 0, 'v14.12: ' + id + ' の 空の 色');
+    check(sty.indexOf('.fxscreen--' + id + ' ') >= 0 && sty.indexOf('.combo--' + id + ' ') >= 0, 'v14.12: ' + id + ' の 画面の 光・コンボの 色');
+    check(new RegExp('\\n    ' + id + ':\\s+\\{ ink:').test(txt), 'v14.12: ' + id + ' の 技名の 色（fxtext.js）');
+    check(sfx.indexOf("if (id === '" + id + "')") >= 0 && sfx.indexOf("if (id === '" + id + "')") < sfx.indexOf('if (lv === 2)'), 'v14.12: ' + id + ' の 音（かみなりより 先に 見る）');
+    check(new RegExp('\\n    ' + id + ": \\['").test(uiB), 'v14.12: ' + id + ' の せりふ（SP_LINES）');
+    check(new RegExp(id + ": '(raise|thrust|guard|sweep|sky|point|spread|charge)'").test(uiB), 'v14.12: ' + id + ' の ポーズ（CI_POSE）');
+    const m = uiB.match(new RegExp(id + ":\\s+\\{ scene: [^,]+,\\s+hit: (\\d+),\\s+down: (\\d+)"));
+    check(m && +m[1] < +m[2] && +m[2] < 1250, 'v14.12: ' + id + ' の 時間（当たる < たおれる < 1250）');
+    // やられ方の はじまり（CSS の delay）＝ SP_MOTION.hit
+    const dm = mo.match(new RegExp('\\.mo-hit-' + id + ' \\{ animation: \\w+ [.0-9]+s [a-z-]+ ([.0-9]+)s'));
+    check(m && dm && Math.abs(parseFloat(dm[1]) * 1000 - (+m[1] + (id === 'icicle' ? -40 : 0))) <= 1, 'v14.12: ' + id + ' の やられ方が 当たる 時間に はじまる（' + (dm && dm[1]) + 's）');
+  });
+  // 体は 回さない（背中の 面が ない）：大わざの 動きに rotateY(360 などの 1回転 なし）
+  const add = mo.slice(mo.indexOf('v14.12 教科の 大わざ'));
+  check(add.length > 100 && !/rotateY\((1[0-9]{2}|[2-9][0-9]{2})deg\)/.test(add), 'v14.12: 体を 大きく 回さない（rotateY は 100度 みまん）');
+  check(!/translateY\(-(6[1-9]|[7-9][0-9])px\)/.test(add), 'v14.12: ジャンプは 60px まで');
+  // しょうごう：わざの さかいめと 同じ
+  const T = {};
+  MQ.hero.titles.forEach(function (t) { T[t.id] = t; });
+  [['t-inazuma', 11], ['t-meteo', 13], ['t-bigbang', 15], ['t-starburst', 17]].forEach(function (c) {
+    const t = T[c[0]];
+    check(t && t.test({ bestCombo: c[1] }) && !t.test({ bestCombo: c[1] - 1 }), 'v14.12: しょうごう ' + c[0] + ' は ' + c[1] + 'コンボ');
+  });
+  // 本物の ルールで：パーフェクト（ぜんぶ 1回めで 正解）なら 17コンボに かならず とどく
+  const B = MQ.battle;
+  const BS = B.BOSS_SET.normal;
+  let minC = 99;
+  ['sansu3-2', 'sansu3-9', 'kokugo3-1', 'eigo3-1'].forEach(function (sid, k) {
+    const st = MQ.content.findStage(sid).stage;
+    const area = sid.split('-')[0].replace(/3$/, '');
+    [true, false].forEach(function (withPal) {
+      B.start({ stage: st, mode: 'normal', bossHp: BS.bossHp, bossMax: BS.bossMax, enrageAt: BS.enrageAt, finalAt: BS.finalAt, escaped: [], review: [],
+        enemies: MQ.enemies.pickIds(area, 12, 0.5), bossId: 'boss-dragon', chest: true, mobs: 12, items: [], coins: 0,
+        pal: withPal ? { id: 'slime-green', stage: 1 } : null, gear: {}, attacks: true, elite: true, summon: true, areaId: area });
+      let c = 0, g = 0;
+      while (!B.isOver() && g++ < 120) { const q = B.current(); if (!q) { B.next(); continue; } const r = B.answer(correctValue(q)); if (typeof r.combo === 'number') c = Math.max(c, r.combo); B.next(); }
+      minC = Math.min(minC, c);
+    });
+  });
+  check(minC >= 17, 'v14.12: パーフェクトなら 17コンボ（スターバースト）に とどく（さいしょう ' + minC + '）');
+  console.log('v14.12 ひっさつわざの はしご OK（パーフェクトの さいしょう ' + minC + 'コンボ）');
 })();
 
 Promise.all(global.__pending || []).then(function () {

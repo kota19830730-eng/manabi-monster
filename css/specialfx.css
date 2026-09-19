@@ -19,6 +19,12 @@
 .arena__spsky[data-sp="star"]      { background: linear-gradient(rgba(24,10,2,.94) 0%, rgba(88,40,6,.86) 50%, rgba(170,96,20,.66) 100%); }
 .arena__spsky[data-sp="nova"]      { background: linear-gradient(rgba(3,1,12,.97) 0%, rgba(20,8,48,.93) 60%, rgba(34,14,70,.84) 100%); }
 .arena__spsky[data-sp="starburst"] { background: linear-gradient(rgba(10,5,34,.96) 0%, rgba(26,12,70,.9) 60%, rgba(10,40,64,.76) 100%); }
+.arena__spsky[data-sp="triple"]    { background: linear-gradient(rgba(8,12,26,.82) 0%, rgba(26,36,64,.72) 55%, rgba(70,90,130,.5) 100%); }   /* v14.12 3連斬り（いちばん うすい） */
+/* v14.12 教科の 大わざ（教科わざより こい 色） */
+.arena__spsky[data-sp="blaze"]     { background: linear-gradient(rgba(28,3,2,.96) 0%, rgba(100,16,6,.9) 55%, rgba(180,56,12,.76) 100%); }
+.arena__spsky[data-sp="storm"]     { background: linear-gradient(rgba(2,20,6,.95) 0%, rgba(14,64,24,.88) 55%, rgba(40,120,36,.72) 100%); }
+.arena__spsky[data-sp="icicle"]    { background: linear-gradient(rgba(2,10,34,.96) 0%, rgba(10,44,96,.9) 55%, rgba(60,130,190,.7) 100%); }
+.arena__spsky[data-sp="gale"]      { background: linear-gradient(rgba(6,16,36,.94) 0%, rgba(26,58,100,.86) 55%, rgba(100,150,200,.66) 100%); }
 
 /* ---- B：バトル画面を 広げる。高さを ふやした ぶん margin-bottom を マイナスに＝下の 問題の 大きさは 変わらない ----
    v14.3：広がる 動きは battle.js の grow() が translate／scale で 動かす（GPU。高さの アニメは 毎コマ レイアウトで カクついた）。
