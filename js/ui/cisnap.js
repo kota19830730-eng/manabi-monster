@@ -416,8 +416,10 @@
       if (!out) cache[job.key] = false;   // 作れなかった（WebGL が 使えない など）＝いつもの 3D の まま
       delete pending[job.key];
       running = false;
-      /* 1つずつ すきまを あけて（たたかいの じゃまを しない）。1まい CPU ×4 で 約90ms＝タブレットでも タップを 待たせない ように あいだを あける */
-      setTimeout(function () { if (window.requestIdleCallback) requestIdleCallback(pump, { timeout: 1500 }); else pump(); }, 250);
+      /* 1つずつ すきまを あけて（たたかいの じゃまを しない）。1まい CPU ×4 で 約90ms＝タブレットでも タップを 待たせない ように あいだを あける。
+         v14.15：すきまは 短く（60ms ＋ あいた ときを 250ms まで まつ）。たたかいの あいだは ひまな ときが 来ない ので、
+         前の「250ms ＋ 1500ms まつ」だと 8まい そろうのに 12秒 かかり、はじめの わざが ずっと 3D の まま（面 167 ぶん 重い）だった */
+      setTimeout(function () { if (window.requestIdleCallback) requestIdleCallback(pump, { timeout: 250 }); else pump(); }, 60);
     });
   }
   /* たたかいの はじめに ポーズを ぜんぶ 作って おく（1つずつ） */
