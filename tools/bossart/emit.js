@@ -12,7 +12,35 @@ delete require.cache[require.resolve('./final2.js')];
 delete require.cache[require.resolve('./final3.js')];
 const F = require('./final.js');
 const F2 = require('./final2.js');
-const F3 = require('./final3.js');   // ラスボス 6体（96マス・2026-09-19）
+/* ラスボス 6体（96マス）。大きな かたち（体・つばさ・マント・あし）は **太い ブロック**、
+   顔・かんむり・ぶき・光る 玉・たてがみは **細い まま**に する（2026-09-20・v14.14）。
+   わけ：96マスを ぜんぶ 細かく すると 3D の 面が 1体 514まいに なり、タブレットの ボス戦が
+   ふつうの たたかいの 10分の1の なめらかさに なった（実測）。太い ブロックだけに すると
+   かんむりの ギザギザや ハデスの 三つまたの ほこが つぶれた（実測）。→ 部品ごとに 使い分ける。 */
+const FINE_PARTS = { crown: 1, head: 1, weapon: 1, orbs: 1, mane: 1 };
+function buildLast(cell) {
+  delete require.cache[require.resolve('./final3.js')];
+  process.env.BOSSCELL = String(cell);
+  return require('./final3.js');
+}
+const F3big = buildLast(+(process.env.BOSSBIG || 4));   // 大きな かたち
+const F3fin = buildLast(2);                              // 顔・かんむり・ぶき
+/* 太い ほうを じゅんに 見て、細く したい 部品の かたまりだけ 細い ほうに 入れかえる
+   （ならびは 変えない＝あとの 四角が 上に 描かれる ので 前後が くるうと 絵が こわれる） */
+function mixShape(big, fin) {
+  const out = [];
+  let i = 0;
+  while (i < big.length) {
+    const part = big[i][6];
+    let j = i; while (j < big.length && big[j][6] === part) j++;
+    if (FINE_PARTS[part]) out.push.apply(out, fin.filter(function (r) { return r[6] === part; }));
+    else out.push.apply(out, big.slice(i, j));
+    i = j;
+  }
+  return out;
+}
+const F3 = Object.assign({}, F3big, { SHAPES: {} });
+Object.keys(F3big.SHAPES).forEach(function (k) { F3.SHAPES[k] = mixShape(F3big.SHAPES[k], F3fin.SHAPES[k]); });
 const root = process.argv[2] || path.join(__dirname, '..', '..');
 
 function nlOf(s) { return s.indexOf('\r\n') >= 0 ? '\r\n' : '\n'; }

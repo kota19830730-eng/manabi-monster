@@ -8,6 +8,11 @@
    材質は ゲームの blocks.js と 同じ きまり（y・s＝金ぞく／r・e＝宝石／w＝ほね／m・W＝ぬの／A〜D＝体／ほかは なし）。 */
 const G = require('./geo.js');
 G.setBase(96);
+/* ブロックの 太さ。96マスで 2 だと 3D の 面が 1体 514まいに なり、タブレットの ボス戦が
+   ふつうの たたかいの 10分の1の なめらかさに なった（2026-09-20 実測）。4 に すると 296まい。
+   絵は マイクラらしい 大きめの ブロックに なる（ゲームの ほかの 絵と そろう）。
+   **線（line）と rect は 細い まま**なので、けんの 赤い 光・目・宝石は 消えない。 */
+G.setCell(+(process.env.BOSSCELL || 4));
 const K = 1.5, J = G.join;
 const rr = function (v) { return Math.round(v * K); };
 const P = function (pts, k, f) { return G.poly(pts.map(function (p) { return [p[0] * K, p[1] * K]; }), k, f); };
@@ -330,4 +335,5 @@ const LAST = [
 const LABEL = { maou: 'デビルカイザー（小3）', obakeking: 'おばけキング（小1）', kaizoku: 'かいぞくキャプテン（小2）', dark: 'ダークロード（小4）', blizzard: 'ブリザードキング（小5）', hades: 'メイオウハデス（小6）' };
 
 G.setBase(64);
+G.setCell(2);   // つぎに 読む ファイルの ために もどす
 module.exports = { BASE: 96, SHAPES: SHAPES, PALS: PALS, PAL_OF: PAL_OF, COLORS: COLORS, PHASE2: PHASE2, LAST: LAST, LABEL: LABEL };
