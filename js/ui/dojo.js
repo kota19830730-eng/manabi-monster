@@ -105,10 +105,15 @@ MQ.ui.dojo = (function () {
   function card(q) {
     const t = strip(q.prompt);
     const size = t.length > 44 ? ' card__q--xs' : t.length > 26 ? ' card__q--s' : ' card__q--m';
-    return h('div', { class: 'card dojo__card', raw: true }, [
-      h('p', { class: 'card__unit', text: q.unit || '', raw: true }),
-      h('div', { class: 'card__q' + size, html: q.prompt, raw: true })
-    ]);
+    const kids = [h('p', { class: 'card__unit', text: q.unit || '', raw: true })];
+    // ものがたりを 読む（v14.13）：しゅぎょうばでも 話が 見えないと 答えられない
+    if (q.story) {
+      kids.push(h('div', { class: 'card__story', raw: true }, [
+        h('p', { class: 'card__storytx', text: q.story, raw: true })
+      ]));
+    }
+    kids.push(h('div', { class: 'card__q' + size, html: q.prompt, raw: true }));
+    return h('div', { class: 'card dojo__card' + (q.story ? ' card--story' : ''), raw: true }, kids);
   }
   function hintBox(q) {
     if (!q.hint) return null;

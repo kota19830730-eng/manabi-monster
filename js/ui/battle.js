@@ -58,7 +58,13 @@ MQ.ui.battle = (function () {
         ]),
         d.top = h('div', { class: 'arena__top' }, [
           d.count = h('span', { class: 'pillstat' }),
-          d.prog = h('div', { class: 'hpbar' }, [d.progFill = h('div', { class: 'hpbar__fill', style: { width: '100%' } })]),
+          /* ボスの 名前は HP バーの 中（v14.14）。右上に おくと 96マスの ラスボスの
+             かんむりに かぶった（2026-09-20・実測 y6..52 に 絵が y31 から）。
+             この バーは そもそも ボスの HP なので、名前と いっしょの ほうが 分かりやすい */
+          d.prog = h('div', { class: 'hpbar' }, [
+            d.progFill = h('div', { class: 'hpbar__fill', style: { width: '100%' } }),
+            d.bossName = h('span', { class: 'enemy__name hpbar__name', hidden: true })
+          ]),
           d.time = h('span', { class: 'pillstat pillstat--time' })
         ]),
         d.msg = h('p', { class: 'arena__msg', 'aria-live': 'polite' }),
@@ -96,6 +102,8 @@ MQ.ui.battle = (function () {
       d.panel = h('section', { class: 'battle__body' }, [
         d.card = h('div', { class: 'card', raw: true }, [
           d.unit = h('p', { class: 'card__unit' }),
+          // ものがたりを 読む（v14.13）：話が 1〜2文ずつ ここに 出る
+          d.story = h('div', { class: 'card__story', hidden: true, raw: true }),
           d.prompt = h('div', { class: 'card__q' }),
           d.listen = h('div', { class: 'card__listen', hidden: true })   // よみあげ（v5.3）
         ]),
@@ -133,6 +141,20 @@ MQ.ui.battle = (function () {
           ]),
           d.bagList = h('div', { class: 'bag__list' }),
           h('button', { class: 'btn btn--stone bag__close', type: 'button', text: 'とじる', onclick: closeBag })
+        ])
+      ]),
+      // まきもの（v14.13）：お話を はじめから ぜんぶ 読み直す
+      d.scroll = h('div', { class: 'bag maki', hidden: true, onclick: function (e) { if (e.target === d.scroll) closeMaki(); } }, [
+        h('div', { class: 'bagcard maki__card' }, [
+          h('div', { class: 'bagcard__head' }, [
+            d.makiTitle = h('h3', { class: 'bagcard__title', raw: true }),
+            h('div', { class: 'bagcard__subrow' }, [
+              h('span', { class: 'bagcard__sub', text: 'なんかい 読んでも いいよ' }),
+              d.makiListen = h('span', { class: 'maki__listen' })
+            ])
+          ]),
+          d.makiText = h('div', { class: 'maki__text', raw: true }),
+          h('button', { class: 'btn btn--stone bag__close', type: 'button', text: 'とじる', onclick: function () { closeMaki(); } })
         ])
       ])
     ]);
@@ -257,16 +279,23 @@ MQ.ui.battle = (function () {
       const recap = first ? [] : ctx.area.stages.filter(function (st, i) {
         return i < here && MQ.content.isAvailable(st) && ((player.stars || {})[st.id] || 0) >= 1;
       });
+      /* ものがたりを 読む（v14.13）：話は 1本で つながって いるので、
+         とちゅうに よその 問題（ふくしゅう・リベンジ）や
+         同じ 場面を 2回 聞く 中ボスを 入れない。まとめ問題も 出さない。
+         サポートの ヒント先出し・コンボガードは そのまま（やさしさは 消さない）。 */
+      const story = !!found.stage.story;
+      const sup = (story && fs.support) ? Object.assign({}, fs.support, { easy: false, extra: 0 }) : fs.support;
       MQ.battle.start({
         stage: found.stage, mode: 'normal',
-        bossHp: BS.bossHp, bossMax: BS.bossMax, enrageAt: BS.enrageAt, finalAt: BS.finalAt, recap: recap,
-        escaped: escaped, review: reviewList, enemies: enemies, bossId: boss.id,
+        bossHp: BS.bossHp, bossMax: BS.bossMax, enrageAt: BS.enrageAt, finalAt: BS.finalAt,
+        recap: story ? [] : recap,
+        escaped: story ? [] : escaped, review: story ? [] : reviewList, enemies: enemies, bossId: boss.id,
         rareId: rareId, trioIds: trioIds, chest: true, mobs: mobCount,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
         gear: MQ.hero.gearPower(player),
-        fever: fs.fever, support: fs.support, attacks: first ? false : atk,
+        fever: fs.fever, support: sup, attacks: first ? false : atk,
         weekend: wk,                                          // しゅうまつ イベント（v13.16）
-        elite: !first, summon: !first, areaId: ctx.area.id   // 中ボス・なかまを よぶ（v8.1）
+        elite: !first && !story, summon: !first && !story, areaId: ctx.area.id   // 中ボス・なかまを よぶ（v8.1）
       });
     }
 
@@ -512,17 +541,19 @@ MQ.ui.battle = (function () {
       ]);
       d.foes.appendChild(box);
       if (boss && !twin && i === pos) {
-        // 2行だけ：名前／弱点＋ため。HP の 玉は 出さない（左上の バーが ボスの HP・ふきだしが「あと Nかい」）。
-        // 3行に すると ラスボス（112px）の 頭に かぶる
+        /* 名前は 左上の HP バーの 中（v14.14）。右上には 弱点と ため だけを 1行で おく。
+           HP の 玉は 出さない（左上の バーが ボスの HP・ふきだしが「あと Nかい」）。
+           **2行に もどさない**＝96マスの ラスボスの かんむりが かくれる（2026-09-20） */
+        d.bossName.textContent = e.name;
+        d.bossName.hidden = false;
         d.bossInfo.innerHTML = '';
-        d.bossInfo.appendChild(h('span', { class: 'enemy__name', text: e.name }));
         d.bossInfo.appendChild(h('div', { class: 'bossinfo__row' }, [
           wk ? h('span', { class: 'enemy__weak' + (q.weak === wk ? ' is-now' : ''), text: weakText(wk) }) : null
         ]));
         d.bossInfo.hidden = false;
       }
     });
-    if (!(bossAt && ids.length === 1)) d.bossInfo.hidden = true;
+    if (!(bossAt && ids.length === 1)) { d.bossInfo.hidden = true; d.bossName.hidden = true; }
 
     d.cur = d.foes.children[Math.min(pos, d.foes.children.length - 1)];
     if (q.boss) renderBossHp();
@@ -728,6 +759,7 @@ MQ.ui.battle = (function () {
     const last = MQ.battle.mode() === 'tower';
     locked = false;
     input = '';
+    if (d.scroll) d.scroll.hidden = true;   // まきもの（v14.13）
     writeState = 'draw';
     writeModel = false; writeMsg = '';
     div = { q: '', r: '', active: 'q' };
@@ -819,6 +851,7 @@ MQ.ui.battle = (function () {
 
     renderAnswerArea(q);
     fitPrompt();      // メモ欄・キーが そろった あとで もう一度（v5.6）
+    refitSoon();      // ものがたり（v14.13）
     // サポート（v7.2）：にがて・はじめての 教科では ヒントが 先に 出る（ザコだけ）
     const ph = MQ.battle.preHint ? MQ.battle.preHint() : null;
     if (ph) showHint(ph, q, -1);
@@ -1170,7 +1203,10 @@ MQ.ui.battle = (function () {
        [図の 大きさ, 字を いくつ 小さくするか]
      字を 1つ 小さく → 図を 少し → また 字 … と かわりばんこに して、
      どちらか 一方だけが むりに 小さく ならない ように して ある。 */
-  const FIT_STEPS = [[1, 0], [1, 1], [0.85, 1], [0.85, 2], [0.7, 2], [0.7, 3], [0.55, 3], [0.45, 3]];
+  /* 3つめ＝ものがたりの 字の 大きさ（v14.13）。
+     話は 読む ためのものなので、問題文より あとから ゆっくり 小さくする */
+  const FIT_STEPS = [[1, 0, 1], [1, 1, 1], [0.85, 1, 0.95], [0.85, 2, 0.92],
+                     [0.7, 2, 0.88], [0.7, 3, 0.85], [0.55, 3, 0.8], [0.45, 3, 0.76]];
   function fitPrompt() {
     const n = (d.prompt.textContent || '').replace(/\s/g, '').length;
     const q = MQ.battle.current();
@@ -1181,17 +1217,31 @@ MQ.ui.battle = (function () {
     // メモ欄が ない 問題は 下が あく → 大きい 字から ためす（v5.6・「見やすく」）。
     // 長い 文が でかく なりすぎない ように、字の 数で 上限を 決める
     if (d.memo.hidden && !fig) start = Math.min(start, n <= 10 ? 0 : n <= 20 ? 1 : 2);
+    // ものがたり（v14.13）：話が 主役。問題文は はじめから 中くらいの 大きさで
+    if (d.story && !d.story.hidden) start = Math.max(start, 2);
     d.root.classList.remove('is-cram');
     // 2周する。1周めで だめなら バトル画面（上）を 少し ちぢめて もう一度
     for (let round = 0; round < 2; round++) {
       for (let s = 0; s < FIT_STEPS.length; s++) {
         d.card.style.setProperty('--figk', FIT_STEPS[s][0]);
+        d.card.style.setProperty('--storyk', FIT_STEPS[s].length > 2 ? FIT_STEPS[s][2] : 1);
         d.prompt.className = 'card__q' + Q_SIZES[Math.min(Q_SIZES.length - 1, start + FIT_STEPS[s][1])];
         if (!overflowing()) return;
       }
       d.root.classList.add('is-cram');
     }
   }
+  /* ものがたり（v14.13）：字の ファイルが あとから とどく・ヒントが 出る と
+     カードの 高さが 変わる。そのあと もう一度 合わせないと 問題文の 下が 切れた
+     （タブレット 800×1280 で 実測）。つぎの コマと 字が そろった あとに もう一度。 */
+  let refitTok = 0;
+  function refitSoon() {
+    const tk = ++refitTok;
+    const again = function () { if (tk === refitTok && d.story && !d.story.hidden) fitPrompt(); };
+    if (window.requestAnimationFrame) requestAnimationFrame(function () { requestAnimationFrame(again); });
+    if (document.fonts && document.fonts.ready && document.fonts.ready.then) document.fonts.ready.then(again);
+  }
+
   // カードから 中身が はみ出して いるか（カードが 見えて いない ときは しらべない）
   function overflowing() {
     return d.card && !d.card.hidden && d.card.clientHeight > 0 && d.card.scrollHeight > d.card.clientHeight + 1;
@@ -1214,8 +1264,70 @@ MQ.ui.battle = (function () {
     d.listen.hidden = false;
   }
 
+  /* ものがたりを 読む（v14.13）
+     ザコ … その 場面の 1〜2文を カードの 上に 出す（読み上げボタンつき）
+     ボス … お話 ぜんぶは 長いので「お話を ぜんぶ 読む」ボタン → まきもの   */
+  let storyVoiceWait = false;
+  function renderStory(q) {
+    if (!d.story) return;
+    d.story.textContent = '';
+    d.story.hidden = true;
+    d.card.classList.remove('card--story');
+    if (!q.story) return;
+
+    d.story.hidden = false;
+    d.card.classList.add('card--story');
+
+    if (q.storyFull) {
+      // ボス：お話 ぜんぶを ふり返る
+      d.story.appendChild(h('button', {
+        class: 'maki__open', type: 'button', text: '\u{1F4DC} お話を ぜんぶ 読む', raw: true,
+        onclick: function () { MQ.sfx.tap(); openMaki(q); }
+      }));
+      return;
+    }
+
+    d.story.appendChild(h('p', { class: 'card__storytx', text: q.story, raw: true }));
+    const btn = MQ.ui.listenButton && MQ.ui.canSpeak
+      ? MQ.ui.listenButton({ text: q.story, lang: 'ja', label: 'きく' }) : null;
+    if (btn) {
+      btn.classList.add('listen--story');
+      d.story.appendChild(btn);
+    } else if (window.speechSynthesis && !storyVoiceWait) {
+      /* 声の 用意が まだの 端末（getVoices が あとから そろう）でも
+         1問めから「きく」が 出る ように、そろったら もう一度 描く */
+      storyVoiceWait = true;
+      const on = function () {
+        window.speechSynthesis.removeEventListener('voiceschanged', on);
+        storyVoiceWait = false;
+        const now = MQ.battle.current();
+        if (now && now.story) { renderStory(now); fitPrompt(); }
+      };
+      window.speechSynthesis.addEventListener('voiceschanged', on);
+    }
+  }
+
+  function openMaki(q) {
+    if (!d.scroll) return;
+    d.makiTitle.textContent = q.storyTitle || 'お話';
+    d.makiText.textContent = q.story || '';
+    d.makiListen.textContent = '';
+    const btn = MQ.ui.listenButton && MQ.ui.canSpeak
+      ? MQ.ui.listenButton({ text: q.story, lang: 'ja', label: 'きく' }) : null;
+    if (btn) d.makiListen.appendChild(btn);
+    d.scroll.hidden = false;
+  }
+
+  function closeMaki() {
+    if (!d.scroll) return;
+    MQ.sfx.tap();
+    if (MQ.speech) MQ.speech.stop();
+    d.scroll.hidden = true;
+  }
+
   function renderAnswerArea(q) {
     d.prompt.innerHTML = q.prompt || '';
+    renderStory(q);
     d.card.hidden = false;      // 先に 見えるように する（fitPrompt が 高さを はかるため・v5.6）
     renderListen(q);
     fitPrompt();
@@ -2134,6 +2246,7 @@ MQ.ui.battle = (function () {
     d.hint.innerHTML = '<span class="hintbox__label">ヒント</span>' + MQ.util.esc(hint.text);
     d.panel.classList.add('has-hint');
     fitPrompt();      // ヒントの ぶん 場所が へるので、問題文の 大きさを 合わせ直す（v5.6）
+    refitSoon();      // ものがたり（v14.13）
     if (q.type !== 'choice') return;
     d.choices.querySelectorAll('.choice').forEach(function (b) {
       const i = Number(b.getAttribute('data-i'));

@@ -1214,9 +1214,21 @@ body {
 /* ボス戦の 画面を 見やすく（v12.8・息子さんの 実機の 写真「バトルシーンが 台無し」）
    1体だけの ボスは 名前・弱点・HP を 右上の パネルに まとめる。足もとに おくと 右下の アイテムボタンに かくれ、
    頭の 上に おくと 3D の 図が 上まで あって 画面から はみ出た。ぶんしん・呼ばれた ザコの となり（twin）は いままで どおり */
-.bossinfo { position: absolute; top: 6px; right: 10px; z-index: 3; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; pointer-events: none; }
+/* v14.14：名前は HP バーの 中に うつした（下の .hpbar__name）。ここは 弱点と ため の 1行だけ。
+   **2行に もどさない**＝96マスの ラスボスの かんむりが かくれる（実測：絵は y31 から・パネルは y6..52 だった） */
+.bossinfo { position: absolute; top: 4px; right: 10px; z-index: 3; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; pointer-events: none; }
 .bossinfo[hidden] { display: none; }
 .bossinfo .enemy__name { position: static; transform: none; margin: 0; font-size: 12px; max-width: 144px; overflow: hidden; text-overflow: ellipsis; }   /* 144px＝9文字（アルファグリフォン・v14.7）まで 入る */
+/* ボスの 名前＝HP バーの 中（左はし）。バー（14px）より 字が 少し 高い ので はみ出して よい */
+.hpbar__name {
+  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  max-width: 170px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  padding: 0; border-radius: 0; background: none;                      /* バーを かくさない（.enemy__name の こい わくを 消す） */
+  font-family: var(--f-body); font-size: 11px; font-weight: 700; color: #fff; line-height: 1;
+  text-shadow: 0 1px 0 rgba(10,14,34,.95), 0 -1px 0 rgba(10,14,34,.95), 1px 0 0 rgba(10,14,34,.95), -1px 0 0 rgba(10,14,34,.95), 0 0 5px rgba(10,14,34,.85);
+  pointer-events: none;
+}
+.hpbar__name[hidden] { display: none; }
 .bossinfo__row { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .bossinfo__row:empty { display: none; }
 .bossinfo .enemy__weak { position: static; transform: none; margin: 0; }
@@ -1418,7 +1430,7 @@ body {
 .dmg { position: absolute; font-family: var(--f-head); font-size: 22px; color: #fff; text-shadow: 0 2px 0 #d6491f; z-index: 4; }
 
 .tag--hp { display: flex; align-items: center; }
-.hpbar { flex: 1 1 100%; order: 3; height: 14px; border-radius: 999px; background: rgba(16,24,48,.7); padding: 3px; }
+.hpbar { position: relative; flex: 1 1 100%; order: 3; height: 14px; border-radius: 999px; background: rgba(16,24,48,.7); padding: 3px; }   /* relative＝ボスの 名前（.hpbar__name）を 中に おく・v14.14 */
 .hpbar__fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--hp-1), #ffb14f); transition: width .3s ease; }
 .pillstat { padding: 6px 12px; border-radius: 10px; background: rgba(16,24,48,.94); font-size: 15px; color: #fff; white-space: nowrap; }
 .pillstat b { color: var(--gold); }
@@ -1649,6 +1661,9 @@ body {
 .feedback--big .feedback__head { font-size: 26px; }
 
 .hintbox { border-radius: 12px; padding: 6px 12px; background: rgba(255,255,255,.1); font-size: 14px; line-height: 1.35; color: #dbe4ff; flex: none; }
+/* 「ヒント」の あとに すきま（v14.13 で 直した。前は しゅぎょうばだけに あって、
+   バトルでは「ヒントさいごの ところを」と くっついて 読みにくかった） */
+.hintbox .hintbox__label { margin-right: 6px; font-weight: 700; }
 .note { margin: 10px 0 0; font-size: 13px; color: var(--tx-sub); line-height: 1.45; }
 .panel { border-radius: 14px; padding: 10px 12px; background: rgba(16,24,48,.7); }
 .panelspacer { height: 8px; }
@@ -4516,3 +4531,41 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .hero.is-smashed--lite { animation: ambSmashLite .5s ease-out both; }
 @keyframes ambSmashLite { 0% { transform: translateX(0); } 25% { transform: translateX(-14px) rotate(-7deg); } 60% { transform: translateX(-6px) rotate(-2deg); } 100% { transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .enemy.is-cast, .hero.is-smashed--lite { animation-duration: .01s; } }
+
+/* ものがたりを 読む（v14.13）
+   ねらい：長い 文を 読みたがらない 子でも 読める ように、
+   1画面に 1〜2文しか 出さない。字は 大きめ・行の あいだは たっぷり。
+   問題文（.card__q）より 小さく して、どちらが 問題か ひと目で わかる ように する。 */
+.card__story {
+  margin: 0 0 8px; padding: 9px 11px 9px 14px;
+  border-radius: 10px; border-left: 5px solid var(--c-kokugo, #4aa564);
+  background: rgba(255, 255, 255, .58);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .05);
+}
+.card { --storyk: 1; }
+.card__storytx {
+  margin: 0; font-family: var(--f-body); font-weight: 700;
+  /* 字の 大きさは fitPrompt が --storyk で 下げる（ぜったいに 切れない ように）*/
+  font-size: calc(18px * var(--storyk, 1)); line-height: 1.8; letter-spacing: .02em; color: var(--paper-ink);
+}
+/* 話が ある ときは 問題文を 少し 小さく（話が 主役・問題は 見出し） */
+.card--story .card__q { font-size: 25px; line-height: 1.25; }
+/* 話の「きく」は 小さく（55px も 取ると 問題文が 切れた・v14.13 で 実測）*/
+.listen--story { margin-top: 6px; min-height: 30px; padding: 3px 10px; }
+.listen--story .listen__tx { font-size: 13px; }
+/* ボスの「お話を ぜんぶ 読む」 */
+.maki__open {
+  width: 100%; min-height: 40px; padding: 8px 12px; border: 0; border-radius: 10px;
+  background: var(--c-kokugo, #4aa564); color: #fff; cursor: pointer;
+  font-family: var(--f-head); font-size: 17px; letter-spacing: .04em;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, .22);
+}
+/* まきもの（お話を はじめから 読み直す） */
+.maki__card { max-width: 340px; }
+.maki__text {
+  /* vh は 画面ぜんたいの 拡大縮小（stage.js）に 合わない → --stage-h で（v14.13 で 実測）*/
+  max-height: calc(var(--stage-h, 700px) * 0.52); overflow-y: auto; margin: 4px 0 10px; padding: 12px 14px;
+  border-radius: 12px; background: var(--paper-1, #fdf6e3); color: var(--paper-ink, #4a3b2a);
+  font-family: var(--f-body); font-weight: 700; font-size: 17px; line-height: 1.9; text-align: left;
+}
+.maki__listen { display: inline-flex; }

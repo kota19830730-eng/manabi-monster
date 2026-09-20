@@ -79,6 +79,7 @@ MQ.terms = (function () {
     { name: 'じゅく語', area: 'kokugo', term: 2, units: ['じゅく語'] },
     { name: 'にた いみの ことば', area: 'kokugo', term: 2, units: ['にたいみのことば'] },
     { name: 'ことわざ', area: 'kokugo', term: 3, units: ['ことわざ'] },
+    { name: 'ものがたりを 読む', area: 'kokugo', term: 1, units: ['ものがたりを読む'] },
     { name: 'かんようく', area: 'kokugo', term: 3, units: ['かんようく'] },
     // 理科
     { name: '理科：こん虫', area: 'rikashakai', term: 1, units: ['理科／こん虫'] },

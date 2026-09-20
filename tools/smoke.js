@@ -916,8 +916,8 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 168, 'たからもの 168個（小3 32＋小1 18＋小2 19＋小4 32＋小5 35＋小6 32）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 32 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 35, 'listFor: 小3 32・小1 18・小2 19・小4 32・小5 35');
+check(MQ.treasure.total() === 169, 'たからもの 169個（小3 33＋小1 18＋小2 19＋小4 32＋小5 35＋小6 32）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 33 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 35, 'listFor: 小3 33・小1 18・小2 19・小4 32・小5 35');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -1774,7 +1774,7 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
   });
   const want = {
     burst: 19, shield: 15, freeze: 7, guide: 14, golden: 12, chest: 10, power: 17, charge: 13,
-    bond: 12, rush: 13, find: 13, swift: 12, elixir: 11   // v11.0 で 小6の たからもの 32 が 入った
+    bond: 12, rush: 14, find: 13, swift: 12, elixir: 11   // v11.0 で 小6の たからもの 32・v14.13 で ものがたりの まきもの
   };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
@@ -4667,7 +4667,9 @@ function stripComments(src) {
   check(!!D && !!LS, 'dojo: MQ.dojo と MQ.lessons が ある');
   // 小3 算数 18ステージ ぜんぶ
   for (let i = 1; i <= 18; i++) check(LS.has('sansu3-' + i), 'dojo: sansu3-' + i + ' の 指導が ある');
-  check(LS.ids().length === 18, 'dojo: 指導は 18ステージ（' + LS.ids().length + '）');
+  // 小3 算数 18 ＋ 国語『ものがたりを 読む』（v14.13）
+  check(LS.has('kokugo3-6'), 'dojo: kokugo3-6（ものがたりを 読む）の 指導が ある');
+  check(LS.ids().length === 19, 'dojo: 指導は 19ステージ（' + LS.ids().length + '）');
   // 文の 中身と かん字（小3まで＋半径・直径の 径・位）
   const OKX = '径位辺';   // 半径・直径・位・二等辺三角形（sansu3.js の 問題文にも ある）
   function badK(s) { const bad = []; (String(s).replace(/<[^>]+>/g, '').match(/[一-龠]/g) || []).forEach(function (k) { if (!MQ.kakusu.upTo(k, 3) && OKX.indexOf(k) < 0 && bad.indexOf(k) < 0) bad.push(k); }); return bad; }
@@ -5499,6 +5501,137 @@ function stripComments(src) {
   });
   check(minC >= 17, 'v14.12: パーフェクトなら 17コンボ（スターバースト）に とどく（さいしょう ' + minC + '）');
   console.log('v14.12 ひっさつわざの はしご OK（パーフェクトの さいしょう ' + minC + 'コンボ）');
+})();
+
+/* ---- v14.13 ものがたりを 読む（読解）----
+   ユーザーの つまずき＝「長い 文を 読みたがらない」「読んでも 意味が 入って こない」。
+   だから **1画面 1〜2文から 少しずつ 長く** が この 機能の 命。ここが こわれたら 落とす。 */
+(function () {
+  const D = MQ.dokkai3;
+  check(!!D, 'v14.13: MQ.dokkai3 が ある');
+  if (!D) return;
+
+  // 読みこみ順（world3.js より 前。あとだと 本物の アプリだけ 落ちる＝v4.9 の zu.js と 同じ）
+  check(INDEX_HTML.indexOf('js/content/dokkai3.js') > 0 &&
+        INDEX_HTML.indexOf('js/content/dokkai3.js') < INDEX_HTML.indexOf('js/content/world3.js'),
+        'v14.13: index は dokkai3.js を world3.js より 前に 読む');
+
+  const stories = D.stories;
+  check(stories.length >= 4, 'v14.13: お話は 4本 いじょう（いま ' + stories.length + '）');
+
+  const ids = {};
+  stories.forEach(function (st) {
+    check(!ids[st.id], 'v14.13: お話の id が かぶって いない（' + st.id + '）');
+    ids[st.id] = 1;
+    check(st.scenes.length === 12, 'v14.13: ' + st.id + ' の 場面は 12（' + st.scenes.length + '）');
+    check((st.chest || []).length >= 3, 'v14.13: ' + st.id + ' の たからばこは 3いじょう');
+    check((st.boss || []).length >= 6, 'v14.13: ' + st.id + ' の ボスは 6いじょう');
+    check(/^[ぁ-んァ-ヶー 0-9]+$/.test(st.title), 'v14.13: ' + st.id + ' の 題名は ひらがな（金の 見出しは かん字が つぶれる）: ' + st.title);
+
+    // 少しずつ 長くする はしご：lv1 の 場面 < lv3 の 場面（1文 → 2〜3文）
+    const easy = st.scenes.slice(0, 4).reduce(function (a, x) { return a + x.t.length; }, 0) / 4;
+    const hard = st.scenes.slice(8, 12).reduce(function (a, x) { return a + x.t.length; }, 0) / 4;
+    check(easy < hard, 'v14.13: ' + st.id + ' は あとの 場面ほど 長い（はじめ ' + Math.round(easy) + '字 / さいご ' + Math.round(hard) + '字）');
+    check(easy <= 45, 'v14.13: ' + st.id + ' の はじめの 場面は 45字いか（' + Math.round(easy) + '字）');
+
+    // たからばこは その 文を いっしょに 出す（まだ 読んで いない ことばを 聞かない）
+    st.chest.forEach(function (c, i) {
+      check(!!c.t, 'v14.13: ' + st.id + ' たからばこ ' + i + ' に その 文（t）が ある');
+    });
+
+    // 問題の かたち
+    st.scenes.concat(st.chest, st.boss).forEach(function (x, i) {
+      check(!!x.text && !!x.hint && !!x.note, 'v14.13: ' + st.id + ' の 問題 ' + i + ' に text/hint/note が ある');
+      check(x.choices && x.choices.length === 4, 'v14.13: ' + st.id + ' の 問題 ' + i + ' は えらぶ 4つ');
+      check(!x.choices || new Set(x.choices).size === 4, 'v14.13: ' + st.id + ' の 問題 ' + i + ' の えらぶが かぶって いない');
+    });
+  });
+
+  // かん字は 小3まで（問題文は raw＝学年の 辞書を かけない ので、書いた 字が そのまま 出る）
+  const over = new Set();
+  stories.forEach(function (st) {
+    st.scenes.concat(st.chest, st.boss).forEach(function (x) {
+      [x.t, x.text, x.hint, x.note].concat(x.choices || []).forEach(function (t) {
+        (t || '').split('').forEach(function (c) {
+          if (/[\u4e00-\u9faf]/.test(c) && !MQ.kakusu.upTo(c, 3)) over.add(c);
+        });
+      });
+    });
+  });
+  check(over.size === 0, 'v14.13: かん字は 小3まで（こえて いる: ' + [...over].join('') + '）');
+
+  // 単元は terms.js の 表に ある 文字（ない unit は 出題から 外れる）
+  check(D.unit === 'ものがたりを読む', 'v14.13: unit は ものがたりを読む');
+  check(MQ.terms.entries(3).some(function (e) { return e.key === 'unit:' + D.unit; }),
+        'v14.13: terms.js の 表に ものがたりを読む が ある');
+
+  // ステージ
+  const found = MQ.content.findStage('kokugo3-6');
+  check(!!found, 'v14.13: kokugo3-6 が ある');
+  if (found) {
+    check(found.stage.story === true, 'v14.13: kokugo3-6 は story: true（ふくしゅう・中ボスを 出さない しるし）');
+    check(found.stage.pool() >= 12, 'v14.13: kokugo3-6 の 問題は 12いじょう');
+    check(!!MQ.treasure.listFor(MQ.content.world('g3')).some(function (t) { return t.stage === 'kokugo3-6'; }),
+          'v14.13: kokugo3-6 に たからものが ある');
+  }
+
+  // make：ザコ 12問は 場面の 順（lv 1,1,1,1,2,2,2,2,3,3,3,3）で 出る
+  for (let r = 0; r < 5; r++) {
+    const qs = D.make(12, { boss: false });
+    check(qs.length === 12, 'v14.13: make(12) は 12問（' + qs.length + '）');
+    const lvs = qs.map(function (q) { return q.lv; }).join('');
+    check(lvs === '111122223333', 'v14.13: make(12) の むずかしさの ならび: ' + lvs);
+    check(new Set(qs.map(function (q) { return q.id; })).size === 12, 'v14.13: make(12) は かぶりなし');
+    qs.forEach(function (q) {
+      check(!!q.story && !q.storyFull, 'v14.13: ザコの 問題には その 場面の 話が つく');
+      check(q.type === 'choice' && q.answer === 0, 'v14.13: ザコの 問題は えらぶ・正解が 先頭');
+      check(q.unit === D.unit, 'v14.13: ザコの 問題の unit');
+    });
+    // 話は 1本ぶん（お話が まざらない）
+    check(new Set(qs.map(function (q) { return q.storyTitle; })).size === 1, 'v14.13: 1回の たたかいは お話 1本');
+  }
+
+  // make：場面が へっても お話の さいごまで とどく（はじめての たたかい＝ザコ 6体 など）
+  [6, 9, 11].forEach(function (n) {
+    const qs = D.make(n, { boss: false });
+    check(qs.length === n, 'v14.13: make(' + n + ') は ' + n + '問');
+    const all = qs.map(function (q) { return q.story; }).join('');
+    const st = D.stories.filter(function (x) { return x.title === qs[0].storyTitle; })[0];
+    check(all === st.scenes.map(function (x) { return x.t; }).join(''),
+          'v14.13: make(' + n + ') でも お話は さいごまで 出る');
+  });
+
+  // たからばこ（core は make(1, { boss: false, lv: 2 }) で よぶ）
+  for (let r = 0; r < 5; r++) {
+    const cq = D.make(1, { boss: false, lv: 2 })[0];
+    check(!!cq && !cq.storyFull, 'v14.13: たからばこは お話 ぜんぶを 出さない');
+    check(!!cq.story && cq.story.length <= 60, 'v14.13: たからばこは その 文だけ（' + (cq.story || '').length + '字）');
+  }
+
+  // ボス
+  const seen = {};
+  for (let r = 0; r < 20; r++) {
+    const bq = D.make(1, { boss: true, index: r })[0];
+    check(!!bq && bq.storyFull === true, 'v14.13: ボスは お話 ぜんぶ（まきもの）');
+    check(bq.story.length > 300, 'v14.13: ボスの お話は 300字いじょう');
+    check(bq.lv === 3, 'v14.13: ボスの 問題は lv3');
+    seen[bq.id] = 1;
+  }
+  check(Object.keys(seen).length >= 4, 'v14.13: ボスの 問題は 何しゅるいも 出る（' + Object.keys(seen).length + '）');
+
+  // 画面がわ：話の 箱と まきもの・字の 大きさの はしご
+  const UB = fs.readFileSync(base + '/js/ui/battle.js', 'utf8');
+  check(UB.indexOf('card__story') > 0, 'v14.13: battle.js に 話の 箱');
+  check(UB.indexOf('refitSoon') > 0, 'v14.13: battle.js に refitSoon（あとから 高さが 変わった ときの 合わせ直し）');
+  check(/FIT_STEPS = \[\[1, 0, 1\]/.test(UB), 'v14.13: fitPrompt の はしごに 話の 字の 大きさ（3つめ）');
+  check(UB.indexOf("found.stage.story") > 0, 'v14.13: story: true の ステージは ふくしゅう・中ボスを 出さない');
+  const CSS = fs.readFileSync(base + '/css/style.css', 'utf8');
+  check(CSS.indexOf('--storyk') > 0, 'v14.13: css に --storyk');
+  check(CSS.indexOf('.hintbox .hintbox__label') > 0, 'v14.13: ヒントの ラベルの あとに すきま（全教科）');
+  check(CSS.indexOf('max-height: 46vh') === -1, 'v14.13: まきものの 高さに vh を 使わない（画面の 拡大縮小に 合わない）');
+
+  console.log('v14.13 ものがたりを 読む OK（お話 ' + stories.length + '本 / ' +
+    stories.reduce(function (a, st) { return a + st.scenes.length + st.chest.length + st.boss.length; }, 0) + '問）');
 })();
 
 Promise.all(global.__pending || []).then(function () {

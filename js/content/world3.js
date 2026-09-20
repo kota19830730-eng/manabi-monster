@@ -419,7 +419,13 @@ MQ.content = (function () {
           stage('kokugo', 3, 'ことばの きまり', kokugo),
           stage('kokugo', 4, 'ことばの 意味', kokugo),
           { id: 'kokugo3-5', no: 5, name: 'ローマ字', available: true, noTower: true,
-            make: function (n, opts) { return MQ.romaji3.make(n, opts); } }
+            make: function (n, opts) { return MQ.romaji3.make(n, opts); } },
+          /* ものがたりを 読む（v14.13）：ザコを 1体 たおすごとに 話が 1〜2文 進む。
+             story: true が ついた ステージは ふくしゅう・リベンジ・中ボスを 出さない
+             （話の とちゅうに よその 問題が 入ると 話が 切れる） */
+          { id: 'kokugo3-6', no: 6, name: 'ものがたりを 読む', available: true, story: true,
+            pool: function () { return MQ.dokkai3.pool(); },
+            make: function (n, opts) { return MQ.dokkai3.make(n, opts); } }
         ]
       },
       {

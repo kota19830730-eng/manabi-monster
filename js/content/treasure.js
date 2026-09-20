@@ -60,6 +60,7 @@ MQ.treasure = (function () {
     { stage: 'kokugo3-3', id: 'tr-kimari',  name: 'ことばの らしんばん',   shape: 'compass',   colors: c('#8A6BD8', '#4A2F8A') },
     { stage: 'kokugo3-4', id: 'tr-imi',     name: 'ことばの ももいし',    shape: 'gem',       colors: c('#FF6B9A', '#A8244F') },
     { stage: 'kokugo3-5', id: 'tr-romaji',  name: 'ローマ字の かぎ',      shape: 'key',       colors: c('#8FD3FF', '#3E7FB0') },
+    { stage: 'kokugo3-6', id: 'tr-monogatari', name: 'ものがたりの まきもの', shape: 'scroll',  colors: c('#5FBF7A', '#2A6B3E') },
 
     /* ---- 理科社会の海（4） ---- */
     { stage: 'rikashakai3-1', id: 'tr-mushi',  name: 'はっぱの はね',      shape: 'feather',   colors: c('#4CD164', '#1E7A3C') },
