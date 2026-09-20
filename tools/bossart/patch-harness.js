@@ -36,7 +36,7 @@ const ADD = [
   "      await playBattle('boss', { stopAtBoss: true });",
   "      await wait(2200);",
   "      const b = $('.foes .enemy');",
-  "      say('bossof: ' + (b ? b.className : 'none') + ' name=' + (($('.bossinfo .enemy__name') || {}).textContent || ''));",
+  "      say('bossof: ' + (b ? b.className : 'none') + ' name=' + (($('.hpbar__name') || {}).textContent || ''));",
   "      return;",
   "    }",
   ""
