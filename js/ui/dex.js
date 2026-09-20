@@ -189,7 +189,9 @@ MQ.ui.dex = (function () {
         if (left != null) countTxt = (g.id === 'majin' ? 'ごちゃまぜで ボスを あと ' : '本気で ボスを あと ') + left + '回 たおすと つぎの 1つ';
       }
       return h('div', {}, [
-        h('h3', { class: 'label' }, [h('span', { text: g.name + ' 一式　' + got + ' / 5' + wazaTxt }), waza ? h('span', { class: 'label__waza', text: waza.name, raw: true }) : null]),
+        // v14.15：技名に フリガナ（カタカナの 読み）。漢字は 小3には 読めない ので バトルの カットインと 同じ 読みを 上に
+        h('h3', { class: 'label' }, [h('span', { text: g.name + ' 一式　' + got + ' / 5' + wazaTxt }),
+          waza ? h('ruby', { class: 'label__waza', raw: true }, [waza.name, h('rt', { text: waza.ruby || '', raw: true })]) : null]),
         countTxt ? h('p', { class: 'gearcount', text: countTxt }) : null,
         h('div', { class: 'grid' }, items.map(function (item) {
           const owned = player.gear.indexOf(item.id) !== -1;

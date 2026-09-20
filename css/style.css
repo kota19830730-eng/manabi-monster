@@ -2335,6 +2335,9 @@ body {
 .cell__pow { font-size: 10px; color: var(--gold); line-height: 1.2; }
 /* そうびの 見出しの「あと N つで ○○」と、まじん・あんこくの「あと N回」（v14.11） */
 .label__waza { color: var(--gold); }
+/* 技名の フリガナ（v14.15）。読みは カタカナで 漢字の 2ばい 長い ので 小さめ・字づめ。
+   ルビの ほうが 広い ときは 漢字の ほうが 広がる（それで よい） */
+.label__waza rt { font-family: var(--f-body); font-size: 9px; font-weight: 700; letter-spacing: 0; color: #ffe9b0; }
 .gearcount { margin: -4px 0 8px; font-size: 12px; color: rgba(255,255,255,.75); }
 .gearnow {
   margin: 0 0 10px; padding: 8px 10px; border-radius: 12px;
