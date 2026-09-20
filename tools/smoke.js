@@ -3825,7 +3825,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     [3, 'こたえる', '答える'],
     [3, 'ぎんがの ビッグバン！', 'ぎんがの ビッグバン！'],   // v13.6：長い ことばが まだ かん字に できない ときは 中の「ぎん」も さわらない（前は「銀がの」）
     [3, 'ほしい もの', 'ほしい もの'],
-    [5, 'ぎんがの ビッグバン！', '銀河のビッグバン！'],
+    [5, 'ぎんがの ビッグバン！', 'ぎんがの ビッグバン！'],   // v14.11：必殺技の 名前は どの 学年でも 同じ（kotoba.js の KEEP）
     [3, 'けす', '消す'],
     [3, 'てき', 'てき'],
     [3, 'デビルカイザー', 'デビルカイザー'],
@@ -3838,10 +3838,10 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     [4, 'てき', 'てき'],
     [5, 'たおした', '倒した'],
     [5, 'てき', '敵'],
-    [5, 'ほのお ギリ！', '炎斬り！'],
+    [5, 'ほのお ギリ！', 'ほのお ギリ！'],   // v14.11：必殺技の 名前は どの 学年でも 同じ
     [5, 'なったよ！', 'なった！'],
     [6, 'スカルホース が あらわれた！ けいけんち 3ばい！', 'スカルホースが現れた！ 経験値3倍！'],
-    [6, 'ぎんがの ビッグバン！', '銀河のビッグバン！'],
+    [6, 'ぎんがの ビッグバン！', 'ぎんがの ビッグバン！'],   // v14.11
     [6, 'ここに ゆびで ひっさんが かけるよ', 'ここに指で筆算がかける'],
     [6, 'りゅうを たおす者', '竜を倒す者'],
     [6, 'ボスを 1回 たおす', 'ボスを1回 倒す'],
@@ -5237,6 +5237,28 @@ function stripComments(src) {
   check(sm.perfectCoins === 5, 'ギンガの マント: パーフェクトで コイン ＋5: ' + sm.perfectCoins);
   console.log('v14.8 カプセル 第2弾: シークレット 3・コンプリート・ギンガの 力 OK');
 })();
+/* ---- v14.11 必殺技の 名前は どの 学年でも 同じ（kotoba.js の KEEP・text.js の splitKeep）---- */
+(function () {
+  const KEEP = MQ.kotoba.KEEP;
+  const uiBattle = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8');
+  const spNames = [];
+  uiBattle.replace(/id: '[a-z]+',\s+name: '([^']+)！'/g, function (m, nm) { spNames.push(nm); return m; });
+  check(spNames.length === 13, '必殺技: ひっさつわざの 名前 13を 読めた（v14.12 で 3連斬り＋教科の 大わざ 4つ・' + spNames.length + '）');
+  const all = spNames.concat(MQ.setwaza.list().map(function (w) { return w.name; }));
+  all.forEach(function (nm) {
+    check(KEEP.indexOf(nm) >= 0, '必殺技: ' + nm + ' が kotoba.js の KEEP に ある');
+    [1, 2, 3, 4, 5, 6].forEach(function (g) {
+      check(MQ.text.fit(nm, { level: g }) === nm, '必殺技: ' + nm + ' は 小' + g + 'でも そのまま（' + MQ.text.fit(nm, { level: g }) + '）');
+      check(MQ.text.fit(nm + '！', { level: g }) === nm + '！', '必殺技: ' + nm + '！ も そのまま');
+    });
+  });
+  // 文の 中でも 名前は そのまま・まわりは いつもどおり 学年に 合わせる
+  check(MQ.text.fit('つぎの 正解で ほのお ギリ！', { level: 5 }) === '次の正解で ほのお ギリ！', '必殺技: 文の 中（小5）: ' + MQ.text.fit('つぎの 正解で ほのお ギリ！', { level: 5 }));
+  check(MQ.text.fit('あと 2つで 獄炎魔皇拳', { level: 1 }) === 'あと 2つで 獄炎魔皇拳', '必殺技: 文の 中（小1）: ' + MQ.text.fit('あと 2つで 獄炎魔皇拳', { level: 1 }));
+  check(MQ.text.fitHtml('<b>黒炎帝王剣</b>を はなった', { level: 1 }).indexOf('<b>黒炎帝王剣</b>') === 0, '必殺技: HTML でも そのまま');
+  console.log('v14.11 必殺技の 名前は どの 学年でも 同じ OK');
+})();
+
 /* ---- v14.11 まじん・あんこくの そうび（ごちゃまぜ／本気で ボスを たおした 数・専用の 力 10こ）---- */
 (function () {
   const H = MQ.hero;

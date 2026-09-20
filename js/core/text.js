@@ -110,7 +110,7 @@ MQ.text = (function () {
     return built;
   }
   function ensure() { return built || build(); }
-  function reset() { built = null; cache.clear(); lastClassLv = 0; }
+  function reset() { built = null; keepList = null; cache.clear(); lastClassLv = 0; }
 
   /* ---- 学年 ---- */
   function level() {
@@ -295,7 +295,35 @@ MQ.text = (function () {
     document.body.classList.toggle('is-nospace', lv >= 5);
   }
 
-  /* 1つの 文字列を 学年に 合わせる。opts.raw ＝ 問題の 中身（スペースだけ）／opts.level ＝ テスト用 */
+  /* そのまま 出す ことば（必殺技の 名前・kotoba.js の KEEP）。長い じゅん */
+  let keepList = null;
+  function keeps() {
+    if (keepList) return keepList;
+    const k = (MQ.kotoba && MQ.kotoba.KEEP) || [];
+    keepList = k.slice().sort(function (a, b) { return b.length - a.length; });
+    return keepList;
+  }
+  // s を [{ t, keep }] に 分ける。KEEP が ふくまれて いなければ null
+  function splitKeep(s) {
+    const K = keeps();
+    if (!K.length) return null;
+    let found = false;
+    for (let n = 0; n < K.length; n++) if (s.indexOf(K[n]) >= 0) { found = true; break; }
+    if (!found) return null;
+    const out = [];
+    let i = 0, buf = '';
+    while (i < s.length) {
+      let m = null;
+      for (let n = 0; n < K.length; n++) if (s.startsWith(K[n], i)) { m = K[n]; break; }
+      if (m) { if (buf) out.push({ t: buf, keep: false }); buf = ''; out.push({ t: m, keep: true }); i += m.length; }
+      else { buf += s[i]; i++; }
+    }
+    if (buf) out.push({ t: buf, keep: false });
+    return out;
+  }
+
+  /* 1つの 文字列を 学年に 合わせる。opts.raw ＝ 問題の 中身（スペースだけ）／opts.level ＝ テスト用
+     必殺技の 名前（KEEP）は どの 学年でも そのまま（v14.11） */
   function fit(s, opts) {
     if (s == null) return s;
     s = String(s);
@@ -307,6 +335,20 @@ MQ.text = (function () {
     const hitC = cache.get(key);
     if (hitC !== undefined) return hitC;
     syncClass(lv);
+    const pieces = splitKeep(s);
+    if (pieces) {
+      const joined = pieces.map(function (p) { return p.keep ? p.t : fitCore(p.t, lv, raw); }).join('');
+      if (cache.size > 6000) cache.clear();
+      cache.set(key, joined);
+      return joined;
+    }
+    const out = fitCore(s, lv, raw);
+    if (cache.size > 6000) cache.clear();
+    cache.set(key, out);
+    return out;
+  }
+  function fitCore(s, lv, raw) {
+    if (!RE_JPANY.test(s)) return s;
     const lim = limitOf(lv);
     let out = s;
     if (!raw) {
@@ -317,8 +359,6 @@ MQ.text = (function () {
       if (lv >= 5) out = soften(out);
     }
     if (lv >= 5) out = unspace(out);
-    if (cache.size > 6000) cache.clear();
-    cache.set(key, out);
     return out;
   }
 
