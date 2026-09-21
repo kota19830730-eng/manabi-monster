@@ -1653,19 +1653,22 @@ check(sum.bossFled === true && sum.bossBeaten === false, 'run6 summary');
 MQ.battle.start({ stage: tower, mode: 'tower', bossId: 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3 });
 check(MQ.battle.phase() === 'boss' && MQ.battle.mobTotal() === 0, '塔は ザコなし');
 check(MQ.battle.bossHpMax() === 5, 'ラスボス HP5');
-let enraged = false, lastHits = 0;
+/* v14.15：第2形態（おこる）は ガード。ふつうの 1回めの 正解は 2問 れんぞくで やっと 1ダメージ。
+   HP5・おこる 3 なら 2発（HP3）→ ガード 2問で 1発 × 3 ＝ ぜんぶで 8問 */
+let enraged = false, lastHits = 0, guardedN = 0;
 while (!MQ.battle.isOver()) {
   q = MQ.battle.current();
   r = MQ.battle.answer(correctValue(q));
   check(r.outcome === 'bosshit' && r.last === true, '塔 hit');
   lastHits++;
+  if (r.guarded) { guardedN++; check(r.dmg === 0 && r.xp > 0, 'ガードされても けいけんちは 入る'); }
   if (r.enrage) enraged = true;
   if (!r.defeated && !r.fled) MQ.battle.next();
 }
-check(lastHits === 5 && enraged, 'ラスボスは 5回で たおれ、とちゅうで 変身する');
+check(lastHits === 8 && enraged && guardedN === 3, 'ラスボス: 第2形態は ガード（' + lastHits + '問・ガード ' + guardedN + '回）');
 sum = MQ.battle.summary();
 check(sum.bossBeaten === true && sum.mode === 'tower', '塔 クリア');
-check(sum.baseXp >= 5 * 25 + 60, '塔の けいけんち: ' + sum.baseXp);
+check(sum.baseXp >= 5 * 25 + 60, '塔の けいけんち: ' + sum.baseXp);   // ガードの ぶんも 入る ので ふえる
 
 // 負けは ない：8問 まちがえ つづけても にげられるだけ
 MQ.battle.start({ stage: tower, mode: 'tower', bossId: 'boss-maou', bossHp: 5, bossMax: 8, enrageAt: 3 });
@@ -3928,6 +3931,64 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   });
   console.log('読みこみ じゅんばん: index/harness/smoke そろい・教科 ' + CONTENT_ORDER.length + ' ファイル');
 })();
+/* ===== ラスボスを 強く（v14.15）=====
+   ・塔は 手下 4体＋中ボス 1体 → ラスボス（ぜんぶで 約20問）
+   ・ラスボスは 1回めの 正解でしか ダメージが 入らない（けいけんちは 入る）
+   ・第2形態（おこる）＝ガード：2問 れんぞくで 1発。カウンター・弱点・すきだらけ・セットわざは 一発で やぶる
+   ・第3形態（さいごの 力）＝毎問 ため
+   ・本気は HP 1.5ばい・ガードは 3問 れんぞく
+   ・各エリアの ボス（mode normal）は 何も 変わって いない */
+(function () {
+  const B = MQ.battle;
+  const tw = MQ.content.findStage('tower3').stage;
+  const T = B.BOSS_SET.tower;
+  function ans(q) { return q.type === 'choice' || q.type === 'number' || q.type === 'roma' ? q.answer : q.type === 'write' ? true : q.type === 'frac' ? { q: q.answer.n, r: q.answer.d } : { q: q.answer.q, r: q.answer.r }; }
+  function miss(q) { return q.type === 'number' ? q.answer + 1 : q.type === 'choice' ? (q.answer + 1) % q.choices.length : q.type === 'write' ? false : q.type === 'roma' ? 'zzzz' : q.type === 'frac' ? { q: q.answer.n + 1, r: q.answer.d } : { q: q.answer.q + 1, r: q.answer.r }; }
+  function go(o) { B.start(Object.assign({ stage: tw, mode: 'tower', bossId: 'boss-maou', mobs: 4, elite: true }, T, o || {})); }
+  // 手下 4体＋中ボス（2問）
+  go();
+  check(B.phase() === 'mob' && B.mobTotal() === 6, 'ラスボス: 手下 4体＋中ボス 2問 ＝ ' + B.mobTotal());
+  const mobIds = {};
+  let el = 0;
+  while (B.phase() === 'mob') { const q = B.current(); mobIds[q.enemyId] = true; if (q.elite) el++; B.answer(ans(q)); B.next(); }
+  // 中ボスは HP2（クリティカルで 一発の ことも ある ので 1〜2問）
+  check(el >= 1 && el <= 2 && Object.keys(mobIds).length >= 2, 'ラスボス: 手下の 絵は 教科ごと・中ボスが いる（' + Object.keys(mobIds).length + '/' + el + '）');
+  check(B.phase() === 'boss' && B.bossHpMax() === T.bossHp, 'ラスボス: 手下の あと ボス HP ' + B.bossHpMax());
+  // 2回めの 正解は ダメージ 0・けいけんちは 入る
+  go();
+  while (B.phase() === 'mob') { B.answer(ans(B.current())); B.next(); }
+  const q1 = B.current();
+  B.answer(miss(q1));
+  const r1 = B.answer(ans(q1));
+  check(r1.outcome === 'bosshit' && r1.blocked === true && r1.dmg === 0 && r1.xp > 0, 'ラスボス: 2回めの 正解は 0ダメージ・けいけんちは 入る');
+  // ぜんぶ 1回めで 正解した ときの 問題数（手下 6 ＋ ボス）
+  go({ attacks: false });
+  let n = 0, guarded = 0, g = 0;
+  while (!B.isOver() && g++ < 60) {
+    const q = B.current(); n++;
+    const r = B.answer(ans(q));
+    if (r.guarded) guarded++;
+    B.next();
+  }
+  check(B.summary().bossBeaten && n >= 15 && n <= T.bossMax + 6, 'ラスボス: ぜんぶ 正解で ' + n + '問（15〜' + (T.bossMax + 6) + '）');
+  check(guarded > 0, 'ラスボス: 第2形態で ガードされた ' + guarded + '回');
+  // 本気は HP 1.5ばい
+  go();
+  while (B.phase() === 'mob') { B.answer(ans(B.current())); B.next(); }
+  B.setBossHard(true);
+  check(B.bossHpMax() === Math.round(T.bossHp * B.LAST_HARD_HP), '本気の ラスボス HP ' + B.bossHpMax());
+  check(B.LAST_GUARD === 2 && B.LAST_GUARD_HARD === 3, 'ガードの れんぞく 2／本気 3');
+  // 各エリアの ボスは 変わって いない（1回めも 2回めも 1ダメージ）
+  const st = MQ.content.findStage('sansu3-6').stage;
+  B.start(Object.assign({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 2, chest: false, attacks: false }, B.BOSS_SET.normal));
+  while (B.phase() === 'mob') { B.answer(ans(B.current())); B.next(); }
+  const q2 = B.current();
+  B.answer(miss(q2));
+  const r2 = B.answer(ans(q2));
+  check(r2.dmg === 1 && !r2.blocked && !r2.guarded, 'エリアの ボスは いままでどおり（2回めでも 1ダメージ）');
+  console.log('ラスボスを 強く（v14.15）: OK');
+})();
+
 /* ===== ボスを 強く（v12.7）=====
    ・表（BOSS_SET）・ためは 3問に 1回・相棒は ボスに 1まで・3だんかい（おこる → さいごの 力）は 1回ずつ
    ・本気モード：2回めの 正解は ガード（相棒だけ 通る）・けいけんち／コイン 2ばい・ボスに 答えたら 変えられない
@@ -3936,7 +3997,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
 (function () {
   const B = MQ.battle;
   const S = B.BOSS_SET;
-  check(S && S.normal.bossHp === 5 && S.normal.bossMax === 8 && S.tower.bossHp === 9 && S.tower.bossMax === 14 && S.first.bossHp === 3 && S.towerSmall.bossHp === 7, 'ボスの 表 ' + JSON.stringify(S));
+  check(S && S.normal.bossHp === 5 && S.normal.bossMax === 8 && S.tower.bossHp === 14 && S.tower.bossMax === 20 && S.first.bossHp === 3 && S.towerSmall.bossHp === 10, 'ボスの 表 ' + JSON.stringify(S));
   check(B.CHARGE_BOSS === 3 && B.PAL_BOSS_MAX === 1 && B.HARD_MUL === 2, 'ボス: ため 3問に 1回・相棒 1まで・本気 2ばい');
   Object.keys(S).forEach(function (k) { const x = S[k]; check(x.bossMax > x.bossHp && x.enrageAt < x.bossHp && x.finalAt < x.enrageAt, 'ボスの 表の ならび ' + k); });
   const st = MQ.content.findStage('sansu3-6').stage;

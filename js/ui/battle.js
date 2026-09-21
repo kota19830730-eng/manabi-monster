@@ -242,7 +242,9 @@ MQ.ui.battle = (function () {
         bossHp: TS.bossHp, bossMax: TS.bossMax, enrageAt: TS.enrageAt, finalAt: TS.finalAt,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
         gear: MQ.hero.gearPower(player), attacks: atk,
-        weakArea: weakArea, areaId: subs[0] || null
+        weakArea: weakArea, areaId: subs[0] || null,
+        // ラスボスの 手下（v14.15）：城に 入ると 手下 → 中ボス 1体 → ラスボス（ぜんぶで 約20問）
+        mobs: ctx.timeAttack ? 0 : LAST_MOBS, elite: !ctx.timeAttack
       });
     } else {
       // リベンジ（v3.1）：にげてから 時間が たった 敵だけ（古い ものから）。にげた その日は とっくんで
@@ -302,9 +304,12 @@ MQ.ui.battle = (function () {
     setHero(player);
     syncPal(player);
     paintScene(isTower ? 'tower' : (mixBiome || ctx.area.biome || 'mountain'));
-    MQ.bgm.play(isTower ? 'maou' : 'battle');
+    // 手下が いる ラスボス戦（v14.15）は 手下の あいだ ふつうの 曲 → ラスボスで まおうの 曲
+    MQ.bgm.play(isTower && MQ.battle.phase() !== 'mob' ? 'maou' : 'battle');
     MQ.ui.show('screen-battle');
-    if (isTower) towerIntro(); else { renderQuestion(); modeBanner(); }
+    // 手下が いる ラスボス戦（v14.15）は「まおうの しろ」の 幕 → 手下 → あとで FINAL BATTLE
+    if (isTower) { if (MQ.battle.phase() === 'mob') castleIntro(); else towerIntro(); }
+    else { renderQuestion(); modeBanner(); }
   }
 
   /* はじめての たたかい（v11.1）：1問めだけ、こたえ方を 短く 教える。
@@ -456,6 +461,7 @@ MQ.ui.battle = (function () {
   const SKILL_NAME = { kamae: 'たての かまえ', clone: 'ぶんしん', call: 'なかまを よんだ' };
   // ボスの つよさの 表（v12.7・core/battle.js の BOSS_SET）
   function BSET() { return MQ.battle.BOSS_SET; }
+  const LAST_MOBS = 4;   // ラスボスの 手下（v14.15）
   function weakText(areaId) {
     const a = MQ.content.areaOf ? MQ.content.areaOf(areaId) : null;
     const g = (MQ.content.activeWorld && MQ.content.activeWorld().grade) || 3;
@@ -559,6 +565,7 @@ MQ.ui.battle = (function () {
     if (q.boss) renderBossHp();
     if (q.elite) renderEliteHp();
     renderCharge();
+    renderBossGuard();   // 第2形態の ガード（v14.15）
   }
 
   // 中ボス（v8.1）の HP（ボスと 同じ 赤い 玉）
@@ -598,6 +605,21 @@ MQ.ui.battle = (function () {
     host.appendChild(box);
     if (ci.attacking) { d.cur.classList.add('is-attacking'); MQ.sfx.charge(); }
     else if (ci.level > 0) d.cur.classList.add('is-charging');
+  }
+
+  /* 第2形態の ガード（v14.15）：右上の パネルに「ガード ●○」。
+     ため（foecharge）と 同じ 場所に ならべる */
+  function renderBossGuard() {
+    if (!d.arena) return;
+    const old = d.arena.querySelector('.bossguard');
+    if (old) old.remove();
+    const g = MQ.battle.bossGuard ? MQ.battle.bossGuard() : null;
+    if (!g || !d.cur) return;
+    const box = h('div', { class: 'bossguard' });
+    box.appendChild(h('span', { class: 'bossguard__label', text: 'ガード' }));
+    for (let i = 0; i < g.need; i++) box.appendChild(h('span', { class: 'bossguard__dot' + (i < g.streak ? ' is-on' : '') }));
+    const host = (!d.bossInfo.hidden && d.bossInfo.querySelector('.bossinfo__row')) || d.cur;
+    host.appendChild(box);
   }
 
   /* カウンター（v7.7）：金の 帯「カウンター！」＋主人公の 大きな ふみこみ。
@@ -1765,6 +1787,23 @@ MQ.ui.battle = (function () {
     /* ---- ボスに ダメージ ---- */
     if (res.outcome === 'bosshit') {
       markChoices(q, value);
+      /* 第2形態の ガード（v14.15）：1回めの 正解でも れんぞくしないと 入らない。
+         ため・弱点・すきだらけ・セットわざなら 一発で やぶれる */
+      if (res.guarded && !res.dmg) {
+        guardFx();
+        comboShow(res.combo);
+        popDamage('ガード +' + res.xp, false);
+        ok(res.note);
+        renderBossGuard();
+        if (res.fled) {
+          d.msg.textContent = 'ガードが かたい！ ' + e.name + ' は まもりを かためて 去っていった…';
+          wait(3000, finish);
+        } else {
+          d.msg.textContent = 'かたい ガード！ もう 1回 つづけて 正解すれば やぶれる！';
+          wait(2000, advanceBoss);
+        }
+        return;
+      }
       // 本気モード（v12.7）：2回めの 正解は ガード。けいけんちだけ 入る（相棒の 追い打ちが あれば 下の ふつうの 流れ）
       if (res.blocked && !res.dmg) {
         guardFx();
@@ -1775,7 +1814,7 @@ MQ.ui.battle = (function () {
           d.msg.textContent = 'ガードされた！ ' + e.name + ' は まもりを かためて 去っていった…';
           wait(3000, finish);
         } else {
-          d.msg.textContent = 'ガードされた！ 本気の ボスには 1回めの 正解だけ きく！';
+          d.msg.textContent = 'ガードされた！ ' + e.name + ' には 1回めの 正解だけ きく！';
           wait(2000, advanceBoss);
         }
         return;
@@ -1851,6 +1890,7 @@ MQ.ui.battle = (function () {
         : res.skill === 'clone' && res.clonePos === 0 ? 'ぶんしんに あたった！ もう1体！ '
         : res.burst ? 'ばくれつ こうげき！ ' + res.dmg + 'ダメージ！ '
         : res.blocked ? 'ガードされた！ でも なかまの こうげきが 入った！ '   // 本気モード＋相棒（v12.7）
+        : (res.guardNeed && res.streak === 0 && MQ.battle.mode() === 'tower' && MQ.battle.isEnraged() && !MQ.battle.isFinal()) ? 'ガードを やぶった！ ' + res.dmg + 'ダメージ！ '   // v14.15
         : 'いいぞ！ ') + 'あと ' + res.hpLeft + 'かい だ！';
       wait(1700 + (bsp ? Math.max(0, bsp.ms - 1100) : 0), advanceBoss);   // 大きな わざ（ビッグバン・スターバースト・セットわざ）は 見おわるまで まつ（ザコと 同じ）
       return;
@@ -1920,7 +1960,7 @@ MQ.ui.battle = (function () {
   function advance() {
     const nx = MQ.battle.next();
     if (nx.phase === 'done') { finish(); return; }
-    if (nx.entering) bossIntro();
+    if (nx.entering) { if (MQ.battle.mode() === 'tower') towerIntro(); else bossIntro(); }
     else renderQuestion();
   }
 
@@ -1974,7 +2014,7 @@ MQ.ui.battle = (function () {
         MQ.sfx.enrage();
         shake(true);
         renderFoes(MQ.battle.current());
-        d.msg.textContent = '本気の ' + e.name + ' だ！ 1回めの 正解だけ きくぞ！';
+        d.msg.textContent = '本気の ' + e.name + ' だ！ ' + (last ? 'HP が ふえて ガードも かたい！' : '1回めの 正解だけ きくぞ！');
       }
     }
     d.pick = h('div', { class: 'bosspick' + (last ? ' bosspick--last' : '') }, [
@@ -1982,11 +2022,12 @@ MQ.ui.battle = (function () {
       h('p', { class: 'bosspick__s', text: 'どっちで たたかう？' }),
       h('button', { class: 'bosspick__btn bosspick__btn--norm', type: 'button', onclick: function () { choose(false); } }, [
         h('b', { text: 'ふつうに たたかう' }),
-        h('span', { text: 'いつもの つよさ' })
+        // ラスボス（v14.15）は ふつうでも 1回めの 正解だけ きく
+        h('span', { text: last ? '1回めの 正解だけ ダメージ' : 'いつもの つよさ' })
       ]),
       h('button', { class: 'bosspick__btn bosspick__btn--hard', type: 'button', onclick: function () { choose(true); } }, [
         h('b', { text: '本気の ボスと たたかう' }),
-        h('span', { text: '1回めの 正解だけ ダメージ・ごほうび 2ばい' }),
+        h('span', { text: last ? 'HP 1.5ばい・ガードが かたい・ごほうび 2ばい' : '1回めの 正解だけ ダメージ・ごほうび 2ばい' }),
         h('span', { class: 'btn__shine' })
       ])
     ]);
@@ -2201,8 +2242,31 @@ MQ.ui.battle = (function () {
   }
   function closePick() { if (d.pick && d.pick.parentNode) d.pick.parentNode.removeChild(d.pick); d.pick = null; }
 
+  /* まおうの しろ（v14.15）：ラスボスの 前に 手下が 出る ときの 幕。
+     ラスボス本人の FINAL BATTLE は 手下を たおした あと（towerIntro） */
+  function castleIntro() {
+    d.msg.textContent = '';
+    d.card.hidden = true;
+    d.choices.hidden = true;
+    d.memo.hidden = true;
+    d.displays.hidden = true;
+    d.keys.hidden = true;
+    d.warnText.textContent = MQ.content.towerName();
+    d.warnSub.textContent = MQ.content.lastBoss().name + 'の 手下が まちかまえて いる…！';
+    d.warning.className = 'warning';
+    d.warning.hidden = false;
+    void d.warning.offsetWidth;
+    d.warning.classList.add('is-in');
+    wait(1700, function () {
+      d.warning.hidden = true;
+      renderQuestion();
+      modeBanner();
+    });
+  }
+
   function towerIntro() {
     bossOnScreen = false;
+    MQ.bgm.play('maou');   // 手下の あいだは ふつうの バトル曲（v14.15）
     ambushTok++;
     MQ.sfx.towerIntro();
     d.msg.textContent = '';

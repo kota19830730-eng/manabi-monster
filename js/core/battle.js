@@ -131,10 +131,19 @@ MQ.battle = (function () {
   const BOSS_SET = {
     normal: { bossHp: 5, bossMax: 8, enrageAt: 3, finalAt: 1 },
     first: { bossHp: 3, bossMax: 5, enrageAt: 1, finalAt: 0 },       // はじめての たたかい（v11.1）は みじかい まま
-    tower: { bossHp: 9, bossMax: 14, enrageAt: 6, finalAt: 3 },
-    towerSmall: { bossHp: 7, bossMax: 11, enrageAt: 5, finalAt: 2 }   // 小1・小2 の さいごの とう
+    tower: { bossHp: 14, bossMax: 20, enrageAt: 9, finalAt: 4 },      // v14.15：手下 4体＋中ボス と あわせて 約20問
+    towerSmall: { bossHp: 10, bossMax: 15, enrageAt: 6, finalAt: 3 }  // 小1・小2 の さいごの とう
   };
   const PAL_BOSS_MAX = 1;
+  /* ラスボスの たたかい（v14.15・mode 'tower' だけ。各エリアの ボスは 何も 変わらない）
+       ・1回めの 正解でしか ダメージが 入らない（2回めは 0。**けいけんちは 入る**＝ばつでは ない）
+       ・第2形態（おこる）＝ガード：1回めの 正解が LAST_GUARD 問 れんぞくしないと ダメージが 入らない。
+         ただし カウンター・弱点・すきだらけ・セットわざは 一発で やぶる（ここが うでの 見せどころ）
+       ・第3形態（さいごの 力）＝毎問 ため（カウンターの チャンス。1回めで 正解すれば 2ダメージ）
+       ・本気モードは HP LAST_HARD_HP ばい・ガードは LAST_GUARD_HARD 問 れんぞく */
+  const LAST_GUARD = 2;
+  const LAST_GUARD_HARD = 3;
+  const LAST_HARD_HP = 1.5;
   const HARD_MUL = 2;
 
   let s = null;
@@ -225,6 +234,17 @@ MQ.battle = (function () {
       if (id) return id;
     }
     return mobs.length ? mobs[mobs.length - 1].enemyId : 'slime-green';
+  }
+
+  /* ラスボスの 手下（v14.15）：その 問題の 教科の つよい ザコ。
+     ローマ字など エリアで ない ものは 国語の ザコを 借りる */
+  function pickTowerMob(subject) {
+    const area = subject === 'romaji' ? 'kokugo' : (subject || 'sansu');
+    if (MQ.enemies && MQ.enemies.pickIds) {
+      const ids = MQ.enemies.pickIds(area, 1, 1);
+      if (ids && ids[0]) return ids[0];
+    }
+    return 'slime-green';
   }
 
   // ボスが 呼ぶ ザコ（よわそうな rank1）
@@ -420,6 +440,27 @@ MQ.battle = (function () {
       }
     }
 
+    /* ラスボスの 手下（v14.15）：城に 入ると まず 手下 → 中ボス 1体 → ラスボス。
+       問題は 塔の ステージ（教科が じゅんに まわる）。たからばこ・レア敵・2体同時は 出さない */
+    if (mode === 'tower' && opts.mobs) {
+      mobs = (stage.make(opts.mobs, { boss: false }) || []).map(prepare);
+      mobs.forEach(function (q) {
+        q.enemyId = pickTowerMob(q.subject || q.areaId);
+        q.unit = String(q.unit || '').replace('さいごの もんだい', 'ボスの 手下');
+      });
+      if (opts.elite && mobs.length) {
+        const teq = makeEliteQuestions(stage, ELITE_HP, mobs);
+        if (teq.length) {
+          const tid = opts.eliteId || pickElite(teq[0].subject || teq[0].areaId || opts.areaId, mobs);
+          teq.forEach(function (q, i) {
+            q.elite = true; q.eliteHp = ELITE_HP; q.elitePos = i; q.enemyId = tid;
+            q.unit = String(q.unit || '').replace('さいごの もんだい', 'ボスの 手下');
+          });
+          mobs = mobs.concat(teq);
+        }
+      }
+    }
+
     // レアの しるし（敵の データを 見て つける）
     mobs.forEach(function (q) {
       const e = MQ.enemies.get(q.enemyId);
@@ -524,6 +565,8 @@ MQ.battle = (function () {
       finalAt: opts.finalAt || 0,  // さいごの 力（第3形態・v12.7）。0 は なし
       final: false,
       bossHard: false,             // 本気モード（v12.7・setBossHard）
+      lastStrict: mode === 'tower',   // ラスボスの きまり（v14.15）。各エリアの ボスには つけない
+      bossStreak: 0,                  // 第2形態の ガードを やぶるまでの れんぞく 正解（v14.15）
       gb: { broken: [], streak: 0, gained: 0, blocks: 0, breaks: 0, cracks: 0, repairs: 0 },   // ガードくだき（2026-09-14）
       gbEvent: null,               // いまの 答えで おきた ガードくだきの 出来事（guardEvent）
       recap: mode === 'normal' && !opts.mix ? (opts.recap || []).filter(function (x) { return x && x.make && x !== stage; }) : [],
@@ -600,6 +643,8 @@ MQ.battle = (function () {
       if (s.called || (s.bossPlan && s.bossPlan[k])) return null;
       if (s.bossQ && s.bossQ.weak) return null;
       if (s.bossOpen) return null;         // ガードブレイクの つぎの 1問（すきだらけ）も 出来事は 1つ
+      // 第3形態（さいごの 力・v14.15）：毎問 ため ＝ カウンターの チャンス
+      if (s.lastStrict && s.final) return { level: CHARGE_BOSS, need: CHARGE_BOSS, attacking: true, boss: true };
       const att = k > 0 && k % CHARGE_BOSS === 0;
       return { level: att ? CHARGE_BOSS : k % CHARGE_BOSS, need: CHARGE_BOSS, attacking: att, boss: true };
     }
@@ -613,6 +658,8 @@ MQ.battle = (function () {
     return { level: att ? CHARGE_MOB : k % CHARGE_MOB, need: CHARGE_MOB, attacking: att, boss: false };
   }
   function attacking() { const c = chargeInfo(); return !!(c && c.attacking); }
+  // 第2形態の ガードを やぶるのに いる れんぞく 正解（v14.15）
+  function lastGuardNeed() { return s.bossHard ? LAST_GUARD_HARD : LAST_GUARD; }
   // クリティカルの けいけんち。まじんの けん（v14.11）で 2ばい
   function critXp() { return XP.critBonus * (s.gear.critX2 ? 2 : 1); }
   // リベンジ・ふくしゅうの ボーナス。まじんの よろい（v14.11）で 2ばい
@@ -623,6 +670,7 @@ MQ.battle = (function () {
   function guardOnMiss(q, wasRetry) {
     if (s.phase !== 'boss' || !q || q.called) return;
     if (!wasRetry) s.gb.streak = 0;           // なおす れんぞくは 1回めの まちがいで きれる
+    s.bossStreak = 0;                         // 第2形態の ガードを やぶる れんぞくも きれる（v14.15）
     if (wasRetry || s.timeAttack || !attacking()) return;
     const t = s.buff.shield > 0 ? 'shield' : s.buff.freeze > 0 ? 'freeze' : null;
     if (!t) { s.gbEvent = { kind: 'none' }; return; }
@@ -868,8 +916,9 @@ MQ.battle = (function () {
         const skill = pl ? pl.kind : null;
         // ばくれつ こうげき：ダメージが ふえ、そのぶん けいけんちも 入る
         const palHit = palHitNow();
-        // 本気モード（v12.7）：2回めの 正解は ガードされる（相棒の 追い打ちだけ 通る）
-        const blocked = s.bossHard && wasRetry;
+        /* 2回めの 正解は ガードされる（けいけんちは 入る）。
+           本気モード（v12.7）と ラスボス（v14.15・lastStrict） */
+        const blocked = (s.bossHard || s.lastStrict) && wasRetry;
         let dmg = blocked ? 0 : (s.buff.dmg > 1 ? Math.min(s.buff.dmg, s.bossHp) : 1);
         if (palHit) dmg = Math.min(dmg + Math.min(PAL_BOSS_MAX, palPower().dmg), s.bossHp);   // 相棒の 追い打ち（ボスには 1まで・v12.7）
         // カウンター（v7.7）：ボスの 大わざの 問題に 1回めで 正解 → 2ダメージ
@@ -886,7 +935,19 @@ MQ.battle = (function () {
         // セットわざ（v14.2）：ボスには 2ダメージまで（カウンターと 同じ）。本気で ガードされた 正解では たまらない
         const setHit = !blocked && setHitNow();
         if (setHit) dmg = Math.min(Math.max(dmg, MQ.setwaza.BOSS_DMG), s.bossHp);
-        const usedBurst = !blocked && s.buff.dmg > 1;   // 相棒の 追い打ちで 2に なった ときは「ばくれつ」と 言わない
+        /* 第2形態の ガード（v14.15・ラスボスだけ）：ふつうの 1回めの 正解は
+           LAST_GUARD 問 れんぞくしないと ダメージが 入らない。
+           カウンター・弱点・すきだらけ・セットわざは 一発で やぶる */
+        let guarded = false;
+        if (s.lastStrict && s.enraged && !s.final) {
+          if (counter || weakHit || open || setHit || blocked) s.bossStreak = 0;
+          else {
+            s.bossStreak++;
+            if (s.bossStreak < lastGuardNeed()) { guarded = true; dmg = 0; }
+            else s.bossStreak = 0;
+          }
+        }
+        const usedBurst = !blocked && !guarded && s.buff.dmg > 1;   // 相棒の 追い打ちで 2に なった ときは「ばくれつ」と 言わない
         // たての かまえ（v8.1）：1回めで 正解 → ガードブレイク（つぎの 1問が すきだらけ）
         const broke = skill === 'kamae' && !wasRetry;
         if (broke) { s.bossOpen = true; s.skillHits++; }
@@ -896,7 +957,7 @@ MQ.battle = (function () {
           if (pl.pos === 0) s.cloneClean = !wasRetry;
           else { cloneKO = s.cloneClean && !wasRetry; if (cloneKO) s.skillHits++; }
         }
-        if (!blocked) s.buff.dmg = 1;        // ガードされた ときは ばくれつを のこす（v12.7）
+        if (!blocked && !guarded) s.buff.dmg = 1;        // ガードされた ときは ばくれつを のこす（v12.7・v14.15）
         const gbXp = guardAfterBossHit(counter, wasRetry);   // ガードくだき（2026-09-14）：はね返し・なおす
         let xp = (wasRetry ? (last ? XP.lastHitRetry : XP.bossHitRetry) : (last ? XP.lastHit : XP.bossHit)) * Math.max(1, dmg);
         if (crit) xp += critXp();
@@ -935,6 +996,7 @@ MQ.battle = (function () {
           dmg: dmg, burst: usedBurst && !counter && !weakHit && !open ? dmg : 0, coins: defeated ? bossCoins : 0,
           hpLeft: s.bossHp, defeated: defeated, last: last,
           blocked: blocked, hard: s.bossHard,                         // 本気モード（v12.7）
+          guarded: guarded, streak: s.bossStreak, guardNeed: lastGuardNeed(),   // 第2形態の ガード（v14.15）
           enrage: enrageNow && !finalNow, final: finalNow,
           fled: !defeated && s.phase === 'done'
         };
@@ -1455,13 +1517,26 @@ MQ.battle = (function () {
     isEnraged: function () { return s.enraged; },
     // ボスを 強く（v12.7）
     BOSS_SET: BOSS_SET, PAL_BOSS_MAX: PAL_BOSS_MAX, HARD_MUL: HARD_MUL,
+    LAST_GUARD: LAST_GUARD, LAST_GUARD_HARD: LAST_GUARD_HARD, LAST_HARD_HP: LAST_HARD_HP,   // v14.15
     isFinal: function () { return !!(s && s.final); },
     bossHard: function () { return !!(s && s.bossHard); },
     // 本気モード：ボスの 1問めに 答える 前だけ 変えられる（ボスが いない たたかいでは なにも しない）
     setBossHard: function (on) {
       if (!s || !s.hasBoss || s.bossAnswered) return false;
       s.bossHard = !!on;
+      /* ラスボスの 本気（v14.15）は HP LAST_HARD_HP ばい（問題数は 同じ）。
+         何回 押しても もとの HP から 計算する */
+      if (s.lastStrict) {
+        const base = s.bossBaseHp || (s.bossBaseHp = s.bossHpMax);
+        const hp = s.bossHard ? Math.round(base * LAST_HARD_HP) : base;
+        s.bossHpMax = hp; s.bossHp = hp;
+      }
       return true;
+    },
+    // 第2形態の ガード（v14.15）：{ on, streak, need } か null
+    bossGuard: function () {
+      if (!s || !s.lastStrict || !s.enraged || s.final || s.phase !== 'boss') return null;
+      return { on: true, streak: s.bossStreak, need: lastGuardNeed() };
     },
     combo: function () { return s.combo; },
     palGauge: function () { return s.palGauge; },

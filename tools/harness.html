@@ -29,7 +29,8 @@
     #fx:fire #fx:bolt #fx:star  ひっさつわざの エフェクト
     #graph   ぼうグラフの 問題（カードが 高い ケース）
     #boss    ボス戦で 止める
-    #last    さいごの塔（ラスボス）で 止める
+    #last    さいごの塔（ラスボス）で 止める（v14.15：手下 4体＋中ボスを たおしてから）
+    #lastmob 手下の 画面／#lastguard 第2形態の ガード
     #roma    ローマ字の「うつ」問題で 止める
     #write   かん字を「書く」問題で 止める
     #result  けっか画面（ボス討伐＋レベルアップ）／#result2 にげられて ★0
@@ -289,6 +290,20 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
   }
 
   // 画面の ボタンを 押して 答える（UIも まとめて ためす）
+  /* ラスボス（v14.15）は 手下 4体＋中ボス → ラスボス。
+     手下を ぜんぶ たおして ラスボスが 出るまで すすめる（撮る ときは これを 通る） */
+  async function toLastBoss(id) {
+    MQ.ui.battle.start(id);
+    await wait(1900);                       // まおうの しろ の 幕
+    let g = 0;
+    while (MQ.battle.phase() === 'mob' && g++ < 20) {
+      answerViaUI(true);
+      await wait(1500);                     // ザコが たおれる 演出
+    }
+    await wait(3400);                       // FINAL BATTLE の 幕＋先制こうげき
+    return MQ.battle.phase() === 'boss';
+  }
+
   function answerViaUI(good) {
     // ボスの「ふつう／本気」を えらぶ パネル（v12.7）が 出て いたら ボタンを 押す（ふだんは ふつう・window.__pickHard で 本気）
     const pick = document.querySelector('.bosspick');
@@ -3225,7 +3240,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode.indexOf('bubble') === 0) {
       const kind = mode.split(':')[1] || 'battle';
       fresh();
-      if (kind === 'last') { MQ.save.update(function (pl) { ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); }); MQ.ui.battle.start('tower3'); await wait(3400); }
+      if (kind === 'last') { MQ.save.update(function (pl) { ['sansu', 'kokugo', 'rikashakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); }); await toLastBoss('tower3'); }
       else { MQ.ui.battle.start('sansu3-6'); await wait(500); if (kind === 'boss') { await playBattle('boss', { stopAtBoss: true }); await wait(2200); } }
       const k = MQ.stage.size().scale || 1, o = $('#stage').getBoundingClientRect();
       const R = function (el) { if (!el) return 'none'; const r = el.getBoundingClientRect(); return Math.round((r.left - o.left) / k) + ',' + Math.round((r.top - o.top) / k) + ' ' + Math.round(r.width / k) + 'x' + Math.round(r.height / k); };
@@ -3366,11 +3381,29 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('bossdark: cls=' + $('.arena__bg').className + ' dusk-opacity=' + getComputedStyle($('.arena__dusk')).opacity);
       return;
     }
-    if (mode === 'last') {
+    if (mode === 'last' || mode === 'lastmob') {
       fresh({ frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true } });
-      MQ.ui.battle.start('tower3');
-      await wait(3200);
-      say('tower: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
+      // #lastmob … 手下の 画面（v14.15）／#last … ラスボスまで すすめる
+      if (mode === 'lastmob') {
+        MQ.ui.battle.start('tower3');
+        await wait(1900);
+        const q0 = MQ.battle.current();
+        say('lastmob: てき ' + MQ.battle.mobTotal() + '体 phase=' + MQ.battle.phase() + ' 1体め=' + (q0 ? q0.enemyId : 'none') + ' ' + (q0 ? q0.unit : ''));
+        return;
+      }
+      await toLastBoss('tower3');
+      say('tower: phase=' + MQ.battle.phase() + ' HP=' + MQ.battle.bossHp() + '/' + MQ.battle.bossHpMax() + ' ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
+      return;
+    }
+    /* 第2形態の ガード（v14.15）：#lastguard … おこるまで すすめて ガードの 玉を 見る */
+    if (mode === 'lastguard') {
+      fresh({ frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true } });
+      await toLastBoss('tower3');
+      let g = 0;
+      while (MQ.battle.phase() === 'boss' && !MQ.battle.isEnraged() && g++ < 20) { answerViaUI(true); await wait(60); await wait(2300); }
+      answerViaUI(true); await wait(60); await wait(2300);
+      const gd = MQ.battle.bossGuard ? MQ.battle.bossGuard() : null;
+      say('lastguard: おこった=' + MQ.battle.isEnraged() + ' HP=' + MQ.battle.bossHp() + ' ガード=' + (gd ? gd.streak + '/' + gd.need : 'なし') + ' 玉=' + ($$('.bossguard__dot').length) + ' ふきだし=' + ($('.arena__msg') || {}).textContent);
       return;
     }
     // 小5の さいごの塔（v6.9）：#last5 バトル／#last5map 塔が 開いた 地図
@@ -3379,8 +3412,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       fresh({ frags: {} });
       MQ.save.update(function (pl) { pl.grade = 6; pl.playGrade = 6; ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); });
       if (mode === 'last6map') { MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
-      MQ.ui.battle.start('tower6');
-      await wait(3200);
+      await toLastBoss('tower6');
       say('tower6: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none') + ' boss=' + MQ.content.lastBoss().name);
       return;
     }
@@ -3388,8 +3420,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       fresh({ frags: {} });
       MQ.save.update(function (pl) { pl.grade = 5; pl.playGrade = 5; ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; }); });
       if (mode === 'last5map') { MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
-      MQ.ui.battle.start('tower5');
-      await wait(3200);
+      await toLastBoss('tower5');
       say('tower5: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none') + ' boss=' + MQ.content.lastBoss().name);
       return;
     }
@@ -3402,8 +3433,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         ['sansu', 'kokugo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; });
       });
       if (mode.indexOf('map') > 0) { MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; say('tower' + g + ' map: ' + ($('#screen-map .tower__sign') ? $('#screen-map .tower__sign').textContent + ' / ' + $('#screen-map .tower__sub').textContent : 'MISSING')); return; }
-      MQ.ui.battle.start('tower' + g);
-      await wait(3200);
+      await toLastBoss('tower' + g);
       say('tower' + g + ': ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none') + ' boss=' + MQ.content.lastBoss().name);
       return;
     }
@@ -3415,8 +3445,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         ['sansu', 'kokugo', 'rika', 'shakai', 'eigo'].forEach(function (id) { pl.frags[MQ.save.areaKey(id, pl)] = true; });
       });
       if (mode === 'last4map') { MQ.ui.goMap(); await wait(300); dismissTowerPop(); MQ.ui.map.paint(); const sc = $('#screen-map .map__scroll'); if (sc) sc.scrollTop = 99999; return; }
-      MQ.ui.battle.start('tower4');
-      await wait(3200);
+      await toLastBoss('tower4');
       say('tower4: ' + (MQ.battle.current() ? MQ.battle.current().unit : 'none'));
       return;
     }

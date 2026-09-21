@@ -3380,6 +3380,11 @@ body {
    敵の 頭の 上に「ため」の 玉。たまりきった 問題は 敵が 赤く 光って こうげきに 出る。
    正解 → カウンター（金の 帯＋主人公の 大きな ふみこみ）／まちがい → 敵が つっこんで きて 主人公が よろける
    ========================================================= */
+/* 第2形態の ガード（v14.15・ラスボス）。右上の パネルの 中に ならぶ */
+.bossguard { display: flex; align-items: center; gap: 3px; padding: 3px 6px; border-radius: 999px; background: rgba(10,16,40,.72); }
+.bossguard__label { font-family: var(--f-head); font-size: 9px; color: #bcd4ff; }
+.bossguard__dot { width: 8px; height: 8px; background: rgba(10,16,40,.7); border: 1px solid rgba(150,190,255,.6); }
+.bossguard__dot.is-on { background: #6ea8ff; border-color: #dbe9ff; box-shadow: 0 0 5px 1px rgba(110,168,255,.9); }
 .foecharge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 3px; z-index: 3; }
 .foecharge__dot { width: 8px; height: 8px; background: rgba(10,16,40,.7); border: 1px solid rgba(255,120,120,.6); }
 .foecharge__dot.is-on { background: #ff5e3a; border-color: #ffd0c0; box-shadow: 0 0 5px 1px rgba(255,94,58,.9); }
