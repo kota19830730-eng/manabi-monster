@@ -205,6 +205,8 @@ MQ.save = (function () {
     /* ぴかぴか あつめ（v13.16）：はらった 数 p.pikaPaid（いまの 数までは はらった ことに する）。
        しゅうまつ イベント（v13.16）：おうちの人の 切りかえ p.weekendOff・ポップを 見た 週 p.weekendSeen */
     if (MQ.pika && MQ.pika.init) MQ.pika.init(p);
+    // ものがたりを 読む（v14.14）：お話の 山（トランプ方式）
+    if (MQ.dokkai3 && MQ.dokkai3.ensure) MQ.dokkai3.ensure(p);
     if (typeof p.weekendOff !== 'boolean') p.weekendOff = false;
     if (typeof p.weekendSeen !== 'string') p.weekendSeen = null;
     // v1.1 までの 装備 id は そのまま 使えないので 消す（新しい30点に 置きかわる）

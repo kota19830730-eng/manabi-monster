@@ -3061,6 +3061,23 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       fresh();
       const dkp = mode.split(':');
       const arg = (dkp[1] || '1');
+      /* #dokkai:bag … お話の 山（v14.14・トランプ方式）。本物の たたかいを 16回 はじめて 順を 見る */
+      if (arg === 'bag') {
+        const got = [];
+        for (let i = 0; i < 16; i++) {
+          MQ.ui.battle.start('kokugo3-6');
+          await wait(120);
+          const q = MQ.battle.current();
+          got.push(q && q.storyTitle ? q.storyTitle : '?');
+          say(String(i + 1).padStart(2) + '回め  ' + got[i] + '（山の のこり ' + MQ.dokkai3.left() + '）');
+        }
+        const a = new Set(got.slice(0, 8)).size, b = new Set(got.slice(8, 16)).size;
+        let run = 0; for (let i = 1; i < got.length; i++) if (got[i] === got[i - 1]) run++;
+        say('1〜8回で ' + a + '本 ' + (a === 8 ? 'OK' : 'MISSING') +
+            ' ／ 9〜16回で ' + b + '本 ' + (b === 8 ? 'OK' : 'MISSING') +
+            ' ／ 2回 つづけて 同じ ' + run + '回 ' + (run === 0 ? 'OK' : 'MISSING'));
+        return;
+      }
       MQ.ui.battle.start('kokugo3-6');
       await wait(500);
       const want = (arg === 'boss' || arg === 'maki') ? 99 : (parseInt(arg, 10) || 1);

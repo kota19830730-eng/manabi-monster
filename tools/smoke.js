@@ -5630,6 +5630,53 @@ function stripComments(src) {
   check(CSS.indexOf('.hintbox .hintbox__label') > 0, 'v14.13: ヒントの ラベルの あとに すきま（全教科）');
   check(CSS.indexOf('max-height: 46vh') === -1, 'v14.13: まきものの 高さに vh を 使わない（画面の 拡大縮小に 合わない）');
 
+  /* ---- v14.14 お話は トランプ方式で 配る ----
+     ユーザー「お話は 毎回 ランダムで 選ばれるの？」→ 実測で
+     でたらめだと 8本 読むまで 21.7回・つぎも 同じ 話が 12.5% だった。
+     いまは 8本を シャッフルして 上から 1本ずつ。ここが こわれたら 落とす。 */
+  (function () {
+    const N = stories.length;
+    // 8回で 8本 ぜんぶ・2回 つづけて 同じが 出ない
+    let bad = 0, run = 0;
+    for (let t = 0; t < 300; t++) {
+      const p = {};
+      const seq = [];
+      for (let i = 0; i < N * 3; i++) seq.push(D.deal(p).id);
+      for (let r = 0; r < 3; r++) if (new Set(seq.slice(r * N, r * N + N)).size !== N) bad++;
+      for (let i = 1; i < seq.length; i++) if (seq[i] === seq[i - 1]) run++;
+    }
+    check(bad === 0, 'v14.14: ' + N + '回で お話 ' + N + '本 ぜんぶ 出る（そろわなかった ' + bad + '）');
+    check(run === 0, 'v14.14: 同じ お話が 2回 つづけて 出ない（' + run + '回）');
+
+    // 山は セーブに のこる（アプリを 閉じても つづき）
+    const p2 = {};
+    D.deal(p2);
+    check(Array.isArray(p2.dokkai && p2.dokkai.bag), 'v14.14: 山が セーブ（p.dokkai.bag）に のこる');
+    check(p2.dokkai.bag.length === N - 1, 'v14.14: 1本 配ると 山が 1へる（' + p2.dokkai.bag.length + '）');
+    check(typeof p2.dokkai.last === 'string', 'v14.14: さいごに 配った お話を おぼえて いる');
+
+    // 古い セーブ・こわれた セーブを 直す
+    const old = {};
+    D.ensure(old);
+    check(old.dokkai.bag.length === N, 'v14.14: 古い セーブは 山 ' + N + '本から');
+    const ng = { dokkai: { bag: ['しらない id', stories[0].id, 123], last: 5 } };
+    D.ensure(ng);
+    check(ng.dokkai.bag.length === 1 && ng.dokkai.bag[0] === stories[0].id, 'v14.14: 知らない お話の id は すてる');
+    check(ng.dokkai.last === null, 'v14.14: こわれた last は null に なおす');
+
+    // save.js が 読みこみの ときに なおす
+    const SV = fs.readFileSync(base + '/js/core/save.js', 'utf8');
+    check(SV.indexOf('MQ.dokkai3.ensure') > 0, 'v14.14: save.js の migrate で 山を そろえる');
+
+    // たからばこ・ボス・しゅぎょうばは 山を へらさない（1回の たたかいで 1本）
+    const p3 = {};
+    D.deal(p3);
+    const before = p3.dokkai.bag.length;
+    D.make(1, { boss: false, lv: 2 });
+    D.make(1, { boss: true, index: 0 });
+    D.make(12, { lv: 1 });
+    check(p3.dokkai.bag.length === before, 'v14.14: たからばこ・ボス・しゅぎょうばでは 山が へらない');
+  })();
   console.log('v14.13 ものがたりを 読む OK（お話 ' + stories.length + '本 / ' +
     stories.reduce(function (a, st) { return a + st.scenes.length + st.chest.length + st.boss.length; }, 0) + '問）');
 })();

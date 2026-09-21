@@ -1404,8 +1404,46 @@ window.MQ = window.MQ || {};
   /* いま 出して いる お話（ボスの 問題も 同じ お話から 出す ため おぼえて おく） */
   let cur = null;
 
-  function pick() {
-    return STORIES[Math.floor(Math.random() * STORIES.length)];
+  /* お話の えらび方（v14.14・トランプ方式）
+     ユーザー「お話は 毎回 ランダムで 選ばれるの？」→ 実測（20万回）で
+     **8本 ぜんぶ 読むまで へいきん 21.7回・つぎも 同じ 話が 12.5%** と わかった。
+     → 8本を シャッフルして 上から 1本ずつ 配り、使い切ったら また シャッフル。
+        **8回で かならず 8本ぜんぶ・同じ 話が 2回 つづかない。**
+     のこりは セーブ（p.dokkai.bag）に 入れるので アプリを 閉じても つづく。 */
+  function shuffled() {
+    return MQ.util.shuffle(STORIES.map(function (s) { return s.id; }));
+  }
+  function byId(id) {
+    for (let i = 0; i < STORIES.length; i++) if (STORIES[i].id === id) return STORIES[i];
+    return null;
+  }
+  /* つぎの 1本を 配る（山を へらす）。pl を わたさない ときは いまの プレイヤー */
+  function deal(pl) {
+    const p = pl || (MQ.save && MQ.save.current ? MQ.save.current() : null);
+    if (!p) return STORIES[Math.floor(Math.random() * STORIES.length)];   // セーブが ない とき（テスト）
+    const d = ensure(p);
+    if (!d.bag.length) {
+      d.bag = shuffled();
+      // つなぎ目：シャッフルし直した 1枚めが 前と 同じなら 2枚めと 入れかえる
+      if (d.bag.length > 1 && d.bag[0] === d.last) { const t = d.bag[0]; d.bag[0] = d.bag[1]; d.bag[1] = t; }
+    }
+    const id = d.bag.shift();
+    d.last = id;
+    if (MQ.save && MQ.save.update && MQ.save.current && MQ.save.current() === p) MQ.save.update(function () {});
+    return byId(id) || STORIES[0];
+  }
+  /* セーブの 形を そろえる（古い セーブ・新しい 子）。知らない id は すてる */
+  function ensure(p) {
+    if (!p.dokkai || typeof p.dokkai !== 'object') p.dokkai = { bag: shuffled(), last: null };
+    const d = p.dokkai;
+    if (!Array.isArray(d.bag)) d.bag = shuffled();
+    d.bag = d.bag.filter(function (id) { return !!byId(id); });
+    if (typeof d.last !== 'string') d.last = null;
+    return d;
+  }
+  /* しゅぎょうば・テスト用：山を へらさずに 1本（いま 出て いる ものが あれば それ） */
+  function peek() {
+    return cur || STORIES[Math.floor(Math.random() * STORIES.length)];
   }
 
   /* 1問ぶんの かたちに する。
@@ -1458,6 +1496,10 @@ window.MQ = window.MQ || {};
     stories: STORIES,
     unit: UNIT,
     titleOf: function () { return cur ? cur.title : ''; },
+    deal: deal, ensure: ensure,
+    // のこりの 数（テスト・おうちの人ページ用）
+    left: function (pl) { const p = pl || (MQ.save && MQ.save.current ? MQ.save.current() : null); return p ? ensure(p).bag.length : 0; },
+    reset: function () { cur = null; },
     fullOf: function () { return cur ? fullText(cur) : ''; },
 
     /* ステージの make。core は
@@ -1470,7 +1512,7 @@ window.MQ = window.MQ || {};
          話の とちゅうに 長い 文章を もう一度 出すと 話が 切れるので、
          ここは お話に 出て きた ことばの 意味を 聞く（読解の 語い力に なる） */
       if (!opts.boss && opts.lv === 2 && n === 1) {
-        const st = cur || (cur = pick());
+        const st = cur || (cur = peek());
         const list = st.chest || [];
         if (list.length) {
           const k = Math.floor(Math.random() * list.length);
@@ -1482,14 +1524,14 @@ window.MQ = window.MQ || {};
          よぶ たびに お話を えらび直すと、1回の しゅぎょうで お話が まざって しまう。
          boss が わたされて いない＝しゅぎょうば と 見て、同じ お話を つかう */
       if (opts.lv && !('boss' in opts)) {
-        const st = cur || (cur = pick());
+        const st = cur || (cur = peek());
         return scenesFor(st, Math.min(n, st.scenes.length)).map(function (o, k) {
           return toQ(st, o.s, 's' + o.i, lvOf(Math.min(k, 11)), o.t);
         });
       }
 
       if (opts.boss) {
-        const story = cur || (cur = pick());
+        const story = cur || (cur = peek());
         const list = story.boss;
         const src = list[Math.floor(Math.random() * list.length)];
         const q = toQ(story, src, 'b' + list.indexOf(src), 3, fullText(story));
@@ -1497,7 +1539,7 @@ window.MQ = window.MQ || {};
         return [q];
       }
 
-      const story = (cur = pick());
+      const story = (cur = deal());
       return scenesFor(story, n).map(function (o, k) {
         return toQ(story, o.s, 's' + o.i, lvOf(Math.min(k, 11)), o.t);
       });
