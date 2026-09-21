@@ -470,13 +470,30 @@ MQ.ui.battle = (function () {
 
   /* りったい（v12.0）：せっていが つけて あれば 主人公・てき・たからばこ・相棒を 3D に。絵も ルールも 同じ */
   function V3() { return !!(MQ.ui.v3 && MQ.ui.v3.on()); }
+  /* v14.16：3D が とても 重い てき だけ、字を 書いて いる あいだ 2D の 絵に 入れかえる。
+     ゆびを 動かす たびに 画面を 1まい 出す 必要が あるのに、ラスボスは 3D の 面が 360まい
+     （ふつうの てきは 29〜44まい）あり、その 全部を 描き直すので 線が 飛んで いた。
+     実測（1.5秒 動かして ひろえた 点）：ラスボス 20% → 35%（ふつうの たたかいは 29%）。
+     **ふつうの てきには つけない**＝切りかわりを 見せない ため（そもそも 重く ない）。 */
+  const FLAT_FACES = 200;
   function foeArt(id, size, o) {
     o = o || {};
     if (V3()) {
       const n = id === 'chest'
         ? MQ.ui.v3.chest(size, { cls: 'enemy__img3d', mo: 'mo-chest' })
         : MQ.ui.v3.monster(id, size, { cls: 'enemy__img3d', enrage: !!o.enrage, mo: 'mo-menace' });
-      if (n) return n;
+      if (n) {
+        if (id !== 'chest' && n.querySelectorAll('.f').length > FLAT_FACES) {
+          const flat = MQ.enemies.node(id, { size: size, cls: 'enemy__img enemy__flat', enrage: !!o.enrage });
+          if (flat) {
+            n.classList.add('enemy__img3d--heavy');
+            const frag = document.createDocumentFragment();
+            frag.appendChild(n); frag.appendChild(flat);
+            return frag;      // .enemy の 子に 3D と 2D が ならぶ（2D は ふだん display: none）
+          }
+        }
+        return n;
+      }
     }
     return MQ.enemies.node(id, { size: size, cls: 'enemy__img', enrage: !!o.enrage });
   }
@@ -3190,7 +3207,8 @@ MQ.ui.battle = (function () {
   /* ② 敵が 一瞬 まっ白に */
   function whiteOut() {
     if (!d.cur) return;
-    const img = d.cur.querySelector('.enemy__img');
+    // v14.16：`.enemy__flat`（書いて いる あいだ だけ 出す 2D の 絵）は のぞく＝いままでと 同じ 動き
+    const img = d.cur.querySelector('.enemy__img:not(.enemy__flat)');
     if (!img) return;
     img.classList.remove('is-white');
     void img.offsetWidth;
@@ -3643,6 +3661,7 @@ MQ.ui.battle = (function () {
     function clear() {
       strokes = 0; paths = []; curPath = null;
       endStroke();
+      writingOff(true);   // v14.16：つぎの 問題に なったら 3D を すぐ 動かし直す
       c.save();
       c.setTransform(1, 0, 0, 1, 0, 0);
       c.clearRect(0, 0, canvas.width, canvas.height);
@@ -3671,8 +3690,26 @@ MQ.ui.battle = (function () {
       }
       return false;
     }
+    /* v14.16：字を 書いて いる あいだは アリーナの 3D を その場で 止める。
+       ラスボスは 3D の 面が 360まい（ふつうの てきは 29〜44まい）あり、
+       ゆびを 動かす たびに 画面を 1まい 出せず 線が 飛んで いた（実測）。
+       `animation: none` では なく **paused**＝止まるだけ なので 見た目は 飛ばない。
+       かん字は 何画も つづけて 書く ので、指を はなしても すぐには もどさない。 */
+    let writeT = null;
+    function battleRoot() { return canvas.closest ? canvas.closest('.battle') : null; }
+    function writingOn() {
+      if (writeT) { clearTimeout(writeT); writeT = null; }
+      const b = battleRoot();
+      if (b) b.classList.add('is-writing');
+    }
+    function writingOff(now) {
+      if (writeT) { clearTimeout(writeT); writeT = null; }
+      const off = function () { writeT = null; const b = battleRoot(); if (b) b.classList.remove('is-writing'); };
+      if (now) off(); else writeT = setTimeout(off, 900);
+    }
     function endStroke() {
       drawing = false; activeId = null; activeKind = ''; curPath = null;
+      writingOff();
     }
     function beginAt(kind, id, cx, cy) {
       // iPad などは pointerdown の すぐ あとに touchstart が 来る（同じ 指）。
@@ -3687,6 +3724,7 @@ MQ.ui.battle = (function () {
       }
       if (!fits()) resizeKeep();         // 大きさが ずれていたら 先に 直す
       drawing = true; activeKind = kind; activeId = id; lastAt = Date.now();
+      writingOn();
       strokes++;
       last = pointOf(cx, cy);
       curPath = [last]; paths.push(curPath);

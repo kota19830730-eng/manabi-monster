@@ -32,6 +32,10 @@ window.MQ = window.MQ || {};
 
 MQ.blocks = (function () {
   const BASE = 48;          // モンスターの 1辺
+  /* 光る ところが これより 多い 絵は「呼吸」させない（v14.16・下の el() を 見る）。
+     12 に すると 止まるのは ラスボス 5体と テンショウトリ・テンガイキリンだけで、
+     310体 中 303体は いままで どおり 呼吸する（実測して 決めた 数）。 */
+  const GLOW_ANIM_MAX = 12;
   const ITEM = 40;          // たからものの 1辺
 
   /* 色を こく／うすく する */
@@ -258,6 +262,15 @@ MQ.blocks = (function () {
       box.appendChild(d);
       if ((p[5] || '').indexOf('h') !== -1) box.appendChild(highlight(p));
     });
+    /* v14.16：光る ところが とても 多い 絵は「呼吸」（bxGlow）を させない。
+       bxGlow は filter（明るさ）を 動かす ので、動く たびに その 場所を 塗り直す。
+       ラスボスは 光る ところが 23〜54こ も あり（ふつうの モンスターは 0〜8こ）、
+       タブレットの ボス戦で **メモに 字を 書く 反応**が 落ちて いた
+       （実測：main の しごと −37%・style −46%）。光そのもの（box-shadow）は そのまま。 */
+    const gl = box.querySelectorAll('.bx__glow');
+    if (gl.length > GLOW_ANIM_MAX) {
+      Array.prototype.forEach.call(gl, function (g) { g.classList.add('bx__glow--still'); });
+    }
     return box;
   }
 

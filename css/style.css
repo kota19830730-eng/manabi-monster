@@ -2430,6 +2430,21 @@ body {
   animation-delay: var(--bxwait, 0s);
 }
 @keyframes bxGlow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.4); } }
+/* v14.16：光る ところが 多すぎる 絵は 呼吸させない（しるしは js/core/blocks.js が つける）。
+   filter を 動かす アニメは 動く たびに 塗り直しに なる。ラスボスは 23〜54こ あり、
+   ボス戦で メモに 字を 書く 反応が 落ちて いた。光そのものは そのまま のこる */
+.bx__glow--still { animation: none !important; }
+/* v14.16：字を 書いて いる あいだは アリーナの 3D を **その場で** 止める（見た目は 飛ばない）。
+   ゆびを 動かす たびに 画面を 出さないと 線が 飛ぶ ので、そのあいだは 3D を 休ませる。
+   指を はなして 0.9秒で もどる（js/ui/battle.js の writingOn／writingOff） */
+.battle.is-writing .arena .v3,
+.battle.is-writing .arena .v3 * { animation-play-state: paused !important; }
+/* v14.16：3D が とても 重い てき（ラスボス）だけ、書いて いる あいだ 2D の 絵に 入れかえる。
+   層を 消さないと 指の 反応は 戻らない（動きを 止めるだけでは 効かないと 実測で 出た）。
+   しるしは js/ui/battle.js の foeArt が つける（ふつうの てきには つかない） */
+.enemy__flat { display: none; }
+.battle.is-writing .enemy__img3d--heavy { display: none; }
+.battle.is-writing .enemy__flat { display: block; }
 @keyframes bxBlink { 0%, 95.5%, 100% { transform: scaleY(1); } 96.5%, 98.5% { transform: scaleY(.12); } }
 @media (prefers-reduced-motion: reduce) {
   .arena .bx__glow, .title .bx__glow, .news__list .bx__glow, .arena .bx__eye, .title .bx__eye { animation: none; }
