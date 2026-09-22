@@ -3069,6 +3069,15 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       document.getElementById('stage').appendChild(box);
       return;
     }
+    // 円と 球の 新しい 図（v14.18）：コンパス／円を ならべる／何こ 入る／解説用
+    if (mode === 'figs3c') {
+      const F = MQ.sansu3.figs3;
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;z-index:99;align-content:start;';
+      [F.compassSvg('radius', '4cm'), F.compassSvg('diameter', '10cm'), F.rowCirclesSvg(2, '6cm'), F.rowCirclesSvg(4, '3cm'), F.ballsSvg(5, '5cm', '25cm', { count: true }), F.ballsSvg(2, '8cm', '16cm', { count: true }), F.circleNamesSvg(), F.radiiSvg(5)].forEach(function (svg) { const d = document.createElement('div'); d.innerHTML = svg; box.appendChild(d); });
+      document.getElementById('stage').appendChild(box);
+      return;
+    }
     // 3学期の 図を ならべて 見る（v6.3）
     if (mode === 'figs3b') {
       const F = MQ.sansu3.figs3;
@@ -3808,6 +3817,18 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
           const nb = $('.dojo__next'); if (!nb) break; nb.click(); await wait(25);
         }
         say('dojo:' + sub + ' ' + (new RegExp(MQ.text.fit('ひとりで')).test(($('.dojo__label') || {}).textContent || '') ? 'ひとりで まで 通った OK' : 'とちゅうで 止まった MISSING') + '／こたえの 入れ方 ' + ($('.choice') ? 'えらぶ' : $('.keys') ? 'テンキー' : 'MISSING'));
+        dump(); freeze(); return;
+      }
+      /* #dojo:en[:N] … 円と 球の 解説 N まいめ（v14.18・図つき）／#dojo:ex:<ステージ>:<N> … ほかの ステージ */
+      if (sub === 'en' || sub === 'ex') {
+        const nth = Number(mode.split(':')[sub === 'ex' ? 3 : 2] || 1);
+        MQ.save.update(function (pl) { pl.term = 0; });
+        MQ.ui.dojo.open(sub === 'ex' ? mode.split(':')[2] : 'sansu3-9');
+        await wait(120);
+        $('.dojo__next').click(); await wait(60);
+        for (let k = 1; k < nth; k++) { $('.dojo__next').click(); await wait(60); }
+        const fg = $('.dojo__fig svg');
+        say('dojo:en せつめい ' + nth + '／図 ' + (fg ? 'あり OK（' + Math.round(fg.getBoundingClientRect().width) + 'px）' : 'なし MISSING') + '／はみ出し ' + (function () { const m = $('.dojo__main'); return m && m.scrollHeight > m.clientHeight + 1 ? 'スクロール あり（' + m.scrollHeight + '/' + m.clientHeight + '）' : 'なし OK'; })());
         dump(); freeze(); return;
       }
       const c0 = MQ.dojo.candidates(MQ.save.current());

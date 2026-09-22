@@ -861,22 +861,139 @@ MQ.sansu3 = (function () {
     }
     return svgBox(s);
   }
-  function ballsSvg(n, ballLabel, boxLabel) {
-    const bw = 140, d = bw / n, y0 = 30;
-    let s = '<rect x="10" y="' + y0 + '" width="' + bw + '" height="' + d + '" fill="#fff" stroke="' + FS + '" stroke-width="4"/>';
-    for (let i = 0; i < n; i++) {
-      const cx = 10 + d * (i + 0.5), cy = y0 + d / 2;
+  function ballsSvg(n, ballLabel, boxLabel, opts) {
+    const d = Math.min(140 / n, 52), bw = d * n, x0 = 80 - bw / 2, y0 = 30, count = !!(opts && opts.count);   // count＝ボールを 1こだけ 見せて「？こ」（v14.18）。d は 52 まで（2この とき 下の 字が 切れた）
+    let s = '<rect x="' + x0 + '" y="' + y0 + '" width="' + bw + '" height="' + d + '" fill="#fff" stroke="' + FS + '" stroke-width="4"/>';
+    if (count) s += '<text x="' + (x0 + d + (bw - d) / 2) + '" y="' + (y0 + d / 2 + 5) + '" font-size="14" text-anchor="middle" fill="' + FR + '" font-weight="bold">？こ</text>';
+    for (let i = 0; i < (count ? 1 : n); i++) {
+      const cx = x0 + d * (i + 0.5), cy = y0 + d / 2;
       s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (d / 2 - 2) + '" fill="' + FF + '" stroke="' + FS + '" stroke-width="3"/>';
     }
     if (ballLabel) {
-      s += '<line x1="10" y1="' + (y0 - 10) + '" x2="' + (10 + d) + '" y2="' + (y0 - 10) + '" stroke="' + FR + '" stroke-width="2.5"/>';
-      s += '<text x="' + (10 + d / 2) + '" y="' + (y0 - 14) + '" font-size="12" text-anchor="middle" fill="' + FR + '" font-weight="bold">' + ballLabel + '</text>';
+      s += '<line x1="' + x0 + '" y1="' + (y0 - 10) + '" x2="' + (x0 + d) + '" y2="' + (y0 - 10) + '" stroke="' + FR + '" stroke-width="2.5"/>';
+      s += '<text x="' + (x0 + d / 2) + '" y="' + (y0 - 14) + '" font-size="12" text-anchor="middle" fill="' + FR + '" font-weight="bold">' + ballLabel + '</text>';
     }
     if (boxLabel) {
       const yb = y0 + d + 14;
-      s += '<line x1="10" y1="' + yb + '" x2="150" y2="' + yb + '" stroke="' + FR + '" stroke-width="2.5"/><line x1="10" y1="' + (yb - 5) + '" x2="10" y2="' + (yb + 5) + '" stroke="' + FR + '" stroke-width="2.5"/><line x1="150" y1="' + (yb - 5) + '" x2="150" y2="' + (yb + 5) + '" stroke="' + FR + '" stroke-width="2.5"/>';
+      const xe = x0 + bw;
+      s += '<line x1="' + x0 + '" y1="' + yb + '" x2="' + xe + '" y2="' + yb + '" stroke="' + FR + '" stroke-width="2.5"/><line x1="' + x0 + '" y1="' + (yb - 5) + '" x2="' + x0 + '" y2="' + (yb + 5) + '" stroke="' + FR + '" stroke-width="2.5"/><line x1="' + xe + '" y1="' + (yb - 5) + '" x2="' + xe + '" y2="' + (yb + 5) + '" stroke="' + FR + '" stroke-width="2.5"/>';
       s += '<text x="80" y="' + (yb + 16) + '" font-size="13" text-anchor="middle" fill="' + FR + '" font-weight="bold">' + boxLabel + '</text>';
     }
+    return svgBox(s);
+  }
+
+
+
+  /* しゅぎょうばの 解説用（v14.18）：● を per こ ずつ ならべる（かけ算・わり算・あまり）。
+     group … 1行ごとに わくで かこむ／rest … あまりの ● は 赤 */
+  function dotsSvg(n, per, opts) {
+    opts = opts || {};
+    const rows = Math.ceil(n / per), r = 7, gx = 20, gy = Math.min(24, 96 / rows);
+    const w = per * gx, x0 = 80 - w / 2 + gx / 2, y0 = 60 - (rows - 1) * gy / 2;
+    let s = '';
+    for (let i = 0; i < rows; i++) {
+      const cnt = Math.min(per, n - i * per);
+      if (opts.group && cnt === per) s += '<rect x="' + (x0 - gx / 2 + 2) + '" y="' + (y0 + gy * i - gy / 2 + 2) + '" width="' + (w - 4) + '" height="' + (gy - 4) + '" rx="6" fill="none" stroke="' + FB + '" stroke-width="2" stroke-dasharray="4 3"/>';
+      for (let j = 0; j < cnt; j++) {
+        const rest = opts.rest && cnt < per;
+        s += '<circle cx="' + (x0 + gx * j) + '" cy="' + (y0 + gy * i) + '" r="' + r + '" fill="' + (rest ? FR : FF) + '" stroke="' + (rest ? FR : FS) + '" stroke-width="2.5"/>';
+      }
+    }
+    if (opts.label) s += '<text x="80" y="114" font-size="12" text-anchor="middle" fill="' + FS + '" font-weight="bold">' + opts.label + '</text>';
+    return svgBox(s);
+  }
+  /* 解説用（v14.18）：道のり（道に そって）と きょり（まっすぐ） */
+  function roadSvg() {
+    let s = '<path d="M 24 90 C 40 30, 70 30, 84 62 S 130 100, 138 40" fill="none" stroke="#c9a66b" stroke-width="10" stroke-linecap="round"/>';
+    s += '<path d="M 24 90 C 40 30, 70 30, 84 62 S 130 100, 138 40" fill="none" stroke="' + FR + '" stroke-width="2.5" stroke-dasharray="6 4"/>';
+    s += '<line x1="24" y1="90" x2="138" y2="40" stroke="' + FB + '" stroke-width="3"/>';
+    s += '<rect x="12" y="84" width="20" height="16" fill="#e86a5a" stroke="' + FS + '" stroke-width="2"/><polygon points="10,86 22,74 34,86" fill="#b33" stroke="' + FS + '" stroke-width="2"/>';
+    s += '<rect x="128" y="30" width="22" height="18" fill="#7fb4e8" stroke="' + FS + '" stroke-width="2"/><rect x="134" y="20" width="10" height="10" fill="#7fb4e8" stroke="' + FS + '" stroke-width="2"/>';
+    s += '<text x="60" y="26" font-size="12" fill="' + FR + '" font-weight="bold">道のり</text>';
+    s += '<text x="66" y="84" font-size="12" fill="' + FB + '" font-weight="bold">きょり</text>';
+    return svgBox(s);
+  }
+  /* 解説用（v14.18）：1 を 10 に 分けた 0.1（k こ ぬる） */
+  function tenthsSvg(k) {
+    const w = 14, x0 = 10, y0 = 40, h = 40;
+    let s = '';
+    for (let i = 0; i < 10; i++) s += '<rect x="' + (x0 + w * i) + '" y="' + y0 + '" width="' + w + '" height="' + h + '" fill="' + (i < k ? FR : '#fff') + '" stroke="' + FS + '" stroke-width="2.5"/>';
+    s += '<line x1="' + x0 + '" y1="26" x2="' + (x0 + w * 10) + '" y2="26" stroke="' + FS + '" stroke-width="2"/><line x1="' + x0 + '" y1="21" x2="' + x0 + '" y2="31" stroke="' + FS + '" stroke-width="2"/><line x1="' + (x0 + w * 10) + '" y1="21" x2="' + (x0 + w * 10) + '" y2="31" stroke="' + FS + '" stroke-width="2"/>';
+    s += '<text x="80" y="16" font-size="13" text-anchor="middle" fill="' + FS + '" font-weight="bold">1</text>';
+    s += '<line x1="' + x0 + '" y1="' + (y0 + h + 10) + '" x2="' + (x0 + w) + '" y2="' + (y0 + h + 10) + '" stroke="' + FR + '" stroke-width="2.5"/>';
+    s += '<text x="' + (x0 + w / 2 + 4) + '" y="' + (y0 + h + 26) + '" font-size="13" text-anchor="middle" fill="' + FR + '" font-weight="bold">0.1</text>';
+    if (k > 1) s += '<text x="' + (x0 + w * 10 - 10) + '" y="' + (y0 + h + 26) + '" font-size="13" text-anchor="end" fill="' + FR + '" font-weight="bold">0.1 が ' + k + 'こ ＝ 0.' + k + '</text>';
+    return svgBox(s);
+  }
+
+  /* コンパス（v14.18）：円の 半径か 直径が 書いて あって、コンパスの 開きが「？」。
+     半径の ときは 半径を 左がわに 書き、コンパスは 右がわ（同じ 線に「？」と 長さを 重ねない） */
+  function compassSvg(kind, label) {
+    const cx = 70, cy = 72, r = 40;
+    let s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + FF + '" stroke="' + FS + '" stroke-width="3" stroke-dasharray="6 4"/>';
+    s += '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="' + FS + '"/>';
+    if (kind === 'radius') {
+      s += '<line x1="' + (cx - r) + '" y1="' + cy + '" x2="' + cx + '" y2="' + cy + '" stroke="' + FB + '" stroke-width="3"/>';
+      s += '<text x="' + (cx - r / 2) + '" y="' + (cy + 16) + '" font-size="13" text-anchor="middle" fill="' + FB + '" font-weight="bold">' + label + '</text>';
+    } else {
+      s += '<line x1="' + (cx - r) + '" y1="' + (cy + 20) + '" x2="' + (cx + r) + '" y2="' + (cy + 20) + '" stroke="' + FB + '" stroke-width="2.5"/>';
+      s += '<line x1="' + (cx - r) + '" y1="' + (cy + 15) + '" x2="' + (cx - r) + '" y2="' + (cy + 25) + '" stroke="' + FB + '" stroke-width="2.5"/><line x1="' + (cx + r) + '" y1="' + (cy + 15) + '" x2="' + (cx + r) + '" y2="' + (cy + 25) + '" stroke="' + FB + '" stroke-width="2.5"/>';
+      s += '<text x="' + cx + '" y="' + (cy + 36) + '" font-size="13" text-anchor="middle" fill="' + FB + '" font-weight="bold">' + label + '</text>';
+    }
+    // コンパス：ちょうつがい → はり（中心）／えんぴつ（まわり）
+    const hx = cx + r / 2, hy = 14, px = cx + r;
+    s += '<line x1="' + hx + '" y1="' + hy + '" x2="' + cx + '" y2="' + cy + '" stroke="#7a7a7a" stroke-width="4" stroke-linecap="round"/>';
+    s += '<line x1="' + hx + '" y1="' + hy + '" x2="' + px + '" y2="' + (cy - 12) + '" stroke="#7a7a7a" stroke-width="4" stroke-linecap="round"/>';
+    s += '<line x1="' + px + '" y1="' + (cy - 12) + '" x2="' + px + '" y2="' + cy + '" stroke="#f0b400" stroke-width="5" stroke-linecap="round"/>';
+    s += '<circle cx="' + hx + '" cy="' + hy + '" r="5" fill="#555"/><rect x="' + (hx - 3) + '" y="2" width="6" height="8" rx="2" fill="#555"/>';
+    // 開き
+    s += '<line x1="' + cx + '" y1="' + (cy - 8) + '" x2="' + px + '" y2="' + (cy - 8) + '" stroke="' + FR + '" stroke-width="2.5"/>';
+    s += '<line x1="' + cx + '" y1="' + (cy - 13) + '" x2="' + cx + '" y2="' + (cy - 3) + '" stroke="' + FR + '" stroke-width="2.5"/><line x1="' + px + '" y1="' + (cy - 13) + '" x2="' + px + '" y2="' + (cy - 3) + '" stroke="' + FR + '" stroke-width="2.5"/>';
+    s += '<text x="' + (cx + r / 2) + '" y="' + (cy - 16) + '" font-size="13" text-anchor="middle" fill="' + FR + '" font-weight="bold">？cm</text>';
+    return svgBox(s);
+  }
+  /* 円を よこに n こ ならべる（v14.18）：1つめに 半径、下に はしから はしまで「？」 */
+  function rowCirclesSvg(n, rLabel) {
+    const W = 140, d = W / n, r = d / 2, cy = Math.max(46, r + 18);   // 2この とき 上の 字が 切れない ように
+    let s = '';
+    for (let i = 0; i < n; i++) {
+      const cx = 10 + d * (i + 0.5);
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r - 1.5) + '" fill="' + FF + '" stroke="' + FS + '" stroke-width="3"/>';
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="2.5" fill="' + FS + '"/>';
+    }
+    const c0 = 10 + r;
+    s += '<line x1="' + c0 + '" y1="' + cy + '" x2="' + (c0 + r - 1.5) + '" y2="' + cy + '" stroke="' + FB + '" stroke-width="3"/>';
+    s += '<text x="' + c0 + '" y="' + (cy - r - 6) + '" font-size="12" text-anchor="middle" fill="' + FB + '" font-weight="bold">半径 ' + rLabel + '</text>';
+    const yb = cy + r + 14;
+    s += '<line x1="10" y1="' + yb + '" x2="150" y2="' + yb + '" stroke="' + FR + '" stroke-width="2.5"/><line x1="10" y1="' + (yb - 5) + '" x2="10" y2="' + (yb + 5) + '" stroke="' + FR + '" stroke-width="2.5"/><line x1="150" y1="' + (yb - 5) + '" x2="150" y2="' + (yb + 5) + '" stroke="' + FR + '" stroke-width="2.5"/>';
+    s += '<text x="80" y="' + (yb + 16) + '" font-size="13" text-anchor="middle" fill="' + FR + '" font-weight="bold">？cm</text>';
+    return svgBox(s);
+  }
+  /* しゅぎょうばの 解説用（v14.18）：中心・半径・直径に 名前を つけた 円 */
+  function circleNamesSvg() {
+    const cx = 80, cy = 62, r = 46;
+    let s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + FF + '" stroke="' + FS + '" stroke-width="4"/>';
+    s += '<line x1="' + (cx - r) + '" y1="' + cy + '" x2="' + (cx + r) + '" y2="' + cy + '" stroke="' + FB + '" stroke-width="3"/>';
+    s += '<text x="' + cx + '" y="' + (cy + 18) + '" font-size="13" text-anchor="middle" fill="' + FB + '" font-weight="bold">直径</text>';
+    const ax = cx + r * Math.cos(-Math.PI / 3), ay = cy + r * Math.sin(-Math.PI / 3);
+    s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + ax + '" y2="' + ay + '" stroke="' + FR + '" stroke-width="3"/>';
+    s += '<text x="' + (cx + 6) + '" y="' + (cy - 22) + '" font-size="13" fill="' + FR + '" font-weight="bold">半径</text>';
+    s += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="' + FS + '"/>';
+    s += '<text x="' + (cx - 8) + '" y="' + (cy - 6) + '" font-size="12" text-anchor="end" fill="' + FS + '" font-weight="bold">中心</text>';
+    return svgBox(s);
+  }
+  /* しゅぎょうばの 解説用（v14.18）：直径 ＝ 半径 ＋ 半径 */
+  function radiiSvg(r) {
+    const cx = 80, cy = 50, R = 38;
+    let s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="' + FF + '" stroke="' + FS + '" stroke-width="4"/>';
+    s += '<line x1="' + (cx - R) + '" y1="' + cy + '" x2="' + cx + '" y2="' + cy + '" stroke="' + FR + '" stroke-width="4"/>';
+    s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + (cx + R) + '" y2="' + cy + '" stroke="' + FB + '" stroke-width="4"/>';
+    s += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="' + FS + '"/>';
+    s += '<text x="' + (cx - R / 2 + 4) + '" y="' + (cy - 9) + '" font-size="12" text-anchor="middle" fill="' + FR + '" font-weight="bold">半径 ' + r + 'cm</text>';
+    s += '<text x="' + (cx + R / 2 - 4) + '" y="' + (cy + 19) + '" font-size="12" text-anchor="middle" fill="' + FB + '" font-weight="bold">半径 ' + r + 'cm</text>';
+    const yb = cy + R + 10;
+    s += '<line x1="' + (cx - R) + '" y1="' + yb + '" x2="' + (cx + R) + '" y2="' + yb + '" stroke="' + FS + '" stroke-width="2.5"/><line x1="' + (cx - R) + '" y1="' + (yb - 5) + '" x2="' + (cx - R) + '" y2="' + (yb + 5) + '" stroke="' + FS + '" stroke-width="2.5"/><line x1="' + (cx + R) + '" y1="' + (yb - 5) + '" x2="' + (cx + R) + '" y2="' + (yb + 5) + '" stroke="' + FS + '" stroke-width="2.5"/>';
+    s += '<text x="' + cx + '" y="' + (yb + 18) + '" font-size="13" text-anchor="middle" fill="' + FS + '" font-weight="bold">直径 ' + (r * 2) + 'cm</text>';
     return svgBox(s);
   }
 
@@ -1208,8 +1325,8 @@ MQ.sansu3 = (function () {
   }
   function ballsCountQ() {
     const n = U.randInt(2, 6), d = pf([4, 5, 6, 8]);
-    return num('球と 箱', '直径 ' + d + 'cm の ボールを、横の 長さ ' + (d * n) + 'cm の 箱に 1れつに ならべます。ぴったり 何こ 入る？', n, {
-      scratch: false, hint: (d * n) + ' ÷ ' + d + '。', note: (d * n) + ' ÷ ' + d + ' = ' + n + 'こ'
+    return num('球と 箱', figQ3('直径 ' + d + 'cm の ボールを、横の 長さ ' + (d * n) + 'cm の 箱に 1れつに ならべます。ぴったり 何こ 入る？', ballsSvg(n, d + 'cm', (d * n) + 'cm', { count: true })), n, {
+      key: 'bc:' + n + ':' + d, scratch: false, hint: (d * n) + ' ÷ ' + d + '。', note: (d * n) + ' ÷ ' + d + ' = ' + n + 'こ'
     });
   }
   function twoCirclesQ() {
@@ -1222,8 +1339,8 @@ MQ.sansu3 = (function () {
     const r = U.randInt(2, 8);
     const which = Math.random() < 0.5;
     return which
-      ? num('コンパス', '半径 ' + r + 'cm の 円を かきます。コンパスは 何cm に 開く？', r, { scratch: false, hint: 'コンパスの 開きは 半径の 長さ。', note: 'コンパスは 半径と 同じ ' + r + 'cm' })
-      : num('コンパス', '直径 ' + (r * 2) + 'cm の 円を かきます。コンパスは 何cm に 開く？', r, { scratch: false, hint: 'コンパスの 開きは 半径。直径の 半分だよ。', note: (r * 2) + ' ÷ 2 = ' + r + 'cm' });
+      ? num('コンパス', figQ3('半径 ' + r + 'cm の 円を かきます。コンパスは 何cm に 開く？', compassSvg('radius', r + 'cm')), r, { key: 'cr:' + r, scratch: false, hint: 'コンパスの 開きは 半径の 長さ。', note: 'コンパスは 半径と 同じ ' + r + 'cm' })
+      : num('コンパス', figQ3('直径 ' + (r * 2) + 'cm の 円を かきます。コンパスは 何cm に 開く？', compassSvg('diameter', (r * 2) + 'cm')), r, { key: 'cd:' + r, scratch: false, hint: 'コンパスの 開きは 半径。直径の 半分だよ。', note: (r * 2) + ' ÷ 2 = ' + r + 'cm' });
   }
   function chordQ() {
     return choice('直径', figQ3('円の 中に ひいた 2本の 直線。直径は どっち？', circleSvg('chord', '')), ['い', 'あ'], {
@@ -1232,8 +1349,8 @@ MQ.sansu3 = (function () {
   }
   function circlesInRowQ() {
     const r = U.randInt(2, 7), n = U.randInt(2, 4);
-    return num('半径と 直径', '半径 ' + r + 'cm の 円を ' + n + 'つ、横に くっつけて ならべました。はしから はしまで 何cm？', r * 2 * n, {
-      hint: '1つの 円の 直径は ' + (r * 2) + 'cm。それが ' + n + 'つ分。', note: (r * 2) + ' × ' + n + ' = ' + (r * 2 * n) + 'cm'
+    return num('半径と 直径', figQ3('半径 ' + r + 'cm の 円を ' + n + 'つ、横に くっつけて ならべました。はしから はしまで 何cm？', rowCirclesSvg(n, r + 'cm')), r * 2 * n, {
+      key: 'row:' + r + ':' + n, scratch: false, hint: '1つの 円の 直径は ' + (r * 2) + 'cm。それが ' + n + 'つ分。', note: (r * 2) + ' × ' + n + ' = ' + (r * 2 * n) + 'cm'
     });
   }
   const stage9 = {
@@ -2160,6 +2277,8 @@ MQ.sansu3 = (function () {
 
   // 図を 見る ため（tools/harness.html #figs3 / #figs3b）
   const figs3 = { lineSvg: lineSvg, circleSvg: circleSvg, ballsSvg: ballsSvg, dialSvg: dialSvg, kanjiNum: kanjiNum,
+    compassSvg: compassSvg, rowCirclesSvg: rowCirclesSvg, circleNamesSvg: circleNamesSvg, radiiSvg: radiiSvg,
+    dotsSvg: dotsSvg, roadSvg: roadSvg, tenthsSvg: tenthsSvg, graphSvg: function (values, scale, set) { return graphSvg(set || graphSets[0], scale || 1, values); },
     triSvg: triSvg, anglesSvg: anglesSvg, setSquareSvg: setSquareSvg, circleTriSvg: circleTriSvg, tapeSvg: tapeSvg, sorobanSvg: sorobanSvg };
 
   const stages = { 1: stage1, 2: stage2, 3: stage3, 4: stage4, 5: stage5, 6: stage6, 7: stage7, 8: stage8, 9: stage9, 10: stage10, 11: stage11, 12: stage12, 13: stage13,

@@ -4739,7 +4739,7 @@ function stripComments(src) {
     const l = LS.get(id);
     check(typeof l.intro === 'string' && l.intro.length > 8, 'dojo: ' + id + ' intro');
     check(Array.isArray(l.explain) && l.explain.length >= 2 && l.explain.length <= 3, 'dojo: ' + id + ' explain 2〜3（' + (l.explain || []).length + '）');
-    l.explain.forEach(function (e, k) { check(e.say && e.ex, 'dojo: ' + id + ' explain#' + k + ' say/ex'); const b = badK(e.say + e.ex); check(!b.length, 'dojo: ' + id + ' explain#' + k + ' かん字 ' + b.join('')); });
+    l.explain.forEach(function (e, k) { const exs = typeof e.ex === 'function' ? e.ex() : e.ex; check(e.say && exs, 'dojo: ' + id + ' explain#' + k + ' say/ex'); const b = badK(e.say + String(exs).replace(/<svg[\s\S]*?<\/svg>/g, '').replace(/<[^>]+>/g, '')); check(!b.length, 'dojo: ' + id + ' explain#' + k + ' かん字 ' + b.join('')); });
     check(!badK(l.intro).length, 'dojo: ' + id + ' intro かん字 ' + badK(l.intro).join(''));
     check(Array.isArray(l.steps) && l.steps.length >= 1 && Array.isArray(l.miss) && l.miss.length >= 1, 'dojo: ' + id + ' steps/miss');
     const no = Number(id.split('-')[1]);

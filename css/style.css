@@ -4007,6 +4007,16 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
 .dojo__ex p { margin: 4px 0; }
 .dojo__ex b { color: var(--org-2); font-family: var(--f-head); }
 .dojo__exbody .num { white-space: nowrap; }
+/* 解説の 図（v14.18）：問題の 図を 大きく まん中に */
+.dojo__fig { display: flex; justify-content: center; margin: 0 0 4px; }
+.dojo__fig .figbox { width: min(220px, 60%); height: auto; aspect-ratio: 4 / 3; }
+.dojo__fig--row { align-items: center; gap: 6px; --figk: .8; }
+.dojo__fig--row .figbox { flex: 1 1 0; min-width: 0; width: auto; max-width: 150px; }
+.dojo__fig--row .clockbox { --cs: .62; }
+.dojo__fig__mid { font-family: var(--f-head); font-size: 16px; color: var(--paper-ink); text-align: center; white-space: nowrap; line-height: 1.2; }
+.dojo__fig .graph { max-height: none; }
+.dojo__tbl { margin: 0 0 8px; font-size: 18px; }
+.dojo__tbl th { font-size: 13px; }
 
 /* はじめの 案内 */
 .dojo__hello { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.07); }

@@ -184,7 +184,7 @@ MQ.ui.dojo = (function () {
     paint(h('div', { class: 'dojo__pane' }, [
       h('div', { class: 'card dojo__card dojo__card--ex' }, [
         h('p', { class: 'card__unit', text: T.exLabel + ' ' + (i + 1) + ' / ' + ex.length }),
-        h('div', { class: 'dojo__exbody', html: ex[i].ex || '' })
+        h('div', { class: 'dojo__exbody', html: (typeof ex[i].ex === 'function' ? ex[i].ex() : ex[i].ex) || '' })   // 関数＝あとから 読む ファイルの 図（v14.18）
       ]),
       nextBtn(i + 1 < ex.length ? T.next : T.toGuided, function () { explain(i + 1); })
     ]));
