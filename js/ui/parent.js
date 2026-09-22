@@ -612,9 +612,9 @@ MQ.ui.parent = (function () {
      子どもの 名前は 入れない。
      ======================================================= */
   const FEEDBACK_FORM = {
-    url: '',     // https://docs.google.com/forms/d/e/…/viewform
-    grade: '',   // 学年の 質問の entry.〇〇
-    info: ''     // アプリの 情報の 質問の entry.〇〇
+    url: 'https://docs.google.com/forms/d/e/1FAIpQLSdg_y-ULYolfs7mVOeyN63rIe1NdGehWvK6nvwG_NwjiQYeuA/viewform',
+    grade: 'entry.888401293',   // 質問1「お子さんの学年」（選択肢は 小1〜小6・その他）
+    info: 'entry.1748460248'    // 質問9「アプリの情報」
   };
   const INFO_MAX = 700;   // URL が 長く なりすぎない ように（日本語は 1字 9文字に なる）
   function feedbackInfo(p) {
