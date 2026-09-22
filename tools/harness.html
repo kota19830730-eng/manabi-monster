@@ -925,6 +925,36 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('きろく 2回目: ' + (MQ.save.exportText() === t2 ? 'ok（何も 変わらない）' : 'MISSING ' + JSON.stringify(MQ.save.current().frags)));
       return;
     }
+    // 感想フォーム（v14.17）：#fbform … にせの フォーム URL で ホームの カードと 設定の ボタン
+    //   #fbform:set … 設定の「こまったとき」まで スクロール ／ #fbform:none … URL が からなら 何も 出ない
+    if (mode === 'fbform' || mode.indexOf('fbform:') === 0) {
+      fresh();
+      MQ.guard.clear(); MQ.guard.markBooted();
+      MQ.guard.record({ msg: 'TypeError: テストの エラー', src: 'https://example/js/ui/battle.js', line: 10, col: 2, screen: 'battle' });
+      const F = MQ.ui.parent.FEEDBACK_FORM;
+      const none = mode === 'fbform:none';
+      F.url = none ? '' : 'https://docs.google.com/forms/d/e/FAKE/viewform';
+      F.grade = none ? '' : 'entry.111'; F.info = none ? '' : 'entry.222';
+      MQ.ui.parent.open(mode === 'fbform:set' ? 'settings' : 'home');
+      await wait(200);
+      const card = $('#pp-feedback'), links = $$('#screen-parent a.pp-btn');
+      const url = links[0] ? links[0].getAttribute('href') : '';
+      say('fbform: card ' + (card ? 'あり' : 'なし') + '／リンク ' + links.length + '／URL の 長さ ' + url.length);
+      if (url) {
+        const qs = new URLSearchParams(url.split('?')[1]);
+        const info = qs.get('entry.222') || '';
+        const name = MQ.save.current().name;
+        say('fbform: 学年 ' + (qs.get('entry.111') === '小' + MQ.save.current().grade ? 'ok' : 'MISSING ' + qs.get('entry.111')) +
+            '／版 ' + (info.indexOf('版 ') === 0 ? 'ok' : 'MISSING') + '／端末 ' + (info.indexOf('端末 ') >= 0 ? 'ok' : 'MISSING') +
+            '／エラー ' + (info.indexOf('テストの エラー') >= 0 ? 'ok' : 'MISSING') + '／名前なし ' + (name && info.indexOf(name) < 0 ? 'ok' : 'NG') +
+            '／target ' + (links[0].target === '_blank' ? 'ok' : 'MISSING'));
+        say('fbform info:\n' + info);
+      }
+      const body = $('#screen-parent .pp__body');
+      const at = card || $('#pp-trouble');
+      if (body && at) body.scrollTop = at.offsetTop - 8;
+      return;
+    }
     // エラーの 保険（v7.6）：#guard … わざと エラーを 出して バーが 出るか・きろくが のこるか
     //                       #kanso … おうちの人ページの「こまったとき・感想を送る」（にせの エラー 2件つき）
     //                       #guardset … 図かんの せっていの「こまった ときは」

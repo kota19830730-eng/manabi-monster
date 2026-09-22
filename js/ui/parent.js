@@ -267,6 +267,7 @@ MQ.ui.parent = (function () {
     }
 
     main.push(letterSection(p));
+    main.push(feedbackCard(p));   // v14.17 感想フォーム（url が ある ときだけ）
     if (MQ.ui.prize && MQ.prize) main.push(MQ.ui.prize.homeCard(p, { open: open }));   // v13.12 ごほうびマシン（中は 番号で 鍵）
 
     /* アクション */
@@ -603,6 +604,66 @@ MQ.ui.parent = (function () {
   }
 
   /* =======================================================
+     感想フォーム（v14.17）
+     作った人の Google フォームを 開く。**アプリは 何も 送らない**
+     （親が フォームで「送信」を 押した ときだけ 届く）。
+     url が からの あいだは ボタンを 出さない。
+     学年と アプリの 情報（版・端末・エラー）を 最初から 入れて 開く。
+     子どもの 名前は 入れない。
+     ======================================================= */
+  const FEEDBACK_FORM = {
+    url: '',     // https://docs.google.com/forms/d/e/…/viewform
+    grade: '',   // 学年の 質問の entry.〇〇
+    info: ''     // アプリの 情報の 質問の entry.〇〇
+  };
+  const INFO_MAX = 700;   // URL が 長く なりすぎない ように（日本語は 1字 9文字に なる）
+  function feedbackInfo(p) {
+    const lines = [];
+    const lv = MQ.hero && MQ.hero.levelFor ? MQ.hero.levelFor(p) : '?';
+    const playG = MQ.save.playGrade ? MQ.save.playGrade(p) : (p.playGrade || p.grade);
+    lines.push('版 ' + (MQ.version || '不明') + '／小' + (p.grade || 3) + '（いま小' + playG + 'の地図・Lv' + lv + '）');
+    try { if (MQ.guard) lines.push('端末 ' + MQ.guard.device().text); } catch (e) {}
+    try {
+      const al = MQ.stats.period(p, 'all');
+      lines.push('たたかい ' + (p.battles || 0) + '回・問題 ' + al.n + '問・正答率 ' + (al.pct == null ? '－' : al.pct + '%') + '・学習 ' + al.days + '日');
+    } catch (e) {}
+    try {
+      const errs = MQ.guard ? MQ.guard.all() : [];
+      errs.slice(0, 3).forEach(function (e) {
+        lines.push('エラー ' + String(e.msg || '').slice(0, 80) + (e.src ? ' @' + e.src : '') + ((e.n || 1) > 1 ? ' ×' + e.n : ''));
+      });
+    } catch (e) {}
+    const s = lines.join('\n');
+    return s.length > INFO_MAX ? s.slice(0, INFO_MAX) + '…' : s;
+  }
+  function feedbackUrl(p) {
+    const F = FEEDBACK_FORM;
+    if (!F.url) return '';
+    const q = ['usp=pp_url'];
+    if (F.grade) q.push(F.grade + '=' + encodeURIComponent('小' + (p.grade || 3)));
+    if (F.info) q.push(F.info + '=' + encodeURIComponent(feedbackInfo(p)));
+    return F.url + (F.url.indexOf('?') < 0 ? '?' : '&') + q.join('&');
+  }
+  /* リンクで 開く（ホーム画面の アプリからでも ブラウザで 開く） */
+  function formLink(p, text, cls) {
+    return h('a', {
+      class: 'pp-btn ' + (cls || 'pp-btn--p pp-btn--sm'), href: feedbackUrl(p), target: '_blank', rel: 'noopener',
+      onclick: function () { MQ.sfx.tap(); }
+    }, [icon('arrow'), h('span', { text: text })]);
+  }
+  function feedbackCard(p) {
+    if (!FEEDBACK_FORM.url) return null;
+    return h('section', { class: 'pp-section', id: 'pp-feedback' }, [
+      sec('感想を聞かせてください', '1〜2分・名前なしでOK'),
+      h('div', { class: 'pp-card pp-pad pp-fb' }, [
+        h('p', { class: 'pp-small', text: 'まなびモンスターは、使ってくださる方の声で作り直しています。お子さんの一言（「ここが好き」「ここがむずかしい」）だけでも、とても助かります。' }),
+        formLink(p, '感想フォームを開く', 'pp-btn--p'),
+        h('p', { class: 'pp-muted pp-tiny', text: 'Googleのフォームが開きます。学年・アプリの版・端末の種類だけ最初から入っています（お子さんの名前や成績の細かい記録は入りません）。「送信」を押すまで何も送られません。' })
+      ])
+    ]);
+  }
+
+  /* =======================================================
      子どもへのてがみ（v8.5）
 
      40文字までの手紙＋おまけのミッション（教科を1つ）＋コイン1〜3。
@@ -741,7 +802,9 @@ MQ.ui.parent = (function () {
         ]),
         h('div', { class: 'pp-line pp-line--col' }, [
           h('span', { text: '感想・不具合を作った人に送る' }),
-          h('span', { class: 'pp-muted pp-small', text: '下の文をコピーして、LINEなどに貼り付けて送ってください。端末・バージョン・エラーの記録が入ります（名前と成績の数字以外の個人情報は入りません）。' }),
+          FEEDBACK_FORM.url ? h('span', { class: 'pp-muted pp-small', text: 'フォームで送れます（端末とエラーの記録が最初から入ります）。LINEで送る方は、下の文をコピーしてください。' }) : null,
+          FEEDBACK_FORM.url ? h('div', { class: 'pp-line__in' }, [formLink(p, '感想フォームを開く')]) : null,
+          h('span', { class: 'pp-muted pp-small', text: (FEEDBACK_FORM.url ? '' : '下の文をコピーして、LINEなどに貼り付けて送ってください。') + '端末・バージョン・エラーの記録が入ります（名前と成績の数字以外の個人情報は入りません）。' }),
           ta,
           h('div', { class: 'pp-line__in' }, [
             btn('文字でコピー', 'pp-btn--p pp-btn--sm', function () { copyText(ta.value); }, 'copy')
@@ -927,6 +990,7 @@ MQ.ui.parent = (function () {
 
   return {
     open: open, refresh: refresh, isOpen: isOpen, render: render,
+    feedbackUrl: feedbackUrl, feedbackInfo: feedbackInfo, FEEDBACK_FORM: FEEDBACK_FORM,
     reportHtml: reportHtml,
     setKind: function (k) { kind = k; },
     view: function () { return view; }
