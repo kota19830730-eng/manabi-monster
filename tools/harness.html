@@ -723,6 +723,34 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       document.getElementById('stage').appendChild(box);
       return;
     }
+    // #zu2 … v14.20 / v14.21 で 足した 図を ぜんぶ ならべて 見る（名前つき）
+    if (mode === 'zu2') {
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#FFF8E6;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;z-index:99;align-content:start;overflow:auto;';
+      const L = [
+        ['太陽', MQ.zu.sunPic('sun')], ['かげ', MQ.zu.sunPic('shadow')], ['朝昼夕', MQ.zu.sunPic('day')],
+        ['川', MQ.zu.riverPic()], ['温度計22', MQ.zu.thermoPic(22)], ['温度計なし', MQ.zu.thermoPic(null)],
+        ['てこ 支点', MQ.zu.leverPic('fulcrum')], ['てこ 力点', MQ.zu.leverPic('effort')],
+        ['てこ 作用点', MQ.zu.leverPic('load')], ['てこ 名前', MQ.zu.leverPic('all')],
+        ['てんびん 3-6', MQ.zu.balancePic({ pos: 3, text: '20g' }, { pos: 6, text: '？g' })],
+        ['てんびん 4-3', MQ.zu.balancePic({ pos: 4, text: '30g' }, { pos: 3, text: '？g' })],
+        ['ふりこ', MQ.zu.pendulumPic('plain')], ['ふりこ 名前', MQ.zu.pendulumPic('parts')], ['ふりこ 2つ', MQ.zu.pendulumPic('two')],
+        ['電じしゃく', MQ.zu.coilPic('plain')], ['コイル？', MQ.zu.coilPic('coil')], ['鉄しん？', MQ.zu.coilPic('core')], ['直列', MQ.zu.coilPic('series')],
+        ['地そう', MQ.zu.strataPic()],
+        ['金ぞくの ぼう', MQ.zu.heatPic('bar')], ['金ぞくの 板', MQ.zu.heatPic('plate')], ['ビーカー', MQ.zu.heatPic('water')],
+        ['ふっとう', MQ.zu.heatPic('boil')], ['冷たい コップ', MQ.zu.heatPic('cold')], ['へや', MQ.zu.heatPic('room')], ['おふろ', MQ.zu.heatPic('bath')],
+        ['空気でっぽう', MQ.zu.airPic('gun')], ['空気', MQ.zu.airPic('air')], ['水', MQ.zu.airPic('water')], ['空気と水', MQ.zu.airPic('both')]
+      ];
+      L.forEach(function (p) {
+        const d = document.createElement('div');
+        d.style.cssText = 'background:#fff;border:1px solid #C9BFA6;border-radius:6px;padding:3px;';
+        d.innerHTML = p[1] + '<div style="font-size:9px;text-align:center">' + p[0] + '</div>';
+        box.appendChild(d);
+      });
+      document.getElementById('stage').appendChild(box);
+      say('zu2: ' + L.length + 'まい');
+      return;
+    }
     // #chizu … 地図と方位の バトル（図つきの 問題が 出る）
     if (mode === 'chizu') {
       fresh();
@@ -2475,7 +2503,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     if (mode === 'fit' || mode === 'fit:all') {
       const STAGES = mode === 'fit:all'
-        ? [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'sansu3-11'], [3, 'sansu3-12'], [3, 'sansu3-16'], [3, 'sansu3-18'], [3, 'kokugo3-2'], [3, 'kokugo3-3'], [3, 'kokugo3-6'], [3, 'rikashakai3-1'], [3, 'rikashakai3-2'], [3, 'eigo3-1'], [4, 'rika4-2'], [4, 'shakai4-2'], [5, 'rika5-3'],
+        ? [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'sansu3-11'], [3, 'sansu3-12'], [3, 'sansu3-16'], [3, 'sansu3-18'], [3, 'kokugo3-2'], [3, 'kokugo3-3'], [3, 'kokugo3-6'], [3, 'rikashakai3-1'], [3, 'rikashakai3-2'], [3, 'eigo3-1'], [4, 'rika4-2'], [4, 'rika4-4'], [4, 'shakai4-2'], [5, 'rika5-3'], [5, 'rika5-4'], [6, 'rika6-3'], [6, 'rika6-4'],
            [1, 'sansu1-8'], [2, 'sansu2-2'], [2, 'sansu2-9'], [4, 'sansu4-2'], [4, 'sansu4-7'], [4, 'sansu4-11'], [4, 'sansu4-15'],
            [5, 'sansu5-2'], [5, 'sansu5-6'], [5, 'sansu5-10'], [5, 'sansu5-14'], [5, 'sansu5-16'], [5, 'sansu5-18'],
            [6, 'sansu6-1'], [6, 'sansu6-3'], [6, 'sansu6-7'], [6, 'sansu6-8'], [6, 'sansu6-9'], [6, 'sansu6-11'], [6, 'sansu6-14'], [6, 'kokugo6-3'], [6, 'rika6-1'], [6, 'shakai6-2'], [6, 'eigo6-2']]

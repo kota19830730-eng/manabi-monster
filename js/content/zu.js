@@ -292,6 +292,232 @@ MQ.zu = (function () {
   }
   function flowQ(text, steps) { return text + flowPic(steps); }
 
+  /* ===== ここから v14.21（理科の「ようすを 思いうかべる」単元）===== */
+
+  /* 赤い ？の しるし。**場所だけ** 教えて 名前（答え）は 書かない */
+  function qmark(x, y, r) {
+    r = r || 9;
+    return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#FFF1EF" stroke="#d42a20" stroke-width="2.5"/>' +
+      tx('？', Math.round(r * 1.4), x, y, '#d42a20');
+  }
+  /* ほのお（アルコールランプ）。yBase＝ほのおの 根もと */
+  function flame(x, yBase, h) {
+    const w = h * 0.5;
+    return '<path d="M' + x + ',' + (yBase - h) +
+      ' C' + (x + w) + ',' + (yBase - h * 0.45) + ' ' + (x + w * 0.85) + ',' + yBase + ' ' + x + ',' + yBase +
+      ' C' + (x - w * 0.85) + ',' + yBase + ' ' + (x - w) + ',' + (yBase - h * 0.45) + ' ' + x + ',' + (yBase - h) +
+      ' Z" fill="#FF9A3C" stroke="#E2620A" stroke-width="1.5"/>';
+  }
+  function lamp(x, yTop, h) {
+    h = h || 18;
+    return '<polygon points="' + (x - 15) + ',' + (yTop + h) + ' ' + (x + 15) + ',' + (yTop + h) + ' ' + (x + 10) + ',' + yTop + ' ' + (x - 10) + ',' + yTop +
+      '" fill="#DCE6EE" stroke="' + INK + '" stroke-width="2"/>';
+  }
+
+  /* ===== てこ（v14.21・小6）=====
+     mark='fulcrum'|'effort'|'load' … その 点だけ 赤い ？（名前は 書かない＝答えは ばれない）
+     mark='all'                     … 3つとも 名前を 書く（「近づけると どう なる？」の 問題用） */
+  function leverPic(mark) {
+    const LOAD_X = 31, FUL_X = 62, EFF_X = 116, BAR_Y = 47;
+    let s = '';
+    s += '<polygon points="' + FUL_X + ',54 50,78 74,78" fill="#B9A98A" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<rect x="14" y="' + BAR_Y + '" width="114" height="7" rx="3" fill="#C89A5B" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<rect x="20" y="26" width="22" height="21" rx="3" fill="#9AA3AE" stroke="' + INK + '" stroke-width="2"/>';
+    s += ln(EFF_X, 14, EFF_X, 37, 4);
+    s += '<polygon points="' + (EFF_X - 7) + ',36 ' + (EFF_X + 7) + ',36 ' + EFF_X + ',46" fill="' + INK + '"/>';
+    if (mark === 'all') {
+      s += tx('作用点', 9, LOAD_X, 91) + ln(LOAD_X, 85, LOAD_X, 56, 1.2);
+      s += tx('支点', 9, FUL_X, 91) + ln(FUL_X, 85, FUL_X, 79, 1.2);
+      s += tx('力点', 9, EFF_X, 91) + ln(EFF_X, 85, EFF_X, 56, 1.2);
+    } else if (mark === 'load') { s += qmark(LOAD_X, BAR_Y + 3); }
+    else if (mark === 'fulcrum') { s += qmark(FUL_X, BAR_Y + 5); }
+    else if (mark === 'effort') { s += qmark(EFF_X, BAR_Y + 3); }
+    return box(s, 140, 100);
+  }
+  function leverQ(text, mark) { return figQ(text, leverPic(mark)); }
+
+  /* ===== 実験用てこ（v14.21・小6）=====
+     l・r＝{ pos: 1〜6, text: '20g' }。text に ？ が 入って いれば 赤い わく。
+     **答えは 書かない**（聞かれて いる ほうを '？g' に する） */
+  function balancePic(l, r) {
+    const CX = 70, AY = 40, SP = 8, N = 6;
+    let s = '';
+    s += '<polygon points="' + CX + ',40 ' + (CX - 11) + ',80 ' + (CX + 11) + ',80" fill="#B9A98A" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<rect x="' + (CX - 22) + '" y="80" width="44" height="6" rx="2" fill="#8A7A5C" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<rect x="' + (CX - SP * N - 8) + '" y="' + (AY - 3) + '" width="' + (SP * N * 2 + 16) + '" height="6" rx="3" fill="#C89A5B" stroke="' + INK + '" stroke-width="2"/>';
+    [[-1, l], [1, r]].forEach(function (p) {
+      for (let i = 1; i <= N; i++) {
+        const x = CX + p[0] * i * SP;
+        s += ln(x, AY + 3, x, AY + 8, 1.4);
+        if (!(p[1] && p[1].pos === i)) {
+          s += '<text x="' + x + '" y="' + (AY + 18) + '" font-size="7" text-anchor="middle" fill="' + INK + '" font-family="serif">' + i + '</text>';
+        }
+      }
+    });
+    [[-1, l], [1, r]].forEach(function (p) {
+      const w = p[1];
+      if (!w) return;
+      const x = CX + p[0] * w.pos * SP, q = String(w.text).indexOf('？') >= 0, col = q ? '#d42a20' : INK;
+      s += ln(x, AY + 3, x, 62, 1.6, col);
+      s += '<rect x="' + (x - 13) + '" y="62" width="26" height="16" rx="3" fill="' + (q ? '#FFF1EF' : '#FFF8E6') + '" stroke="' + col + '" stroke-width="2"/>';
+      s += tx(w.text, 9, x, 70, col);
+    });
+    return box(s, 140, 100);
+  }
+  function balanceQ(text, l, r) { return figQ(text, balancePic(l, r)); }
+
+  /* ===== ふりこ（v14.21・小5）=====
+     'plain' … ふりこと ふれる ようす（**長さの 矢じるしは 描かない**＝「どこから どこまで」の 答えを 出さない）
+     'parts' … 長さ・おもり・ふれはば の 3つに 名前（どれが きくかは 書かない）
+     'two'   … 長さの ちがう ふりこ 2つ */
+  function pendulumPic(kind) {
+    if (kind === 'two') {
+      let s = '<rect x="10" y="6" width="120" height="6" rx="2" fill="#B9A98A" stroke="' + INK + '" stroke-width="2"/>';
+      [[38, 24, '25cm'], [100, 58, '100cm']].forEach(function (p) {
+        s += ln(p[0], 12, p[0], 12 + p[1], 2.2);
+        s += '<circle cx="' + p[0] + '" cy="' + (12 + p[1] + 8) + '" r="8" fill="#9AA3AE" stroke="' + INK + '" stroke-width="2"/>';
+        s += tx(p[2], 9, p[0], 93);
+      });
+      return box(s, 140, 100);
+    }
+    const PX = 70, PY = 14, L = 52, A = 0.52;
+    const dx = Math.sin(A) * L, dy = Math.cos(A) * L;
+    let s = '<rect x="18" y="6" width="104" height="6" rx="2" fill="#B9A98A" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<line x1="' + PX + '" y1="' + PY + '" x2="' + PX + '" y2="' + (PY + L + 4) + '" stroke="#B9AE97" stroke-width="1.2" stroke-dasharray="3 3"/>';
+    s += '<path d="M' + (PX - dx) + ',' + (PY + dy) + ' Q' + PX + ',' + (PY + L + 6) + ' ' + (PX + dx) + ',' + (PY + dy) + '" fill="none" stroke="#B9AE97" stroke-width="1.4" stroke-dasharray="4 3"/>';
+    s += ln(PX, PY, PX + dx, PY + dy, 1.4, '#B9AE97');
+    s += '<circle cx="' + (PX + dx) + '" cy="' + (PY + dy) + '" r="8" fill="none" stroke="#B9AE97" stroke-width="2" stroke-dasharray="3 3"/>';
+    s += ln(PX, PY, PX - dx, PY + dy, 2.2);
+    s += '<circle cx="' + (PX - dx) + '" cy="' + (PY + dy) + '" r="8" fill="#9AA3AE" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<circle cx="' + PX + '" cy="' + PY + '" r="3.5" fill="' + INK + '"/>';
+    if (kind === 'parts') {
+      s += tx('長さ', 8, 42, 32) + tx('おもり', 8, 24, 62) + tx('ふれはば', 8, 70, 86);
+    }
+    return box(s, 140, 100);
+  }
+  function pendulumQ(text, kind) { return figQ(text, pendulumPic(kind)); }
+
+  /* ===== 電じしゃく（v14.21・小5）=====
+     'plain' … コイル＋鉄しん＋かん電池 1こ
+     'coil'  … まいて ある ところに 赤い ？（名前は 書かない）
+     'core'  … 中の ぼうに 赤い ？
+     'series'… かん電池 2こ 直列 */
+  function coilPic(kind) {
+    let s = wire('M20,22 H120 V78 H20 Z');
+    if (kind === 'series') { s += battery(35, 71) + battery(75, 71); }
+    else s += battery(55, 71);
+    s += '<rect x="44" y="15" width="52" height="14" rx="2" fill="#AEB7C2" stroke="' + INK + '" stroke-width="2"/>';
+    [54, 62, 70, 78, 86].forEach(function (cx) {
+      s += '<ellipse cx="' + cx + '" cy="22" rx="3.5" ry="10" fill="none" stroke="#C87A4A" stroke-width="3"/>';
+    });
+    if (kind === 'coil') { s += ln(70, 40, 70, 46, 1.6, '#d42a20') + qmark(70, 54); }
+    else if (kind === 'core') { s += ln(93, 29, 101, 38, 1.6, '#d42a20') + qmark(105, 46); }
+    return box(s, 140, 100);
+  }
+  function coilQ(text, kind) { return figQ(text, coilPic(kind)); }
+
+  /* ===== 地そう（v14.21・小6）=====
+     しま模様に 重なって いる ことだけ 見せる。**つぶの 形や 名前は 描かない**（答えに なる） */
+  function strataPic() {
+    const BANDS = [['#8FBF6A', 8], ['#D8C08A', 14], ['#B08A5C', 13], ['#9AA093', 12], ['#C4AE86', 13], ['#7C6650', 12]];
+    let s = '', y = 16;
+    BANDS.forEach(function (b) {
+      s += '<rect x="14" y="' + y + '" width="72" height="' + b[1] + '" fill="' + b[0] + '" stroke="' + INK + '" stroke-width="1.4"/>';
+      y += b[1];
+    });
+    s += '<rect x="14" y="16" width="72" height="' + (y - 16) + '" fill="none" stroke="' + INK + '" stroke-width="2.5"/>';
+    return box(s);
+  }
+  function strataQ(text) { return figQ(text, strataPic()); }
+
+  /* ===== あたたまり方・水の すがた（v14.21・小4）=====
+     **矢じるし（熱の つたわる 向き）は 描かない**＝答えに なる。ようすだけ。
+     'bar' 金ぞくの ぼう／'plate' 金ぞくの 板（上から）／'water' ビーカー／
+     'boil' ふっとう／'cold' 冷たい コップ／'room' へやと ストーブ／'bath' おふろ */
+  function heatPic(kind) {
+    if (kind === 'room') {
+      let s = '<rect x="12" y="14" width="116" height="72" rx="3" fill="#FFF8E6" stroke="' + INK + '" stroke-width="2.5"/>';
+      s += ln(12, 74, 128, 74, 2);
+      s += '<rect x="92" y="24" width="26" height="22" fill="#CFE7F7" stroke="' + INK + '" stroke-width="2"/>' + ln(105, 24, 105, 46, 1.6);
+      s += '<rect x="26" y="52" width="30" height="22" rx="3" fill="#C0553C" stroke="' + INK + '" stroke-width="2"/>';
+      s += '<rect x="32" y="58" width="18" height="11" fill="#FFE1A8" stroke="' + INK + '" stroke-width="1.4"/>';
+      s += flame(41, 68, 9);
+      return box(s, 140, 100);
+    }
+    if (kind === 'bath') {
+      let s = '<path d="M18,34 V70 Q18,80 30,80 H70 Q82,80 82,70 V34" fill="none" stroke="' + INK + '" stroke-width="2.5"/>';
+      s += '<path d="M20,40 V70 Q20,78 30,78 H70 Q80,78 80,70 V40 Z" fill="#9FD0F0"/>';
+      s += ln(20, 40, 80, 40, 2, '#4F8CFF');
+      [30, 50, 70].forEach(function (x) {
+        s += '<path d="M' + x + ',34 q4,-6 0,-11 q-4,-5 0,-9" fill="none" stroke="#B9C6D2" stroke-width="2" stroke-linecap="round"/>';
+      });
+      return box(s);
+    }
+    if (kind === 'plate') {
+      let s = '<rect x="22" y="24" width="56" height="48" rx="3" fill="#C4CDD6" stroke="' + INK + '" stroke-width="2.5"/>';
+      s += '<circle cx="50" cy="48" r="6" fill="#FF9A3C" stroke="#E2620A" stroke-width="1.6"/>';
+      s += ln(50, 72, 50, 82, 2, '#E2620A');
+      s += tx('熱する', 8, 50, 90);
+      return box(s);
+    }
+    if (kind === 'bar') {
+      let s = '<rect x="14" y="38" width="72" height="9" rx="2" fill="#C4CDD6" stroke="' + INK + '" stroke-width="2"/>';
+      s += lamp(28, 72) + '<rect x="26" y="66" width="4" height="6" fill="' + INK + '"/>' + flame(28, 66, 17);
+      return box(s);
+    }
+    if (kind === 'cold') {
+      let s = '<path d="M34,22 L38,76 H62 L66,22" fill="#CFE7F7" stroke="' + INK + '" stroke-width="2.5" stroke-linejoin="round"/>';
+      s += '<path d="M35.4,32 L38,76 H62 L64.6,32 Z" fill="#9FD0F0"/>';
+      s += '<rect x="40" y="34" width="11" height="11" rx="2" fill="#EAF6FF" stroke="#6FA8CC" stroke-width="1.4"/>';
+      s += '<rect x="52" y="44" width="10" height="10" rx="2" fill="#EAF6FF" stroke="#6FA8CC" stroke-width="1.4"/>';
+      [[30, 40], [29, 54], [31, 66], [70, 38], [71, 52], [69, 64]].forEach(function (p) {
+        s += '<ellipse cx="' + p[0] + '" cy="' + p[1] + '" rx="3" ry="4" fill="#8FC8EA" stroke="#4F8CFF" stroke-width="1"/>';
+      });
+      return box(s);
+    }
+    /* water / boil */
+    let s = '<path d="M30,20 V56 Q30,62 37,62 H63 Q70,62 70,56 V20" fill="none" stroke="' + INK + '" stroke-width="2.5"/>';
+    s += '<path d="M31.2,30 V56 Q31.2,60.8 37,60.8 H63 Q68.8,60.8 68.8,56 V30 Z" fill="#9FD0F0"/>';
+    if (kind === 'boil') {
+      [[40, 52, 3], [50, 45, 4], [58, 54, 2.6], [46, 36, 2.4], [62, 40, 3], [36, 42, 2.2]].forEach(function (b) {
+        s += '<circle cx="' + b[0] + '" cy="' + b[1] + '" r="' + b[2] + '" fill="#EAF6FF" stroke="#4F8CFF" stroke-width="1"/>';
+      });
+    }
+    s += lamp(50, 78) + '<rect x="48" y="72" width="4" height="6" fill="' + INK + '"/>' + flame(50, 72, 12);
+    return box(s);
+  }
+  function heatQ(text, kind) { return figQ(text, heatPic(kind)); }
+
+  /* ===== 空気でっぽう・ちゅうしゃき（v14.21・小4）=====
+     'gun' 空気でっぽう／'air' 空気だけ／'water' 水だけ／'both' 空気と 水 */
+  function airPic(kind) {
+    let s = ln(8, 24, 26, 24, 2.4) + '<polygon points="25,20 25,28 33,24" fill="' + INK + '"/>';
+    if (kind === 'gun') {
+      s += '<rect x="24" y="34" width="94" height="28" rx="6" fill="#FDFBF4" stroke="' + INK + '" stroke-width="3"/>';
+      s += '<rect x="4" y="44" width="48" height="8" rx="3" fill="#C89A5B" stroke="' + INK + '" stroke-width="2"/>';
+      s += '<circle cx="60" cy="48" r="9" fill="#C87A4A" stroke="' + INK + '" stroke-width="2"/>';
+      s += '<circle cx="106" cy="48" r="9" fill="#C87A4A" stroke="' + INK + '" stroke-width="2"/>';
+      s += tx('後玉', 8, 60, 76) + tx('前玉', 8, 106, 76);
+      return box(s, 140, 100);
+    }
+    s += '<rect x="30" y="28" width="5" height="40" rx="2" fill="#E8E2D2" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<rect x="35" y="34" width="75" height="28" rx="2" fill="#FFFFFF" stroke="' + INK + '" stroke-width="2.5"/>';
+    s += '<polygon points="110,43 110,53 127,50 127,46" fill="#FFFFFF" stroke="' + INK + '" stroke-width="2" stroke-linejoin="round"/>';
+    if (kind === 'water') {
+      s += '<rect x="46" y="35.5" width="63" height="25" fill="#9FD0F0"/>' + tx('水', 10, 78, 48);
+    } else if (kind === 'both') {
+      s += '<rect x="78" y="35.5" width="31" height="25" fill="#9FD0F0"/>';
+      s += tx('空気', 9, 62, 48) + tx('水', 9, 93, 48);
+    } else {
+      s += tx('空気', 10, 78, 48);
+    }
+    s += '<rect x="40" y="35" width="6" height="26" rx="1" fill="#C89A5B" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<rect x="8" y="44" width="33" height="8" rx="3" fill="#C89A5B" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<rect x="4" y="38" width="6" height="20" rx="2" fill="#C89A5B" stroke="' + INK + '" stroke-width="2"/>';
+    return box(s, 140, 100);
+  }
+  function airQ(text, kind) { return figQ(text, airPic(kind)); }
+
   return {
     KIGO_NAMES: KIGO_NAMES, names: Object.keys(KIGO),
     kigoSvg: kigoSvg, kigoQ: kigoQ,
@@ -300,6 +526,10 @@ MQ.zu = (function () {
     circuit: circuit, circuitQ: circuitQ, moon: moon, moonQ: moonQ,
     sunPic: sunPic, sunQ: sunQ, riverPic: riverPic, riverQ: riverQ,
     thermoPic: thermoPic, thermoQ: thermoQ, flowPic: flowPic, flowQ: flowQ,
+    leverPic: leverPic, leverQ: leverQ, balancePic: balancePic, balanceQ: balanceQ,
+    pendulumPic: pendulumPic, pendulumQ: pendulumQ, coilPic: coilPic, coilQ: coilQ,
+    strataPic: strataPic, strataQ: strataQ, heatPic: heatPic, heatQ: heatQ,
+    airPic: airPic, airQ: airQ,
     figQ: figQ
   };
 })();

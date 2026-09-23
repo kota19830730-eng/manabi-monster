@@ -855,6 +855,69 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
   check(MQ.zu.circuit('parallel', 'bulb').indexOf('<svg') === 0 && MQ.zu.moon('phases').indexOf('<svg') === 0, '回路と 月の 図が 作れる');
 })();
 
+/* ===== 理科の「ようすを 思いうかべる」単元の 図（v14.21）=====
+   てこ・ふりこ・電じしゃく・地そう・あたたまり方・空気でっぽう。
+   きまりは v4.9 と 同じ＝**答えが 図で ばれる ものには つけない**。 */
+(function () {
+  const Z = MQ.zu;
+  // 図が ぜんぶ 作れる
+  const PICS = [
+    ['てこ 支点', Z.leverPic('fulcrum')], ['てこ 力点', Z.leverPic('effort')],
+    ['てこ 作用点', Z.leverPic('load')], ['てこ 名前', Z.leverPic('all')],
+    ['実験用てこ', Z.balancePic({ pos: 3, text: '20g' }, { pos: 6, text: '？g' })],
+    ['ふりこ', Z.pendulumPic('plain')], ['ふりこ 名前', Z.pendulumPic('parts')], ['ふりこ 2つ', Z.pendulumPic('two')],
+    ['電じしゃく', Z.coilPic('plain')], ['コイル', Z.coilPic('coil')], ['鉄しん', Z.coilPic('core')], ['直列', Z.coilPic('series')],
+    ['地そう', Z.strataPic()],
+    ['ぼう', Z.heatPic('bar')], ['板', Z.heatPic('plate')], ['ビーカー', Z.heatPic('water')],
+    ['ふっとう', Z.heatPic('boil')], ['コップ', Z.heatPic('cold')], ['へや', Z.heatPic('room')], ['おふろ', Z.heatPic('bath')],
+    ['空気でっぽう', Z.airPic('gun')], ['空気', Z.airPic('air')], ['水', Z.airPic('water')], ['空気と水', Z.airPic('both')]
+  ];
+  PICS.forEach(function (p) { check(p[1].indexOf('<svg') === 0, 'v14.21 図が 作れる: ' + p[0]); });
+  check(PICS.length === 24, 'v14.21 の 図は 24とおり: ' + PICS.length);
+
+  // 答えが ばれない こと
+  check(Z.leverPic('fulcrum').indexOf('支点') === -1, 'てこ 支点の 図に「支点」と 書かない');
+  check(Z.leverPic('effort').indexOf('力点') === -1, 'てこ 力点の 図に「力点」と 書かない');
+  check(Z.leverPic('load').indexOf('作用点') === -1, 'てこ 作用点の 図に「作用点」と 書かない');
+  check(Z.leverPic('all').indexOf('支点') !== -1 && Z.leverPic('all').indexOf('？') === -1,
+    'てこ「名前」の 図は 3つとも 名前つき・？なし');
+  check(Z.pendulumPic('plain').indexOf('長さ') === -1,
+    'ふりこの ふつうの 図に「長さ」の しるしを つけない（どこから どこまで の 答えに なる）');
+  check(Z.pendulumPic('parts').indexOf('長さ') !== -1 && Z.pendulumPic('parts').indexOf('おもり') !== -1 &&
+    Z.pendulumPic('parts').indexOf('ふれはば') !== -1, 'ふりこ「名前」の 図は 3つとも ある');
+  check(Z.strataPic().indexOf('<text') === -1, '地そうの 図に 字を 書かない（つぶの 名前が 答えに なる）');
+  check(Z.coilPic('coil').indexOf('？') !== -1 && Z.coilPic('coil').indexOf('コイル') === -1, 'コイルの 図に「コイル」と 書かない');
+  check(Z.coilPic('plain').indexOf('？') === -1, 'ふつうの 電じしゃくの 図に ？は ない');
+
+  // つり合いの 図は 聞かれて いる ほうを ？に する（答えの 数を 書かない）
+  const bal = Z.balancePic({ pos: 3, text: '20g' }, { pos: 6, text: '？g' });
+  check(bal.indexOf('20g') !== -1 && bal.indexOf('？g') !== -1 && bal.indexOf('10g') === -1,
+    '実験用てこの 図は わかって いる 重さと ？だけ');
+
+  // 図を つけた 問題の 数（へらさない）
+  function figs(qs, unit) {
+    return qs.filter(function (q) {
+      return String(q.unit || '').indexOf(unit) >= 0 && String(q.text || '').indexOf('<svg') !== -1;
+    }).length;
+  }
+  check(figs(MQ.rika6.questions, 'てこ') >= 7, '小6 てこの 図つき 7問 いじょう: ' + figs(MQ.rika6.questions, 'てこ'));
+  check(figs(MQ.rika6.questions, '大地のつくり') >= 3, '小6 大地のつくりの 図つき 3問 いじょう');
+  check(figs(MQ.rika6.questions, '月と太陽') >= 2, '小6 月と太陽の 図つき 2問 いじょう');
+  check(figs(MQ.rika5.questions, 'ふりこ') >= 5, '小5 ふりこの 図つき 5問 いじょう');
+  check(figs(MQ.rika5.questions, '電じしゃく') >= 5, '小5 電じしゃくの 図つき 5問 いじょう');
+  check(figs(MQ.rika4.questions, 'もののあたたまり方') >= 6, '小4 あたたまり方の 図つき 6問 いじょう');
+  check(figs(MQ.rika4.questions, '空気と水') >= 6, '小4 空気と水の 図つき 6問 いじょう');
+  check(figs(MQ.rika4.questions, '水のすがた') >= 2, '小4 水のすがたの 図つき 2問 いじょう');
+
+  // 図の 中の 字には かならず 書体を 書く（見出し書体だと □ に なる＝v14.19 の 実測）
+  PICS.forEach(function (p) {
+    if (p[1].indexOf('<text') === -1) return;
+    check(p[1].indexOf('font-family') !== -1, 'v14.21 図の 字に 書体: ' + p[0]);
+  });
+  console.log('v14.21 理科の 図: ' + PICS.length + 'とおり／図つき ' +
+    (figs(MQ.rika4.questions, '理科') + figs(MQ.rika5.questions, '理科') + figs(MQ.rika6.questions, '理科')) + '問 OK');
+})();
+
 /* ---- 学年ごとの 地図（v4.7）---- */
 (function () {
   const T = MQ.tiles;
@@ -3925,7 +3988,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   Object.keys(need).forEach(function (k) { check(!!need[k], 'MQ.' + k + ' が 読めて いる'); });
   // 図を つかう 教科は zu より 後に 読む こと
   const zuAt = CONTENT_ORDER.indexOf('js/content/zu.js');
-  ['rika4', 'shakai4', 'rikashakai3'].forEach(function (f) {
+  ['rika4', 'shakai4', 'rikashakai3', 'rika5', 'rika6'].forEach(function (f) {
     check(zuAt >= 0 && zuAt < CONTENT_ORDER.indexOf('js/content/' + f + '.js'),
       'zu.js を ' + f + '.js より 先に 読む');
   });
