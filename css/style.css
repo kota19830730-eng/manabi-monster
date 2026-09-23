@@ -3085,6 +3085,13 @@ body {
 .figpair .fig { display: flex; flex-direction: column; align-items: center; }
 .figpair .fig b { font-size: 16px; line-height: 20px; }
 .figpair .fig svg { display: block; width: calc(var(--stage-h) * .144 * var(--figk, 1)); height: calc(var(--stage-h) * .109 * var(--figk, 1)); }
+/* とけい 2つ（v14.19）：はじめ → おわり。小さめに して 2つ ならべる */
+.clockq--pair { gap: 6px; }
+.clockpair { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+.clockpair .clockbox--pair { --cs: clamp(.34, calc(var(--stage-hn, 700) / 900 * .46), .46); }
+.clockpair__ar { flex: 0 0 auto; width: 12px; height: 2.5px; background: var(--paper-ink); position: relative; }
+.clockpair__ar::after { content: ''; position: absolute; right: -1px; top: -3px; border: 4px solid transparent; border-left-color: var(--paper-ink); }
+
 /* 問題文の 中の 表（小4「整理の しかた」「かわり方」v4.4） */
 .tbl { width: 100%; border-collapse: collapse; margin: 2px 0 4px;
        font-family: var(--f-body); font-size: 14px; line-height: 1.1;

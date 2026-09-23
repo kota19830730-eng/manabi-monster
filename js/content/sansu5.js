@@ -223,6 +223,36 @@ MQ.sansu5 = (function () {
     return svgWide(s, 300, 100);
   }
   /* ---- 帯グラフ・円グラフ（ステージ16）。items: [{ name, pct }]。hide＝？に する 番号 ---- */
+
+  /* 二重数直線（v14.19）：上が 量（人・円・kg）、下が 割合（0〜1）。
+     わからない ところは「？」。答えの 数字は 書かない。
+     opts = { base, part, rate, unit, q: 'part'|'base'|'rate' } */
+  function rateLineSvg(o) {
+    const W = 300, H = 106, x0 = 56, x1 = W - 26, span = x1 - x0, yA = 44, yB = 80;
+    const r = Math.max(0.08, Math.min(1, o.rate || 0.5));
+    const xr = x0 + span * r;
+    const t = function (x, y, s, col, size, anchor) {
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 11) + '" text-anchor="' + (anchor || 'middle') + '" fill="' + col + '" font-weight="bold">' + s + '</text>';
+    };
+    let s = '<svg class="figwide" viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="二重数直線" style="font-family: var(--f-body)">';
+    // 上：量
+    s += '<line x1="' + x0 + '" y1="' + yA + '" x2="' + x1 + '" y2="' + yA + '" stroke="' + FS + '" stroke-width="2"/>';
+    s += '<polygon points="' + x1 + ',' + (yA - 4) + ' ' + (x1 + 8) + ',' + yA + ' ' + x1 + ',' + (yA + 4) + '" fill="' + FS + '"/>';
+    // 下：割合
+    s += '<line x1="' + x0 + '" y1="' + yB + '" x2="' + x1 + '" y2="' + yB + '" stroke="' + FS + '" stroke-width="2"/>';
+    s += '<polygon points="' + x1 + ',' + (yB - 4) + ' ' + (x1 + 8) + ',' + yB + ' ' + x1 + ',' + (yB + 4) + '" fill="' + FS + '"/>';
+    [[x0, '0', '0'], [xr, o.q === 'part' ? '？' : String(o.part), o.q === 'rate' ? '？' : String(o.rateText || r)], [x1, o.q === 'base' ? '？' : String(o.base), '1']].forEach(function (c, i) {
+      const col = c[1] === '？' || c[2] === '？' ? FR : FS;
+      s += '<line x1="' + c[0] + '" y1="' + (yA - 7) + '" x2="' + c[0] + '" y2="' + (yB + 7) + '" stroke="' + col + '" stroke-width="' + (i === 1 ? 2 : 1.4) + '"' + (i === 1 ? ' stroke-dasharray="4 3"' : '') + '/>';
+      const up = i === 1 && (r > 0.72 || r < 0.16) ? 13 : 0;   // v14.19：右はしの 数字と かさならない ように
+      s += t(c[0], yA - 11 - up, c[1] + (i && o.unit ? o.unit : ''), c[1] === '？' ? FR : FS);
+      s += t(c[0], yB + 20, c[2], c[2] === '？' ? FR : FB);
+    });
+    s += t(3, yA + 5, '量', FS, 15, 'start');
+    s += t(3, yB + 5, '割合', FB, 15, 'start');
+    return s + '</svg>';
+  }
+  function rateQ(text, o) { return text + rateLineSvg(o); }
   function bandSvg(items, hide) {
     const W = 300, x0 = 8, y0 = 30, bw = 284, bh = 30;
     const cols = ['#4F8CFF', '#FF8A5A', '#4CD164', '#FFD166', '#C9A0FF', '#AAB4C4'];
@@ -1191,15 +1221,16 @@ MQ.sansu5 = (function () {
   }
   function partQ() {
     const base = pf([200, 300, 400, 500, 800, 1200, 2000]), p = pf([5, 10, 15, 20, 25, 30, 40, 60, 75]);
-    return num('くらべる量', base + '円の ' + p + '% は 何円？', base * p / 100, { key: 'pt:' + base + ':' + p, hint: 'くらべる量 = もとにする量 × 割合。' + base + ' × ' + fx(p / 100) + '。', note: base + ' × ' + fx(p / 100) + ' = ' + (base * p / 100) + '円' });
+    // v14.19：二重数直線（量 と 割合 の 対応が 見える。答えの 数は 書かない）
+    return num('くらべる量', rateQ(base + '円の ' + p + '% は 何円？', { base: base, part: base * p / 100, rate: p / 100, rateText: p + '%', unit: '円', q: 'part' }), base * p / 100, { scratch: false, key: 'pt:' + base + ':' + p, hint: 'くらべる量 = もとにする量 × 割合。' + base + ' × ' + fx(p / 100) + '。', note: base + ' × ' + fx(p / 100) + ' = ' + (base * p / 100) + '円' });
   }
   function baseQ() {
     const base = pf([200, 300, 400, 500, 800, 1000, 1500]), p = pf([10, 20, 25, 30, 40, 50, 60, 80]);
-    return num('もとにする量', 'ある 数の ' + p + '% が ' + (base * p / 100) + ' です。ある 数は？', base, { key: 'bs:' + base + ':' + p, hint: 'もとにする量 = くらべる量 ÷ 割合。' + (base * p / 100) + ' ÷ ' + fx(p / 100) + '。', note: (base * p / 100) + ' ÷ ' + fx(p / 100) + ' = ' + base });
+    return num('もとにする量', rateQ('ある 数の ' + p + '% が ' + (base * p / 100) + ' です。ある 数は？', { base: base, part: base * p / 100, rate: p / 100, rateText: p + '%', unit: '', q: 'base' }), base, { scratch: false, key: 'bs:' + base + ':' + p, hint: 'もとにする量 = くらべる量 ÷ 割合。' + (base * p / 100) + ' ÷ ' + fx(p / 100) + '。', note: (base * p / 100) + ' ÷ ' + fx(p / 100) + ' = ' + base });
   }
   function discountQ() {
     const price = pf([500, 800, 1000, 1200, 1500, 2000, 2500, 3000]), off = pf([1, 2, 3, 4]);
-    return num('割引', price + '円の 品物を ' + off + WARIBIKI + 'で 買うと 何円？', price * (10 - off) / 10, { key: 'dc:' + price + ':' + off, hint: off + '割引は もとの ねだんの （1 − 0.' + off + '）倍。' + price + ' × 0.' + (10 - off) + '。', note: price + ' × 0.' + (10 - off) + ' = ' + (price * (10 - off) / 10) + '円' });
+    return num('割引', rateQ(price + '円の 品物を ' + off + WARIBIKI + 'で 買うと 何円？', { base: price, part: price * (10 - off) / 10, rate: (10 - off) / 10, rateText: '0.' + (10 - off), unit: '円', q: 'part' }), price * (10 - off) / 10, { scratch: false, key: 'dc:' + price + ':' + off, hint: off + '割引は もとの ねだんの （1 − 0.' + off + '）倍。' + price + ' × 0.' + (10 - off) + '。', note: price + ' × 0.' + (10 - off) + ' = ' + (price * (10 - off) / 10) + '円' });
   }
   function increaseQ() {
     const base = pf([200, 400, 500, 800, 1000, 1500]), p = pf([10, 20, 25, 30, 50]);
@@ -1208,7 +1239,7 @@ MQ.sansu5 = (function () {
   function pctWordQ() {
     const base = pf([20, 25, 40, 50, 80]), r = pf([0.2, 0.25, 0.4, 0.5, 0.6, 0.75, 0.8]);
     const part = base * r;
-    return num('百分率の 文章題', 'シュートを ' + base + '回 して ' + part + '回 入りました。入った 割合は 何%？', r * 100, { key: 'pw:' + base + ':' + r, hint: part + ' ÷ ' + base + ' × 100。', note: part + ' ÷ ' + base + ' = ' + fx(r) + ' → ' + fx(r * 100) + '%' });
+    return num('百分率の 文章題', rateQ('シュートを ' + base + '回 して ' + part + '回 入りました。入った 割合は 何%？', { base: base, part: part, rate: r, unit: '回', q: 'rate' }), r * 100, { scratch: false, key: 'pw:' + base + ':' + r, hint: part + ' ÷ ' + base + ' × 100。', note: part + ' ÷ ' + base + ' = ' + fx(r) + ' → ' + fx(r * 100) + '%' });
   }
   const stage15 = {
     easy: [ratioQ, pctQ, pctToDecQ, buaiQ],

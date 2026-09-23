@@ -276,11 +276,11 @@ MQ.sansu2 = (function () {
   function mcm(m, c) { return c ? m + 'm ' + c + 'cm' : m + 'm'; }
   const stage4 = {
     easy: [
-      function cmToMm() { const c = U.randInt(1, 9); return num('cm と mm', c + 'cm は なんmm？', c * 10, { hint: '1cm は 10mm。' + c + 'cm は 10mm が ' + c + 'こ。', note: c + 'cm = ' + (c * 10) + 'mm' }); },
-      function mmToCm() { const c = U.randInt(1, 9); return num('cm と mm', (c * 10) + 'mm は なんcm？', c, { hint: '10mm で 1cm。' + (c * 10) + 'mm は 10mm が なんこ？', note: (c * 10) + 'mm = ' + c + 'cm' }); }
+      function cmToMm() { const c = U.randInt(1, 9); return num('cm と mm', rulerQ(c + 'cm は なんmm？', c * 10), c * 10, { scratch: false, hint: '1cm は 10mm。' + c + 'cm は 10mm が ' + c + 'こ。', note: c + 'cm = ' + (c * 10) + 'mm' }); },
+      function mmToCm() { const c = U.randInt(1, 9); return num('cm と mm', rulerQ((c * 10) + 'mm は なんcm？', c * 10), c, { scratch: false, hint: '10mm で 1cm。' + (c * 10) + 'mm は 10mm が なんこ？', note: (c * 10) + 'mm = ' + c + 'cm' }); }
     ],
     normal: [
-      function mixToMm() { const c = U.randInt(1, 9), m = U.randInt(1, 9); return num('cm と mm', c + 'cm ' + m + 'mm は なんmm？', c * 10 + m, { hint: c + 'cm は ' + (c * 10) + 'mm。それに ' + m + 'mm を たそう。', note: c + 'cm ' + m + 'mm = ' + (c * 10 + m) + 'mm' }); },
+      function mixToMm() { const c = U.randInt(1, 9), m = U.randInt(1, 9); return num('cm と mm', rulerQ(c + 'cm ' + m + 'mm は なんmm？', c * 10 + m), c * 10 + m, { scratch: false, hint: c + 'cm は ' + (c * 10) + 'mm。それに ' + m + 'mm を たそう。', note: c + 'cm ' + m + 'mm = ' + (c * 10 + m) + 'mm' }); },
       function mmToMix() {
         const c = U.randInt(1, 9), m = U.randInt(1, 9), t = c * 10 + m;
         return choice('cm と mm', t + 'mm は なんcm なんmm？', withDistractors(cmmm(c, m), [cmmm(m, c), cmmm(c, m + 1), cmmm(c + 1, m), cmmm(c - 1 || 1, m)]), {
@@ -461,12 +461,12 @@ MQ.sansu2 = (function () {
   function ldl(l, d) { return d ? l + 'L ' + d + 'dL' : l + 'L'; }
   const stage6 = {
     easy: [
-      function lToDl() { const l = U.randInt(1, 9); return num('L と dL', l + 'L は なんdL？', l * 10, { hint: '1L は 10dL。' + l + 'L は 10dL が ' + l + 'こ。', note: l + 'L = ' + (l * 10) + 'dL' }); },
-      function dlToL() { const l = U.randInt(1, 9); return num('L と dL', (l * 10) + 'dL は なんL？', l, { hint: '10dL で 1L。', note: (l * 10) + 'dL = ' + l + 'L' }); },
+      function lToDl() { const l = U.randInt(1, 9); return num('L と dL', cupQ(l + 'L は なんdL？', 10), l * 10, { scratch: false, hint: '1L は 10dL。' + l + 'L は 10dL が ' + l + 'こ。', note: l + 'L = ' + (l * 10) + 'dL' }); },
+      function dlToL() { const l = U.randInt(1, 9); return num('L と dL', cupQ((l * 10) + 'dL は なんL？', 10), l, { scratch: false, hint: '10dL で 1L。', note: (l * 10) + 'dL = ' + l + 'L' }); },
       function lToMl() { const l = U.randInt(1, 5); return num('L と mL', l + 'L は なんmL？', l * 1000, { hint: '1L は 1000mL。', note: l + 'L = ' + (l * 1000) + 'mL' }); }
     ],
     normal: [
-      function mixToDl() { const l = U.randInt(1, 9), d = U.randInt(1, 9); return num('L と dL', l + 'L ' + d + 'dL は なんdL？', l * 10 + d, { hint: l + 'L は ' + (l * 10) + 'dL。それに ' + d + 'dL を たそう。', note: ldl(l, d) + ' = ' + (l * 10 + d) + 'dL' }); },
+      function mixToDl() { const l = U.randInt(1, 9), d = U.randInt(1, 9); return num('L と dL', cupQ(l + 'L ' + d + 'dL は なんdL？', 10), l * 10 + d, { scratch: false, hint: l + 'L は ' + (l * 10) + 'dL。それに ' + d + 'dL を たそう。', note: ldl(l, d) + ' = ' + (l * 10 + d) + 'dL' }); },
       function dlToMix() {
         const l = U.randInt(1, 9), d = U.randInt(1, 9), t = l * 10 + d;
         return choice('L と dL', t + 'dL は なんL なんdL？', withDistractors(ldl(l, d), [ldl(d, l), ldl(l, d + 1), ldl(l + 1, d), ldl(l - 1 || 1, d)]), {
@@ -563,7 +563,7 @@ MQ.sansu2 = (function () {
       },
       function hoursBetween() {
         const a = U.randInt(1, 9), b = U.randInt(a + 1, 12);
-        return num('なんじかん', a + 'じ から ' + b + 'じ まで なんじかん？', b - a, { hint: 'みじかい はりが ' + a + ' から ' + b + ' まで いくつ すすむ？', note: b + ' − ' + a + ' = ' + (b - a) + '（じかん）', key: 'hb:' + a + ':' + b });
+        return num('なんじかん', S1.clockPair(a + 'じ から ' + b + 'じ まで なんじかん？', [a, 0], [b, 0]), b - a, { scratch: false, hint: 'みじかい はりが ' + a + ' から ' + b + ' まで いくつ すすむ？', note: b + ' − ' + a + ' = ' + (b - a) + '（じかん）', key: 'hb:' + a + ':' + b });
       },
       function amPm() {
         const items = [['あさ おきる', 'ごぜん'], ['あさごはん を たべる', 'ごぜん'], ['がっこうへ いく', 'ごぜん'], ['ゆうごはん を たべる', 'ごご'], ['おふろに はいる', 'ごご'], ['よる ねる', 'ごご'], ['ひるごはん の あとに あそぶ', 'ごご'], ['よなかの 1じ', 'ごぜん']];
@@ -576,7 +576,7 @@ MQ.sansu2 = (function () {
     hard: [
       function minutesBetween() {
         const h = U.randInt(1, 12), a = U.randInt(0, 5) * 5, b = U.randInt(a / 5 + 1, 11) * 5;
-        return num('なんぷん', jf(h, a) + ' から ' + jf(h, b) + ' まで なんぷん？', b - a, { hint: 'ながい はりが ' + (a / 5) + ' から ' + (b / 5) + ' まで すすむ。5とびで かぞえよう。', note: b + ' − ' + a + ' = ' + (b - a) + '（ぷん）', key: 'mb:' + h + ':' + a + ':' + b });
+        return num('なんぷん', S1.clockPair(jf(h, a) + ' から ' + jf(h, b) + ' まで なんぷん？', [h, a], [h, b]), b - a, { scratch: false, hint: 'ながい はりが ' + (a / 5) + ' から ' + (b / 5) + ' まで すすむ。5とびで かぞえよう。', note: b + ' − ' + a + ' = ' + (b - a) + '（ぷん）', key: 'mb:' + h + ':' + a + ':' + b });
       },
       function laterCross() {
         const h = U.randInt(1, 12), m = U.randInt(7, 11) * 5, d = pickFrom([10, 20, 30]);
@@ -682,6 +682,42 @@ MQ.sansu2 = (function () {
   }
   function fig(kind, arg) { return '<span class="figbox">' + FIGS[kind](arg) + '</span>'; }
   // 問題文の 右に 図を おく（とけいと 同じ よこならび）
+
+  /* ものさし（v14.19）：0〜10cm・1mm ごとの 目もり。mm の ぶんだけ 赤い テープ。
+     よこ長なので figwide（カードの はば いっぱい）。目もりを 数えれば 答えが 出る＝この 単元の 学び。 */
+  function rulerSvg(mm) {
+    const W = 300, H = 74, x0 = 14, x1 = W - 14, span = x1 - x0, y = 42;
+    let s = '<svg class="figwide" viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="ものさし" style="font-family: var(--f-body)">';
+    s += '<rect x="' + x0 + '" y="' + y + '" width="' + span + '" height="24" fill="#fff" stroke="' + FIG_STROKE + '" stroke-width="2"/>';
+    for (let i = 0; i <= 100; i++) {
+      const x = x0 + span * i / 100, big = i % 10 === 0, mid = i % 5 === 0;
+      s += '<line x1="' + x + '" y1="' + y + '" x2="' + x + '" y2="' + (y + (big ? 16 : mid ? 11 : 6)) + '" stroke="' + FIG_STROKE + '" stroke-width="' + (big ? 1.6 : 1) + '"/>';
+      if (big) s += '<text x="' + x + '" y="' + (y + 22) + '" font-size="7.5" text-anchor="middle" fill="' + FIG_STROKE + '">' + (i / 10) + '</text>';
+    }
+    const xe = x0 + span * Math.min(mm, 100) / 100;
+    s += '<rect x="' + x0 + '" y="' + (y - 16) + '" width="' + (xe - x0) + '" height="12" fill="' + FIG_RED + '" opacity="0.85"/>';
+    s += '<line x1="' + x0 + '" y1="' + (y - 22) + '" x2="' + x0 + '" y2="' + (y - 2) + '" stroke="' + FIG_RED + '" stroke-width="2"/>';
+    s += '<line x1="' + xe + '" y1="' + (y - 22) + '" x2="' + xe + '" y2="' + (y - 2) + '" stroke="' + FIG_RED + '" stroke-width="2"/>';
+    s += '<text x="' + ((x0 + xe) / 2) + '" y="' + (y - 24) + '" font-size="11" text-anchor="middle" fill="' + FIG_RED + '" font-weight="bold">この ながさ</text>';
+    s += '<text x="' + x1 + '" y="' + (y - 24) + '" font-size="9" text-anchor="end" fill="' + FIG_STROKE + '">たんい は cm</text>';
+    return s + '</svg>';
+  }
+  /* ます（v14.19）：1L ますを 10 に わけた 絵。dL の ぶんだけ 水が 入って いる */
+  function cupSvg(dl) {
+    const n = Math.max(0, Math.min(10, dl));
+    let s = '<rect x="46" y="16" width="68" height="92" fill="#fff" stroke="' + FIG_STROKE + '" stroke-width="4"/>';
+    for (let i = 0; i < 10; i++) {
+      const y = 108 - (i + 1) * 9.2;
+      if (i < n) s += '<rect x="48" y="' + y + '" width="64" height="9.2" fill="#8ec9f0"/>';
+      s += '<line x1="46" y1="' + y + '" x2="' + (i % 5 === 4 ? 122 : 114) + '" y2="' + y + '" stroke="' + FIG_STROKE + '" stroke-width="' + (i % 5 === 4 ? 2 : 1) + '"/>';
+    }
+    s += '<text x="126" y="24" font-size="11" fill="' + FIG_STROKE + '" font-weight="bold">1L</text>';
+    s += '<text x="126" y="67" font-size="10" fill="' + FIG_STROKE + '">5dL</text>';
+    s += '<text x="80" y="118" font-size="10" text-anchor="middle" fill="' + FIG_STROKE + '">1L ます ＝ 10dL</text>';
+    return '<span class="figbox">' + svgWrap(s) + '</span>';
+  }
+  function rulerQ(text, mm) { return text + rulerSvg(mm); }
+  function cupQ(text, dl) { return '<span class="figq"><span class="figq__t">' + text + '</span>' + cupSvg(dl) + '</span>'; }
   function figQ(text, kind, arg) { return '<span class="figq"><span class="figq__t">' + text + '</span>' + fig(kind, arg) + '</span>'; }
   // 図を 2つ ならべて「あ」「い」で えらばせる
   function figPair(text, kindA, kindB) {

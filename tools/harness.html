@@ -3069,6 +3069,38 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       document.getElementById('stage').appendChild(box);
       return;
     }
+    /* #qfig:<ステージ>[:<単元の 一部>] … その 単元の 問題を カードで ならべて 見る（v14.19）
+         れい #qfig:sansu2-7:なんぷん ／ #qfig:sansu3-3:時こく ／ #qfig:sansu5-15 */
+    if (mode.indexOf('qfig:') === 0) {
+      const parts = mode.split(':');
+      const st = MQ.content.findStage(parts[1]).stage;
+      const want = parts[2] ? decodeURIComponent(parts[2]) : '';
+      const seen = {}, out = [];
+      for (let i = 0; i < 120 && out.length < 6; i++) {
+        for (const q of st.make(12, {})) {
+          if (want && String(q.unit || '').indexOf(want) < 0) continue;
+          const k = MQ.util.stripTags(q.prompt);
+          if (seen[k]) continue;
+          seen[k] = 1; out.push(q);
+          if (out.length >= 6) break;
+        }
+      }
+      say('qfig: ' + parts[1] + (want ? '／' + want : '') + ' → ' + out.length + '問' +
+          '／図あり ' + out.filter(function (q) { return /<svg|class="(graph|figwide|tbl|clock)/.test(q.prompt); }).length);
+      out.forEach(function (q) { say('  ' + (q.unit || '') + '｜' + MQ.util.stripTags(q.prompt).slice(0, 60)); });
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#0f1630;padding:8px;overflow:auto;z-index:99;display:flex;flex-direction:column;gap:8px;';
+      out.forEach(function (q) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.cssText = 'flex:none;max-height:none;';
+        card.innerHTML = '<p class="card__unit">' + (q.unit || '') + '</p><div class="card__q card__q--s">' + q.prompt + '</div>';
+        box.appendChild(card);
+      });
+      document.getElementById('stage').appendChild(box);
+      freeze();
+      return;
+    }
     // 円と 球の 新しい 図（v14.18）：コンパス／円を ならべる／何こ 入る／解説用
     if (mode === 'figs3c') {
       const F = MQ.sansu3.figs3;

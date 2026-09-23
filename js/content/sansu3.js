@@ -303,7 +303,8 @@ MQ.sansu3 = (function () {
     const prompt = wordy
       ? 'ゆうきさんは ' + fmtTime(h, m) + ' に 家を 出て、' + d + '分 歩いて 学校に 着きました。着いた 時こくは？'
       : fmtTime(h, m) + ' の ' + d + '分後の 時こくは？';
-    return choice('時こくをもとめる', prompt, choices, {
+    // v14.19：はじめの 時こくを とけいで 見せる（答えの 時こくは 出さない）
+    return choice('時こくをもとめる', MQ.sansu1.clockQ(prompt, h, m), choices, {
       hint: cross ? 'まず ' + (h === 12 ? 1 : h + 1) + '時 までは ' + (60 - m) + '分。のこりの ' + (d - (60 - m)) + '分を たそう。' : '分だけ たせば いいね。' + m + ' + ' + d + ' は？',
       note: fmtTime(h, m) + ' の ' + d + '分後は ' + fmtTime(ans[0], ans[1])
     });
@@ -313,7 +314,7 @@ MQ.sansu3 = (function () {
     const cands = [addMin(h, m, -d + 10), addMin(h, m, -d - 10), addMin(h, m, d), addMin(h, m, -d + 5), addMin(h, m, -d - 60)];
     const choices = withDistractors(fmtTime(ans[0], ans[1]), cands.map(function (t) { return fmtTime(t[0], t[1]); }));
     const cross = m - d < 0;
-    return choice('時こくをもとめる', fmtTime(h, m) + ' の ' + d + '分前の 時こくは？', choices, {
+    return choice('時こくをもとめる', MQ.sansu1.clockQ(fmtTime(h, m) + ' の ' + d + '分前の 時こくは？', h, m), choices, {
       hint: cross ? 'まず ' + h + '時 までは ' + m + '分 もどる。のこりの ' + (d - m) + '分を さらに もどそう。' : '分だけ ひけば いいね。' + m + ' − ' + d + ' は？',
       note: fmtTime(h, m) + ' の ' + d + '分前は ' + fmtTime(ans[0], ans[1])
     });
@@ -321,7 +322,8 @@ MQ.sansu3 = (function () {
   function durationQ(h, m, d) {
     const end = addMin(h, m, d);
     const cross = m + d >= 60;
-    return num('時間をもとめる', fmtTime(h, m) + ' から ' + fmtTime(end[0], end[1]) + ' までは 何分？', d, {
+    // v14.19：はじめと おわりの とけいを ならべる（はりが どこまで すすむか が 見える）
+    return num('時間をもとめる', MQ.sansu1.clockPair(fmtTime(h, m) + ' から ' + fmtTime(end[0], end[1]) + ' までは 何分？', [h, m], [end[0], end[1]]), d, {
       scratch: false,
       hint: cross ? 'ちょうどの時こく（' + end[0] + '時）までが ' + (60 - m) + '分、そこから ' + end[1] + '分。合わせて？' : end[1] + ' − ' + m + ' を 計算しよう。',
       note: fmtTime(h, m) + ' → ' + fmtTime(end[0], end[1]) + ' は ' + d + '分'
@@ -1221,7 +1223,8 @@ MQ.sansu3 = (function () {
       function michinori() {
         const kyori = U.randInt(6, 12) * 100, extra = U.randInt(2, 9) * 100;
         const michi = kyori + extra;
-        return num('道のりと きょり', '家から 公園まで、道のりは ' + kmText(michi) + '、きょりは ' + kmText(kyori) + ' です。道のりは きょりより 何m 長い？', extra, {
+        // v14.19：道のり（道に そって）と きょり（まっすぐ）の ちがいを 図で
+        return num('道のりと きょり', figQ3('家から 公園まで、道のりは ' + kmText(michi) + '、きょりは ' + kmText(kyori) + ' です。道のりは きょりより 何m 長い？', roadSvg()), extra, {
           hint: '道のり は 道に そって はかった 長さ、きょり は まっすぐ はかった 長さ。' + michi + ' − ' + kyori + '。', note: michi + ' − ' + kyori + ' = ' + extra + 'm'
         });
       }
@@ -1268,7 +1271,7 @@ MQ.sansu3 = (function () {
       },
       function kyoriDiff() {
         const kyori = U.randInt(7, 15) * 100, extra = U.randInt(3, 9) * 100 + 50;
-        return num('道のりと きょり', '家から 学校まで、きょりは ' + kmText(kyori) + '、道のりは ' + kmText(kyori + extra) + ' です。ちがいは 何m？', extra, {
+        return num('道のりと きょり', figQ3('家から 学校まで、きょりは ' + kmText(kyori) + '、道のりは ' + kmText(kyori + extra) + ' です。ちがいは 何m？', roadSvg()), extra, {
           hint: (kyori + extra) + ' − ' + kyori + '。', note: (kyori + extra) + ' − ' + kyori + ' = ' + extra + 'm'
         });
       },

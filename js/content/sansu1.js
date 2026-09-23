@@ -619,6 +619,15 @@ MQ.sansu1 = (function () {
     s += '<i class="clock__center"></i></span>';
     return s;
   }
+  /* とけい 2つ（v14.19）：はじめの 時こく → おわりの 時こく。
+     「なんじかん・なんぷん」の 問題で、はりが どこから どこまで すすむかを 見せる。
+     答えの 数字は 書かない（目もりを 数えて 出すのが この 単元の 学び）。 */
+  function clockPair(text, a, b) {
+    function one(t) { return '<span class="clockbox clockbox--pair">' + clockHtml(t[0], t[1]) + '</span>'; }
+    return '<span class="clockq clockq--pair"><span class="clockq__t">' + text + '</span>' +
+      '<span class="clockpair">' + one(a) + '<i class="clockpair__ar"></i>' + one(b) + '</span></span>';
+  }
+
   // 問題文の 右に とけいを おく（カードが 高く ならない ように よこならび）
   function clockQ(text, h, m) {
     return '<span class="clockq"><span class="clockq__t">' + text + '</span><span class="clockbox">' + clockHtml(h, m) + '</span></span>';
@@ -918,5 +927,5 @@ MQ.sansu1 = (function () {
     return out;
   }
 
-  return { make: make, stages: stages, levelCounts: levelCounts, clockHtml: clockHtml, clockQ: clockQ };
+  return { make: make, stages: stages, levelCounts: levelCounts, clockHtml: clockHtml, clockQ: clockQ, clockPair: clockPair };
 })();
