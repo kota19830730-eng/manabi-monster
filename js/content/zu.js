@@ -518,6 +518,44 @@ MQ.zu = (function () {
   }
   function airQ(text, kind) { return figQ(text, airPic(kind)); }
 
+  /* ===== 歴史の 年表（v14.23・小6 社会）=====
+     歴史の 問題は 87% が 人物・ことばの あんきで、絵を つけると 答えが ばれる。
+     つけられるのは 年表だけ ＝ **問題文に 時代か 年が 書いて ある 問題**に、
+     その 時代を オレンジと ▼で 教える（答えは 時代では ない ので ばれない）。
+     **答えが 時代・年の 問題には つけない**（となりの 時代の 名前から 答えが わかる）。
+     じゅんばんの 図で、はばは 長さ（年数）では ない。 */
+  const ERAS = ['縄文', '弥生', '古ふん', '飛鳥', '奈良', '平安', '鎌倉', '室町', '戦国',
+    '安土桃山', '江戸', '明治', '大正', '昭和', '今'];
+
+  function nenpyoPic(era) {
+    const X0 = 6, X1 = 276, TOP = 14, BOT = 60, CY = 37, DY = 11;
+    const bw = (X1 - X0) / ERAS.length;
+    let s = '<svg class="figwide" viewBox="0 0 300 74" width="100%" role="img" aria-label="年表"' +
+      ' style="font-family: var(--f-body)">';
+    ERAS.forEach(function (name, i) {
+      const x = X0 + i * bw, on = (name === era);
+      s += '<rect x="' + x.toFixed(1) + '" y="' + TOP + '" width="' + bw.toFixed(1) + '" height="' + (BOT - TOP) + '"' +
+        ' fill="' + (on ? '#FFD34D' : (i % 2 ? '#F6EED9' : '#FFF8E6')) + '"' +
+        ' stroke="' + (on ? '#d42a20' : '#C9BFA6') + '" stroke-width="' + (on ? 2 : 0.8) + '"/>';
+      const cx = x + bw / 2, ch = name.split(''), y0 = CY - (ch.length - 1) * DY / 2;
+      ch.forEach(function (c, k) {
+        s += '<text x="' + cx.toFixed(1) + '" y="' + (y0 + k * DY).toFixed(1) + '" font-size="9.5"' +
+          ' text-anchor="middle" dominant-baseline="central" font-weight="bold"' +
+          ' fill="' + (on ? '#7a1410' : INK) + '">' + c + '</text>';
+      });
+      if (on) {
+        s += '<polygon points="' + (cx - 6).toFixed(1) + ',2 ' + (cx + 6).toFixed(1) + ',2 ' +
+          cx.toFixed(1) + ',12" fill="#d42a20"/>';
+      }
+    });
+    /* 右はしの 矢じるし＝時間は 右へ ながれる */
+    s += '<polygon points="' + X1 + ',' + (TOP + 10) + ' ' + X1 + ',' + (BOT - 10) + ' 292,' + CY + '" fill="#C9BFA6"/>';
+    s += '<text x="' + X0 + '" y="68" font-size="7.5" fill="#8a7a58">むかし</text>';
+    s += '<text x="292" y="68" font-size="7.5" text-anchor="end" fill="#8a7a58">いま</text>';
+    return s + '</svg>';
+  }
+  function nenpyoQ(text, era) { return text + nenpyoPic(era); }
+
   return {
     KIGO_NAMES: KIGO_NAMES, names: Object.keys(KIGO),
     kigoSvg: kigoSvg, kigoQ: kigoQ,
@@ -530,6 +568,7 @@ MQ.zu = (function () {
     pendulumPic: pendulumPic, pendulumQ: pendulumQ, coilPic: coilPic, coilQ: coilQ,
     strataPic: strataPic, strataQ: strataQ, heatPic: heatPic, heatQ: heatQ,
     airPic: airPic, airQ: airQ,
+    ERAS: ERAS, nenpyoPic: nenpyoPic, nenpyoQ: nenpyoQ,
     figQ: figQ
   };
 })();

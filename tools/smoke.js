@@ -991,6 +991,47 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
   console.log('v14.22 歴史の 写真: ' + ids.length + 'まい／写真つき ' + qs.length + '問 OK');
 })();
 
+/* ===== 歴史の 年表（v14.23）=====
+   歴史は 人物・ことばの あんきが 87% で 絵を つけると 答えが ばれる。
+   つけられるのは 年表だけ＝**答えが 時代・年で ない 問題**に その 時代を ▼で 教える。 */
+(function () {
+  const Z = MQ.zu;
+  check(Array.isArray(Z.ERAS) && Z.ERAS.length >= 14, '年表の 時代は 14いじょう: ' + (Z.ERAS || []).length);
+  const pic = Z.nenpyoPic('江戸');
+  check(pic.indexOf('<svg') === 0 && pic.indexOf('aria-label="年表"') > 0, '年表の 図が 作れる');
+  check(pic.indexOf('font-family') !== -1, '年表の 字に 書体（ないと □ に なる）');
+  check(pic.indexOf('むかし') > 0 && pic.indexOf('いま') > 0, '年表に むかし・いま');
+  Z.ERAS.forEach(function (e) { check(Z.nenpyoPic(e).indexOf('#FFD34D') > 0, '年表: ' + e + ' に しるし'); });
+  check(Z.nenpyoPic('しらない時代').indexOf('#FFD34D') < 0, '年表: 知らない 時代は しるしなし');
+
+  const nqs = MQ.shakai6.questions.filter(function (q) { return String(q.text).indexOf('aria-label="年表"') !== -1; });
+  check(nqs.length >= 35, '年表つきの 歴史の 問題 35問 いじょう: ' + nqs.length);
+  const nomark = nqs.filter(function (q) { return String(q.text).indexOf('#FFD34D') < 0; });
+  check(nomark.length === 0, '年表の 時代の 書きまちがいが ない' +
+    (nomark.length ? '（' + nomark.map(function (q) { return MQ.stats.promptText(q.text); }).join('／') + '）' : ''));
+
+  /* ★いちばん 大事：**答えが 時代・年の 問題には つけない**
+     （ほかの 時代の 名前が 年表に 出て いる ので 答えが わかって しまう） */
+  const leak = nqs.filter(function (q) {
+    const a = String((q.choices || [])[0] || '');
+    return /^d{3,4}年$/.test(a) || Z.ERAS.some(function (e) { return a === e + '時代'; });
+  });
+  check(leak.length === 0, '答えが 時代・年の 問題に 年表を つけない' +
+    (leak.length ? '（' + leak.map(function (q) { return q.choices[0]; }).join('、') + '）' : ''));
+
+  /* 出題に のこる（world3 の 白リストで 落ちて いない）・問題文には 写真は 出ない */
+  let seen = 0, n12 = 0;
+  ['shakai6-2', 'shakai6-3', 'shakai6-4'].forEach(function (id) {
+    const st = MQ.content.findStage(id).stage;
+    for (let i = 0; i < 6; i++) (st.make(12, {}) || []).forEach(function (q) {
+      n12++;
+      if (String(q.prompt || '').indexOf('aria-label="年表"') !== -1) seen++;
+    });
+  });
+  check(seen > 0, 'ステージの 問題に 年表が のこる: ' + seen + ' / ' + n12);
+  console.log('v14.23 歴史の 年表: ' + Z.ERAS.length + '時代／年表つき ' + nqs.length + '問 OK');
+})();
+
 /* ---- 学年ごとの 地図（v4.7）---- */
 (function () {
   const T = MQ.tiles;
@@ -4061,7 +4102,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   Object.keys(need).forEach(function (k) { check(!!need[k], 'MQ.' + k + ' が 読めて いる'); });
   // 図を つかう 教科は zu より 後に 読む こと
   const zuAt = CONTENT_ORDER.indexOf('js/content/zu.js');
-  ['rika4', 'shakai4', 'rikashakai3', 'rika5', 'rika6'].forEach(function (f) {
+  ['rika4', 'shakai4', 'rikashakai3', 'rika5', 'rika6', 'shakai6'].forEach(function (f) {
     check(zuAt >= 0 && zuAt < CONTENT_ORDER.indexOf('js/content/' + f + '.js'),
       'zu.js を ' + f + '.js より 先に 読む');
   });
