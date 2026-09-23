@@ -91,6 +91,7 @@ MQ.content = (function () {
           answer: 0,
           hint: q.hint,
           note: q.note,
+          pic: q.pic,          /* 歴史の 写真（v14.22）＝答えた あとに 出す */
           lv: (opts && opts.boss) ? 3 : levelOf(q)
         };
       });

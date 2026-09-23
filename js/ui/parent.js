@@ -480,6 +480,7 @@ MQ.ui.parent = (function () {
     main.push(wrapSec(S.capsule(p)));
     main.push(wrapSec(S.records(p)));
     main.push(installSection());
+    main.push(creditsSection());
     main.push(wrapSec(S.ai()));
 
     /* この子の 記録（名前・学年・消す） */
@@ -764,6 +765,38 @@ MQ.ui.parent = (function () {
   function mdOf(iso) {
     const d = new Date(iso);
     return isNaN(d.getTime()) ? '' : (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+
+  /* 歴史の 写真の 出どころ（v14.22）。
+     CC BY / CC BY-SA の 写真は「作者を 書く」のが つかう 条件なので、
+     この 一覧を かならず 残す。消さない こと。 */
+  function creditsSection() {
+    if (!MQ.rekishi) return h('span');
+    const rows = MQ.rekishi.list().map(function (p) {
+      const c = MQ.rekishi.credit(p.id) || {};
+      return h('div', { class: 'pp-credit' }, [
+        h('span', { class: 'pp-credit__n', text: p.name }),
+        h('span', { class: 'pp-credit__l', text: (c.lic || '') + (c.by ? '／' + c.by : '') })
+      ]);
+    });
+    const box = h('div', { class: 'pp-credits', hidden: true }, rows);
+    let open = false;
+    return h('section', { class: 'pp-section', id: 'pp-credits' }, [
+      sec('歴史の写真の出どころ'),
+      h('div', { class: 'pp-card pp-list' }, [
+        h('div', { class: 'pp-line pp-line--col' }, [
+          h('span', { class: 'pp-muted pp-small', text: '社会（歴史）で 答えたあとに出る写真は、ウィキメディア・コモンズのパブリックドメインおよび CC BY / CC BY-SA の画像です。CC の画像は作者名を示すことが利用の条件のため、下に一覧を載せています。' }),
+          h('div', { class: 'pp-line__in' }, [
+            btn('一覧を見る（' + rows.length + '件）', 'pp-btn--s pp-btn--sm', function (e) {
+              open = !open;
+              box.hidden = !open;
+              if (e && e.target) e.target.textContent = (open ? '一覧をとじる' : '一覧を見る（' + rows.length + '件）');
+            })
+          ]),
+          box
+        ])
+      ])
+    ]);
   }
 
   function troubleSection(p) {

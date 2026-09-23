@@ -1952,6 +1952,14 @@ MQ.ui.battle = (function () {
       ? h('b', { class: 'feedback__head' }, head)
       : h('b', { class: 'feedback__head', text: head }));
     if (note) d.feedback.appendChild(h('span', { class: 'feedback__note', text: note, raw: true }));
+    /* 歴史の 写真（v14.22）：**答えが 出た あとだけ**。
+       feedback() を よぶのは ok()（正解）と sayAnswer()（答えを 見せる）の 2つだけ なので、
+       ここに 置けば 問題を 解いて いる あいだは 出ない＝答えは ばれない。 */
+    if (MQ.rekishi) {
+      const cq = MQ.battle.current();
+      const pn = cq && cq.pic ? MQ.rekishi.node(cq.pic) : null;
+      if (pn) d.feedback.appendChild(pn);
+    }
     // よみあげ（v5.3）：ふきだしの 中の 英語も 聞ける
     if (note && MQ.speech && MQ.ui.listenButton) {
       const areaId = (ctx && ctx.area) ? ctx.area.id : '';

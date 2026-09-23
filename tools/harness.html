@@ -119,6 +119,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/capsule3d.js"></script>
 <script src="../js/content/boss3d.js"></script>
 <script src="../js/content/zu.js"></script>
+<script src="../js/content/rekishi.js"></script>
 <script src="../js/content/sansu3.js"></script>
 <script src="../js/content/lesson3.js"></script>
 <script src="../js/content/lessonkoku3.js"></script>
@@ -749,6 +750,58 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       });
       document.getElementById('stage').appendChild(box);
       say('zu2: ' + L.length + 'まい');
+      return;
+    }
+    /* #reki … 歴史の 写真（v14.22）。本物の バトルで 答えて、ふきだしに 写真が 出るか
+       #rekiall … 47まいを ぜんぶ ならべて 見る */
+    if (mode === 'rekiall') {
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#0f1630;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;z-index:99;align-content:start;overflow:auto;';
+      MQ.rekishi.list().forEach(function (p) {
+        const d = document.createElement('div');
+        d.style.cssText = 'background:#1b2547;border-radius:6px;padding:4px;text-align:center;color:#ffe9a8;font-size:9px';
+        d.innerHTML = '<img src="' + p.src + '" style="width:100%;height:78px;object-fit:contain;background:#fffdf5;border-radius:4px"><div>' + p.name + '</div>';
+        box.appendChild(d);
+      });
+      document.getElementById('stage').appendChild(box);
+      say('rekiall: ' + MQ.rekishi.list().length + 'まい');
+      return;
+    }
+    if (mode.indexOf('reki') === 0) {
+      fresh();
+      MQ.save.update(function (pl) { pl.grade = 6; pl.playGrade = 6; });
+      const rp = mode.split(':');
+      MQ.ui.battle.start(rp[1] || 'shakai6-2');
+      await wait(700);
+      let hit = null;
+      for (let i = 0; i < 26; i++) {
+        const q = MQ.battle.current();
+        if (!q) break;
+        const wantPic = rp[2] || '';
+        const picOk = q.pic && (!wantPic ||
+          (Array.isArray(q.pic) ? q.pic.indexOf(wantPic) >= 0 : q.pic === wantPic));
+        if (picOk) {
+          hit = q;
+          answerViaUI(true);
+          await wait(600);
+          /* ふきだしは すぐ 消える（予約ずみの タイマーは freeze() で 止まらない）
+             → 見つけた すぐ あとに 写しを とって 消えない 親に つける */
+          const fb = $('.feedback');
+          if (fb) {
+            const cp = fb.cloneNode(true);
+            cp.style.cssText = 'position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);z-index:99';
+            document.getElementById('screen-battle').appendChild(cp);
+          }
+          break;
+        }
+        answerViaUI(true);
+        await wait(1500);
+      }
+      const pics = $$('#screen-battle .rekipic__img');
+      say('reki: ' + (hit ? MQ.util.stripTags(hit.text).slice(0, 30) : 'pic の 問題が 来なかった') +
+          ' / ふきだしの 写真 ' + pics.length + 'まい' +
+          (pics.length ? ' / ' + pics.map(function (i) { return i.getAttribute('alt'); }).join('、') : ''));
+      freeze();
       return;
     }
     // #chizu … 地図と方位の バトル（図つきの 問題が 出る）
@@ -3846,6 +3899,29 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
            #dojo:koku:ex   せつめいの 画面（読み方の コツ）
            #dojo:koku:step 「まず なにを さがす？」の 3たく
            #dojo:koku      ひとりで やってみる まで 通す                       */
+      /* #dojo:reki … 歴史の しゅぎょうば（v14.22）。答えの わくの 下に 写真が 出るか */
+      if (sub === 'reki') {
+        MQ.save.update(function (pl) { pl.grade = 6; pl.playGrade = 6; });
+        const se = MQ.dojo.session('shakai6-2', MQ.save.current());
+        if (!se) { say('dojo:reki セッションが 作れない MISSING'); dump(); freeze(); return; }
+        const all = se.guided.concat(se.practice);
+        say('dojo:reki いっしょに ' + se.guided.length + ' ／ ひとりで ' + se.practice.length +
+            ' ／ pic つき ' + all.filter(function (q) { return !!q.pic; }).length);
+        MQ.ui.dojo.open('shakai6-2');
+        await wait(200);
+        /* 答えの わくが 出るまで「つぎ」を おす */
+        let g = 0, shown = false;
+        while (g++ < 30) {
+          if ($('#screen-dojo .dojo__answer')) { shown = true; break; }
+          const nb = $('.dojo__next'); if (!nb) break; nb.click(); await wait(60);
+        }
+        const pics = $$('#screen-dojo .rekipic__img');
+        say('dojo:reki 答えの わく ' + (shown ? 'あり OK' : 'なし MISSING') +
+            ' ／ 写真 ' + pics.length + 'まい' +
+            (pics.length ? '（' + pics.map(function (i) { return i.getAttribute('alt'); }).join('、') + '）' : ''));
+        /* 解いて いる とちゅうの 画面に 写真が 出て いない ことも 見る */
+        dump(); freeze(); return;
+      }
       if (sub === 'koku') {
         const step = mode.split(':')[2] || '';
         const se = MQ.dojo.session('kokugo3-6', MQ.save.current());

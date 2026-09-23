@@ -31,6 +31,15 @@ MQ.ui.dojo = (function () {
     if (tail) out.push(' ' + tail);
     return out;
   }
+  /* 歴史の 写真（v14.22）。**答えの わくの すぐ 下だけ**に 出す＝
+     問題を 解いて いる あいだ（ask / hint / retry）は よばない ので 答えは ばれない。 */
+  function picBox(q) {
+    if (!MQ.rekishi || !q || !q.pic) return null;
+    const n = MQ.rekishi.node(q.pic);
+    return n ? h('div', { class: 'dojo__pic' }, [n]) : null;
+  }
+  function pushPic(kids, q) { const b = picBox(q); if (b) kids.push(b); }
+
   function dots() { return ['せつめい', 'いっしょに', 'ひとりで']; }
 
   /* =======================================================
@@ -228,6 +237,7 @@ MQ.ui.dojo = (function () {
       say(ansSay(ans, q.note));
       if (q.hint) kids.push(hintBox(q));
       kids.push(h('div', { class: 'dojo__answer' }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: ans, raw: true })]));
+      pushPic(kids, q);
       kids.push(nextBtn(i + 1 < qs.length ? T.nextQ : T.toPractice, function () { guided(i + 1, 'ask'); }));
     }
     paint(h('div', { class: 'dojo__pane' }, [h('p', { class: 'dojo__label', text: T.guidedLabel + ' ' + (i + 1) + ' / ' + qs.length })].concat(kids)));
@@ -257,6 +267,7 @@ MQ.ui.dojo = (function () {
       kids.push(inputArea(q, function (value) { submit(i, value); }));
     } else {
       kids.push(h('div', { class: 'dojo__answer' + (phase === 'ok' ? ' is-ok' : '') }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: MQ.dojo.answerText(q), raw: true })]));
+      pushPic(kids, q);
       kids.push(nextBtn(i + 1 < qs.length ? T.nextQ : T.seeResult, function () { practice(i + 1, 'ask'); }));
     }
     paint(h('div', { class: 'dojo__pane' }, [h('p', { class: 'dojo__label', text: T.practiceLabel + ' ' + (i + 1) + ' / ' + qs.length })].concat(kids)));

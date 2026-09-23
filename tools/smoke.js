@@ -918,6 +918,79 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
     (figs(MQ.rika4.questions, '理科') + figs(MQ.rika5.questions, '理科') + figs(MQ.rika6.questions, '理科')) + '問 OK');
 })();
 
+/* ===== 歴史の 写真（v14.22）=====
+   ユーザー「社会も 偉人の 写真ぐらいなら」「道具とか 物も」。
+   **問題には つけない・答えた あとだけ**（v4.9 の きまり＝答えが ばれる 図は つけない）。 */
+(function () {
+  const R = MQ.rekishi;
+  check(!!R, 'MQ.rekishi が 読めて いる');
+  if (!R) return;
+  const ids = Object.keys(R.PICS);
+  check(ids.length >= 45, '写真は 45しゅるい いじょう: ' + ids.length);
+
+  // 絵の ファイルが 本当に ある
+  let missing = [];
+  ids.forEach(function (id) {
+    if (!fs.existsSync(path.join(base, 'assets', 'rekishi', id + '.jpg'))) missing.push(id);
+  });
+  check(missing.length === 0, '写真の ファイルが ぜんぶ ある' + (missing.length ? '（ない: ' + missing.join('、') + '）' : ''));
+
+  // ひとこと・名前が 入って いる
+  ids.forEach(function (id) {
+    const p = R.info(id);
+    check(!!(p && p.name && p.note), '写真の 名前と ひとこと: ' + id);
+  });
+
+  // 出どころ（CC は 作者を 書くのが 条件）
+  let noLic = ids.filter(function (id) { const c = R.credit(id); return !c || !c.lic; });
+  check(noLic.length === 0, 'ライセンスが ぜんぶ ある' + (noLic.length ? '（ない: ' + noLic.join('、') + '）' : ''));
+  let bad = ids.filter(function (id) {
+    const c = R.credit(id) || {};
+    return !/public domain|^pd|cc0|cc by|attribution/i.test(c.lic || '') || /\bNC\b|\bND\b/i.test(c.lic || '');
+  });
+  check(bad.length === 0, 'つかって よい ライセンスだけ' + (bad.length ? '（だめ: ' + bad.join('、') + '）' : ''));
+
+  // 問題の pic は ぜんぶ ある id
+  const qs = (MQ.shakai6.questions || []).filter(function (q) { return q.pic; });
+  check(qs.length >= 40, '写真つきの 歴史の 問題 40問 いじょう: ' + qs.length);
+  let ng = [];
+  qs.forEach(function (q) {
+    const list = Array.isArray(q.pic) ? q.pic : [q.pic];
+    list.forEach(function (id) { if (!R.has(id)) ng.push(id); });
+  });
+  check(ng.length === 0, 'pic の id が ぜんぶ ある' + (ng.length ? '（ない: ' + ng.join('、') + '）' : ''));
+
+  // つかって いない 写真が ない（重さの むだ）
+  const used = {};
+  qs.forEach(function (q) { (Array.isArray(q.pic) ? q.pic : [q.pic]).forEach(function (id) { used[id] = 1; }); });
+  const unused = ids.filter(function (id) { return !used[id]; });
+  check(unused.length === 0, 'つかって いない 写真は ない' + (unused.length ? '（' + unused.join('、') + '）' : ''));
+
+  // **問題文には 写真を 出さない**（答えが ばれる）
+  const st = MQ.content.findStage('shakai6-2').stage;
+  let leaked = 0, withPic = 0;
+  for (let i = 0; i < 12; i++) {
+    (st.make(12, {}) || []).forEach(function (q) {
+      if (q.pic) withPic++;
+      if (/<img|rekipic/.test(String(q.prompt || ''))) leaked++;
+    });
+  }
+  check(leaked === 0, '問題文に 写真は 出さない（' + leaked + '件）');
+  check(withPic > 0, 'ステージの 問題に pic が のこる（world3 が 落として いない）: ' + withPic);
+
+  // 読みこみ順：rekishi.js は util.js の あと（読みこみ時に MQ.util.h を つかう）
+  const idx = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
+  check(idx.indexOf('js/core/util.js') < idx.indexOf('js/content/rekishi.js'),
+    'rekishi.js は util.js より あとに 読む');
+  check(idx.indexOf('js/content/rekishi.js') > 0, 'index.html に rekishi.js');
+  const sw = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  check(sw.indexOf('js/content/rekishi.js') > 0, 'sw.js の FILES に rekishi.js');
+  const inSw = ids.filter(function (id) { return sw.indexOf('assets/rekishi/' + id + '.jpg') < 0; });
+  check(inSw.length === 0, 'sw.js の FILES に 写真 ぜんぶ' + (inSw.length ? '（ない: ' + inSw.join('、') + '）' : ''));
+
+  console.log('v14.22 歴史の 写真: ' + ids.length + 'まい／写真つき ' + qs.length + '問 OK');
+})();
+
 /* ---- 学年ごとの 地図（v4.7）---- */
 (function () {
   const T = MQ.tiles;
