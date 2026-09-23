@@ -2475,7 +2475,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     if (mode === 'fit' || mode === 'fit:all') {
       const STAGES = mode === 'fit:all'
-        ? [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'sansu3-11'], [3, 'sansu3-12'], [3, 'sansu3-16'], [3, 'sansu3-18'], [3, 'kokugo3-2'], [3, 'kokugo3-3'], [3, 'kokugo3-6'], [3, 'rikashakai3-1'], [3, 'eigo3-1'],
+        ? [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'sansu3-11'], [3, 'sansu3-12'], [3, 'sansu3-16'], [3, 'sansu3-18'], [3, 'kokugo3-2'], [3, 'kokugo3-3'], [3, 'kokugo3-6'], [3, 'rikashakai3-1'], [3, 'rikashakai3-2'], [3, 'eigo3-1'], [4, 'rika4-2'], [4, 'shakai4-2'], [5, 'rika5-3'],
            [1, 'sansu1-8'], [2, 'sansu2-2'], [2, 'sansu2-9'], [4, 'sansu4-2'], [4, 'sansu4-7'], [4, 'sansu4-11'], [4, 'sansu4-15'],
            [5, 'sansu5-2'], [5, 'sansu5-6'], [5, 'sansu5-10'], [5, 'sansu5-14'], [5, 'sansu5-16'], [5, 'sansu5-18'],
            [6, 'sansu6-1'], [6, 'sansu6-3'], [6, 'sansu6-7'], [6, 'sansu6-8'], [6, 'sansu6-9'], [6, 'sansu6-11'], [6, 'sansu6-14'], [6, 'kokugo6-3'], [6, 'rika6-1'], [6, 'shakai6-2'], [6, 'eigo6-2']]
@@ -3067,6 +3067,37 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       [F.circleSvg('radius', '4cm'), F.circleSvg('diameter', '10cm'), F.circleSvg('chord', ''), F.circleSvg('two', '16cm'), F.ballsSvg(3, '6cm', '？cm'), F.ballsSvg(4, '？cm', '24cm'), F.dialSvg(340), F.dialSvg(1240, 2000)].forEach(function (svg) { const d = document.createElement('div'); d.innerHTML = svg; box.appendChild(d); });
       [F.lineSvg(10000, 10, 3, 5, function (v) { return v >= 10000 ? '1万' : String(v); }), F.lineSvg(2, 20, 7, 10), F.lineSvg(1, 5, 2, 5, function (v) { return v ? '1' : '0'; })].forEach(function (svg) { const d = document.createElement('div'); d.style.gridColumn = '1 / -1'; d.innerHTML = svg; box.appendChild(d); });
       document.getElementById('stage').appendChild(box);
+      return;
+    }
+    /* #qfind:<さがす 文字> … 全学年から その 文字を ふくむ 問題を 6つ 集めて カードで 見る（v14.20） */
+    if (mode.indexOf('qfind:') === 0) {
+      const key = decodeURIComponent(mode.split(':').slice(1).join(':'));
+      const out = [], seen = {};
+      for (let g = 1; g <= 6 && out.length < 6; g++) {
+        const w = MQ.content.worldForGrade(g);
+        for (const ar of ((w && w.areas) || [])) for (const st of (ar.stages || [])) {
+          if (!st.make || out.length >= 6) continue;
+          for (let i = 0; i < 25 && out.length < 6; i++) {
+            let qs = []; try { qs = st.make(12, {}); } catch (e) { break; }
+            for (const q of qs) {
+              const t = MQ.util.stripTags(q.prompt);
+              if (t.indexOf(key) < 0 || seen[t]) continue;
+              seen[t] = 1; out.push(q); if (out.length >= 6) break;
+            }
+          }
+        }
+      }
+      say('qfind: ' + key + ' → ' + out.length + '問／図あり ' + out.filter(function (q) { return /<svg/.test(q.prompt); }).length);
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;inset:0;background:#0f1630;padding:8px;overflow:auto;z-index:99;display:flex;flex-direction:column;gap:8px;';
+      out.forEach(function (q) {
+        const card = document.createElement('div');
+        card.className = 'card'; card.style.cssText = 'flex:none;max-height:none;';
+        card.innerHTML = '<p class="card__unit">' + (q.unit || '') + '</p><div class="card__q card__q--s">' + q.prompt + '</div>';
+        box.appendChild(card);
+      });
+      document.getElementById('stage').appendChild(box);
+      freeze();
       return;
     }
     /* #qfig:<ステージ>[:<単元の 一部>] … その 単元の 問題を カードで ならべて 見る（v14.19）

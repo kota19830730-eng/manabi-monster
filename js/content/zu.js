@@ -200,12 +200,106 @@ MQ.zu = (function () {
   }
   function moonQ(text, kind) { return figQ(text, moon(kind)); }
 
+
+  /* ===== 太陽と かげ（v14.20・小3）=====
+     kind='sun'    … 太陽と ぼう（かげは 描かない＝答えは ばれない）
+     kind='shadow' … ぼうと 北向きの かげ（太陽は 描かない）
+     kind='day'    … 朝・昼・夕の 太陽の 高さ（かげは 描かない） */
+  function sunPic(kind) {
+    const gy = 80;
+    let s = '<rect x="4" y="' + gy + '" width="92" height="16" fill="#CFE3B0"/>' + ln(4, gy, 96, gy, 2);
+    const pole = function (x) { return ln(x, gy, x, gy - 26, 5, '#7a5c2e') + '<rect x="' + (x - 4) + '" y="' + (gy - 30) + '" width="8" height="5" fill="#7a5c2e"/>'; };
+    const sun = function (x, y, r) {
+      let o = '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#FFD24A" stroke="#E6A800" stroke-width="2"/>';
+      for (let i = 0; i < 8; i++) {
+        const a = Math.PI * 2 * i / 8;
+        o += ln(x + Math.cos(a) * (r + 2), y + Math.sin(a) * (r + 2), x + Math.cos(a) * (r + 6), y + Math.sin(a) * (r + 6), 2, '#E6A800');
+      }
+      return o;
+    };
+    if (kind === 'shadow') {
+      s += pole(58);
+      s += '<polygon points="54,' + gy + ' 62,' + gy + ' 30,' + (gy - 12) + ' 26,' + (gy - 8) + '" fill="#8A93A8" opacity="0.8"/>';
+      s += tx('かげ', 9, 30, gy - 18, '#5A6072');
+      s += tx('北', 10, 10, 16) + ln(10, 22, 10, 40, 2) + '<polygon points="7,24 13,24 10,18" fill="' + INK + '"/>';
+      return box(s);
+    }
+    if (kind === 'day') {
+      s += pole(50);
+      s += sun(18, 56, 7) + sun(50, 26, 7) + sun(82, 56, 7);
+      s += tx('朝', 9, 18, 72) + tx('昼', 9, 50, 42) + tx('夕', 9, 82, 72);
+      return box(s);
+    }
+    s += pole(66) + sun(24, 30, 9);
+    return box(s);
+  }
+  function sunQ(text, kind) { return figQ(text, sunPic(kind || 'sun')); }
+
+  /* ===== 川の 曲がり（v14.20・小5）=====
+     外がわ・内がわ が どこかだけ 見せる（速さ・けずれ方は 描かない） */
+  function riverPic() {
+    // 曲がりは 1つだけ（上から きて 右へ 曲がる）。
+    // ふくらんで いる ほう（左下）が 外がわ、その 反対（右上）が 内がわ。
+    const d = 'M30,6 Q30,68 98,68';
+    let s = '<path d="' + d + '" fill="none" stroke="#7FB4E8" stroke-width="20" stroke-linecap="round"/>';
+    s += '<path d="' + d + '" fill="none" stroke="#4F8CFF" stroke-width="1.6" stroke-dasharray="5 4"/>';
+    // 流れる 向き
+    s += '<polygon points="26,30 34,30 30,40" fill="#2a5f9e"/>';
+    s += '<polygon points="78,64 78,72 88,68" fill="#2a5f9e"/>';
+    // 外がわ（左下）
+    s += tx('外がわ', 9, 24, 88, '#d42a20') + ln(30, 80, 38, 68, 1.6, '#d42a20');
+    // 内がわ（右上）
+    s += tx('内がわ', 9, 74, 26, '#1d6b3a') + ln(68, 32, 56, 44, 1.6, '#1d6b3a');
+    return box(s);
+  }
+  function riverQ(text) { return figQ(text, riverPic()); }
+
+  /* ===== 温度計（v14.20・小4）=====
+     deg を 書かない ときは 目もりだけ（読み方の 問題に つかう） */
+  function thermoPic(deg) {
+    const yTop = 12, yBot = 84, lo = -10, hi = 40;
+    const y = function (t) { return yBot - (yBot - yTop) * (t - lo) / (hi - lo); };
+    let s = '<rect x="44" y="' + (yTop - 4) + '" width="12" height="' + (yBot - yTop + 12) + '" rx="6" fill="#fff" stroke="' + INK + '" stroke-width="2"/>';
+    s += '<circle cx="50" cy="' + (yBot + 10) + '" r="7" fill="#d42a20" stroke="' + INK + '" stroke-width="2"/>';
+    if (deg != null) s += '<rect x="47" y="' + y(deg) + '" width="6" height="' + (yBot + 6 - y(deg)) + '" fill="#d42a20"/>';
+    for (let t = lo; t <= hi; t += 5) {
+      const big = t % 10 === 0;
+      s += ln(56, y(t), big ? 66 : 62, y(t), big ? 1.8 : 1);
+      if (big) s += '<text x="68" y="' + (y(t) + 3) + '" font-size="7" fill="' + INK + '" font-family="serif">' + t + '</text>';
+    }
+    s += tx('℃', 8, 30, 20);
+    return box(s);
+  }
+  function thermoQ(text, deg) { return figQ(text, thermoPic(deg)); }
+
+  /* ===== 流れ図（v14.20・社会）=====
+     steps＝['雨', '川', 'じょう水場', '？'] の ように わたす。'？' は 赤 */
+  function flowPic(steps) {
+    const n = steps.length, W = 300, H = 56, pad = 6;
+    const bw = (W - pad * 2 - (n - 1) * 16) / n;
+    let s = '<svg class="figwide" viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="ながれ図" style="font-family: var(--f-body)">';
+    steps.forEach(function (t, i) {
+      const x = pad + i * (bw + 16), q = t === '？';
+      s += '<rect x="' + x + '" y="12" width="' + bw + '" height="30" rx="7" fill="' + (q ? '#FFF1EF' : '#FFF8E6') + '" stroke="' + (q ? '#d42a20' : INK) + '" stroke-width="2"/>';
+      s += '<text x="' + (x + bw / 2) + '" y="31" font-size="12" text-anchor="middle" fill="' + (q ? '#d42a20' : INK) + '" font-weight="bold">' + t + '</text>';
+      if (i < n - 1) {
+        const ax = x + bw + 3;
+        s += '<line x1="' + ax + '" y1="27" x2="' + (ax + 8) + '" y2="27" stroke="' + INK + '" stroke-width="2"/>';
+        s += '<polygon points="' + (ax + 7) + ',23 ' + (ax + 13) + ',27 ' + (ax + 7) + ',31" fill="' + INK + '"/>';
+      }
+    });
+    return s + '</svg>';
+  }
+  function flowQ(text, steps) { return text + flowPic(steps); }
+
   return {
     KIGO_NAMES: KIGO_NAMES, names: Object.keys(KIGO),
     kigoSvg: kigoSvg, kigoQ: kigoQ,
     compass: compass, compassQ: compassQ, needle: needle, needleQ: needleQ,
     magnet: magnet, magnetQ: magnetQ, magnets: magnets, magnetsQ: magnetsQ,
     circuit: circuit, circuitQ: circuitQ, moon: moon, moonQ: moonQ,
+    sunPic: sunPic, sunQ: sunQ, riverPic: riverPic, riverQ: riverQ,
+    thermoPic: thermoPic, thermoQ: thermoQ, flowPic: flowPic, flowQ: flowQ,
     figQ: figQ
   };
 })();
