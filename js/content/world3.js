@@ -585,7 +585,11 @@ MQ.content = (function () {
           stage('kokugo', 3, 'かん字の よみ', kokugo1, 1),
           { id: 'kokugo1-4', no: 4, name: 'かん字を かく', available: true, pool: listPool(kokugo1, 4, 1),
             make: writeMixStage(kokugo1, 'kokugo', 4, 1) },
-          stage('kokugo', 5, 'ことばの きまり', kokugo1, 1)
+          stage('kokugo', 5, 'ことばの きまり', kokugo1, 1),
+          /* 読解（v14.27・小1）：お話が 1文ずつ 進む。story: true の きまりは 小3と 同じ */
+          { id: 'kokugo1-6', no: 6, name: 'おはなしを よむ', available: true, story: true,
+            pool: function () { return MQ.dokkai1.pool(); },
+            make: function (n, opts) { return MQ.dokkai1.make(n, opts); } }
         ]
       },
       /* 小1の さいごの とう（v6.4）。2教科の かけらで 開く。名前は ひらがな */
@@ -630,7 +634,11 @@ MQ.content = (function () {
           { id: 'kokugo2-2', no: 2, name: 'かん字を かく', available: true, pool: listPool(kokugo2, 2, 2),
             make: writeMixStage(kokugo2, 'kokugo', 2, 2) },
           stage('kokugo', 3, 'ことばの きまり', kokugo2, 2),
-          stage('kokugo', 4, 'ことばの いみ', kokugo2, 2)
+          stage('kokugo', 4, 'ことばの いみ', kokugo2, 2),
+          /* 読解（v14.27・小2） */
+          { id: 'kokugo2-5', no: 5, name: 'おはなしを よむ', available: true, story: true,
+            pool: function () { return MQ.dokkai2.pool(); },
+            make: function (n, opts) { return MQ.dokkai2.make(n, opts); } }
         ]
       },
       /* 小2の さいごの とう（v6.4） */

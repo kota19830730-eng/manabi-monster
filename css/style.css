@@ -4590,7 +4590,7 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .card__storytx {
   margin: 0; font-family: var(--f-body); font-weight: 700;
   /* 字の 大きさは fitPrompt が --storyk で 下げる（ぜったいに 切れない ように）*/
-  font-size: calc(18px * var(--storyk, 1)); line-height: 1.8; letter-spacing: .02em; color: var(--paper-ink);
+  font-size: calc(18px * var(--storyk, 1)); line-height: calc(1.8 * max(var(--storyk, 1), 0.72)); letter-spacing: .02em; color: var(--paper-ink);   /* 行の 高さも いっしょに つめる（v14.27・小1の ひらがなの 文が タブレットで 35px はみ出た） */
 }
 /* 話が ある ときは 問題文を 少し 小さく（話が 主役・問題は 見出し） */
 .card--story .card__q { font-size: 25px; line-height: 1.25; }

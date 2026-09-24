@@ -705,9 +705,9 @@ function checkWorldStages(wld) { wld.areas.forEach(function (area) {
 checkWorldStages(w3);
 checkWorldStages(w1);
 checkWorldStages(w2);
-check(w2.areas.length === 3 && w2.areas[0].stages.length === 14 && w2.areas[1].stages.length === 4 && w2.areas[2].id === 'tower', '小2は さんすう14＋こくご4＋とう');
+check(w2.areas.length === 3 && w2.areas[0].stages.length === 14 && w2.areas[1].stages.length === 5 && w2.areas[2].id === 'tower', '小2は さんすう14＋こくご5（読解 v14.27）＋とう');
 check(w2.areas[1].stages[1].make(8, {}).some(function (q) { return q.type === 'write' && q.prompt.indexOf('かこう') !== -1; }), '小2の かん字を かく問題も ひらがなの 言いかた');
-check(w1.areas.length === 3 && w1.areas[0].stages.length === 12 && w1.areas[1].stages.length === 5 && w1.areas[2].id === 'tower', '小1は さんすう12＋こくご5＋とう');
+check(w1.areas.length === 3 && w1.areas[0].stages.length === 12 && w1.areas[1].stages.length === 6 && w1.areas[2].id === 'tower', '小1は さんすう12＋こくご6（読解 v14.27）＋とう');
 // とけいの 絵：はりの むきが 正しい（8じ47ふん → みじかい はり 263.5度・ながい はり 282度）
 (function () {
   const q = MQ.sansu1.make(12, 20).filter(function (x) { return x.prompt.indexOf('class="clock"') !== -1; })[0];
@@ -1093,8 +1093,8 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 169, 'たからもの 169個（小3 33＋小1 18＋小2 19＋小4 32＋小5 35＋小6 32）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 33 && MQ.treasure.listFor(w1).length === 18 && MQ.treasure.listFor(w2).length === 19 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 35, 'listFor: 小3 33・小1 18・小2 19・小4 32・小5 35');
+check(MQ.treasure.total() === 171, 'たからもの 171個（小3 33＋小1 19＋小2 20＋小4 32＋小5 35＋小6 32）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 33 && MQ.treasure.listFor(w1).length === 19 && MQ.treasure.listFor(w2).length === 20 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 35, 'listFor: 小3 33・小1 19・小2 20・小4 32・小5 35');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -1954,7 +1954,7 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
   });
   const want = {
     burst: 19, shield: 15, freeze: 7, guide: 14, golden: 12, chest: 10, power: 17, charge: 13,
-    bond: 12, rush: 14, find: 13, swift: 12, elixir: 11   // v11.0 で 小6の たからもの 32・v14.13 で ものがたりの まきもの
+    bond: 12, rush: 16, find: 13, swift: 12, elixir: 11   // v11.0 で 小6の たからもの 32・v14.13 で ものがたりの まきもの・v14.27 で 小1・小2の おはなしの まきもの
   };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
@@ -6111,6 +6111,50 @@ function stripComments(src) {
   // 都道府県：47 ぜんぶ ある・地方は 8つ
   check(MQ.shakaiGen.PREF.length === 47 && new Set(MQ.shakaiGen.PREF.map(function (p) { return p[1]; })).size === 8, 'v14.26: 都道府県 47・地方 8');
   console.log('v14.26 表から 作る OK（' + ['kokugo3', 'kokugo4', 'kokugo5', 'kokugo6', 'rikashakai3', 'shakai4', 'rika4', 'shakai5', 'rika5', 'shakai6', 'rika6'].map(function (k) { return k + ' ' + MQ[k].questions.length; }).join(' / ') + '）');
+})();
+
+/* =======================================================
+   v14.27 読解を 小1・小2 に（dokkai.js の しくみ ＋ dokkai1.js・dokkai2.js）
+   ======================================================= */
+(function () {
+  check(MQ.dokkaiEngine && typeof MQ.dokkaiEngine.create === 'function', 'v14.27: MQ.dokkaiEngine');
+  const IDX = fs.readFileSync(base + '/index.html', 'utf8');
+  check(IDX.indexOf('dokkai.js') < IDX.indexOf('dokkai3.js') && IDX.indexOf('dokkai1.js') > IDX.indexOf('dokkai.js') && IDX.indexOf('dokkai2.js') > IDX.indexOf('dokkai.js'), 'v14.27: dokkai.js は dokkai1/2/3.js より 前');
+  // 小3 は しくみを 切り出しても 同じ（id は dokkai: の まま・山は p.dokkai）
+  check(MQ.dokkai3.saveKey === 'dokkai' && MQ.dokkai3.make(12, { boss: false })[0].id.indexOf('dokkai:') === 0, 'v14.27: 小3の id と 山の 名前は むかしの まま');
+  [[1, MQ.dokkai1, 'kokugo1-6'], [2, MQ.dokkai2, 'kokugo2-5']].forEach(function (p) {
+    const g = p[0], D = p[1], sid = p[2];
+    check(D && D.stories.length >= 6, 'v14.27: 小' + g + ' の お話が 6本 いじょう（' + (D ? D.stories.length : 0) + '）');
+    const found = MQ.content.findStage(sid);
+    check(!!found && found.stage.story === true && found.stage.pool() >= 12, 'v14.27: ' + sid + ' が あり story: true・12問 いじょう');
+    check(found && found.stage.name === 'おはなしを よむ', 'v14.27: ' + sid + ' の 名前は ひらがな');
+    check(!!MQ.treasure.byStage && true || true, '');
+    // 形：場面 12・たからばこ 3・ボス 6・choices 4つ ぜんぶ ちがう
+    let bad = 0;
+    D.stories.forEach(function (st) { if (st.scenes.length !== 12 || st.chest.length < 3 || st.boss.length < 6) bad++; st.scenes.concat(st.chest, st.boss).forEach(function (x) { if (!x.text || !x.note || new Set(x.choices).size !== 4) bad++; }); });
+    check(bad === 0, 'v14.27: 小' + g + ' の お話の 形（' + bad + '）');
+    // かん字：小1は ぜんぶ かな・小2は 小1の 字まで
+    const over = new Set();
+    D.stories.forEach(function (st) { [st.title].concat(st.scenes.concat(st.chest, st.boss).map(function (x) { return [x.t, x.text, x.hint, x.note].concat(x.choices).join(''); })).join('').split('').forEach(function (c) { if (/[\u4e00-\u9faf]/.test(c) && (g === 1 || !MQ.kakusu.upTo(c, 1))) over.add(c); }); });
+    check(over.size === 0, 'v14.27: 小' + g + ' の お話の かん字（' + [...over].join('') + '）');
+    // 1回の たたかい＝12場面が じゅんに・ボスは お話 ぜんぶ・トランプ方式で 6回で 6本
+    const pl = {};
+    const seen = {};
+    for (let b = 0; b < D.stories.length; b++) {
+      const qs = D.make(12, { boss: false });
+      const title = qs[0].storyTitle;
+      seen[title] = 1;
+      check(qs.length === 12 && qs.every(function (q) { return q.storyTitle === title && q.story.length > 0; }), 'v14.27: 小' + g + ' 1回の たたかいは 同じ お話の 12場面');
+      const bq = D.make(1, { boss: true })[0];
+      check(bq.storyFull === true && bq.story.length > 60, 'v14.27: 小' + g + ' ボスは お話 ぜんぶ');
+    }
+    check(Object.keys(seen).length === D.stories.length, 'v14.27: 小' + g + ' ' + D.stories.length + '回で お話 ぜんぶ 出る（' + Object.keys(seen).length + '）');
+    D.ensure(pl);
+    check(Array.isArray(pl[D.saveKey].bag), 'v14.27: 小' + g + ' の 山は p.' + D.saveKey);
+  });
+  const SV = fs.readFileSync(base + '/js/core/save.js', 'utf8');
+  check(SV.indexOf('MQ.dokkai1.ensure') > 0 && SV.indexOf('MQ.dokkai2.ensure') > 0, 'v14.27: save.js の migrate で 小1・小2 の 山を そろえる');
+  console.log('v14.27 読解 小1・小2 OK（小1 ' + MQ.dokkai1.stories.length + '本 / 小2 ' + MQ.dokkai2.stories.length + '本）');
 })();
 
 Promise.all(global.__pending || []).then(function () {

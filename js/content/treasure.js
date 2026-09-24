@@ -95,6 +95,7 @@ MQ.treasure = (function () {
     { stage: 'kokugo1-3', id: 'tr1-yomi',    name: 'かん字の ほん',          shape: 'book',      colors: c('#3E9A6B', '#1E5A3C') },
     { stage: 'kokugo1-4', id: 'tr1-kaki',    name: 'かん字の まきもの',      shape: 'scroll',    colors: c('#A96BE0', '#5A2D8A') },
     { stage: 'kokugo1-5', id: 'tr1-kotoba',  name: 'ことばの きいろいし',    shape: 'gem',       colors: c('#FFD166', '#B8860B') },
+    { stage: 'kokugo1-6', id: 'tr1-ohanashi', name: 'おはなしの まきもの',   shape: 'scroll',    colors: c('#7CC8F5', '#2A6FA8') },
 
     /* ---- 小2 さんすうの やま（14）・こくごの もり（4）（v2.3） ---- */
     { stage: 'sansu2-1',  id: 'tr2-hyou',    name: 'ひょうの ほし',          shape: 'star',      colors: c('#FF9A4A') },
@@ -115,6 +116,7 @@ MQ.treasure = (function () {
     { stage: 'kokugo2-2', id: 'tr2-kaki',    name: 'かきかたの まきもの',    shape: 'scroll',    colors: c('#3E9A6B', '#1E5A3C') },
     { stage: 'kokugo2-3', id: 'tr2-kimari',  name: 'きまりの ほん',          shape: 'book',      colors: c('#8A6BD8', '#4A2F8A') },
     { stage: 'kokugo2-4', id: 'tr2-imi',     name: 'いみの みどりいし',      shape: 'gem',       colors: c('#4CD164', '#1E7A3C') },
+    { stage: 'kokugo2-5', id: 'tr2-ohanashi', name: 'おはなしの まきもの',   shape: 'scroll',    colors: c('#F5A97C', '#A85A2A') },
 
     /* ---- 小4 算数の山（15）（v4.4） ---- */
     { stage: 'sansu4-1',  id: 'tr4-oku',     name: '億の 王かん',            shape: 'crown',     colors: c('#7FD8FF', '#2E7FB0') },
