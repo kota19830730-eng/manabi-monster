@@ -67,20 +67,116 @@ MQ.content = (function () {
     return b.length ? b : all;
   }
 
+  /* ---- 山札（v14.24）----
+     リスト教科（国語の ことば・理科・社会・英語）は 1ステージ 30〜55問 しか なく、
+     毎回 シャッフルして 引いて いたので **2回めの たたかいで 3〜7わり・3回めで 5〜9わりが 見た 問題**だった（実測）。
+     → 読解（v14.14）と 同じ トランプ方式。むずかしさ（lv1・2・3）と ボス の 4つの 山を ステージごとに もち、
+        使い切るまで 同じ 問題を 出さない。のこりは セーブ（p.qbag[ステージ]）に 入れる ので アプリを 閉じても つづく。
+     山の 中身は 問題の ならび（all）の 番号。学期の 設定が 変わって 問題の 数が 変わったら 作り直す（sig）。
+     セーブが ない とき（テスト）は メモリの 中だけ。 */
+  const memBags = {};
+  function bagStore() {
+    const p = MQ.terms && MQ.terms.current ? MQ.terms.current() : null;
+    if (!p) return { p: null, bags: memBags };
+    if (!p.qbag || typeof p.qbag !== 'object' || Array.isArray(p.qbag)) p.qbag = {};
+    return { p: p, bags: p.qbag };
+  }
+  /* ステージの 山を とり出す（なければ 4つとも つんで 作る）。sig＝問題の 数。ちがえば 作り直す */
+  function bagFor(key, all, idxOf) {
+    const st = bagStore();
+    const sig = all.length;
+    let b = st.bags[key];
+    const okArr = function (a) { return Array.isArray(a) && a.every(function (i) { return typeof i === 'number' && i >= 0 && i < sig; }); };
+    if (!b || typeof b !== 'object' || b.sig !== sig || !okArr(b['1']) || !okArr(b['2']) || !okArr(b['3']) || !okArr(b.b) || !okArr(b.r)) {
+      b = { sig: sig, 1: MQ.util.shuffle(idxOf[1]), 2: MQ.util.shuffle(idxOf[2]), 3: MQ.util.shuffle(idxOf[3]), b: MQ.util.shuffle(idxOf.b), r: [] };
+      st.bags[key] = b;
+    }
+    return { bag: b, p: st.p };
+  }
+  function bagSave(p) {
+    if (p && MQ.save && MQ.save.update && MQ.save.current && MQ.save.current() === p) { try { MQ.save.update(function () {}); } catch (e) {} }
+  }
+  /* 山から 1つ。
+     - この よび出しで もう 取った 番号（taken）は うしろに まわす（1回の make で 同じ 問題を 出さない）
+     - 取った 番号は ほかの 山（ボス ⇔ lv3 など）からも 外す＝ザコで 出た 問題が すぐ ボスに 出ない
+     - 山が からの とき：refill が false なら -1（よぶ側が ほかの むずかしさの 山を 先に 見る）、true なら つみ直す */
+  const RECENT = 17;   // 1回の たたかいぶん（ザコ 12＋たからばこ 1＋ボス 5 の 手前）
+  function bagNext(bag, l, idxOf, skip, refill) {
+    if (!idxOf[l].length) return -1;
+    if (!bag[l].length) { if (!refill) return -1; bag[l] = MQ.util.shuffle(idxOf[l]); }
+    for (let tries = 0; tries < bag[l].length; tries++) {
+      const i = bag[l].shift();
+      if (skip[i]) { bag[l].push(i); continue; }
+      ['1', '2', '3', 'b'].forEach(function (x) { if (x !== String(l)) bag[x] = bag[x].filter(function (j) { return j !== i; }); });
+      bag.r.push(i); if (bag.r.length > RECENT) bag.r.splice(0, bag.r.length - RECENT);
+      return i;
+    }
+    return -1;
+  }
+  /* pickByLevel と 同じ かえし方（やさしい → むずかしい の じゅん）だが、山から 引く。
+     1周め＝どの 山も つみ直さずに「まだ 出て いない 問題」を さがす（となりの むずかしさも 見る）。
+     2周め＝それでも たりなければ つみ直して 引く。
+     → ボスの 問題（lv3）が 少ない ステージ（小3 英語「あいさつ」は 50問中 lv3 が 10問・1回の たたかいで 9問 いる）でも、
+       **同じ たたかいで ザコに 出た 問題が ボスに 出る** ことが なくなる（前は 5問中 3問が それ だった＝実測）。 */
+  function pickFromBag(key, all, n, opts) {
+    const idxOf = { 1: [], 2: [], 3: [], b: [] };
+    all.forEach(function (q, i) { idxOf[levelOf(q)].push(i); if (q.boss || levelOf(q) === 3) idxOf.b.push(i); });
+    if (!idxOf.b.length) idxOf.b = all.map(function (q, i) { return i; });
+    const got = bagFor(key, all, idxOf);
+    const bag = got.bag;
+    const taken = {};
+    function draw(level, m) {
+      const out = [];
+      const order = level === 'b' ? ['b', 2, 1] : level === 1 ? [1, 2, 3] : level === 3 ? [3, 2, 1] : [2, 1, 3];
+      [[false, true], [true, true], [true, false]].forEach(function (pass) {
+        const skip = Object.assign({}, taken);
+        if (pass[1]) bag.r.forEach(function (i) { skip[i] = 1; });   // さいきん 出た 問題（前の たたかいの ぶん）も よける
+        for (let k = 0; k < order.length && out.length < m; k++) {
+          while (out.length < m) {
+            const i = bagNext(bag, order[k], idxOf, skip, pass[0]);
+            if (i < 0) break;
+            taken[i] = 1; skip[i] = 1; out.push(all[i]);
+          }
+        }
+      });
+      // それでも たりない（問題が m より 少ない）ときは くり返す
+      let rest = MQ.util.shuffle(all);
+      while (out.length < m && rest.length) { out.push(rest.shift()); if (!rest.length) rest = MQ.util.shuffle(all); }
+      return out;
+    }
+    let picked;
+    if (opts && opts.boss) picked = draw('b', n);
+    else if (opts && opts.lv) picked = draw(opts.lv, n);
+    else { const c = levelCounts(n); picked = draw(1, c[0]).concat(draw(2, c[1]), draw(3, c[2])).sort(function (a, b) { return levelOf(a) - levelOf(b); }); }
+    bagSave(got.p);
+    return picked;
+  }
+  /* 1回の たたかいで つかう 問題の 数（ザコ 12＋たからばこ 1＋ボス 5）。
+     学期で しぼると ここを 割る ステージが ある（小3「ことばの 意味」は 2学期まで だと 14問＝実測で 1回の たたかいに 同じ 問題が 5問）。
+     → 足りない ぶんは **同じ 教科の 前の ステージ（もう ならった 単元）から 借りる**（v14.24） */
+  const NEED_POOL = 18;
+  const NEED_LV = { 1: 4, 2: 5, 3: 9 };   // ザコ 4/4/4 ＋ たからばこ（lv2）1 ＋ ボス（lv3）5
+  function withBorrowed(all, getList, stageNo, g) {
+    const cnt = { 1: 0, 2: 0, 3: 0 };
+    all.forEach(function (q) { cnt[levelOf(q)]++; });
+    if (all.length >= NEED_POOL && cnt[1] >= NEED_LV[1] && cnt[2] >= NEED_LV[2] && cnt[3] >= NEED_LV[3]) return all;
+    const who = MQ.terms.current();
+    const extra = getList().filter(function (q) { return q.stage < stageNo && MQ.terms.allowQ(who, q, g); })
+      .sort(function (a, b) { return b.stage - a.stage; });   // 近い 単元から
+    const out = all.slice();
+    // まず 足りない むずかしさを うめる
+    extra.forEach(function (q) { const l = levelOf(q); if (cnt[l] < NEED_LV[l]) { out.push(q); cnt[l]++; } });
+    // それでも 合計が 少なければ 近い 単元から
+    for (let i = 0; i < extra.length && out.length < NEED_POOL; i++) if (out.indexOf(extra[i]) === -1) out.push(extra[i]);
+    return out;
+  }
+
   // リスト型（国語・理社・英語）の ステージ用：問題リストから えらぶ
   function listStage(getList, areaId, stageNo, grade) {
     const g = grade || 3;
     return function make(n, opts) {
-      const all = getList().filter(function (q) { return q.stage === stageNo && MQ.terms.allowQ(MQ.terms.current(), q, g); });
-      let picked;
-      if (opts && opts.boss) {
-        const pool = bossPool(all);
-        picked = MQ.util.shuffle(pool);
-        while (picked.length < n && pool.length) picked = picked.concat(MQ.util.shuffle(pool));
-        picked = picked.slice(0, n);
-      } else {
-        picked = pickByLevel(all, n, opts);
-      }
+      const all = withBorrowed(getList().filter(function (q) { return q.stage === stageNo && MQ.terms.allowQ(MQ.terms.current(), q, g); }), getList, stageNo, g);
+      const picked = pickFromBag(areaId + g + '-' + stageNo, all, n, opts);   // 山札（v14.24）
       return picked.map(function (q) {
         return {
           id: areaId + g + '-' + stageNo + ':' + MQ.util.stripTags(q.text),
@@ -128,15 +224,15 @@ MQ.content = (function () {
       const writes = all.map(function (q) { return writeQuestion(q, areaId, stageNo, grade); }).filter(Boolean);
       if (!writes.length) return chooser(n, opts);
       if (opts && opts.boss) {
-        // ボスは むずかしい字を 書く
-        return MQ.util.shuffle(bossPool(writes)).slice(0, n).map(function (q) {
+        // ボスは むずかしい字を 書く（山札から・v14.24）
+        return pickFromBag(areaId + (grade || 3) + '-' + stageNo + ':w', writes, n, opts).map(function (q) {
           const c = Object.assign({}, q); c.lv = 3; delete c.boss; return c;
         });
       }
 
       // 半分は 書く問題、半分は えらぶ問題。まぜてから むずかしさの じゅんに ならべる
       const half = Math.max(1, Math.round(n / 2));
-      const w = pickByLevel(writes, half, opts).map(function (q) { const c = Object.assign({}, q); delete c.boss; return c; });
+      const w = pickFromBag(areaId + (grade || 3) + '-' + stageNo + ':w', writes, half, opts).map(function (q) { const c = Object.assign({}, q); delete c.boss; return c; });
       const c = chooser(n - w.length, opts);
       return MQ.util.shuffle(w.concat(c)).sort(function (a, b) { return levelOf(a) - levelOf(b); });
     };
@@ -964,7 +1060,8 @@ MQ.content = (function () {
     worlds: worlds, world: world, world3: world3, world1: world1, world2: world2, world4: world4, world5: world5, worldForGrade: worldForGrade,
     activeWorld: activeWorld, setActive: setActive, hasTower: hasTower,
     areaOf: areaOf, subjectAreas: subjectAreas, findStage: findStage, isUnlocked: isUnlocked,
-    isAvailable: isAvailable, lockedReason: lockedReason, MIN_POOL: MIN_POOL,
+    isAvailable: isAvailable, lockedReason: lockedReason, MIN_POOL: MIN_POOL, NEED_POOL: NEED_POOL,
+    qbag: { pick: pickFromBag, mem: memBags, borrow: withBorrowed },   // 山札（v14.24・テスト用）
     starsIn: starsIn, fragNeed: fragNeed, fragReady: fragReady, hasFrag: hasFrag,
     fragCount: fragCount, towerOpen: towerOpen, fragKey: fragKey,
     lastBoss: lastBoss, towerStageId: towerStageId, towerName: towerName, towerSubjects: towerSubjects,

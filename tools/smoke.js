@@ -5919,6 +5919,100 @@ function stripComments(src) {
     stories.reduce(function (a, st) { return a + st.scenes.length + st.chest.length + st.boss.length; }, 0) + '問）');
 })();
 
+/* =======================================================
+   v14.24 問題の 山札（リスト教科）＋ 学期で 足りない ときは 前の 単元から 借りる
+   ======================================================= */
+(function () {
+  const C = MQ.content;
+  check(C.qbag && typeof C.qbag.pick === 'function' && C.NEED_POOL === 18, 'v14.24: qbag と NEED_POOL 18');
+  function resetMem() { Object.keys(C.qbag.mem).forEach(function (k) { delete C.qbag.mem[k]; }); const p = MQ.terms.current(); if (p) p.qbag = {}; }
+  function oneBattle(st) {
+    const z = st.make(12, { boss: false }), c = st.make(1, { boss: false, lv: 2 }), b = st.make(5, { boss: true });
+    return { z: z.map(function (q) { return q.id; }), c: c.map(function (q) { return q.id; }), b: b.map(function (q) { return q.id; }) };
+  }
+  MQ.terms.forcePlayer(null);
+  // ① 50問の ステージ：2回 たたかっても 同じ 問題が 出ない（36問 ぜんぶ べつ）
+  ['eigo3-1', 'rikashakai3-1', 'kokugo3-3', 'shakai4-2'].forEach(function (id) {
+    const st = C.findStage(id).stage;
+    let dupAcross = 0, dupBoss = 0;
+    for (let t = 0; t < 10; t++) {
+      resetMem();
+      const seen = {};
+      for (let k = 0; k < 2; k++) {
+        const r = oneBattle(st);
+        // 同じ たたかいで ザコに 出た 問題が ボスに 出ない
+        r.b.forEach(function (x) { if (r.z.indexOf(x) !== -1 || r.c.indexOf(x) !== -1) dupBoss++; });
+        r.z.concat(r.c, r.b).forEach(function (x) { if (seen[x]) dupAcross++; seen[x] = 1; });
+      }
+    }
+    check(dupAcross === 0, 'v14.24: ' + id + ' は 2回の たたかいで 同じ 問題が 出ない（' + dupAcross + '）');
+    check(dupBoss === 0, 'v14.24: ' + id + ' ザコで 出た 問題が 同じ たたかいの ボスに 出ない（' + dupBoss + '）');
+  });
+  // ② 30問の ステージ（小6 理科）でも 1回めの たたかいは 17問 ぜんぶ べつ
+  (function () {
+    const st = C.findStage('rika6-1').stage;
+    let dup = 0;
+    for (let t = 0; t < 10; t++) { resetMem(); const r = oneBattle(st); const all = r.z.concat(r.c, r.b); const u = {}; all.forEach(function (x) { u[x] = 1; }); dup += all.length - Object.keys(u).length; }
+    check(dup === 0, 'v14.24: rika6-1（32問）でも 1回の たたかいの 中で 同じ 問題が 出ない（' + dup + '）');
+  })();
+  // ③ 使い切ったら つみ直す＝12問 かぶりなし・むずかしさの じゅんは まもる（60回）
+  (function () {
+    const st = C.findStage('eigo3-2').stage;
+    resetMem();
+    let bad = 0, order = 0;
+    for (let t = 0; t < 60; t++) {
+      const qs = st.make(12, { boss: false });
+      const u = {}; qs.forEach(function (q) { u[q.id] = 1; });
+      if (Object.keys(u).length !== 12) bad++;
+      if (!levelsNonDecreasing(qs)) order++;
+      st.make(5, { boss: true }).forEach(function (q) { if (q.lv !== 3) order++; });
+    }
+    check(bad === 0 && order === 0, 'v14.24: 山を つみ直しても 12問 かぶりなし・じゅんばん・ボス lv3（' + bad + '/' + order + '）');
+  })();
+  // ④ 山は セーブ（p.qbag）に のこる。学期の 設定が 変わって 問題の 数が 変われば 作り直す
+  (function () {
+    const p = { grade: 3, playGrade: 3, term: 0, units: {}, books: {} };
+    MQ.terms.forcePlayer(p);
+    const st = C.findStage('kokugo3-4').stage;
+    st.make(12, { boss: false });
+    const key = 'kokugo3-4';
+    check(p.qbag && p.qbag[key] && typeof p.qbag[key].sig === 'number', 'v14.24: 山が セーブ（p.qbag）に のこる');
+    const sig0 = p.qbag[key].sig;
+    const left0 = p.qbag[key]['1'].length + p.qbag[key]['2'].length + p.qbag[key]['3'].length;
+    check(left0 <= sig0 - 12, 'v14.24: 12問 引くと 山が へる（' + left0 + ' / ' + sig0 + '）');
+    p.term = 2;   // 2学期まで → 問題の 数が 変わる
+    st.make(12, { boss: false });
+    check(p.qbag[key].sig !== sig0, 'v14.24: 学期を 変えると 山を 作り直す（' + sig0 + ' → ' + p.qbag[key].sig + '）');
+    MQ.terms.forcePlayer(null);
+  })();
+  // ⑤ 学期で しぼって 足りない ステージは 前の 単元から 借りる（小3「ことばの 意味」は 2学期まで だと 14問 しか ない）
+  (function () {
+    const p = { grade: 3, playGrade: 3, term: 2, units: {}, books: {} };
+    MQ.terms.forcePlayer(p);
+    const own = MQ.kokugo3.questions.filter(function (q) { return q.stage === 4 && MQ.terms.allowQ(p, q, 3); });
+    check(own.length < 18, 'v14.24: 前提＝2学期の ことばの 意味は 18問 みまん（' + own.length + '）');
+    const all = C.qbag.borrow(own, function () { return MQ.kokugo3.questions; }, 4, 3);
+    check(all.length >= 18, 'v14.24: 借りて 18問 いじょう（' + all.length + '）');
+    check(all.every(function (q) { return q.stage <= 4 && MQ.terms.allowQ(p, q, 3); }), 'v14.24: 借りるのは 前の 単元の ならった 問題だけ');
+    const cnt = { 1: 0, 2: 0, 3: 0 }; all.forEach(function (q) { cnt[q.lv === 1 || q.lv === 3 ? q.lv : 2]++; });
+    check(cnt[1] >= 4 && cnt[2] >= 5 && cnt[3] >= 9, 'v14.24: むずかしさごとに 足りる（' + cnt[1] + '/' + cnt[2] + '/' + cnt[3] + '）');
+    // 1回の たたかいで 同じ 問題が 出ない（前は 17問中 へいきん 5問 ダブって いた）
+    const st = C.findStage('kokugo3-4').stage;
+    let dup = 0;
+    for (let t = 0; t < 20; t++) { delete p.qbag; const r = oneBattle(st); const a = r.z.concat(r.c, r.b); const u = {}; a.forEach(function (x) { u[x] = 1; }); dup += a.length - Object.keys(u).length; }
+    check(dup <= 4, 'v14.24: 2学期の ことばの 意味 20回で ダブり ' + dup + '問（前は 約100問）');
+    // 十分に ある ステージは 借りない
+    const own1 = MQ.kokugo3.questions.filter(function (q) { return q.stage === 1; });
+    check(C.qbag.borrow(own1, function () { return MQ.kokugo3.questions; }, 1, 3).length === own1.length, 'v14.24: 足りて いる ステージは 借りない');
+    MQ.terms.forcePlayer(null);
+  })();
+  // ⑥ 新しい セーブに qbag が ある
+  const SV = fs.readFileSync(base + '/js/core/save.js', 'utf8');
+  check(SV.indexOf('p.qbag = {}') > 0, 'v14.24: save.js の migrate で qbag を そろえる');
+  resetMem();
+  console.log('v14.24 問題の 山札 OK');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);
