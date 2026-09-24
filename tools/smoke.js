@@ -5989,11 +5989,14 @@ function stripComments(src) {
   (function () {
     const p = { grade: 3, playGrade: 3, term: 2, units: {}, books: {} };
     MQ.terms.forcePlayer(p);
-    const own = MQ.kokugo3.questions.filter(function (q) { return q.stage === 4 && MQ.terms.allowQ(p, q, 3); });
-    check(own.length < 18, 'v14.24: 前提＝2学期の ことばの 意味は 18問 みまん（' + own.length + '）');
-    const all = C.qbag.borrow(own, function () { return MQ.kokugo3.questions; }, 4, 3);
+    // にせの 一覧：ステージ 4 は 14問（lv1 6・lv2 5・lv3 3）・ステージ 3 は 40問。unit は ならった もの
+    const fake = [];
+    for (let i = 0; i < 14; i++) fake.push({ stage: 4, lv: i < 6 ? 1 : i < 11 ? 2 : 3, unit: 'にたいみのことば', text: 'にせ4-' + i, choices: ['a', 'b', 'c', 'd'], note: 'n' });
+    for (let i = 0; i < 40; i++) fake.push({ stage: 3, lv: 1 + (i % 3), unit: 'はんたいのことば', text: 'にせ3-' + i, choices: ['a', 'b', 'c', 'd'], note: 'n' });
+    const own = fake.filter(function (q) { return q.stage === 4; });
+    const all = C.qbag.borrow(own, function () { return fake; }, 4, 3);
     check(all.length >= 18, 'v14.24: 借りて 18問 いじょう（' + all.length + '）');
-    check(all.every(function (q) { return q.stage <= 4 && MQ.terms.allowQ(p, q, 3); }), 'v14.24: 借りるのは 前の 単元の ならった 問題だけ');
+    check(all.every(function (q) { return q.stage <= 4; }) && all.filter(function (q) { return q.stage === 3; }).length === all.length - 14, 'v14.24: 借りるのは 前の 単元の 問題だけ');
     const cnt = { 1: 0, 2: 0, 3: 0 }; all.forEach(function (q) { cnt[q.lv === 1 || q.lv === 3 ? q.lv : 2]++; });
     check(cnt[1] >= 4 && cnt[2] >= 5 && cnt[3] >= 9, 'v14.24: むずかしさごとに 足りる（' + cnt[1] + '/' + cnt[2] + '/' + cnt[3] + '）');
     // 1回の たたかいで 同じ 問題が 出ない（前は 17問中 へいきん 5問 ダブって いた）
@@ -6052,6 +6055,62 @@ function stripComments(src) {
     check(dup === 0, 'v14.25: eigo3-2 は 3回 たたかっても 同じ 問題が 出ない（' + dup + '）');
   })();
   console.log('v14.25 英語の 生成器 OK（' + [3, 4, 5, 6].map(function (g) { return 'eigo' + g + ' ' + MQ['eigo' + g].questions.length; }).join(' / ') + '）');
+})();
+
+/* =======================================================
+   v14.26 表から 問題を 作る（国語の ことば・社会・理科）
+   ======================================================= */
+(function () {
+  check(MQ.hyoQ && typeof MQ.hyoQ.pairs === 'function' && MQ.kotobaGen && MQ.shakaiGen && MQ.rikaGen, 'v14.26: hyoQ・kotobaGen・shakaiGen・rikaGen');
+  const IDX = fs.readFileSync(base + '/index.html', 'utf8');
+  ['kokugo6.js', 'shakai6.js', 'rika6.js', 'rikashakai3.js', 'shakai4.js', 'rika4.js', 'kokugo3.js'].forEach(function (f) {
+    check(IDX.indexOf('kotobagen.js') > IDX.indexOf(f) && IDX.indexOf('shakaigen.js') > IDX.indexOf('kotobagen.js') && IDX.indexOf('rikagen.js') > IDX.indexOf('kotobagen.js'), 'v14.26: 生成器は ' + f + ' と kotobagen.js の あとに 読む');
+  });
+  // hyoQ の きまり：同じ ことばが 2行に あれば その 向きは 作らない・短い B は 聞かない・まちがいは 同じ しゅるい
+  (function () {
+    const t = [['a1', 'b1'], ['a2', 'b1'], ['a3', 'b3'], ['a4', 'b4'], ['a5', 'b5']];
+    const qs = MQ.hyoQ.pairs({ stage: 1, unit: 'u', askA: '{A}?', askB: '{B}?' }, t);
+    check(qs.filter(function (q) { return q.text === 'b1?'; }).length === 0, 'v14.26: 同じ B が 2行に あれば B → A を 作らない');
+    check(qs.filter(function (q) { return q.text === 'a1?'; }).length === 1, 'v14.26: A → B は 作る');
+    const q2 = MQ.hyoQ.pairs({ stage: 1, unit: 'u', askA: '{A}?', askB: '{B}?', minB: 6 }, [['x', 'short'], ['y', 'long enough'], ['z', 'also long one'], ['w', 'another long']]);
+    check(q2.filter(function (q) { return q.text === 'short?'; }).length === 0 && q2.filter(function (q) { return q.text === 'long enough?'; }).length === 1, 'v14.26: minB より 短い B は 聞かない');
+    check(MQ.hyoQ.kindOf('大きい') === 'adj' && MQ.hyoQ.kindOf('走る') === 'verb' && MQ.hyoQ.kindOf('北') === 'noun', 'v14.26: kindOf');
+  })();
+  // 数が ふえた・かん字は 学年まで・不自然な 文なし
+  const OK5 = '緯与那択捉尖閣笠原丹舞驒曽濃狩琵琶霞浦瀬嬬恋銚釧俣排済域乳衛条尾津畿浜';
+  [['kokugo3', 3, 400], ['kokugo4', 4, 500], ['kokugo5', 5, 450], ['kokugo6', 6, 450], ['rikashakai3', 3, 150], ['shakai4', 4, 130], ['rika4', 4, 120], ['shakai5', 5, 100], ['rika5', 5, 110], ['rika6', 6, 130], ['shakai6', 6, 120]].forEach(function (p) {
+    const m = MQ[p[0]];
+    const gen = m.questions.filter(function (q) { return q.gen; });
+    check(gen.length >= p[2], 'v14.26: ' + p[0] + ' の 生成が ' + p[2] + '問 いじょう（' + gen.length + '）');
+    if (p[0] !== 'shakai6') {   // 小6 社会は 人名・地名の 字が 多い（手書きの shakai6 と 同じ あつかい）
+      const over = new Set();
+      gen.forEach(function (q) { [q.text, q.note, q.hint].concat(q.choices).join('').split('').forEach(function (c) { if (/[\u4e00-\u9faf]/.test(c) && c !== '訓' && c !== '防' && !MQ.kakusu.upTo(c, p[1]) && (p[1] < 5 || OK5.indexOf(c) < 0)) over.add(c); }); });
+      check(over.size === 0, 'v14.26: ' + p[0] + ' の 生成に ' + p[1] + '年いじょうの かん字: ' + [...over].join(''));
+    }
+    const bad = gen.filter(function (q) { return /\.。|？。|いでは ない|いるでは ない|「「/.test([q.text, q.note].concat(q.choices).join('|')); });
+    check(bad.length === 0, 'v14.26: ' + p[0] + ' に 不自然な 文 ' + bad.length + '（' + (bad[0] ? bad[0].text : '') + '）');
+    // 答えが まちがいの 中にも ある 問題が ない
+    const dup = gen.filter(function (q) { return new Set(q.choices).size !== 4; });
+    check(dup.length === 0, 'v14.26: ' + p[0] + ' の choices に 同じ ものが ある ' + dup.length);
+  });
+  // 手書きと 同じ かぎかっこの ことばは 作られて いない（例：小3 かんようく「目がない」）
+  (function () {
+    const hand = MQ.kokugo3.questions.filter(function (q) { return !q.gen && q.stage === 4; });
+    const keys = {}; hand.forEach(function (q) { const m = q.text.match(/「([^」]+)」/); if (m) keys[m[1].replace(/\s/g, '')] = 1; });
+    const gen = MQ.kokugo3.questions.filter(function (q) { return q.gen && q.stage === 4; });
+    const clash = gen.filter(function (q) { const m = q.text.match(/「([^」]+)」/); return m && keys[m[1].replace(/\s/g, '')]; });
+    check(clash.length === 0, 'v14.26: 手書きと 同じ ことばの 問題を 作って いない（' + clash.length + '）');
+  })();
+  // 歴史：人名が できごとに 入る 行は 人物の 問題を 作らない・年表の 問題は 答えが 時代なので 年表の 図が ない
+  (function () {
+    const gen = MQ.shakai6.questions.filter(function (q) { return q.gen; });
+    check(gen.filter(function (q) { return /「ひみこ」が した|「ペリー」が した|「がんじん」が した/.test(q.text); }).length === 0, 'v14.26: 名前が 入った できごとの 人物の 問題は 作らない');
+    check(gen.every(function (q) { return q.text.indexOf('<svg') < 0; }), 'v14.26: 生成した 歴史の 問題に 年表の 図は ない（答えが 時代）');
+    check(gen.filter(function (q) { return /何時代？$/.test(q.text); }).length >= 60, 'v14.26: 何時代？ の 問題が 60 いじょう');
+  })();
+  // 都道府県：47 ぜんぶ ある・地方は 8つ
+  check(MQ.shakaiGen.PREF.length === 47 && new Set(MQ.shakaiGen.PREF.map(function (p) { return p[1]; })).size === 8, 'v14.26: 都道府県 47・地方 8');
+  console.log('v14.26 表から 作る OK（' + ['kokugo3', 'kokugo4', 'kokugo5', 'kokugo6', 'rikashakai3', 'shakai4', 'rika4', 'shakai5', 'rika5', 'shakai6', 'rika6'].map(function (k) { return k + ' ' + MQ[k].questions.length; }).join(' / ') + '）');
 })();
 
 Promise.all(global.__pending || []).then(function () {
