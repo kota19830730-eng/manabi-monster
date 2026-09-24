@@ -691,7 +691,11 @@ MQ.content = (function () {
           { id: 'kokugo4-2', no: 2, name: 'かん字を 書く', available: true, pool: listPool(kokugo4, 2, 4),
             make: writeMixStage(kokugo4, 'kokugo', 2, 4) },
           stage('kokugo', 3, 'ことばの きまり', kokugo4, 4),
-          stage('kokugo', 4, 'ことばの 意味', kokugo4, 4)
+          stage('kokugo', 4, 'ことばの 意味', kokugo4, 4),
+          /* 読解（v14.28・小4）：物語 4本＋説明文 2本。story: true の きまりは 小3と 同じ */
+          { id: 'kokugo4-5', no: 5, name: '物語と 説明文を 読む', available: true, story: true,
+            pool: function () { return MQ.dokkai4.pool(); },
+            make: function (n, opts) { return MQ.dokkai4.make(n, opts); } }
         ]
       },
       /* 小4から 理科と 社会は べつの エリア（ユーザー決定 2026-09-02・v4.6） */
@@ -774,7 +778,11 @@ MQ.content = (function () {
           { id: 'kokugo5-2', no: 2, name: 'かん字を 書く', available: true, pool: listPool(kokugo5, 2, 5),
             make: writeMixStage(kokugo5, 'kokugo', 2, 5) },
           stage('kokugo', 3, 'ことばの きまり', kokugo5, 5),
-          stage('kokugo', 4, 'ことばの 意味', kokugo5, 5)
+          stage('kokugo', 4, 'ことばの 意味', kokugo5, 5),
+          /* 読解（v14.28・小5）：物語 4本＋説明文 2本。story: true の きまりは 小3と 同じ */
+          { id: 'kokugo5-5', no: 5, name: '物語と 説明文を 読む', available: true, story: true,
+            pool: function () { return MQ.dokkai5.pool(); },
+            make: function (n, opts) { return MQ.dokkai5.make(n, opts); } }
         ]
       },
       /* 小5 理科・社会（v6.7） */
@@ -852,7 +860,11 @@ MQ.content = (function () {
           { id: 'kokugo6-2', no: 2, name: 'かん字を 書く', available: true, pool: listPool(kokugo6, 2, 6),
             make: writeMixStage(kokugo6, 'kokugo', 2, 6) },
           stage('kokugo', 3, 'ことばの きまり', kokugo6, 6),
-          stage('kokugo', 4, 'ことばの 意味', kokugo6, 6)
+          stage('kokugo', 4, 'ことばの 意味', kokugo6, 6),
+          /* 読解（v14.28・小6）：物語 4本＋説明文 2本。story: true の きまりは 小3と 同じ */
+          { id: 'kokugo6-5', no: 5, name: '物語と 説明文を 読む', available: true, story: true,
+            pool: function () { return MQ.dokkai6.pool(); },
+            make: function (n, opts) { return MQ.dokkai6.make(n, opts); } }
         ]
       },
       /* 小6 理科・社会（v10.8） */

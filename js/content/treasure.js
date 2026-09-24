@@ -140,6 +140,7 @@ MQ.treasure = (function () {
     { stage: 'kokugo4-2', id: 'tr4-kaki',    name: '書きの まきもの',        shape: 'scroll',    colors: c('#3E9A6B', '#1E5A3C') },
     { stage: 'kokugo4-3', id: 'tr4-kotoba',  name: 'ことばの らしんばん',    shape: 'compass',   colors: c('#8A6BD8', '#4A2F8A') },
     { stage: 'kokugo4-4', id: 'tr4-imi',     name: '意味の ももいし',        shape: 'gem',       colors: c('#FF6B9A', '#A8244F') },
+    { stage: 'kokugo4-5', id: 'tr4-dokkai',  name: '物語の まきもの',        shape: 'scroll',    colors: c('#F5C36B', '#A8742A') },
 
     /* ---- 小4 理科の山（4）・社会の町（4）（v4.6） ---- */
     { stage: 'rika4-1',   id: 'tr4-tenki',   name: '天気の はね',            shape: 'feather',   colors: c('#8FD3FF', '#3E7FB0') },
@@ -180,6 +181,7 @@ MQ.treasure = (function () {
     { stage: 'kokugo5-2', id: 'tr5-kaki',    name: '書きの まきもの',        shape: 'scroll',    colors: c('#D8B889', '#8A5A2B') },
     { stage: 'kokugo5-3', id: 'tr5-keigo',   name: '敬語の すず',            shape: 'bell',      colors: c('#C0A060', '#7A5326') },
     { stage: 'kokugo5-4', id: 'tr5-kotoba',  name: 'ことばの むらさきいし',  shape: 'gem',       colors: c('#A96BE0', '#5A2D8A') },
+    { stage: 'kokugo5-5', id: 'tr5-dokkai',  name: '氷の 物語の まきもの',   shape: 'scroll',    colors: c('#9AD8F5', '#3E7FB0') },
     /* ---- 小5 理科・社会（v6.7・8） ---- */
     { stage: 'rika5-1',   id: 'tr5-tenki',   name: '天気の はね',            shape: 'feather',   colors: c('#8FD3FF', '#3E7FB0') },
     { stage: 'rika5-2',   id: 'tr5-medaka',  name: 'メダカの しずく',        shape: 'potion',    colors: c('#6FD3FF', '#2E7FB0') },
@@ -216,6 +218,7 @@ MQ.treasure = (function () {
     { stage: 'kokugo6-2', id: 'tr6-kaki', name: 'やみの 書きの まきもの', shape: 'scroll', colors: c('#A96BE0', '#5A2D8A') },
     { stage: 'kokugo6-3', id: 'tr6-kimari', name: '熟語の 玉', shape: 'orb', colors: c('#8FD3FF', '#3E7FB0') },
     { stage: 'kokugo6-4', id: 'tr6-imi', name: 'ことわざの 王かん', shape: 'crown', colors: c('#F2C14E', '#B8860B') },
+    { stage: 'kokugo6-5', id: 'tr6-dokkai', name: 'やみの 物語の まきもの', shape: 'scroll', colors: c('#8A6BD8', '#3A2570') },
     { stage: 'rika6-1', id: 'tr6-moe', name: 'ほのおの しずく', shape: 'potion', colors: c('#FF8A5A', '#A83A1A') },
     { stage: 'rika6-2', id: 'tr6-shoku', name: '植物の はね', shape: 'feather', colors: c('#4CD164', '#1E7A3C') },
     { stage: 'rika6-3', id: 'tr6-tsuki', name: '月の 水しょう', shape: 'gem', colors: c('#E8F1F7', '#9FB0C4') },

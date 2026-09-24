@@ -466,7 +466,7 @@ check(MQ.kokugo1.kotoba.length >= 140 && MQ.kokugo2.kotoba.length >= 100, 'こ�
   });
   // ステージから 出して みる
   const w4k = MQ.content.world('g4').areas.filter(function (a) { return a.id === 'kokugo'; })[0];
-  check(!!w4k && w4k.stages.length === 4, '小4の 国語の森は 4ステージ');
+  check(!!w4k && w4k.stages.length === 5, '小4の 国語の森は 5ステージ（読解 v14.28）');
   MQ.terms.forcePlayer({ grade: 4, term: 0, units: {} });
   w4k.stages.forEach(function (st) {
     const twelve = st.make(12);
@@ -512,7 +512,7 @@ check(MQ.kokugo1.kotoba.length >= 140 && MQ.kokugo2.kotoba.length >= 100, 'こ�
     check(boss >= 4, 'kokugo5-' + st + ' の ボス候補: ' + boss);
   });
   const w5k = MQ.content.world('g5').areas.filter(function (a) { return a.id === 'kokugo'; })[0];
-  check(!!w5k && w5k.stages.length === 4, '小5の 国語の森は 4ステージ');
+  check(!!w5k && w5k.stages.length === 5, '小5の 国語の森は 5ステージ（読解 v14.28）');
   MQ.terms.forcePlayer({ grade: 5, term: 0, units: {} });
   MQ.content.setActive(MQ.content.world('g5'));
   w5k.stages.forEach(function (st) {
@@ -1093,8 +1093,8 @@ check(MQ.hero.titles.some(function (t) { return t.id === 't-obake'; }) && MQ.her
 })();
 
 /* ---- たからもの ---- */
-check(MQ.treasure.total() === 171, 'たからもの 171個（小3 33＋小1 19＋小2 20＋小4 32＋小5 35＋小6 32）: ' + MQ.treasure.total());
-check(MQ.treasure.listFor(w3).length === 33 && MQ.treasure.listFor(w1).length === 19 && MQ.treasure.listFor(w2).length === 20 && MQ.treasure.listFor(w4).length === 32 && MQ.treasure.listFor(MQ.content.world('g5')).length === 35, 'listFor: 小3 33・小1 19・小2 20・小4 32・小5 35');
+check(MQ.treasure.total() === 174, 'たからもの 174個（小3 33＋小1 19＋小2 20＋小4 33＋小5 36＋小6 33）: ' + MQ.treasure.total());
+check(MQ.treasure.listFor(w3).length === 33 && MQ.treasure.listFor(w1).length === 19 && MQ.treasure.listFor(w2).length === 20 && MQ.treasure.listFor(w4).length === 33 && MQ.treasure.listFor(MQ.content.world('g5')).length === 36, 'listFor: 小3 33・小1 19・小2 20・小4 33・小5 36');
 [w3, w1, w2, w4].forEach(function (wld) {
   wld.areas.forEach(function (a) {
     a.stages.forEach(function (st) { check(!!MQ.treasure.forStage(st.id), 'たからもの なし: ' + st.id); });
@@ -1954,7 +1954,7 @@ check(MQ.content.towerOpen(MQ.save.current()) === true, 'かけら4つで 塔が
   });
   const want = {
     burst: 19, shield: 15, freeze: 7, guide: 14, golden: 12, chest: 10, power: 17, charge: 13,
-    bond: 12, rush: 16, find: 13, swift: 12, elixir: 11   // v11.0 で 小6の たからもの 32・v14.13 で ものがたりの まきもの・v14.27 で 小1・小2の おはなしの まきもの
+    bond: 12, rush: 19, find: 13, swift: 12, elixir: 11   // v11.0 で 小6の たからもの 32・v14.13 で ものがたりの まきもの・v14.27 で 小1・小2・v14.28 で 小4〜小6の まきもの
   };
   Object.keys(want).forEach(function (k) { check(perPower[k] === want[k], 'わざ ' + k + ' は ' + want[k] + '個: ' + perPower[k]); });
   MQ.treasure.powers.forEach(function (p) {
@@ -2856,7 +2856,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   const en = T.entries(3);
   check(en.length >= 60, '小3の 単元一覧: ' + en.length);
   check(en.filter(function (e) { return e.kind === 'stage' && e.area === 'sansu'; }).length === 18, '算数の 単元は 18');
-  check(T.entries(1).length === 17 && T.entries(2).length === 18, '小1・小2の 単元一覧: ' + T.entries(1).length + ' / ' + T.entries(2).length);
+  check(T.entries(1).length === 18 && T.entries(2).length === 19, '小1・小2の 単元一覧（読解 v14.27 いり）: ' + T.entries(1).length + ' / ' + T.entries(2).length);
   // 古い セーブ
   T.forcePlayer(null);
   MQ.content.setActive(null);
@@ -6114,28 +6114,32 @@ function stripComments(src) {
 })();
 
 /* =======================================================
-   v14.27 読解を 小1・小2 に（dokkai.js の しくみ ＋ dokkai1.js・dokkai2.js）
+   v14.27 読解を 小1・小2 に（dokkai.js の しくみ ＋ dokkai1.js・dokkai2.js）／v14.28 小4〜小6（物語 4＋説明文 2）
    ======================================================= */
 (function () {
   check(MQ.dokkaiEngine && typeof MQ.dokkaiEngine.create === 'function', 'v14.27: MQ.dokkaiEngine');
   const IDX = fs.readFileSync(base + '/index.html', 'utf8');
-  check(IDX.indexOf('dokkai.js') < IDX.indexOf('dokkai3.js') && IDX.indexOf('dokkai1.js') > IDX.indexOf('dokkai.js') && IDX.indexOf('dokkai2.js') > IDX.indexOf('dokkai.js'), 'v14.27: dokkai.js は dokkai1/2/3.js より 前');
+  check(IDX.indexOf('dokkai.js') < IDX.indexOf('dokkai3.js') && [1, 2, 4, 5, 6].every(function (g) { return IDX.indexOf('dokkai' + g + '.js') > IDX.indexOf('dokkai.js'); }), 'v14.27: dokkai.js は dokkai1〜6.js より 前');
   // 小3 は しくみを 切り出しても 同じ（id は dokkai: の まま・山は p.dokkai）
   check(MQ.dokkai3.saveKey === 'dokkai' && MQ.dokkai3.make(12, { boss: false })[0].id.indexOf('dokkai:') === 0, 'v14.27: 小3の id と 山の 名前は むかしの まま');
-  [[1, MQ.dokkai1, 'kokugo1-6'], [2, MQ.dokkai2, 'kokugo2-5']].forEach(function (p) {
+  [[1, MQ.dokkai1, 'kokugo1-6'], [2, MQ.dokkai2, 'kokugo2-5'], [4, MQ.dokkai4, 'kokugo4-5'], [5, MQ.dokkai5, 'kokugo5-5'], [6, MQ.dokkai6, 'kokugo6-5']].forEach(function (p) {
     const g = p[0], D = p[1], sid = p[2];
     check(D && D.stories.length >= 6, 'v14.27: 小' + g + ' の お話が 6本 いじょう（' + (D ? D.stories.length : 0) + '）');
     const found = MQ.content.findStage(sid);
     check(!!found && found.stage.story === true && found.stage.pool() >= 12, 'v14.27: ' + sid + ' が あり story: true・12問 いじょう');
-    check(found && found.stage.name === 'おはなしを よむ', 'v14.27: ' + sid + ' の 名前は ひらがな');
-    check(!!MQ.treasure.byStage && true || true, '');
+    check(found && found.stage.name === (g <= 2 ? 'おはなしを よむ' : '物語と 説明文を 読む'), 'v14.27: ' + sid + ' の 名前');
+    check(!!MQ.treasure.forStage(sid), 'v14.28: ' + sid + ' の たからもの');
+    check(MQ.terms.stageTerm(sid, null) >= 1, 'v14.28: ' + sid + ' が 学期の 表に ある');
+    // 小4〜小6は 説明文が 2本 いじょう（ユーザー 2026-09-24「高学年は 説明文も」）
+    if (g >= 4) check(D.stories.filter(function (st) { return st.kind === 'setsumei'; }).length >= 2, 'v14.28: 小' + g + ' に 説明文が 2本 いじょう');
     // 形：場面 12・たからばこ 3・ボス 6・choices 4つ ぜんぶ ちがう
     let bad = 0;
     D.stories.forEach(function (st) { if (st.scenes.length !== 12 || st.chest.length < 3 || st.boss.length < 6) bad++; st.scenes.concat(st.chest, st.boss).forEach(function (x) { if (!x.text || !x.note || new Set(x.choices).size !== 4) bad++; }); });
     check(bad === 0, 'v14.27: 小' + g + ' の お話の 形（' + bad + '）');
-    // かん字：小1は ぜんぶ かな・小2は 小1の 字まで
+    // かん字：小1は ぜんぶ かな・小2は 小1の 字まで・小4〜6は その 学年まで
+    const kg = g === 2 ? 1 : g;
     const over = new Set();
-    D.stories.forEach(function (st) { [st.title].concat(st.scenes.concat(st.chest, st.boss).map(function (x) { return [x.t, x.text, x.hint, x.note].concat(x.choices).join(''); })).join('').split('').forEach(function (c) { if (/[\u4e00-\u9faf]/.test(c) && (g === 1 || !MQ.kakusu.upTo(c, 1))) over.add(c); }); });
+    D.stories.forEach(function (st) { [st.title].concat(st.scenes.concat(st.chest, st.boss).map(function (x) { return [x.t, x.text, x.hint, x.note].concat(x.choices).join(''); })).join('').split('').forEach(function (c) { if (/[\u4e00-\u9faf]/.test(c) && (g === 1 || !MQ.kakusu.upTo(c, kg))) over.add(c); }); });
     check(over.size === 0, 'v14.27: 小' + g + ' の お話の かん字（' + [...over].join('') + '）');
     // 1回の たたかい＝12場面が じゅんに・ボスは お話 ぜんぶ・トランプ方式で 6回で 6本
     const pl = {};
@@ -6153,8 +6157,8 @@ function stripComments(src) {
     check(Array.isArray(pl[D.saveKey].bag), 'v14.27: 小' + g + ' の 山は p.' + D.saveKey);
   });
   const SV = fs.readFileSync(base + '/js/core/save.js', 'utf8');
-  check(SV.indexOf('MQ.dokkai1.ensure') > 0 && SV.indexOf('MQ.dokkai2.ensure') > 0, 'v14.27: save.js の migrate で 小1・小2 の 山を そろえる');
-  console.log('v14.27 読解 小1・小2 OK（小1 ' + MQ.dokkai1.stories.length + '本 / 小2 ' + MQ.dokkai2.stories.length + '本）');
+  check([1, 2, 4, 5, 6].every(function (g) { return SV.indexOf('MQ.dokkai' + g + '.ensure') > 0; }), 'v14.27: save.js の migrate で 小1・小2・小4〜小6 の 山を そろえる');
+  console.log('v14.27/28 読解 OK（' + [1, 2, 3, 4, 5, 6].map(function (g) { return '小' + g + ' ' + MQ['dokkai' + g].stories.length + '本'; }).join(' / ') + '）');
 })();
 
 Promise.all(global.__pending || []).then(function () {

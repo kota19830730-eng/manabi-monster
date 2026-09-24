@@ -209,6 +209,9 @@ MQ.save = (function () {
     if (MQ.dokkai3 && MQ.dokkai3.ensure) MQ.dokkai3.ensure(p);
     if (MQ.dokkai1 && MQ.dokkai1.ensure) MQ.dokkai1.ensure(p);   // 読解 小1・小2（v14.27）
     if (MQ.dokkai2 && MQ.dokkai2.ensure) MQ.dokkai2.ensure(p);
+    if (MQ.dokkai4 && MQ.dokkai4.ensure) MQ.dokkai4.ensure(p);   // 読解 小4〜小6（v14.28）
+    if (MQ.dokkai5 && MQ.dokkai5.ensure) MQ.dokkai5.ensure(p);
+    if (MQ.dokkai6 && MQ.dokkai6.ensure) MQ.dokkai6.ensure(p);
     // 問題の 山札（v14.24）：ステージごとの のこり。形が おかしければ 作り直す（中身は world3.js が sig で 見る）
     if (!p.qbag || typeof p.qbag !== 'object' || Array.isArray(p.qbag)) p.qbag = {};
     if (typeof p.weekendOff !== 'boolean') p.weekendOff = false;
