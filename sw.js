@@ -6,7 +6,7 @@
    ※ファイルを 増やしたら FILES にも 足してください。
    --------------------------------------------------------- */
 
-const CACHE_NAME = 'manabi-monster-v197';
+const CACHE_NAME = 'manabi-monster-v198';
 
 /* フォントの キャッシュ（v7.9）
    書体は Google（fonts.googleapis.com / fonts.gstatic.com）から 読んで いる。
@@ -160,6 +160,7 @@ const FILES = [
   './assets/rekishi/yoshimitsu.jpg',
   './js/content/rikashakai3.js',
   './js/content/eigo3.js',
+  './js/content/eigogen.js',
   './js/content/romaji3.js',
   './js/content/textbooks.js',
   './js/content/terms.js',

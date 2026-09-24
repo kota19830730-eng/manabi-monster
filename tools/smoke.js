@@ -6013,6 +6013,47 @@ function stripComments(src) {
   console.log('v14.24 問題の 山札 OK');
 })();
 
+/* =======================================================
+   v14.25 英語の 問題を 表 × 文型 から 作る（eigogen.js）
+   ======================================================= */
+(function () {
+  check(MQ.eigoGen && typeof MQ.eigoGen.make === 'function', 'v14.25: MQ.eigoGen');
+  const IDX = fs.readFileSync(base + '/index.html', 'utf8');
+  check(IDX.indexOf('eigogen.js') > IDX.indexOf('eigo3.js') && IDX.indexOf('eigogen.js') > IDX.indexOf('eigo6.js'), 'v14.25: eigogen.js は eigo3〜6.js の あとに 読む');
+  [3, 4, 5, 6].forEach(function (g) {
+    const mod = MQ['eigo' + g];
+    const gen = mod.questions.filter(function (q) { return q.gen; });
+    check(gen.length >= 400, 'v14.25: eigo' + g + ' の 生成が 400問 いじょう（' + gen.length + '）');
+    const by = {};
+    mod.questions.forEach(function (q) { by[q.stage] = (by[q.stage] || 0) + 1; });
+    Object.keys(by).forEach(function (s) { check(by[s] >= 90, 'v14.25: eigo' + g + '-' + s + ' は 90問 いじょう（' + by[s] + '）'); });
+    // かん字は その 学年まで（text・choices・note）
+    const over = new Set();
+    gen.forEach(function (q) { [q.text, q.note].concat(q.choices).join('').split('').forEach(function (c) { if (/[\u4e00-\u9faf]/.test(c) && c !== '英' && !MQ.kakusu.upTo(c, g)) over.add(c); }); });   // 英（英語）は 手書きの eigo3 と 同じく ゆるす
+    check(over.size === 0, 'v14.25: eigo' + g + ' の 生成に ' + g + '年いじょうの かん字: ' + [...over].join(''));
+    // 不自然な 文が ない（'..'・'.。'・'では ない' が 形容詞に）
+    const bad = gen.filter(function (q) { return /\.\.|\.。|\?。|？。|いでは ない|いるでは ない/.test([q.text, q.note].concat(q.choices).join('|')); });
+    check(bad.length === 0, 'v14.25: eigo' + g + ' に 不自然な 文 ' + bad.length + '（' + (bad[0] ? bad[0].text : '') + '）');
+    // 英文は 大文字で 始まる
+    const low = gen.filter(function (q) { return /^"[a-z][^"]*[.?]"/.test(q.text) && !/^"the U./.test(q.text); });   // "the U.S.A." は 単語
+    check(low.length === 0, 'v14.25: eigo' + g + ' の 文が 小文字で 始まる ' + low.length);
+    // unit は 手書きの 問題と 同じ 文字（学期の 表に ある）
+    const units = {}; mod.questions.filter(function (q) { return !q.gen; }).forEach(function (q) { units[q.unit] = 1; });
+    const nu = gen.filter(function (q) { return !units[q.unit]; });
+    check(nu.length === 0, 'v14.25: eigo' + g + ' の 生成の unit が 手書きに ない: ' + (nu[0] ? nu[0].unit : ''));
+  });
+  // 3回 たたかっても ダブらない（山札 ＋ 数が ふえた）
+  (function () {
+    const C = MQ.content;
+    Object.keys(C.qbag.mem).forEach(function (k) { delete C.qbag.mem[k]; }); const pp = MQ.terms.current(); if (pp) pp.qbag = {};
+    const st = C.findStage('eigo3-2').stage;
+    const seen = {}; let dup = 0;
+    for (let b = 0; b < 3; b++) { st.make(12, { boss: false }).concat(st.make(1, { boss: false, lv: 2 }), st.make(5, { boss: true })).forEach(function (q) { if (seen[q.id]) dup++; seen[q.id] = 1; }); }
+    check(dup === 0, 'v14.25: eigo3-2 は 3回 たたかっても 同じ 問題が 出ない（' + dup + '）');
+  })();
+  console.log('v14.25 英語の 生成器 OK（' + [3, 4, 5, 6].map(function (g) { return 'eigo' + g + ' ' + MQ['eigo' + g].questions.length; }).join(' / ') + '）');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);
