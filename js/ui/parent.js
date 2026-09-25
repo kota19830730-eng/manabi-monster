@@ -474,6 +474,7 @@ MQ.ui.parent = (function () {
     const main = [];
     const wrapSec = function (node) { return node ? h('div', { class: 'pp-card pp-pad pp-legacy' }, [node]) : null; };
     main.push(wrapSec(S.words(p)));
+    if (S.read) main.push(wrapSec(S.read(p)));
     main.push(wrapSec(S.terms(p)));
     main.push(wrapSec(S.fever(p)));
     main.push(wrapSec(S.judge()));

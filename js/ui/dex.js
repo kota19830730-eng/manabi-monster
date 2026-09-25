@@ -777,6 +777,28 @@ MQ.ui.dex = (function () {
     ]);
   }
 
+  /* v14.34：問題文の よみあげ（算数・理科・社会）。auto＝小3まで */
+  function readSection(player) {
+    if (!MQ.speech) return null;
+    const cur = player.readJa === 'on' || player.readJa === 'off' ? player.readJa : 'auto';
+    const g = player.grade || 3;
+    return h('div', { class: 'readblk' }, [
+      h('h3', { class: 'ulist__name', text: '問題文の よみあげ' }),
+      h('p', { class: 'note', text: '算数・理科・社会の 問題カードに「きく」ボタンが 出て、問題文を 声で 読みます。長い 文を 読むのが にがてな 子の たすけに なります。国語（かん字の 読みが 答えに なる）と 英語（前から 英語の 声）は この せっていと 関係 ありません。声が 入って いない 端末や、子どもの せっていで「よみあげ」を 切って いる ときは 出ません。' }),
+      h('div', { class: 'termrow' }, [['auto', '自動（小3まで）' + (g <= 3 ? '＝いま つく' : '＝いま なし')], ['on', 'つける'], ['off', 'なし']].map(function (t) {
+        return h('button', {
+          class: 'chip' + (cur === t[0] ? ' is-on' : ''), type: 'button', text: t[1],
+          onclick: function () {
+            MQ.sfx.tap();
+            MQ.save.update(function (pl) { pl.readJa = t[0]; });
+            MQ.ui.toast(MQ.speech.readJaOn(MQ.save.current()) ? '問題文を 読みあげます' : '問題文の よみあげを なしに しました');
+            render('parent');
+          }
+        });
+      }))
+    ]);
+  }
+
   function previewBlock(player) {
     const on = player.previewOk !== false;
     return h('div', { class: 'previewblk' }, [
@@ -1230,6 +1252,6 @@ MQ.ui.dex = (function () {
   return {
     render: render, pick: pick,
     // おうちの人ページ（js/ui/parent.js）が つかう 設定の 部品（v7.3）
-    sections: { terms: termsSection, fever: feverSection, judge: judgeSection, ai: aiSection, records: recordsSection, capsule: capsuleSection, words: wordsSection }
+    sections: { terms: termsSection, fever: feverSection, judge: judgeSection, read: readSection, ai: aiSection, records: recordsSection, capsule: capsuleSection, words: wordsSection }
   };
 })();

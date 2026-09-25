@@ -169,8 +169,28 @@ MQ.speech = (function () {
       if (!jp || hasKanji(jp)) return null;
       return { text: jp, lang: 'ja', label: 'きく' };
     }
+    // ③ v14.34：小2いじょうの 算数・理科・社会の 問題文（おうちの人ページの「問題文の よみあげ」）。
+    //    ユーザー「読み上げを 小2〜小3にも」＝ 長い 文を 読むのが にがてな 子の ため。
+    //    国語は 読まない（かん字の 読みが そのまま 答えに なる）。漢数字の 問題も 読まない（読みが 答え）。
+    //    text は 画面がわが 図・表・とけいを のぞいて わたす。分数（.frac）の 入った 問題は 画面がわが 空に する。
+    if (o.readJa && JA_AREA.test(area) && !q.story && q.type !== 'roma' && q.type !== 'write' && !NO_JA_UNIT.test(q.unit || '')) {
+      const jp = String(o.text != null ? o.text : plain(q.prompt || q.text || '')).replace(/\s+/g, ' ').trim();
+      if (jp.length >= 4 && !NO_JA_TEXT.test(jp)) return { text: jp, lang: 'ja', label: 'きく' };
+    }
     // ほかの 学年・教科は 読まない（読み上げると 答えが わかって しまう）
     return null;
+  }
+  const JA_AREA = /^(sansu|rika|shakai|rikashakai)/;
+  const NO_JA_UNIT = /ローマ字/;
+  const NO_JA_TEXT = /読み方|よみかた|数字で|漢数字|かん数字|「[〇一二三四五六七八九十百千万億兆]+」/;   // 漢数字の 読みが 答えに なる 問題
+
+  /* v14.34：問題文の よみあげを この 子で つかうか。auto（はじめ）は 学校の 学年が 小3まで */
+  function readJaOn(p) {
+    if (!p) return false;
+    const v = p.readJa || 'auto';
+    if (v === 'on') return true;
+    if (v === 'off') return false;
+    return (p.grade || 3) <= 3;
   }
 
   /* 正解の あとの ふきだし（note）に 英語が あれば 読む */
@@ -185,7 +205,7 @@ MQ.speech = (function () {
     init: init, ready: ready, speak: speak, stop: stop,
     voices: voices, refresh: refresh, voiceFor: voiceFor,
     plain: plain, englishIn: englishIn, hasLatin: hasLatin, hasKanji: hasKanji,
-    forQuestion: forQuestion, forNote: forNote,
+    forQuestion: forQuestion, forNote: forNote, readJaOn: readJaOn,
     RATE: RATE
   };
 })();

@@ -259,7 +259,7 @@ MQ.ui = MQ.ui || {};
         const done = function () { clearTimeout(off); btn.classList.remove('is-playing'); };
         const ok = MQ.speech.speak(say.text, say.lang, { onend: done });
         if (!ok) done();
-        else off = setTimeout(done, 6000);   // 保険（onend が 来ない 端末が ある）
+        else off = setTimeout(done, Math.min(30000, 6000 + String(say.text).length * 220));   // 保険（onend が 来ない 端末が ある）・長い 日本語の 文は 長く
       }
     }, [
       h('span', { class: 'listen__ico' }, [h('i', {}), h('b', {})]),

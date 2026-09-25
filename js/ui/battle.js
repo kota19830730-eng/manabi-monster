@@ -1327,6 +1327,19 @@ MQ.ui.battle = (function () {
     return d.card && !d.card.hidden && d.card.clientHeight > 0 && d.card.scrollHeight > d.card.clientHeight + 1;
   }
 
+  /* v14.34：読み上げる 問題文＝カードの 文だけ（図・表・とけい・グラフの 中の 字は 読まない）。
+     分数の ある 問題は 読まない（数が ぬけて 意味が かわる）＝ 空を かえす */
+  function cardSpeech() {
+    if (!d.prompt) return '';
+    if (d.prompt.querySelector('.frac')) return '';
+    const c = d.prompt.cloneNode(true);
+    const figs = c.querySelectorAll('svg, table, img, canvas, .clock, .clockq__fig, .figbox, .figpair, .figwide, .graph, .tbl, .soroban, .hissan');
+    figs.forEach(function (x) { x.remove(); });
+    const t = (c.textContent || '').replace(/\s+/g, ' ').trim();
+    // 短い 文は 読まない（ねらいは 長い 文章題）。図の ある カードは 場所が せまいので 20字から（14字だと タブレットで 図の 2択が 15px はみ出した）
+    return t.length >= (figs.length ? 20 : 14) ? t : '';
+  }
+
   /* よみあげ（v5.3）：英語の 文（英語ステージ）／小1の 問題文 に「きく」を つける。
      声が 入って いない 端末・せっていが 切って ある ときは 何も 出ない */
   function renderListen(q) {
@@ -1337,7 +1350,8 @@ MQ.ui.battle = (function () {
     if (!MQ.speech || !MQ.ui.listenButton) return;
     const grade = ctx && ctx.world ? ctx.world.grade : 0;
     const areaId = q.areaId || (ctx && ctx.area ? ctx.area.id : '');
-    const say = MQ.speech.forQuestion(q, { areaId: areaId, grade: grade });
+    const readJa = MQ.speech.readJaOn ? MQ.speech.readJaOn(MQ.save.current()) : false;
+    const say = MQ.speech.forQuestion(q, { areaId: areaId, grade: grade, readJa: readJa, text: readJa ? cardSpeech() : null });
     const btn = MQ.ui.listenButton(say);
     if (!btn) return;
     d.listen.appendChild(btn);

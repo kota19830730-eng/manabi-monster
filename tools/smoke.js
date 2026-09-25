@@ -3014,6 +3014,21 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   })();
   check(S.forQuestion({ prompt: '「花」の 読みは？' }, { areaId: 'kokugo', grade: 3 }) === null, '小3の 国語は 読まない（答えが わかる）');
   check(S.forQuestion({ prompt: '"apple" の いみは？' }, { areaId: 'eigo', grade: 4 }) !== null, '小4の 英語も 読む');
+  /* v14.34：問題文の よみあげ（小2いじょうの 算数・理科・社会）。readJa が ない ときは いままで どおり 読まない */
+  (function () {
+    const on = { readJa: true };
+    const r1 = S.forQuestion({ prompt: 'りんごが 24こ あります。3人で 同じ 数ずつ 分けると 1人 何こ？', unit: 'わり算' }, Object.assign({ areaId: 'sansu', grade: 3 }, on));
+    check(r1 && r1.lang === 'ja' && /りんご/.test(r1.text), 'よみあげ: 小3 算数の 文章題を 読む');
+    check(S.forQuestion({ prompt: 'じしゃくに つく ものは？' }, Object.assign({ areaId: 'rikashakai', grade: 3 }, on)) !== null, 'よみあげ: 理科社会も 読む');
+    check(S.forQuestion({ prompt: '日本で いちばん 長い 川は？' }, Object.assign({ areaId: 'shakai', grade: 5 }, on)) !== null, 'よみあげ: 社会（小5）も 読む');
+    check(S.forQuestion({ prompt: '「花」の 読みは？' }, Object.assign({ areaId: 'kokugo', grade: 3 }, on)) === null, 'よみあげ: 国語は 読まない');
+    check(S.forQuestion({ prompt: '「三万五千」を 数字で 書くと？' }, Object.assign({ areaId: 'sansu', grade: 3 }, on)) === null, 'よみあげ: 漢数字を 数字に する 問題は 読まない');
+    check(S.forQuestion({ prompt: '35000 の 読み方は？' }, Object.assign({ areaId: 'sansu', grade: 3 }, on)) === null, 'よみあげ: 数の 読み方の 問題は 読まない');
+    check(S.forQuestion({ prompt: 'りんごが 24こ あります。' }, Object.assign({ areaId: 'sansu', grade: 3 }, on, { text: '' })) === null, 'よみあげ: 画面が 空を わたしたら（分数など）読まない');
+    check(S.forQuestion({ prompt: 'りんごが 24こ あります。3人で 分けると？' }, { areaId: 'sansu', grade: 3 }) === null, 'よみあげ: せって いなし は 読まない');
+    check(S.readJaOn({ grade: 3 }) === true && S.readJaOn({ grade: 2 }) === true && S.readJaOn({ grade: 4 }) === false, 'よみあげ: 自動は 小3まで');
+    check(S.readJaOn({ grade: 5, readJa: 'on' }) === true && S.readJaOn({ grade: 2, readJa: 'off' }) === false && S.readJaOn(null) === false, 'よみあげ: つける／なし');
+  })();
   // 英語が 入って いない 英語ステージの 問題は ボタンを 出さない
   check(S.forQuestion({ prompt: 'アルファベットは ぜんぶで 何文字？' }, { areaId: 'eigo', grade: 4 }) === null, '英語が なければ ボタンなし');
   // ふきだし（note）

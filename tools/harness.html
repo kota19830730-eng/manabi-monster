@@ -3724,6 +3724,30 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
        #speak1    … 小1（問題文を 日本語で）
        #speakoff  … せっていを 切った とき ＝ ボタンが 出ない
        #speaknone … 声が 入って いない 端末 ＝ ボタンが 出ない */
+    /* v14.34：#readja:<ステージ>:<学年>[:off]＝小2いじょうの 問題文の よみあげ。ボタンを 押して 読んだ 文を ログに 出す */
+    if (mode.indexOf('readja') === 0) {
+      const a = mode.split(':');
+      const st = a[1] || 'sansu3-6', g = parseInt(a[2] || '3', 10);
+      fakeVoices(false);
+      fresh({ grade: g });
+      MQ.save.update(function (pl) { pl.grade = g; });
+      if (a[3] === 'off') MQ.save.update(function (pl) { pl.readJa = 'off'; });
+      MQ.ui.battle.start(st);
+      await wait(600);
+      let heard = '';
+      const sp0 = MQ.speech.speak;
+      MQ.speech.speak = function (t) { heard = t; return false; };
+      for (let i = 0; i < 4; i++) {
+        const q = MQ.battle.current();
+        const btn = $('.card__listen .listen');
+        heard = '';
+        if (btn) btn.click();
+        say('readja: ' + st + ' 小' + g + ' 問題=' + (q ? MQ.speech.plain(q.prompt).slice(0, 40) : 'なし') + ' / きく=' + (btn ? 'ある' : 'ない') + (heard ? ' / 読んだ=' + heard.slice(0, 60) : ''));
+        answerViaUI(true); await wait(1500);
+      }
+      MQ.speech.speak = sp0;
+      dump(); freeze(); return;
+    }
     if (mode.indexOf('speak') === 0) {
       const off = (mode === 'speakoff');
       const none = (mode === 'speaknone');
