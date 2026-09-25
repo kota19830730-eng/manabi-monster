@@ -154,6 +154,7 @@ body {
    （たたかいの 画面では 何も して いなくても 1秒に 95回）。いまは .btn__shine::before を transform で 動かす（位置は 前と 同じ・下の .btn__shine を 見る） */
 @keyframes shine  { 0% { transform: translateX(-30.9091%); } 100% { transform: translateX(-82.7273%); } }
 @keyframes popin  { 0% { transform: scale(.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes fbpop  { 0% { transform: translate(-50%, -50%) scale(.7); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }   /* 答えの ふきだし（v14.29） */
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; }
@@ -1162,10 +1163,22 @@ body {
 /* バトルの 絵の 高さは 画面の たてに あわせて のびちぢみ する */
 /* v5.6：どうしても 問題が 入らない ときだけ、バトル画面を 少し ちぢめて 場所を つくる。
    ふだんは これまでどおり（v2.7.2 で 決めた 高さ）。 */
-.battle.is-cram .arena { height: clamp(150px, calc(var(--stage-h) * 0.24), 232px); }
-.battle.is-cram .key { height: clamp(36px, calc(var(--stage-h) * 0.052), 46px); }
-.battle.is-cram .choice { min-height: 46px; }
-.arena { position: relative; height: clamp(176px, calc(var(--stage-h) * 0.30), 232px);   /* v2.7.2：少し 高く。タイムと モンスターが かぶらない ように */ flex: none; overflow: hidden; background: linear-gradient(#4fb8f5 0%, #86d6ff 55%, #b7e8ff 100%); }
+/* v14.29：2だんかい。is-cram＝v14.28 までの ふつうの 高さ（0.30）・is-cram2＝前の is-cram（0.24＋キーも ひくく） */
+.battle.is-cram .arena { height: clamp(176px, calc(var(--stage-h) * 0.30), 232px); }
+.battle.is-cram2 .arena { height: clamp(150px, calc(var(--stage-h) * 0.24), 232px); }
+.battle.is-cram2 .key { height: clamp(36px, calc(var(--stage-h) * 0.052), 46px); }
+.battle.is-cram2 .choice { min-height: 42px; padding-top: 6px; padding-bottom: 6px; }   /* v14.29：小1の 読解（長い ひらがなの 話＋4たく）が さいごの 段でも 13px 入らなかった → 4たくを 少し つめる（42px＝タブレットで 77px・おせる 大きさ） */
+/* v14.29：メモ欄の ない 問題（えらぶ・ローマ字・図つき）では、あまった 高さを 問題カードでは なく アリーナに わたす。
+   前は カードが flex: 1 で のびて、タブレット（ステージ 700）で「問題が 大きすぎて バトルが 小さい」に 見えた（ユーザーの 写真）。
+   .battle.no-memo は battle.js が 問題ごとに つける。アリーナは min（0.36）〜max（0.47・336px）の あいだで のび、
+   入らない ときは min まで ちぢんで fitPrompt（is-cram → is-cram2）に つづく。広がる わざ（is-big）は inline の height が 勝つ。 */
+.battle.no-memo .arena { flex: 1 1 auto; height: auto; min-height: clamp(176px, calc(var(--stage-h) * 0.36), 264px); max-height: clamp(200px, calc(var(--stage-h) * 0.42), 336px); }   /* 0.47 だと タブレットで 答えの ふきだし（歴史の 写真つき）が 下で 23px 切れた */
+.battle.no-memo.is-cram .arena { min-height: clamp(176px, calc(var(--stage-h) * 0.30), 232px); }
+.battle.no-memo.is-cram2 .arena { min-height: clamp(150px, calc(var(--stage-h) * 0.24), 232px); }
+.battle.no-memo .arena.is-big { flex: 0 0 auto; max-height: none; }
+.battle.no-memo .battle__body { flex: 0 1 auto; }
+.battle.no-memo .battle__body:not(.has-memo) .card { flex: 0 1 auto; }
+.arena { position: relative; height: clamp(176px, calc(var(--stage-h) * 0.36), 264px);   /* v2.7.2：少し 高く。v14.29：タブレット（ステージ 700）で 問題カードが 大きすぎ バトルが 小さく 見えた → 0.30/232 → 0.36/264（700 で 210 → 252px）。入らない 問題は fitPrompt が is-cram（前の 0.30）→ is-cram2（0.24）に 落とす */ flex: none; overflow: hidden; background: linear-gradient(#4fb8f5 0%, #86d6ff 55%, #b7e8ff 100%); }
 /* ---- バトルの 背景（CSS の しきつめ。画像ファイルは 使わない） ---- */
 .arena__bg { position: absolute; inset: 0; }
 .arena__sky { position: absolute; inset: 0; background: linear-gradient(#4fb8f5 0%, #86d6ff 55%, #b7e8ff 100%); }
@@ -1650,7 +1663,8 @@ body {
   padding: 10px 16px; border-radius: 14px; background: rgba(16,24,48,.94);
   font-family: var(--f-head); font-size: 20px; color: var(--exp-2);
   text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,.45); z-index: 20;
-  animation: popin .18s ease-out;
+  animation: fbpop .18s ease-out;   /* v14.29：translate を 入れた 専用の keyframes（popin だと アニメの あいだ translate(-50%,-50%) が 消えて、ふきだしが 下に ずれる＝headless の 止まった 画で 下が 切れた） */
+  max-height: calc(100% - 10px); overflow-y: auto;   /* v14.29：問題の 場所が ひくい ときも ふきだしが 下で 切れない（写真つきの 長い ふきだしの 保険） */
 }
 .feedback__head { font-family: var(--f-head); font-size: 22px; line-height: 1.25; }
 .feedback__note {

@@ -2604,6 +2604,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
           bad++;
           if (oc > 1) badCard++;
           if (ob > 1) badBody++;
+          say('fit-bad: ' + id + ' ' + when + ' カード' + oc + ' ぜんたい' + ob + ' / ' + (MQ.util.stripTags(q.prompt) || '').slice(0, 24) + ' [' + ($('.card__q') ? $('.card__q').className : '?') + ' ' + q.type + ($('.battle') ? ' ' + $('.battle').className : '') + ']' + (function () { const br = body.getBoundingClientRect(), sc = MQ.stage.size().scale, L = []; body.querySelectorAll('*').forEach(function (el) { const r = el.getBoundingClientRect(); if (r.height && r.bottom > br.bottom + 1) L.push(el.className + '+' + Math.round((r.bottom - br.bottom) / sc)); }); return L.length ? ' OVER=' + L.slice(0, 6).join(',') : ''; })() + ' kids=' + Array.prototype.map.call(body.children, function (el) { return (el.hidden ? '' : el.className.split(' ')[0] + Math.round(el.getBoundingClientRect().height / MQ.stage.size().scale)); }).filter(Boolean).join('/'));
           if (over > worst) {
             worst = over;
             const pr = $('.card__q');

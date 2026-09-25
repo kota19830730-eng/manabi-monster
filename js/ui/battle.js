@@ -162,6 +162,18 @@ MQ.ui.battle = (function () {
     MQ.ui.mount('screen-battle', d.root);
     memo = makeMemo(d.canvas, d.memoClear);
     d.memoWide.addEventListener('click', toggleWide);
+    /* v14.29：問題文の 高さが あとから 変わった とき（Google Fonts の かな・漢字の まとまりが
+       あとから とどいて 行が ふえる）は、はみ出して いれば もう一度 合わせる。
+       メモ欄の ない 問題は カードに あそびが なく なった ので、これが ないと タブレットで 下が 切れた（#fit:all 800×1280 で 2回）。
+       fitPrompt の 中で 変わった ぶんは fitting で よける（ループしない）。 */
+    if (window.ResizeObserver) {
+      try {
+        new ResizeObserver(function () {
+          // つぎの コマで（同じ コマで 直すと「ResizeObserver loop」の エラーに なる）
+          requestAnimationFrame(function () { if (!fitting && overflowing()) fitPrompt(); });
+        }).observe(d.prompt);
+      } catch (e) {}
+    }
   }
 
   function toggleWide() {
@@ -1247,7 +1259,12 @@ MQ.ui.battle = (function () {
   const FIT_STEPS = [[1, 0, 1], [1, 1, 1], [0.85, 1, 0.95], [0.85, 2, 0.92],
                      [0.7, 2, 0.88], [0.7, 3, 0.85], [0.55, 3, 0.8], [0.45, 3, 0.76],
                      [0.45, 3, 0.7], [0.45, 3, 0.64], [0.45, 3, 0.58]];   // 小1・小2の 読解（v14.27）：ひらがなの 文は 長い ので 話の 字を もう 3だん 下げる
+  let fitting = false;      // v14.29：fitPrompt の あいだは ResizeObserver から よび直さない
   function fitPrompt() {
+    fitting = true;
+    try { fitPromptRun(); } finally { fitting = false; }
+  }
+  function fitPromptRun() {
     const n = (d.prompt.textContent || '').replace(/\s/g, '').length;
     const q = MQ.battle.current();
     const vert = !!(q && q.layout === 'vertical');   // ひっさん：メモ欄に 数字が あるので カードは 小さめ
@@ -1260,15 +1277,18 @@ MQ.ui.battle = (function () {
     // ものがたり（v14.13）：話が 主役。問題文は はじめから 中くらいの 大きさで
     if (d.story && !d.story.hidden) start = Math.max(start, 2);
     d.root.classList.remove('is-cram');
-    // 2周する。1周めで だめなら バトル画面（上）を 少し ちぢめて もう一度
-    for (let round = 0; round < 2; round++) {
+    d.root.classList.remove('is-cram2');
+    // 3周する。1周めで だめなら バトル画面（上）を ちぢめて（is-cram＝v14.28 までの 高さ）もう一度、
+    // それでも だめなら もっと ちぢめて キーも ひくく（is-cram2・v14.29）
+    const CRAM = ['is-cram', 'is-cram2'];
+    for (let round = 0; round < 3; round++) {
       for (let s = 0; s < FIT_STEPS.length; s++) {
         d.card.style.setProperty('--figk', FIT_STEPS[s][0]);
         d.card.style.setProperty('--storyk', FIT_STEPS[s].length > 2 ? FIT_STEPS[s][2] : 1);
         d.prompt.className = 'card__q' + Q_SIZES[Math.min(Q_SIZES.length - 1, start + FIT_STEPS[s][1])];
         if (!overflowing()) return;
       }
-      d.root.classList.add('is-cram');
+      if (round < CRAM.length) d.root.classList.add(CRAM[round]);
     }
   }
   /* ものがたり（v14.13）：字の ファイルが あとから とどく・ヒントが 出る と
@@ -1277,7 +1297,8 @@ MQ.ui.battle = (function () {
   let refitTok = 0;
   function refitSoon() {
     const tk = ++refitTok;
-    const again = function () { if (tk === refitTok && d.story && !d.story.hidden) fitPrompt(); };
+    // v14.29：メモ欄の ない 問題は カードに あそびが なく なった ので、字の ファイルが とどいた あとは かならず もう一度
+    const again = function () { if (tk === refitTok && ((d.story && !d.story.hidden) || d.root.classList.contains('no-memo'))) fitPrompt(); };
     if (window.requestAnimationFrame) requestAnimationFrame(function () { requestAnimationFrame(again); });
     if (document.fonts && document.fonts.ready && document.fonts.ready.then) document.fonts.ready.then(again);
   }
@@ -1377,6 +1398,7 @@ MQ.ui.battle = (function () {
       d.choices.hidden = false;
       d.memo.hidden = true;
       d.panel.classList.remove('has-memo');
+      d.root.classList.add('no-memo');      // v14.29：あまりは アリーナへ
       d.spacer.hidden = true;
       d.displays.hidden = true;
       d.keys.hidden = true;
@@ -1397,6 +1419,7 @@ MQ.ui.battle = (function () {
     if (q.type === 'write') {
       d.memo.hidden = false;
       d.panel.classList.add('has-memo');
+      d.root.classList.remove('no-memo');
       d.spacer.hidden = true;
       d.hissan.hidden = true;
       d.memo.classList.remove('is-hissan');
@@ -1413,6 +1436,7 @@ MQ.ui.battle = (function () {
     const useMemo = q.scratch !== false;
     d.memo.hidden = !useMemo;
     d.panel.classList.toggle('has-memo', useMemo);
+    d.root.classList.toggle('no-memo', !useMemo);      // v14.29
     d.spacer.hidden = useMemo;      // メモが ない ときだけ 下に よせる
     d.displays.hidden = false;
     d.keys.hidden = false;
