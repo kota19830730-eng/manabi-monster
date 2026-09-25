@@ -128,3 +128,18 @@
 .przrate__p { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) { .przpin.is-bad { animation: none; } }
+
+/* 出やすさを % で 決める つまみ（v14.30）。ユーザー「ちゃんと 確率で 調整できるように」
+   ・大きな 数字＋スライダー＋−／＋（1% ずつ）＋めやすの ボタン
+   ・下に「この % に したら ほかは こう なる」の 下見（合計 100%） */
+.przpct { display: flex; flex-direction: column; gap: 8px; }
+.przpct__row { display: flex; align-items: center; gap: 8px; }
+.przpct__b { flex: 0 0 auto; width: 40px; min-height: 40px; border: 1px solid #d9d3c6; border-radius: 10px; background: #fff; color: var(--pp-ink); font-family: var(--pp-fh); font-size: 18px; line-height: 1; cursor: pointer; }
+.przpct__b:active { background: #f1ece1; }
+.przpct__v { flex: 0 0 3.4em; text-align: right; font-family: var(--pp-fh); font-weight: 700; font-size: 20px; color: var(--pp-ink); font-variant-numeric: tabular-nums; }
+.przpct__range { flex: 1 1 auto; min-width: 0; height: 40px; accent-color: var(--pp-gold); }
+.przpct__pre .pp-seg { font-size: 12px; }
+.przpct__list { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 10px; background: #fff; border: 1px solid var(--pp-line2); }
+.przpct__list .przrate { font-size: 12px; }
+.przrate.is-me .przrate__n { font-weight: 700; color: var(--pp-ink); }
+.przrate.is-me .przrate__bar i { background: #f0a020; }

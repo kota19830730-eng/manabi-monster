@@ -337,7 +337,7 @@ MQ.ui.prize = (function () {
     const rows = list.map(function (it) {
       if (editId === it.id) return formView(p, api, it);
       const live = P.isLive(it);
-      const bits = [P.levelOf(it.level).name + (live ? '（' + P.pctText(rates[it.id] || 0) + '）' : '')];
+      const bits = [live ? P.pctText(rates[it.id] || 0) + ' で出る' : it.pct + '%（いまは出ません）'];
       bits.push(it.stock ? 'のこり ' + Math.max(0, it.stock - it.got) + ' / ' + it.stock : '何回でも');
       if (it.pity) bits.push(it.pity + '回で確定（あと' + P.pityLeft(it) + '回）');
       if (it.until) bits.push(mdText(it.until) + 'まで');
@@ -362,7 +362,7 @@ MQ.ui.prize = (function () {
     // --- 子どもの 画面での 見え方（わりあい。合計 100%） ---
     const liveList = P.live(p);
     if (liveList.length) {
-      box.push(group('お子さんの画面での確率', '合計100%', [h('div', { class: 'pp-card pp-pad przrates' }, liveList.map(function (it) {
+      box.push(group('お子さんの画面での確率', '合計100%（景品が消えると残りでならします）', [h('div', { class: 'pp-card pp-pad przrates' }, liveList.map(function (it) {
         const r = rates[it.id] || 0;
         return h('div', { class: 'przrate' }, [
           h('span', { class: 'przrate__n', text: it.name }),
@@ -410,9 +410,55 @@ MQ.ui.prize = (function () {
   function startEdit(it) {
     const P = MQ.prize;
     editId = it ? it.id : 'new';
-    draft = it ? { name: it.name, icon: it.icon, level: it.level, stock: it.stock, pity: it.pity, until: it.until }
-      : { name: '', icon: 'gift', level: 2, stock: 1, pity: 0, until: null };
+    draft = it ? { name: it.name, icon: it.icon, pct: it.pct, stock: it.stock, pity: it.pity, until: it.until }
+      : { name: '', icon: 'gift', pct: 20, stock: 1, pity: 0, until: null };
     untilMode = !draft.until ? 'none' : draft.until === P.endOfWeek() ? 'week' : draft.until === P.endOfMonth() ? 'month' : 'date';
+  }
+
+  /* 出やすさの つまみ（v14.30）。ユーザー「ちゃんと 確率で 調整できるように」。
+     % を 直に 決める。ほかの 景品は 比を たもって 自動で ならされ、合計は かならず 100%。
+     **0% は 作らない**（どの 景品も かならず 当たりうる＝はずれを 作らない きまりと 同じ）。 */
+  function pctBox(p, d, myId, nameInput, api) {
+    const P = MQ.prize;
+    const cap = P.pctCap(p, myId);
+    const big = h('span', { class: 'przpct__v', text: d.pct + '%' });
+    const list = h('div', { class: 'przpct__list' });
+    const range = h('input', { class: 'przpct__range', type: 'range', min: String(P.MIN_PCT), max: String(cap), step: '1' });
+    range.value = String(d.pct);
+    function paint() {
+      big.textContent = d.pct + '%';
+      if (range.value !== String(d.pct)) range.value = String(d.pct);
+      const name = (nameInput && nameInput.value.trim()) || 'この ごほうび';
+      const rows = P.preview(p, d.pct, myId, name);
+      list.textContent = '';
+      rows.forEach(function (r) {
+        list.appendChild(h('div', { class: 'przrate' + (r.me ? ' is-me' : '') }, [
+          h('span', { class: 'przrate__n', text: r.name }),
+          h('span', { class: 'przrate__bar' }, [h('i', { style: { width: Math.max(2, r.pct) + '%' } })]),
+          h('span', { class: 'przrate__p', text: r.pct + '%' })
+        ]));
+      });
+    }
+    function move(v) { d.pct = Math.min(cap, Math.max(P.MIN_PCT, Math.round(v))); paint(); }
+    range.addEventListener('input', function () { move(+range.value); });
+    paint();
+    return h('div', { class: 'przpct' }, [
+      h('div', { class: 'przpct__row' }, [
+        h('button', { class: 'przpct__b', type: 'button', text: '−', 'aria-label': '1% へらす', onclick: function () { MQ.sfx.tap(); move(d.pct - 1); } }),
+        range,
+        h('button', { class: 'przpct__b', type: 'button', text: '＋', 'aria-label': '1% ふやす', onclick: function () { MQ.sfx.tap(); move(d.pct + 1); } }),
+        big
+      ]),
+      h('div', { class: 'pp-segrow przpct__pre' }, P.PRESETS.map(function (x) {
+        return h('button', {
+          class: 'pp-seg' + (d.pct === Math.min(cap, x.pct) ? ' is-on' : ''), type: 'button',
+          text: x.name + ' ' + Math.min(cap, x.pct) + '%',
+          onclick: function () { MQ.sfx.tap(); move(x.pct); }
+        });
+      })),
+      h('span', { class: 'pp-muted pp-tiny', text: 'ほかの景品は比をたもって自動でならします（合計100%）。0%にはできません。' }),
+      list
+    ]);
   }
 
   function formView(p, api, it) {
@@ -422,7 +468,9 @@ MQ.ui.prize = (function () {
     input.value = d.name;
     input.addEventListener('input', function () { d.name = input.value; });
     function set(k, v) { d.name = input.value; d[k] = v; api.render(); }
-    const pct = P.rateIf(p, d.level, it ? it.id : null);
+    const myId = it ? it.id : null;
+    const cap = P.pctCap(p, myId);
+    if (d.pct > cap) d.pct = cap;
 
     const dateIn = h('input', { class: 'pp-input przform__date', type: 'date', min: P.ymd(), value: d.until || '' });
     dateIn.value = d.until || '';
@@ -441,8 +489,8 @@ MQ.ui.prize = (function () {
         }))
       ]),
       h('div', { class: 'przform__f' }, [
-        h('span', { text: '出やすさ　→ いまの景品と合わせて ' + P.pctText(pct) }),
-        seg(P.LEVELS.map(function (l) { return { v: l.id, t: l.name }; }), d.level, function (v) { set('level', v); })
+        h('span', { text: '出やすさ（この景品が当たる確率）' }),
+        pctBox(p, d, myId, input, api)
       ]),
       h('div', { class: 'przform__f' }, [
         h('span', { text: '当たる数（この数だけ当たったらマシンから消えます）' }),

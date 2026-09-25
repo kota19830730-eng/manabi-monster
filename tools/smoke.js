@@ -2759,7 +2759,12 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   check(Z.save(p, { name: '   ' }) === null, 'prize: 名前が からっぽ なら 入れない');
   const r = Z.rates(p);
   const sum = Object.keys(r).reduce(function (n, k) { return n + r[k]; }, 0);
-  check(Math.abs(sum - 1) < 1e-9 && Math.abs(r[game.id] - 1 / 51) < 1e-9, 'prize: わりあいの 合計は 100%・ちょうレア 1/51');
+  /* 出やすさは %（v14.30）。おうちの人が えらんだ 数字（want）の 比で、出せる 景品だけで 合計 100%。
+     ゲーム want1・おかし want40・こうえん want10 → 2 / 88 / 10 */
+  check(Math.abs(sum - 1) < 1e-9, 'prize: わりあいの 合計は 100%');
+  check(Z.find(p, game.id).pct === 2 && Z.find(p, snack.id).pct === 88 && Z.find(p, trip.id).pct === 10,
+    'prize: % は えらんだ 数字の 比（' + Z.items(p).map(function (x) { return x.pct; }).join('/') + '）');
+  check(Z.items(p).every(function (x) { return x.pct >= Z.MIN_PCT; }), 'prize: 0% の 景品は 作らない');
   check(Z.pctText(1 / 51) === '2%' && Z.pctText(0.004) === '0.4%' && Z.pctText(0.0004) === '0.1%', 'prize: % の 出し方（0 に しない）');
   check(Z.canPull(p).why === 'コインが たりない' && Z.canPull(p).short === 30, 'prize: コインが たりない ときは 引けない');
   p.coins = 30 * 20;
@@ -2785,6 +2790,35 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   for (let i = 0; i < 8; i++) Z.save(q, { name: 'x' + i, icon: 'star', level: 2, stock: 0, pity: 0 });
   check(Z.items(q).length === Z.MAX_ITEMS, 'prize: 景品は ' + Z.MAX_ITEMS + 'こまで');
   check(Z.setPrice(q, 50) && q.prize.price === 50 && !Z.setPrice(q, 7), 'prize: ねだんは えらべる 数だけ');
+  /* ---- 出やすさを % で 決める（v14.30・ユーザー「ちゃんと 確率で 調整できるように」） ---- */
+  (function () {
+    const w = { coins: 9999 };
+    const a2 = Z.save(w, { name: 'A', icon: 'gift', pct: 20, stock: 0, pity: 0 });
+    check(Z.find(w, a2.id).pct === 100, 'prize%: 景品が 1つの ときは かならず 100%');
+    const b2 = Z.save(w, { name: 'B', icon: 'book', pct: 25, stock: 0, pity: 0 });
+    check(Z.find(w, b2.id).pct === 25 && Z.find(w, a2.id).pct === 75, 'prize%: えらんだ % きっかりに なる（25/75）');
+    const c2 = Z.save(w, { name: 'C', icon: 'star', pct: 10, stock: 0, pity: 0 });
+    const all = Z.live(w).reduce(function (n, x) { return n + x.pct; }, 0);
+    check(Z.find(w, c2.id).pct === 10 && all === 100, 'prize%: 足しても 合計は 100%');
+    // 下見（まだ ほぞんしない）と ほんとうの 結果が 合う
+    const pv = Z.preview(w, 60, b2.id, 'B');
+    Z.save(w, { name: 'B', icon: 'book', pct: 60, stock: 0, pity: 0 }, b2.id);
+    const now2 = {};
+    Z.live(w).forEach(function (x) { now2[x.id] = x.pct; });
+    check(pv.every(function (x) { return now2[x.id] === x.pct; }) && now2[b2.id] === 60, 'prize%: 下見と ほんとうの 結果が 同じ');
+    // えらんだ 数字（want）は ほかを 足しても のこる
+    check(Z.find(w, c2.id).want === 10, 'prize%: えらんだ 数字は のこる');
+    // 上限：ほかに 1% ずつ のこす
+    check(Z.pctCap(w, b2.id) === 98 && Z.pctCap(w, null) === 97, 'prize%: 上限は ほかに 1% ずつ のこす');
+    Z.save(w, { name: 'B', icon: 'book', pct: 99, stock: 0, pity: 0 }, b2.id);
+    check(Z.find(w, b2.id).pct === 98 && Z.live(w).every(function (x) { return x.pct >= 1; }), 'prize%: 上限を こえても 0% は 作らない');
+    // 1つ 消すと のこりで ならす
+    Z.remove(w, b2.id);
+    check(Z.live(w).reduce(function (n, x) { return n + x.pct; }, 0) === 100, 'prize%: 消した あとも 合計 100%');
+    // 古い セーブ（level だけ）も 読める
+    const old = { coins: 0, prize: { price: 30, items: [{ id: 'z1', name: 'ふるい', icon: 'gift', level: 3, stock: 0, got: 0, pity: 0, miss: 0, until: null }], tickets: [], pulls: 0, seq: 1 } };
+    check(Z.items(old)[0].pct === 100 && Z.items(old)[0].want === 10, 'prize%: 古い セーブは 5段階から %へ');
+  })();
   // 番号（家に 1つ）
   check(Z.setPin('12a4') === false && Z.setPin('2468') === true && Z.hasPin() && Z.checkPin('2468') && !Z.checkPin('2469'), 'prize: 4けたの 番号');
   check(String(MQ.save.getSetting('prizePin', '')).indexOf('2468') === -1, 'prize: 番号は そのまま しまわない');

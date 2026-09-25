@@ -39,6 +39,15 @@ MQ.prize = (function () {
     { id: 4, name: 'めったに', w: 4 },
     { id: 5, name: 'ちょうレア', w: 1 }
   ];
+  /* 出やすさは **% そのもの**（v14.30）。ユーザー「ちゃんと 確率で 調整できるように」。
+     it.pct＝おうちの人が 決めた %。1つ 決めると ほかの 景品を 比を たもって ならし、
+     出せる 景品の 合計が きっかり 100% に なる（renorm）。
+     **0% は 作らない**（はずれを 作らない きまりと 同じ＝どの 景品も かならず 当たりうる）。
+     it.level は のこして ある が **絵の 色の ためだけ**（pct から 決まる・セーブの 引きつぎ用）。 */
+  const MIN_PCT = 1;            // 1つの 景品の 下限（%）
+  const MAX_PCT = 99;           // 1つの 景品の 上限（%）
+  /* 「よく出る」などの ボタン。中身は ただの % */
+  const PRESETS = LEVELS.map(function (l) { return { pct: l.w, name: l.name }; });
   const STOCKS = [1, 2, 3, 5, 0];         // 0＝いくつでも
   const PITIES = [0, 10, 20, 30, 50];     // 0＝かくていなし
   /* 景品の 絵（絵そのものは js/ui/prize.js） */
@@ -62,6 +71,66 @@ MQ.prize = (function () {
   function endOfMonth(d) { const x = d || now(); return ymd(new Date(x.getFullYear(), x.getMonth() + 1, 0)); }
 
   function levelOf(id) { for (let i = 0; i < LEVELS.length; i++) if (LEVELS[i].id === id) return LEVELS[i]; return LEVELS[1]; }
+  function clampPct(v) { return Math.min(MAX_PCT, Math.max(MIN_PCT, Math.round(Number(v) || 0))); }
+  /* % → 見た目の だんかい（カプセルの わくの 色・演出の はで さ。色で うそを つかない） */
+  function levelFromPct(v) { return v >= 30 ? 1 : v >= 15 ? 2 : v >= 7 ? 3 : v >= 3 ? 4 : 5; }
+  /* この 景品に あげられる % の 上限（ほかの 出せる 景品に MIN_PCT ずつ のこす） */
+  function pctCap(p, exceptId) {
+    const n = live(p).filter(function (x) { return x.id !== exceptId; }).length;
+    return Math.max(MIN_PCT, Math.min(MAX_PCT, 100 - MIN_PCT * n));
+  }
+  /* 重みの ならび ws を 合計 total の 整数に 分ける（1つも min を 下まわらない） */
+  function spread(ws, total, min) {
+    const n = ws.length;
+    if (!n) return [];
+    if (total < min * n) total = min * n;
+    const sum = ws.reduce(function (a, b) { return a + (b > 0 ? b : 0); }, 0) || n;
+    const raw = ws.map(function (w) { return (w > 0 ? w : 1) / sum * total; });
+    const out = raw.map(function (x) { return Math.max(min, Math.floor(x)); });
+    let diff = total - out.reduce(function (a, b) { return a + b; }, 0);
+    const order = raw.map(function (x, i) { return { i: i, f: x - Math.floor(x) }; })
+      .sort(function (a, b) { return b.f - a.f; });
+    let k = 0;
+    while (diff > 0) { out[order[k % n].i] += 1; diff--; k++; }
+    k = 0;
+    while (diff < 0 && k < 10000) {
+      const i = order[n - 1 - (k % n)].i;
+      if (out[i] > min) { out[i] -= 1; diff++; }
+      k++;
+    }
+    return out;
+  }
+  /* 出せる 景品の % を 合計 100 に ならす。id を わたすと その 景品を v% に とめる */
+  function renorm(p, id, v) {
+    const L = live(p);
+    if (!L.length) return;
+    const me = id ? L.filter(function (x) { return x.id === id; })[0] : null;
+    const others = L.filter(function (x) { return x !== me; });
+    if (me) {
+      me.want = clampPct(v);
+      me.pct = others.length ? Math.min(pctCap(p, me.id), me.want) : 100;
+    }
+    const rest = me ? 100 - me.pct : 100;
+    if (others.length) {
+      // ほかの 景品は「おうちの人が えらんだ 数字（want）」の 比で のこりを 分ける
+      const got = spread(others.map(function (x) { return x.want; }), rest, MIN_PCT);
+      others.forEach(function (x, i) { x.pct = got[i]; });
+    }
+    L.forEach(function (x) { x.level = levelFromPct(x.pct); });
+  }
+  /* まだ ほぞんせずに「この % に したら みんなが どう なるか」を 見る（フォームの 下見）。
+     id が null なら 新しい 景品（name で 出す）。かえり値 [{ id, name, pct, me }] */
+  function preview(p, v, id, name) {
+    const L = live(p).filter(function (x) { return !id || x.id !== id; });
+    const cap = Math.max(MIN_PCT, Math.min(MAX_PCT, 100 - MIN_PCT * L.length));
+    const mine = Math.min(cap, clampPct(v));
+    const got = spread(L.map(function (x) { return x.want; }), 100 - mine, MIN_PCT);
+    const me = id ? (find(p, id) || {}) : {};
+    const out = [{ id: id || 'new', name: name || me.name || 'この ごほうび', pct: L.length ? mine : 100, me: true }];
+    // 下見も 本物と 同じ 計算（renorm と そろえる）
+    L.forEach(function (x, i) { out.push({ id: x.id, name: x.name, pct: got[i], me: false }); });
+    return out;
+  }
 
   /* ---- セーブ ---- */
   function ensure(p) {
@@ -74,12 +143,39 @@ MQ.prize = (function () {
     if (typeof z.pulls !== 'number' || z.pulls < 0) z.pulls = 0;
     if (typeof z.seq !== 'number' || z.seq < 0) z.seq = 0;
     z.items.forEach(clean);
+    /* 出せる 景品の % は いつも 合計 100（v14.30）。
+       景品を 消した・数に 達した・期限が きれた あとでも、おうちの人が えらんだ 数字（want）の
+       比で のこりを 分け直す。ここを やらないと 画面の % と ほんとうの くじが ずれる。
+       renorm を よぶと ensure に もどって くる ので、ここでは 中身を じかに 書く */
+    const L = z.items.filter(isLive);
+    const tot = L.reduce(function (n, x) { return n + x.pct; }, 0);
+    if (L.length && tot !== 100) {
+      if (L.length === 1) L[0].pct = 100;
+      else {
+        const got = spread(L.map(function (x) { return x.want; }), 100, MIN_PCT);
+        L.forEach(function (x, i) { x.pct = got[i]; });
+      }
+      L.forEach(function (x) { x.level = levelFromPct(x.pct); });
+    }
     return z;
   }
   function clean(it) {
     it.name = String(it.name || '').trim().slice(0, NAME_MAX) || 'ごほうび';
     if (ICON_IDS.indexOf(it.icon) === -1) it.icon = 'gift';
+    /* 出やすさ（v14.30）：古い セーブは 5段階の 重み（40/20/10/4/1）を そのまま % に する。
+       重みの 比は 前と 同じ なので、子どもの 画面に 出る % は 1つも 変わらない */
     if (!LEVELS.some(function (l) { return l.id === it.level; })) it.level = 2;
+    /* want＝おうちの人が つまみで えらんだ 数字。**ほかの 景品を 足しても 消えない**
+       （ここを のこさないと、先に 入れた 景品が あとから かってに 大きく なる）。
+       pct＝いま ほんとうに 出る %（出せる 景品ぜんぶで 合計 100）。 */
+    if (typeof it.want !== 'number' || !isFinite(it.want)) {
+      it.want = (typeof it.pct === 'number' && isFinite(it.pct)) ? it.pct : levelOf(it.level).w;
+    }
+    it.want = clampPct(it.want);
+    if (typeof it.pct !== 'number' || !isFinite(it.pct)) it.pct = it.want;
+    // pct だけ 100 まで（景品が 1つの ときは かならず 100%）
+    it.pct = Math.min(100, Math.max(MIN_PCT, Math.round(it.pct)));
+    it.level = levelFromPct(it.pct);
     if (STOCKS.indexOf(it.stock) === -1) it.stock = 1;
     if (typeof it.got !== 'number' || it.got < 0) it.got = 0;
     if (PITIES.indexOf(it.pity) === -1) it.pity = 0;
@@ -102,16 +198,16 @@ MQ.prize = (function () {
   /* ---- わりあい（画面に 出す 数字。合計は かならず 1） ---- */
   function rates(p) {
     const L = live(p);
-    const sum = L.reduce(function (n, it) { return n + levelOf(it.level).w; }, 0);
+    const sum = L.reduce(function (n, it) { return n + it.pct; }, 0);
     const out = {};
-    L.forEach(function (it) { out[it.id] = sum ? levelOf(it.level).w / sum : 0; });
+    L.forEach(function (it) { out[it.id] = sum ? it.pct / sum : 0; });
     return out;
   }
   /* 1つぶんの わりあい（まだ 入れて いない 景品の 下見にも つかう）。extra＝ほかに 足す 景品 */
-  function rateIf(p, level, exceptId) {
-    const L = live(p).filter(function (x) { return x.id !== exceptId; });
-    const sum = L.reduce(function (n, it) { return n + levelOf(it.level).w; }, 0) + levelOf(level).w;
-    return levelOf(level).w / sum;
+  function rateIf(p, pct, exceptId) {
+    const n = live(p).filter(function (x) { return x.id !== exceptId; }).length;
+    const cap = Math.max(MIN_PCT, Math.min(MAX_PCT, 100 - MIN_PCT * n));
+    return (n ? Math.min(cap, clampPct(pct)) : 100) / 100;
   }
   /* 画面の %：1% より 小さい ときは 小数 1けた（0.8%）。まるめて 0 に しない */
   function pctText(r) {
@@ -140,20 +236,20 @@ MQ.prize = (function () {
     if (!L.length) return { item: null, pity: false };
     const due = L.filter(function (it) { return it.pity > 0 && it.miss + 1 >= it.pity; });
     if (due.length) {
-      due.sort(function (a, b) { return levelOf(a.level).w - levelOf(b.level).w || b.miss - a.miss; });
+      due.sort(function (a, b) { return a.pct - b.pct || b.miss - a.miss; });
       return { item: due[0], pity: true };
     }
-    const sum = L.reduce(function (n, it) { return n + levelOf(it.level).w; }, 0);
+    const sum = L.reduce(function (n, it) { return n + it.pct; }, 0);
     let r = rnd() * sum;
     for (let i = 0; i < L.length; i++) {
-      r -= levelOf(L[i].level).w;
+      r -= L[i].pct;
       if (r < 0) return { item: L[i], pity: false };
     }
     return { item: L[L.length - 1], pity: false };
   }
 
   /* 演出の だんかい（色で うそを つかない：出た 景品の 出にくさ そのまま） */
-  function rarityOf(it) { return it.level >= 5 ? 'sr' : it.level >= 3 ? 'r' : 'n'; }
+  function rarityOf(it) { const lv = levelFromPct(it.pct); return lv >= 5 ? 'sr' : lv >= 3 ? 'r' : 'n'; }
 
   /* ---- 引く ----
      かえり値 { ok, item, ticket, rarity, pity, spent, coins } */
@@ -201,7 +297,8 @@ MQ.prize = (function () {
 
   /* ---- おうちの人の 設定 ---- */
   function setPrice(p, v) { const z = ensure(p); if (PRICES.indexOf(v) === -1) return false; z.price = v; return true; }
-  /* 景品を 足す／直す。opts: { name, icon, level, stock, pity, until }。かえり値 景品（だめなら null） */
+  /* 景品を 足す／直す。opts: { name, icon, pct, stock, pity, until }（古い level も 使える）。
+     ほぞんの あとに ほかの 景品を ならして 合計 100% に する。かえり値 景品（だめなら null） */
   function save(p, opts, id) {
     const z = ensure(p);
     const name = String((opts && opts.name) || '').trim().slice(0, NAME_MAX);
@@ -214,16 +311,21 @@ MQ.prize = (function () {
       z.items.push(it);
     }
     it.name = name;
-    it.icon = opts.icon; it.level = opts.level; it.stock = opts.stock; it.pity = opts.pity;
+    it.icon = opts.icon; it.stock = opts.stock; it.pity = opts.pity;
     it.until = opts.until || null;
+    // 出やすさ：% が あれば それ、なければ 古い level から
+    if (typeof opts.pct === 'number') it.want = clampPct(opts.pct);
+    else if (typeof opts.level === 'number') { it.level = opts.level; it.want = clampPct(levelOf(opts.level).w); }
     // 数を ふやしたら また 出せる ように（got は そのまま・のこりが ふえる）
     clean(it);
+    if (isLive(it)) renorm(p, it.id, it.want); else renorm(p, null, 0);
     return it;
   }
   function remove(p, id) {
     const z = ensure(p);
     const n = z.items.length;
     z.items = z.items.filter(function (x) { return x.id !== id; });
+    if (z.items.length < n) renorm(p, null, 0);   // のこった 景品を ならして 合計 100%
     return z.items.length < n;
   }
   /* 番号を わすれた とき：景品を ぜんぶ 消す（チケットは のこす＝もう 当たった 約束） */
@@ -257,6 +359,8 @@ MQ.prize = (function () {
     resetAt: resetAt, ackReset: ackReset,
     MAX_ITEMS: MAX_ITEMS, NAME_MAX: NAME_MAX, DEFAULT_PRICE: DEFAULT_PRICE, PRICES: PRICES,
     LEVELS: LEVELS, STOCKS: STOCKS, PITIES: PITIES, ICONS: ICONS, ICON_IDS: ICON_IDS,
+    MIN_PCT: MIN_PCT, MAX_PCT: MAX_PCT, PRESETS: PRESETS,
+    clampPct: clampPct, levelFromPct: levelFromPct, pctCap: pctCap, renorm: renorm, preview: preview,
     now: now, setNow: setNow, ymd: ymd, endOfWeek: endOfWeek, endOfMonth: endOfMonth, levelOf: levelOf,
     ensure: ensure, items: items, find: find, soldOut: soldOut, expired: expired, isLive: isLive, live: live, hasAny: hasAny,
     rates: rates, rateIf: rateIf, pctText: pctText, pityLeft: pityLeft, canPull: canPull, choose: choose, rarityOf: rarityOf, pull: pull,
