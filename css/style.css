@@ -4653,3 +4653,45 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 /* けっか画面：★3 を とった ところの くり返し（v14.31）。
    ばつの 赤では なく「つぎは どこへ」の 青みで 出す */
 .rs__cap { color: #d8e8ff; background: rgba(104,160,255,.16); box-shadow: inset 0 0 0 2px #68a0ff; }
+
+/* =========================================================
+   v14.32 コンボの 金の ふだ（1行）と 相棒の 札
+   ユーザー「コンボ数の 表示が 見栄え悪い」「綺麗に 1列で」。
+   ・コンボは 空の 上の あき（HP バーの 下）の まん中に 金の ふだ 1まい。数字を 大きく。折り返さない。
+     top: clamp(70px, 100% - 240px, 110px)＝HP バーの 下（70）から。ひっさつで 画面が 広がっても 110 より 下に 落ちない。
+   ・まん中ぞろえは transform を つかわない（is-pop の アニメが transform を 上書きする）→ left/right 0 ＋ margin auto。
+   ・相棒の なまえと ゲージは 足もとの 札（.pal__tag）。セットゲージは その となりへ ずらす（.arena.has-pal）。
+   ========================================================= */
+.combo {
+  left: 0; right: 0; margin: 0 auto; width: max-content; max-width: 380px;
+  top: clamp(70px, calc(100% - 240px), 110px);
+  display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  padding: 3px 11px 4px 10px; border-radius: 10px;
+  background: linear-gradient(#fff0a8 0%, #ffd45a 48%, #f0a82e 100%);
+  border: 2px solid #7a4210;
+  box-shadow: 0 3px 0 #5a300a, inset 0 2px 0 rgba(255,255,255,.7), 0 0 12px rgba(255,190,70,.55);
+  font-size: 14px; line-height: 1; z-index: 5;
+}
+.combo.is-sp { font-size: 14px; max-width: 380px; white-space: nowrap; line-height: 1; box-shadow: 0 3px 0 #5a300a, inset 0 2px 0 rgba(255,255,255,.7), 0 0 18px 2px rgba(255,190,70,.85); }
+.combo__n { font-family: var(--f-head); font-weight: 400; font-size: 24px; color: #fff; text-shadow: 0 2px 0 #7a3a0a, 0 0 1px #7a3a0a; }
+@supports (paint-order: stroke fill) { .combo__n { -webkit-text-stroke: 4px #8a3c0c; paint-order: stroke fill; text-shadow: 0 2px 0 #5a2a06; } }
+.combo__lbl { font-family: var(--f-head); font-size: 14px; color: #6a3606; text-shadow: none; }
+.combo__sp { font-family: var(--f-head); font-size: 13px; color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.35); margin-left: 2px;
+  padding: 3px 8px 3px; border-radius: 7px; background: var(--csp, #e8443a); box-shadow: 0 2px 0 rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.4); }
+.combo--fire { --csp: #e8443a; } .combo--blaze { --csp: #c8300c; } .combo--leaf { --csp: #3a9a3a; } .combo--storm { --csp: #2a7a2a; }
+.combo--ice { --csp: #2a86c8; } .combo--icicle { --csp: #2070b0; } .combo--wind { --csp: #5a7ab0; } .combo--gale { --csp: #4a6a98; }
+.combo--bolt { --csp: #2a6ad0; } .combo--star { --csp: #c8901a; } .combo--nova { --csp: #7a3ac0; } .combo--triple { --csp: #4a5a80; } .combo--starburst { --csp: #c0307a; }
+.battle.is-cram .combo, .battle.is-cram2 .combo { padding: 2px 9px 3px 8px; }
+.battle.is-cram .combo__n, .battle.is-cram2 .combo__n { font-size: 20px; }
+/* ためゲージも ふだの 真下・まん中ぞろえ */
+.charge { left: 0; right: 0; margin: 0 auto; width: max-content; top: clamp(70px, calc(100% - 240px), 110px); }
+.combo:not([hidden]) + .charge, .combo.is-sp:not([hidden]) + .charge { top: calc(clamp(70px, calc(100% - 240px), 110px) + 38px); }
+
+/* 相棒の 札：足もと（ふきだしの 帯の 上）。なまえは 長いと …（Lv は メニュー） */
+.pal__tag { position: absolute; top: calc(100% + 3px); left: -2px; z-index: 3; display: flex; align-items: center; gap: 4px;
+  padding: 2px 6px 2px 5px; border-radius: 8px; background: rgba(10,6,24,.74); box-shadow: 0 0 0 1px rgba(255,255,255,.14); white-space: nowrap; pointer-events: none; }
+.pal__tag .pal__name { position: static; margin: 0; max-width: 46px; overflow: hidden; text-overflow: ellipsis; font-size: 9px; line-height: 12px; }
+.pal__tag .pal__gauge { position: static; margin: 0; }
+.pal__tag .pal__dot { width: 7px; height: 7px; }
+.pal.is-hit .pal__tag { opacity: .4; }
+.arena.has-pal .setgauge { left: 98px; }

@@ -152,7 +152,6 @@ MQ.ui.scenery = (function () {
       [[30, top - 38, 34, 8], [56, top - 30, 28, 6], [300, top - 22, 44, 8], [140, top - 12, 30, 6]].forEach(function (c) { cloud(L, c[0], c[1], c[2], c[3], '#ffb3a0'); });
       [[20, top - 10], [120, top - 18], [340, top - 16]].forEach(function (s) { star(L, s[0], s[1]); });
     } else if (time === 'night') {
-      if (!T) moon(L, 40, top - 40);
       [[20, top - 10], [70, top - 4], [120, top - 18], [180, top - 2], [220, top - 22], [260, top - 8], [300, top - 26], [340, top - 4], [380, top - 16], [150, top - 36], [330, top - 44], [92, top - 30]].forEach(function (s) { star(L, s[0], s[1]); });
       [[40, top - 60, 46, 10], [300, top - 52, 40, 8]].forEach(function (c) { cloud(L, c[0], c[1], c[2], c[3], 'rgba(120,140,200,.35)'); });
     } else if (time === 'morning') {
@@ -627,13 +626,85 @@ MQ.ui.scenery = (function () {
   /* 土の いちばん 下の 色（絵の 下に つづく ところ・css の --soil） */
   function soilColor(time) { return tod(SOIL[2], skyOf(null, time)); }
 
+  /* ---------- v14.32：アリーナが 高い とき（最大 336px）の 空を うめる ----------
+     ユーザー「上が 広くなった分 背景が 寂しい」。遠景の 層は アリーナの 高さ いっぱい（css）。
+     ・いちばん 奥の 山なみ（backRange）は 高さを %（層の 高さに 対して）で 決める＝アリーナが ひくい ときは
+       手前の 山なみに ほぼ かくれ、高い ときだけ 上に 顔を 出す（どの 高さでも 空が からっぽに ならない）。
+     ・空の 上の ほうの 星・月・雲（upperSky）は 上から % で おく。 */
+  function partPct(L, x, yPct, w, hPct, bg) {
+    const el = document.createElement('i');
+    el.style.cssText = 'left:' + x + 'px;bottom:' + yPct + '%;width:' + w + 'px;height:' + hPct + '%;background:' + bg;
+    L.appendChild(el);
+    return el;
+  }
+  function backRange(L, pts, color, step, cap, capColor) {
+    step = step || 16;
+    let prev = -1, runX = 0;
+    const put = function (x1) { if (prev > 0) partPct(L, runX, 0, x1 - runX, prev, color); };
+    for (let x = 0; x <= 400; x += step) {
+      let hh = 0;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i], b = pts[i + 1];
+        if (x >= a[0] && x <= b[0]) { hh = a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]); break; }
+      }
+      hh = Math.round(hh / 3) * 3;
+      if (hh !== prev) { put(x); runX = x; prev = hh; }
+    }
+    put(400);
+    if (cap) pts.forEach(function (p, i) {
+      if (i === 0 || i === pts.length - 1 || p[1] <= cap) return;
+      const el = document.createElement('i');
+      const x0 = Math.floor(p[0] / step) * step;
+      let hh = p[1];                        // その 列の 本当の 高さ（雪が 浮かない ように）
+      for (let j = 0; j < pts.length - 1; j++) { const q = pts[j], r = pts[j + 1]; if (x0 >= q[0] && x0 <= r[0]) { hh = q[1] + (r[1] - q[1]) * (x0 - q[0]) / (r[0] - q[0]); break; } }
+      el.style.cssText = 'left:' + x0 + 'px;bottom:calc(' + (Math.round(hh / 3) * 3) + '% - 10px);width:' + step + 'px;height:10px;background:' + capColor;
+      L.appendChild(el);
+    });
+  }
+  function up(L, x, topPct, w, hh, cls) {
+    const el = document.createElement('i');
+    el.className = 'up' + (cls ? ' ' + cls : '');
+    el.style.cssText = 'left:' + x + 'px;top:' + topPct + '%;width:' + w + 'px;height:' + hh + 'px';
+    L.appendChild(el);
+    return el;
+  }
+  function upStar(L, x, topPct) { up(L, x, topPct, 3, 3, 'star').style.background = '#fff8e0'; }
+  function upCloud(L, x, topPct, w, hh, c) { cloud(up(L, x, topPct, w, hh * 2), 0, 0, w, hh, c); }
+  function upperSky(L, time) {
+    if (time === 'night') {
+      moon(up(L, 318, 9, 20, 22), 0, 0);
+      [[24, 5], [88, 14], [150, 4], [196, 20], [244, 9], [286, 27], [372, 18], [58, 33], [130, 29], [352, 40], [220, 37], [104, 45], [296, 49], [20, 50]].forEach(function (s) { upStar(L, s[0], s[1]); });
+      upCloud(L, 160, 14, 52, 10, 'rgba(120,140,200,.30)');
+    } else if (time === 'evening') {
+      [[40, 6], [200, 3], [360, 10], [300, 2], [120, 4]].forEach(function (s) { upStar(L, s[0], s[1]); });
+      upCloud(L, 118, 12, 56, 12, '#ffb3a0'); upCloud(L, 296, 24, 44, 10, '#ff9f8e');
+    } else if (time === 'morning') {
+      upCloud(L, 168, 9, 56, 12, 'rgba(255,255,255,.9)'); upCloud(L, 318, 22, 44, 10, 'rgba(255,255,255,.85)'); upCloud(L, 36, 30, 38, 8, 'rgba(255,255,255,.8)');
+    } else {
+      upCloud(L, 160, 8, 60, 14, 'rgba(255,255,255,.9)'); upCloud(L, 310, 20, 48, 12, 'rgba(255,255,255,.88)'); upCloud(L, 28, 32, 40, 10, 'rgba(255,255,255,.8)');
+    }
+  }
+  /* いちばん 奥の 山なみの 色（時間帯・手前より うすく かすんだ 色） */
+  const BACK = { morning: '#cdd8ee', day: '#b4c6e6', evening: '#7b5e9e', night: '#26336a' };
+  const BACKSNOW = { morning: '#ffffff', day: '#f6f9ff', evening: '#ffe0d0', night: '#b8c4ea' };
+  function backOf(L, biome, time) {
+    if (biome === 'mountain' || biome === 'lake') backRange(L, [[0, 44], [40, 54], [90, 42], [150, 72], [200, 52], [250, 60], [310, 48], [360, 68], [400, 50]], BACK[time], 16, 58, BACKSNOW[time]);
+    else if (biome === 'forest') backRange(L, [[0, 38], [70, 52], [140, 40], [220, 60], [300, 44], [400, 54]], '#7a5a9e', 16);
+    else if (biome === 'town') backRange(L, [[0, 36], [100, 50], [200, 38], [300, 56], [400, 42]], BACK[time], 16);
+    else if (biome === 'sea') backRange(L, [[0, 50], [60, 66], [120, 40], [250, 36], [320, 62], [400, 48]], 'rgba(255,255,255,.55)', 16);
+    else if (biome === 'sky') backRange(L, [[0, 46], [80, 62], [160, 38], [240, 58], [320, 42], [400, 56]], 'rgba(236,244,255,.85)', 16);
+    else if (biome === 'tower') backRange(L, [[0, 36], [30, 62], [50, 40], [110, 44], [140, 74], [170, 46], [240, 42], [270, 68], [300, 40], [360, 48], [380, 64], [400, 44]], '#241c46', 12);
+  }
+
   /* ---------- バトル（エリアごと） ---------- */
   function arena(biome, time) {
     biome = BIOMES.indexOf(biome) >= 0 ? biome : 'mountain';
     time = skyOf(biome, time);
     const t = TONE[time];
     const L = layer('bgfar--arena bgfar--' + biome + ' tod-' + time);
+    upperSky(L, time);                 // v14.32：空の 上の ほう（上から %）
     skyThings(L, time, 'arena');
+    backOf(L, biome, time);            // v14.32：いちばん 奥の 山なみ（高い アリーナで 顔を 出す）
     if (biome === 'mountain') {
       /* A：雪山 2重＋松＋遠くの 城（小さく・うすく）＋鳥＋きり */
       range(L, [[0, 46], [60, 96], [120, 56], [190, 118], [260, 66], [330, 104], [400, 50]], t.far, 12, 90, t.snow);

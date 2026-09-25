@@ -76,8 +76,10 @@ MQ.ui.battle = (function () {
           ]),
           d.pal = h('div', { class: 'pal', hidden: true }, [
             d.palBox = h('div', { class: 'pal__box' }),
-            d.palName = h('span', { class: 'pal__name', text: '' }),
-            d.palGauge = h('div', { class: 'pal__gauge' })
+            h('div', { class: 'pal__tag' }, [                  // v14.32：なまえと ゲージは 足もとの 札（頭の 上だと 勇者に かくれて 切れた）
+              d.palName = h('span', { class: 'pal__name', text: '' }),
+              d.palGauge = h('div', { class: 'pal__gauge' })
+            ])
           ]),
           d.foes = h('div', { class: 'foes' })
         ]),
@@ -722,7 +724,11 @@ MQ.ui.battle = (function () {
     d.combo.hidden = n < 2;
     if (n < 2) { if (d.charge) d.charge.hidden = true; return; }
     const sp = specialOf(n);
-    d.combo.textContent = n + ' コンボ！' + (sp ? '　ひっさつ！' : '');
+    // v14.32：金の ふだ 1行（ユーザー「綺麗に 1列で」）。前は 字だけで「必／殺！」と 字の とちゅうで 折れて いた
+    d.combo.textContent = '';
+    d.combo.appendChild(h('b', { class: 'combo__n', text: String(n) }));
+    d.combo.appendChild(h('span', { class: 'combo__lbl', text: 'コンボ！' }));
+    if (sp) d.combo.appendChild(h('span', { class: 'combo__sp', text: 'ひっさつ！' }));
     // クリティカルの 色。オーロラの けん（げきレア）を つけて いると 2コンボから（v9.0）
     const critFrom = (MQ.battle.critFrom && MQ.battle.critFrom()) || 3;
     d.combo.className = 'combo' + (n >= critFrom ? ' combo--crit' : '') + (sp ? ' combo--' + sp.id + ' is-sp' : '');
@@ -3145,10 +3151,12 @@ MQ.ui.battle = (function () {
     const cur = MQ.pals ? MQ.pals.active(player) : null;
     palNow = cur;
     d.pal.hidden = !cur;
+    if (d.arena) d.arena.classList.toggle('has-pal', !!cur);   // v14.32：セットゲージを 相棒の 札の となりへ
     d.palBox.innerHTML = '';
     if (!cur) return;
     d.palBox.appendChild((V3() && MQ.ui.v3.monster(cur.id, 40, { ry: 22, mo: 'mo-title', cls: 'pal__img3d' })) || MQ.enemies.node(cur.id, { size: 40, cls: 'pal__img' }));
-    d.palName.textContent = cur.name + ' Lv.' + cur.lv;
+    d.palName.textContent = cur.name;                          // v14.32：札は 短く（Lv は メニューで 見る）
+    d.pal.title = cur.name + ' Lv.' + cur.lv;
     d.palGauge.innerHTML = '';
     const need = MQ.battle.palGaugeNeed ? MQ.battle.palGaugeNeed() : 3;
     for (let i = 0; i < need; i++) d.palGauge.appendChild(h('span', { class: 'pal__dot' }));

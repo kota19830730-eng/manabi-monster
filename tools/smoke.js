@@ -4746,7 +4746,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
       sc.BIOMES.forEach(function (b) {
         ['morning', 'day', 'evening', 'night'].forEach(function (t) {
           const n = countI(sc.arena(b, t));
-          check(n >= 10 && n <= 130, 'scenery: ' + b + '/' + t + ' の 部品 ' + n + '（10〜130）');
+          check(n >= 10 && n <= 170, 'scenery: ' + b + '/' + t + ' の 部品 ' + n + '（10〜170・v14.32 で 空の 上と 奥の 山を 足した）');
         });
         check(sc.floor(b).kids[0].className === 'afloor afloor--' + b, 'scenery: ' + b + ' の ゆか');
       });

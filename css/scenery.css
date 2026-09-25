@@ -10,7 +10,9 @@
 .title__scene .bgfar { bottom: 0; height: 150px; }
 .title__top .bgtop { position: absolute; left: 0; right: 0; top: 0; height: 52px; z-index: 0; pointer-events: none; overflow: hidden; }
 .title__top .bgtop i { position: absolute; display: block; bottom: 0; }
-.arena__bg .bgfar { bottom: 74px; height: 120px; }            /* 草（60〜74）の 上から */
+.arena__bg .bgfar { bottom: 74px; height: calc(100% - 74px); }  /* 草（60〜74）の 上から アリーナの いちばん 上まで（v14.32：前は 120px 決めうちで 高い アリーナの 上が からっぽだった） */
+.bgfar i.up { bottom: auto; }                                    /* 空の 上の ほうの 部品は 上から % で おく（v14.32） */
+.bgfar i.up i { position: absolute; display: block; }
 .bgfar i { position: absolute; display: block; bottom: 0; }
 .bgfar .bk { box-shadow: inset -2px -2px 0 rgba(0,0,0,.16), inset 2px 2px 0 rgba(255,255,255,.14); }   /* 3面の 光（ブロック） */
 .bgfar .star { box-shadow: 0 0 4px #fff; }
