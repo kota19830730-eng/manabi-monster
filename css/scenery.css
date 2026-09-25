@@ -80,6 +80,12 @@
   background-size: 34px 60px; background-position: 0 30px;
 }
 
+/* ---- v14.33：バトルの 背景も タイトルと 同じ 仕上げ（Canvas）。遠景は 高さに 合わせて 描き直す ---- */
+.bgfar--painted .bgfar__cv { top: auto; bottom: 0; }
+.afloorwrap--painted { height: 74px; }
+.afloor__cv { position: absolute; left: 0; bottom: 0; width: 400px; height: 74px; display: block; pointer-events: none; }
+.arena__bg.is-painted .cloud--c { display: none; }   /* ブロックの 雲は 絵の 雲に まかせる */
+
 /* ---- 地図：海の 向こうの うすい 山なみ（A）と 時間帯の 光（C） ---- */
 .mapfar { position: absolute; left: 0; right: 0; top: 0; height: 18px; z-index: 1; overflow: hidden; pointer-events: none; opacity: .75; }
 .mapfar i { position: absolute; display: block; bottom: 0; }

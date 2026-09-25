@@ -696,10 +696,322 @@ MQ.ui.scenery = (function () {
     else if (biome === 'tower') backRange(L, [[0, 36], [30, 62], [50, 40], [110, 44], [140, 74], [170, 46], [240, 42], [270, 68], [300, 40], [360, 48], [380, 64], [400, 44]], '#241c46', 12);
   }
 
+  /* =======================================================
+     バトルの 背景も タイトルと 同じ 仕上げに（v14.33）
+
+     ユーザー「背景の 解像度 あげましょう。オープニングの 背景に 比べたら 汚いです」。
+     v12.6 の ブロックの 山なみ・マス目の ゆかを やめ、タイトル（v13.9）と 同じ 部品
+     （peak・fir・roundBush・puff・hillShape・castleArt・starDot）で Canvas に なめらかに 描く。
+       ・遠景（400×アリーナの 高さ−74）は アリーナの 高さで 描き直す（高い ときは 奥の 山が 大きく なる）。
+         同じ 高さは とって おいて 使いまわす（paintCache・バトルの ぶんは 12まいまで）。
+       ・ゆか（400×74）は 草や すなの へり＋奥ゆきの ある 石だたみ／土／すな（エリアごと）。
+       ・時間帯は いままで どおり（山・湖・町は 時計、森は 夕方、海と 空は 昼、塔は 夜）。
+       ・右 120px（てきの 場所）に 高い 木や 城を おかない（遠くの 山と 小さな ものだけ）。
+     Canvas が 使えない ときは いままでの ブロック（arena の 下の ほう）に もどる。
+     ======================================================= */
+  const ARENA_GROUND_H = 74;
+  function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
+  function paMoon(c, x, y, r) {
+    const g = c.createRadialGradient(x, y, r * 0.6, x, y, r * 3);
+    g.addColorStop(0, 'rgba(255,244,200,.42)'); g.addColorStop(1, 'rgba(255,244,200,0)');
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, r * 3, 0, Math.PI * 2); c.fill();
+    c.fillStyle = vgrad(c, y - r, y + r, [['#fffbe6'], ['#f1dfa0']]); c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(200,176,110,.32)';
+    [[-0.35, -0.2, 0.22], [0.3, 0.25, 0.16], [0.02, 0.48, 0.1]].forEach(function (k) { c.beginPath(); c.arc(x + k[0] * r, y + k[1] * r, k[2] * r, 0, Math.PI * 2); c.fill(); });
+  }
+  function paSun(c, x, y, r, col) {
+    const g = c.createRadialGradient(x, y, r * 0.5, x, y, r * 3.2);
+    g.addColorStop(0, rgba(col, 0.55)); g.addColorStop(1, rgba(col, 0));
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, r * 3.2, 0, Math.PI * 2); c.fill();
+    c.fillStyle = vgrad(c, y - r, y + r, [['#fff6c8'], [col]]); c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+  }
+  /* 空の 上の ほう：星・月・雲（アリーナの 高さ hh に 合わせて ちらす） */
+  function paSky(c, w, hh, time, opt) {
+    opt = opt || {};
+    const top = 10, bot = Math.max(40, hh - 86);
+    const Y = function (f) { return top + (bot - top) * f; };
+    if (time === 'night') {
+      for (let i = 0; i < 26; i++) starDot(c, 8 + rnd(i + 700) * (w - 16), Y(rnd(i + 740)), i % 4 ? 0.75 : 1.1);
+      if (!opt.noMoon) paMoon(c, 326, Math.max(24, Y(0.1)), 11);
+    } else if (time === 'evening') {
+      for (let i = 0; i < 7; i++) starDot(c, 10 + rnd(i + 800) * (w - 20), Y(rnd(i + 820) * 0.4), 0.7);
+    }
+    const cl = time === 'night' ? ['rgba(130,150,210,.30)', 'rgba(90,110,180,.18)']
+      : time === 'evening' ? ['#ffd2bf', '#e88f8a'] : time === 'morning' ? ['#ffffff', '#ffe2c6'] : ['#ffffff', '#d9ecfb'];
+    (opt.clouds || [[150, 0.14, 50], [296, 0.36, 40], [22, 0.54, 34]]).forEach(function (p) { puff(c, p[0], Y(p[1]) + p[2] * 0.3, p[2], cl[0], cl[1]); });
+  }
+  function paHills(c, w, hh, time, rim) {
+    const G = function (k) { return tod(GREEN[k], time); };
+    hillShape(c, [[0, hh - 22], [60, hh - 32], [130, hh - 24], [210, hh - 36], [290, hh - 26], [350, hh - 34], [400, hh - 26]], hh + 1, G('backTop'), G('backBot'), rim);
+    hillShape(c, [[0, hh - 10], [80, hh - 18], [160, hh - 8], [250, hh - 16], [330, hh - 7], [400, hh - 14]], hh + 1, G('frontTop'), G('meadow'), rim * 0.8);
+  }
+  /* 山（と 湖）：奥の 山（高さで のびる）→ 山なみ 2重 → 松 → 城（小さく）→ かすみ → おか か 湖 */
+  const PA_BACK = { morning: ['#d6def0', '#bcc8e4'], day: ['#c3d2ee', '#a6b9df'], evening: ['#8e6eac', '#704f92'], night: ['#2c3a72', '#202b5a'] };
+  function paMountain(c, w, hh, time, lake) {
+    const t = TONE[time], base = hh - (lake ? 20 : 6), tall = clamp01((hh - 120) / 140);
+    if (time === 'evening') paSun(c, 238, base - 36, 20, '#ffb46a');
+    if (time === 'morning') paSun(c, 50, Math.max(28, hh - 150), 12, '#ffe39a');
+    paSky(c, w, hh, time);
+    const bsnow = [t.snow, mix(t.snow, PA_BACK[time][1], 0.35)];
+    [[-20, 60, 70], [70, 86, 80], [170, 110, 96], [262, 80, 78], [350, 100, 88], [430, 66, 70]].forEach(function (p) {
+      peak(c, p[0], base - 6, p[1] * (0.5 + 0.9 * tall), p[2] * (0.8 + 0.5 * tall), PA_BACK[time], 60, bsnow);
+    });
+    c.fillStyle = vgrad(c, base - 90, base, [['rgba(255,255,255,0)'], [t.fog]]); c.fillRect(0, base - 90, w, 90);
+    const m = Math.min(1, (base - 14) / 112);
+    const far = [lit(t.far, 0.14), drk(t.far, 0.1)], snow = [t.snow, mix(t.snow, t.far, 0.35)];
+    [[-10, 44, 52], [40, 70, 58], [96, 52, 50], [150, 92, 70], [214, 64, 58], [262, 108, 78], [322, 76, 62], [376, 88, 66], [420, 50, 50]].forEach(function (p) {
+      peak(c, p[0], base, p[1] * m, p[2], far, 62 * m, snow);
+    });
+    c.fillStyle = vgrad(c, base - 60, base, [['rgba(255,255,255,0)'], [t.fog]]); c.fillRect(0, base - 60, w, 60);
+    const near = [lit(t.near, 0.12), drk(t.near, 0.14)];
+    [[10, 38, 46], [70, 54, 52], [136, 36, 44], [196, 60, 56], [250, 40, 46], [300, 50, 50], [352, 34, 44], [404, 46, 48]].forEach(function (p) {
+      peak(c, p[0], base + 4, p[1] * m, p[2], near, 52 * m, snow);
+    });
+    const pc = [lit(t.pine, 0.12), t.pine, drk(t.pine, 0.2)];
+    [[8, 0.42], [24, 0.5], [40, 0.38], [132, 0.46], [146, 0.36], [206, 0.44], [222, 0.34]].forEach(function (p) { fir(c, p[0], base + 6, p[1], pc, pc[2]); });
+    if (!lake) { c.save(); c.translate(300, base + 3); c.scale(0.58, 0.58); castleArt(c, 0, 0, time === 'night' ? '#2a2450' : time === 'evening' ? '#3b2d63' : mix('#4a4680', t.far, 0.3), time === 'night' ? '#3a1f4a' : '#5a2a5e', time !== 'day'); c.restore(); }
+    [[92, Math.max(40, base - 70)], [112, Math.max(34, base - 78)], [74, Math.max(30, base - 82)]].forEach(function (b, i) { birdV(c, b[0], b[1], t.bird, i === 1 ? 1.1 : 0.9); });
+    c.fillStyle = vgrad(c, base - 24, base + 8, [['rgba(255,255,255,0)'], [t.fog]]); c.fillRect(0, base - 24, w, 32);
+    if (lake) {
+      c.fillStyle = vgrad(c, base, hh, [[tod('#86c6f0', time)], [tod('#3f86cf', time)]]); c.fillRect(0, base, w, hh - base);
+      c.fillStyle = 'rgba(255,255,255,.55)'; c.fillRect(0, base, w, 1.2);
+      for (let i = 0; i < 18; i++) { const y = base + 3 + rnd(i + 900) * (hh - base - 4), x = rnd(i + 930) * w; c.fillStyle = 'rgba(255,255,255,' + (0.25 + rnd(i + 960) * 0.3).toFixed(2) + ')'; c.fillRect(x, y, 8 + rnd(i + 990) * 16, 1); }
+      c.strokeStyle = tod('#3f8a35', time); c.lineWidth = 1.4; c.lineCap = 'round';
+      [[24, 16], [30, 20], [36, 14], [206, 18], [212, 13], [342, 16], [348, 21]].forEach(function (r, i) {
+        c.beginPath(); c.moveTo(r[0], hh); c.quadraticCurveTo(r[0] + (i % 2 ? 3 : -3), hh - r[1] * 0.6, r[0] + (i % 2 ? 1 : -1), hh - r[1]); c.stroke();
+      });
+    } else {
+      paHills(c, w, hh, time, time === 'night' ? 0.06 : 0.35);
+      const tp = treePal().map(function (x) { return tod(x, time); }), tr = tod('#6a4a2c', time);
+      fir(c, 16, hh - 4, 1.05, tp, tr, 0.12);
+      fir(c, 40, hh - 10, 0.7, tp, tr, 0.1);
+      roundBush(c, 166, hh - 6, 24, tod('#4fae44', time));
+      roundBush(c, 262, hh - 4, 20, tod('#5bb84c', time));
+    }
+  }
+  /* 森（いつも 夕方）：夕日 → むらさきの 山 → 木の 林 → おか → しげみ・花 */
+  function paForest(c, w, hh, time) {
+    const tall = clamp01((hh - 120) / 140), base = hh - 4;
+    paSun(c, 244, base - 30, 22, '#ffa860');
+    paSky(c, w, hh, time);
+    [[-10, 50, 70], [90, 72, 80], [200, 58, 74], [300, 84, 86], [410, 60, 70]].forEach(function (p) {
+      peak(c, p[0], base - 8, p[1] * (0.55 + 0.8 * tall), p[2] * (0.9 + 0.4 * tall), ['#7d5ea2', '#644a88'], null);
+    });
+    c.fillStyle = vgrad(c, base - 70, base, [['rgba(255,190,150,0)'], ['rgba(255,190,150,.35)']]); c.fillRect(0, base - 70, w, 70);
+    const G = function (k) { return tod(GREEN[k], time); };
+    hillShape(c, [[0, hh - 40], [70, hh - 54], [150, hh - 44], [230, hh - 58], [320, hh - 42], [400, hh - 52]], hh + 1, mix(G('backTop'), '#7a5a9e', 0.25), G('backBot'), 0.3);
+    const far3 = ['#5f8f4a', '#46733a', '#335a2c'].map(function (x) { return tod(x, time); });
+    [[20, 0.8], [58, 1.0], [96, 0.75], [138, 0.95], [176, 0.7], [214, 0.9], [252, 0.65], [290, 0.6], [330, 0.55], [372, 0.6]].forEach(function (p) { fir(c, p[0], hh - 36, p[1], far3, tod('#5a3a22', time)); });
+    const tp = treePal().map(function (x) { return tod(x, time); }), tr = tod('#6a4a2c', time);
+    hillShape(c, [[0, hh - 18], [90, hh - 28], [180, hh - 16], [270, hh - 26], [400, hh - 14]], hh + 1, G('frontTop'), G('meadow'), 0.28);
+    fir(c, 12, hh - 6, 1.4, tp, tr, 0.14);
+    fir(c, 44, hh - 12, 1.0, tp, tr, 0.12);
+    fir(c, 168, hh - 14, 0.8, tp, tr, 0.12);
+    fir(c, 226, hh - 10, 0.9, tp, tr, 0.12);
+    roundBush(c, 86, hh - 8, 26, tod('#4fae44', time)); roundBush(c, 270, hh - 6, 24, tod('#5bb84c', time)); roundBush(c, 330, hh - 4, 22, tod('#4fae44', time));
+    const fl = flowerPal();
+    [[112, hh - 6], [134, hh - 9], [196, hh - 5], [250, hh - 7], [300, hh - 4], [356, hh - 6]].forEach(function (f, i) { flower5(c, f[0], f[1], tod(fl[i % fl.length], time), 0.9); });
+  }
+  function paPalm(c, x, by, s) {
+    c.strokeStyle = '#8a5a32'; c.lineWidth = 3 * s; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(x, by); c.quadraticCurveTo(x + 5 * s, by - 14 * s, x + 2 * s, by - 26 * s); c.stroke();
+    const tx = x + 2 * s, ty = by - 26 * s;
+    [-2.7, -2.1, -1.2, -0.5, 0.2].forEach(function (a, i) {
+      c.fillStyle = i % 2 ? '#2f8030' : '#3f9e3c';
+      c.beginPath(); c.ellipse(tx + Math.cos(a) * 8 * s, ty + Math.sin(a) * 4 * s + 3 * s, 9 * s, 2.6 * s, a, 0, Math.PI * 2); c.fill();
+    });
+  }
+  /* 海（いつも 昼）：入道雲 → 水平線 → 島と ヤシ → 波の 光 */
+  function paSea(c, w, hh, time) {
+    const tall = clamp01((hh - 120) / 140), hz = hh - 34;
+    paSky(c, w, hh, time, { clouds: [[40, 0.12, 50], [300, 0.34, 40]] });
+    puff(c, 20, hz, 100 + tall * 60, '#ffffff', '#cfe4f7');
+    puff(c, 250, hz, 120 + tall * 80, '#ffffff', '#d4e8f8');
+    c.fillStyle = vgrad(c, hz, hh, [['#63b4ec'], ['#2f86d2']]); c.fillRect(0, hz, w, hh - hz);
+    c.fillStyle = 'rgba(255,255,255,.65)'; c.fillRect(0, hz, w, 1.2);
+    hillShape(c, [[150, hz + 1], [178, hz - 9], [214, hz - 14], [246, hz - 8], [270, hz + 1]], hz + 2, '#74c456', '#3f8a35', 0.3);
+    paPalm(c, 206, hz - 8, 0.7); paPalm(c, 224, hz - 10, 0.55);
+    for (let i = 0; i < 26; i++) {
+      const y = hz + 4 + rnd(i + 1000) * (hh - hz - 6), k = (y - hz) / (hh - hz), x = rnd(i + 1040) * w;
+      c.fillStyle = 'rgba(255,255,255,' + (0.3 + rnd(i + 1080) * 0.35).toFixed(2) + ')';
+      c.beginPath(); c.ellipse(x, y, 3 + k * 9, 0.6 + k * 0.8, 0, 0, Math.PI * 2); c.fill();
+    }
+    [[70, hz - 60], [92, hz - 68], [300, hz - 52]].forEach(function (b) { birdV(c, b[0], Math.max(20, b[1]), '#f4f8ff', 0.9); });
+  }
+  /* 空（いつも 昼）：遠くの 空の お城 → 雲の 海（3だん） */
+  function paSkyLand(c, w, hh, time) {
+    const tall = clamp01((hh - 120) / 140);
+    paSky(c, w, hh, time, { clouds: [[24, 0.16, 44], [304, 0.1, 52]] });
+    c.save(); c.translate(160, hh - 34 - tall * 24); c.scale(0.78, 0.78); castleArt(c, 0, 0, '#c6d3ee', '#8aa0d6', false); c.restore();
+    [[hh - 30, 0.92, 70, ['#ffffff', '#dbe8fa']], [hh - 16, 1, 84, ['#ffffff', '#e6f0fc']], [hh - 2, 1, 96, ['#ffffff', '#f2f8ff']]].forEach(function (row, r) {
+      for (let x = -40 + r * 30; x < w + 40; x += row[2] * 0.72) puff(c, x, row[0], row[2], row[3][0], row[3][1]);
+    });
+    [[96, hh - 90], [120, hh - 98], [330, hh - 84]].forEach(function (b) { birdV(c, b[0], Math.max(20, b[1]), '#6a86bf', 0.9); });
+  }
+  /* 塔（いつも 夜）：星 → とがった 岩山 → 石の 柱 → 光る クリスタル */
+  function paTower(c, w, hh, time) {
+    const tall = clamp01((hh - 120) / 140), base = hh;
+    paSky(c, w, hh, 'night', { noMoon: true, clouds: [] });
+    [[-10, 80, 30], [40, 120, 26], [90, 70, 28], [150, 150, 34], [210, 90, 30], [262, 130, 30], [318, 84, 28], [370, 116, 30], [420, 76, 30]].forEach(function (p) {
+      const hgt = p[1] * (0.55 + 0.7 * tall);
+      poly(c, [[p[0] - p[2], base], [p[0] - 3, base - hgt], [p[0] + 3, base - hgt + 6], [p[0] + p[2], base]], '#221a42');
+      poly(c, [[p[0], base - hgt + 3], [p[0] + 3, base - hgt + 6], [p[0] + p[2], base], [p[0] + p[2] * 0.35, base]], '#1a1434');
+    });
+    c.fillStyle = vgrad(c, base - 70, base, [['rgba(120,80,200,0)'], ['rgba(120,80,200,.32)']]); c.fillRect(0, base - 70, w, 70);
+    [[22, 64], [118, 56], [214, 62]].forEach(function (p) {
+      const x = p[0], ph = Math.min(p[1], base - 20);
+      c.fillStyle = '#4b3d74'; c.fillRect(x, base - ph, 10, ph);
+      c.fillStyle = '#342a58'; c.fillRect(x + 10, base - ph, 6, ph);
+      c.fillStyle = '#5a4a88'; c.fillRect(x - 3, base - ph - 5, 22, 5);
+      c.fillStyle = '#2a2248'; c.fillRect(x - 3, base - 6, 22, 6);
+    });
+    [[64, 20], [160, 16], [250, 14], [344, 12]].forEach(function (p) {
+      const x = p[0], s = p[1];
+      c.save(); c.shadowColor = 'rgba(180,108,255,.95)'; c.shadowBlur = 12;
+      poly(c, [[x, base - s * 2.2], [x + s * 0.5, base - s * 0.9], [x, base], [x - s * 0.5, base - s * 0.9]], '#b46cff');
+      c.restore();
+      poly(c, [[x, base - s * 2.2], [x, base], [x - s * 0.5, base - s * 0.9]], '#d7b0ff');
+    });
+  }
+  function paHouse(c, x, by, ww, h, wall, roof, light) {
+    c.fillStyle = vgrad(c, by - h, by, [[lit(wall, 0.08)], [wall]]); c.fillRect(x, by - h, ww, h);
+    c.fillStyle = drk(wall, 0.16); c.fillRect(x + ww * 0.74, by - h, ww * 0.26, h);
+    poly(c, [[x - 4, by - h], [x + ww / 2, by - h - ww * 0.42], [x + ww / 2, by - h]], lit(roof, 0.16));
+    poly(c, [[x + ww / 2, by - h], [x + ww / 2, by - h - ww * 0.42], [x + ww + 4, by - h]], roof);
+    c.fillStyle = drk(wall, 0.45); c.fillRect(x + ww * 0.42, by - h * 0.46, ww * 0.16, h * 0.46);
+    c.save(); if (light) { c.shadowColor = 'rgba(255,212,71,.9)'; c.shadowBlur = 6; }
+    c.fillStyle = light ? '#ffd96a' : '#7d9ac0';
+    c.fillRect(x + ww * 0.14, by - h * 0.72, ww * 0.16, h * 0.22); c.fillRect(x + ww * 0.66, by - h * 0.72, ww * 0.16, h * 0.22);
+    c.restore();
+  }
+  /* 町：遠くの 山 → おか → 家なみ → 木 */
+  function paTown(c, w, hh, time) {
+    const t = TONE[time], base = hh - 4, tall = clamp01((hh - 120) / 140), lamp = time === 'evening' || time === 'night';
+    if (time === 'evening') paSun(c, 250, base - 40, 18, '#ffb46a');
+    paSky(c, w, hh, time);
+    [[-10, 50, 70], [110, 74, 80], [230, 60, 74], [340, 80, 84], [430, 56, 70]].forEach(function (p) {
+      peak(c, p[0], base - 10, p[1] * (0.5 + 0.8 * tall), p[2], PA_BACK[time], null);
+    });
+    c.fillStyle = vgrad(c, base - 60, base, [['rgba(255,255,255,0)'], [t.fog]]); c.fillRect(0, base - 60, w, 60);
+    const G = function (k) { return tod(GREEN[k], time); };
+    hillShape(c, [[0, hh - 30], [90, hh - 40], [180, hh - 32], [280, hh - 42], [400, hh - 30]], hh + 1, G('backTop'), G('backBot'), time === 'night' ? 0.06 : 0.3);
+    const wl = function (x) { return tod(x, time); };
+    paHouse(c, 10, hh - 6, 40, 26, wl('#f2ead6'), wl('#d65a4a'), lamp);
+    paHouse(c, 70, hh - 10, 34, 22, wl('#e8dcc4'), wl('#4b8fd8'), lamp);
+    paHouse(c, 124, hh - 5, 46, 30, wl('#f2ead6'), wl('#d65a4a'), lamp);
+    paHouse(c, 196, hh - 9, 38, 24, wl('#efe4cc'), wl('#5aa64a'), lamp);
+    paHouse(c, 252, hh - 12, 30, 20, wl('#e8dcc4'), wl('#d65a4a'), lamp);
+    const tp = treePal().map(function (x) { return tod(x, time); }), tr = tod('#6a4a2c', time);
+    fir(c, 60, hh - 4, 0.7, tp, tr, 0.1); fir(c, 180, hh - 4, 0.6, tp, tr, 0.1);
+    roundBush(c, 296, hh - 4, 22, tod('#4fae44', time)); roundBush(c, 350, hh - 3, 20, tod('#5bb84c', time));
+  }
+  function paintArena(c, w, hh, biome, time) {
+    if (biome === 'forest') paForest(c, w, hh, time);
+    else if (biome === 'sea') paSea(c, w, hh, time);
+    else if (biome === 'sky') paSkyLand(c, w, hh, time);
+    else if (biome === 'tower') paTower(c, w, hh, time);
+    else if (biome === 'town') paTown(c, w, hh, time);
+    else paMountain(c, w, hh, time, biome === 'lake');
+  }
+
+  /* ---- ゆか（400×74）：へり（草・すな・雲・石）＋奥ゆきの ある ゆか ---- */
+  const GROUND_PA = {
+    mountain: { lip: ['#7fd65a', '#4e9e3a'], floor: ['#a7b1bf', '#7c8797'], line: 'rgba(40,50,70,.17)', tuft: '#5ab846' },
+    lake:     { lip: ['#7fd65a', '#4e9e3a'], floor: ['#99aabc', '#6f8298'], line: 'rgba(20,40,80,.17)', tuft: '#5ab846' },
+    forest:   { lip: ['#5caa4c', '#3a7e32'], floor: ['#8c6846', '#62442a'], line: 'rgba(40,20,5,.2)', tuft: '#469a3e' },
+    sea:      { lip: ['#f6e8bc', '#dcc488'], floor: ['#efdca4', '#d0b474'], line: 'rgba(120,90,30,.13)', tuft: null, foam: true },
+    sky:      { lip: ['#ffffff', '#dce9fb'], floor: ['#f7fbff', '#d5e4f7'], line: 'rgba(90,150,220,.2)', tuft: null },
+    tower:    { lip: ['#56448a', '#2e2250'], floor: ['#43375f', '#262040'], line: 'rgba(180,130,255,.42)', tuft: null, glow: true },
+    town:     { lip: ['#7fd65a', '#4e9e3a'], floor: ['#c4b49c', '#978770'], line: 'rgba(60,40,20,.22)', tuft: '#5ab846', cobble: true }
+  };
+  function paintArenaGround(c, w, hh, biome, time) {
+    const g = GROUND_PA[biome] || GROUND_PA.mountain;
+    const T = function (x) { return (biome === 'mountain' || biome === 'lake' || biome === 'town') ? tod(x, time) : x; };
+    const top = 12, vx = w / 2, vy = -150;
+    c.fillStyle = vgrad(c, top, hh, [[T(g.floor[0])], [T(g.floor[1])]]); c.fillRect(0, top - 2, w, hh - top + 2);
+    // 奥ゆきの 線（1つの 消える 点に むかう）＋よこ線（手まえほど 間が 広い）
+    c.save();
+    if (g.glow) { c.shadowColor = 'rgba(180,120,255,.9)'; c.shadowBlur = 5; }
+    c.strokeStyle = g.line; c.lineWidth = 1;
+    for (let i = -9; i <= 9; i++) {
+      const xb = vx + i * 46, xt = vx + (xb - vx) * ((top - vy) / (hh - vy));
+      c.beginPath(); c.moveTo(xt, top); c.lineTo(xb, hh); c.stroke();
+    }
+    const rows = [];
+    for (let k = 1; k < 6; k++) rows.push(top + (hh - top) * Math.pow(k / 6, 1.5));
+    rows.forEach(function (y) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); });
+    if (g.cobble) {   // 1だん おきに ずらした しきいし
+      rows.forEach(function (y, r) {
+        const y0 = r ? rows[r - 1] : top;
+        for (let i = -9; i <= 9; i++) {
+          const xb = vx + (i + 0.5) * 46, f0 = (y0 - vy) / (hh - vy), f1 = (y - vy) / (hh - vy);
+          if (r % 2) { c.beginPath(); c.moveTo(vx + (xb - vx) * f0, y0); c.lineTo(vx + (xb - vx) * f1, y); c.stroke(); }
+        }
+      });
+    }
+    c.restore();
+    // つぶ（手まえほど 大きい）
+    for (let i = 0; i < 110; i++) {
+      const y = top + 3 + rnd(i + 1500) * (hh - top - 3), k = (y - top) / (hh - top), x = rnd(i + 1540) * w;
+      c.fillStyle = i % 3 ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.16)';
+      c.beginPath(); c.ellipse(x, y, (0.6 + rnd(i + 1580)) * (0.5 + k * 1.3), (0.4 + rnd(i + 1620) * 0.5) * (0.5 + k * 1.3), 0, 0, Math.PI * 2); c.fill();
+    }
+    // へりの 下の かげ・手まえの かげ
+    c.fillStyle = vgrad(c, top, top + 12, [['rgba(0,0,0,.2)'], ['rgba(0,0,0,0)']]); c.fillRect(0, top, w, 12);
+    c.fillStyle = vgrad(c, hh - 30, hh, [['rgba(0,0,0,0)'], ['rgba(0,0,0,.16)']]); c.fillRect(0, hh - 30, w, 30);
+    // へり（草・すな・雲・石）：なみうつ 上の 線
+    const edge = function (x) { return 1.5 + 1.2 * Math.sin(x * 0.07) + 0.8 * Math.sin(x * 0.19 + 1); };
+    c.beginPath(); c.moveTo(0, edge(0));
+    for (let x = 4; x <= w; x += 4) c.lineTo(x, edge(x));
+    c.lineTo(w, top + 3);
+    for (let x = w; x >= 0; x -= 8) c.lineTo(x, top + 2 + 1.3 * Math.sin(x * 0.11));
+    c.closePath();
+    c.fillStyle = vgrad(c, 0, top + 3, [[T(g.lip[0])], [T(g.lip[1])]]); c.fill();
+    c.strokeStyle = g.glow ? 'rgba(200,160,255,.45)' : 'rgba(255,255,230,.45)'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(0, edge(0) + 0.6); for (let x = 4; x <= w; x += 4) c.lineTo(x, edge(x) + 0.6); c.stroke();
+    if (g.foam) {   // すなはまの 白い なみ
+      c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.4;
+      c.beginPath(); c.moveTo(0, top + 5); for (let x = 0; x <= w; x += 10) c.quadraticCurveTo(x + 5, top + 3.5, x + 10, top + 5); c.stroke();
+    }
+    if (g.tuft) {   // 草の 株（へりに そって）
+      c.strokeStyle = T(g.tuft); c.lineWidth = 1.2; c.lineCap = 'round';
+      for (let i = 0; i < 46; i++) {
+        const x = rnd(i + 1700) * w, y = edge(x) + 1, hgt = 2.5 + rnd(i + 1740) * 3;
+        c.beginPath(); c.moveTo(x - 1.5, y + 1); c.lineTo(x - 2.5, y - hgt * 0.8); c.moveTo(x, y + 1); c.lineTo(x, y - hgt); c.moveTo(x + 1.5, y + 1); c.lineTo(x + 2.8, y - hgt * 0.75); c.stroke();
+      }
+    }
+  }
+
+  /* 遠景の 層（Canvas）。アリーナの 高さが わかってから fitArena で 描く */
+  const arenaKeys = [];
+  function fitArena(L, hh) {
+    if (!L || !L.getAttribute) return false;
+    const biome = L.getAttribute('data-biome'), time = L.getAttribute('data-tod');
+    if (!biome || !time) return false;
+    hh = Math.max(60, Math.round(hh / 4) * 4);
+    if (L._hh === hh) return true;
+    const key = 'arena:' + biome + ':' + time + ':' + hh;
+    if (!paintCache[key]) {
+      arenaKeys.push(key);
+      if (arenaKeys.length > 12) delete paintCache[arenaKeys.shift()];
+    }
+    const cv = painted(key, 400, hh, 'bgfar__cv', function (c, w, h2) { paintArena(c, w, h2, biome, time); });
+    cv.style.height = hh + 'px';
+    L.textContent = '';
+    L.appendChild(cv);
+    L._hh = hh;
+    return true;
+  }
+
   /* ---------- バトル（エリアごと） ---------- */
   function arena(biome, time) {
     biome = BIOMES.indexOf(biome) >= 0 ? biome : 'mountain';
     time = skyOf(biome, time);
+    if (canPaint()) {   // v14.33：Canvas で なめらかに（高さが わかってから fitArena で 描く）
+      const P = layer('bgfar--arena bgfar--painted bgfar--' + biome + ' tod-' + time);
+      P.setAttribute('data-biome', biome); P.setAttribute('data-tod', time);
+      return P;
+    }
     const t = TONE[time];
     const L = layer('bgfar--arena bgfar--' + biome + ' tod-' + time);
     upperSky(L, time);                 // v14.32：空の 上の ほう（上から %）
@@ -774,8 +1086,14 @@ MQ.ui.scenery = (function () {
   }
 
   /* ---------- バトルの ゆか（手前が 大きく 奥が 小さい マス目） ---------- */
-  function floor(biome) {
+  function floor(biome, time) {
     biome = BIOMES.indexOf(biome) >= 0 ? biome : 'mountain';
+    if (canPaint()) {   // v14.33：へり＋奥ゆきの ある ゆかを Canvas で
+      time = skyOf(biome, time);
+      const pw = document.createElement('div'); pw.className = 'afloorwrap afloorwrap--painted';
+      pw.appendChild(painted('aground:' + biome + ':' + time, 400, ARENA_GROUND_H, 'afloor__cv', function (c, w, h2) { paintArenaGround(c, w, h2, biome, time); }));
+      return pw;
+    }
     const wrap = document.createElement('div'); wrap.className = 'afloorwrap';
     const f = document.createElement('div'); f.className = 'afloor afloor--' + biome;
     wrap.appendChild(f);
@@ -802,6 +1120,6 @@ MQ.ui.scenery = (function () {
     now: now, setNow: setNow, timeOfDay: timeOfDay, skyOf: skyOf,
     title: title, titleTop: titleTop, titleBlocks: titleBlocks, ground: ground, soilColor: soilColor, canPaint: canPaint,
     paintTitleFar: paintTitleFar, paintTitleGround: paintTitleGround, paintTitleTop: paintTitleTop, LAND_H: LAND_H, SOIL_H: SOIL_H,
-    arena: arena, floor: floor, mapFar: mapFar, mapTint: mapTint, count: count
+    arena: arena, floor: floor, fitArena: fitArena, paintArena: paintArena, paintArenaGround: paintArenaGround, ARENA_GROUND_H: ARENA_GROUND_H, mapFar: mapFar, mapTint: mapTint, count: count
   };
 })();

@@ -174,6 +174,7 @@ MQ.ui.battle = (function () {
           // つぎの コマで（同じ コマで 直すと「ResizeObserver loop」の エラーに なる）
           requestAnimationFrame(function () { if (!fitting && overflowing()) fitPrompt(); });
         }).observe(d.prompt);
+        new ResizeObserver(function () { requestAnimationFrame(fitFar); }).observe(d.arena);   // v14.33：遠景を 高さに 合わせて 描き直す
       } catch (e) {}
     }
   }
@@ -462,10 +463,22 @@ MQ.ui.battle = (function () {
     const tod = sc && !sc.FIXED[biome] ? sc.skyOf(biome, time) : null;
     d.bg.className = 'arena__bg arena__bg--' + biome + (tod ? ' tod-' + tod : '');
     if (sc) {
-      const far = sc.arena(biome, time), fl = sc.floor(biome);
+      const far = sc.arena(biome, time), fl = sc.floor(biome, time);
       d.bg.replaceChild(far, d.far); d.far = far;
       d.bg.replaceChild(fl, d.floor); d.floor = fl;
+      d.bg.classList.toggle('is-painted', far.classList.contains('bgfar--painted'));
+      fitFar();
     }
+  }
+  /* v14.33：遠景の 絵は アリーナの 高さで 描く（高さが 変わったら 描き直す・同じ 高さは とって ある） */
+  let fitFarTries = 0;
+  function fitFar() {
+    const sc = MQ.ui.scenery;
+    if (!d || !d.far || !sc || !sc.fitArena || !d.far.classList.contains('bgfar--painted')) return;
+    const hh = d.far.clientHeight;
+    if (!hh) { if (fitFarTries++ < 20) requestAnimationFrame(fitFar); return; }
+    fitFarTries = 0;
+    sc.fitArena(d.far, hh);
   }
 
   /* =======================================================

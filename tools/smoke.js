@@ -4768,7 +4768,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
             fill: function () { st.fills++; }, stroke: function () { st.strokes++; }, fillRect: function () { st.fills++; },
             createLinearGradient: function () { return grad; }, createRadialGradient: function () { return grad; }
           };
-          ['save', 'restore', 'beginPath', 'closePath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'arc', 'ellipse', 'rect', 'clip', 'setTransform', 'drawImage'].forEach(function (k) { ctx[k] = function () {}; });
+          ['save', 'restore', 'beginPath', 'closePath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'arc', 'ellipse', 'rect', 'clip', 'setTransform', 'drawImage', 'translate', 'scale'].forEach(function (k) { ctx[k] = function () {}; });
           return ctx;
         }
         ['morning', 'day', 'evening', 'night'].forEach(function (t) {
@@ -4779,6 +4779,21 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
           check(a.st.fills > 60 && b.st.fills > 200, 'scenery: タイトル/' + t + ' の 絵（遠景 ' + a.st.fills + '・地面 ' + b.st.fills + ' かい ぬる）');
           check(t === 'day' ? c.st.fills === 0 : c.st.fills > 0, 'scenery: タイトル/' + t + ' の 太陽と 月');
         });
+        /* v14.33：バトルの 遠景（ひくい／高い アリーナ）と ゆかを 7エリア×時間帯で */
+        let arenaFills = 0;
+        sc.BIOMES.forEach(function (b) {
+          ['morning', 'day', 'evening', 'night'].forEach(function (t) {
+            [110, 262].forEach(function (hh) {
+              const a = fakeCtx(), g = fakeCtx();
+              try { sc.paintArena(a, 400, hh, b, sc.skyOf(b, t)); sc.paintArenaGround(g, 400, sc.ARENA_GROUND_H, b, sc.skyOf(b, t)); }
+              catch (e) { bad.push('arena ' + b + '/' + t + ': ' + e.message); }
+              [a, g].forEach(function (x) { x.st.colors.forEach(function (col) { if (!/^(#[0-9a-f]{6}|rgba?\([0-9., ]+\))$/.test(col)) bad.push('arena ' + b + '/' + t + ' 色 ' + col); }); });
+              if (!(a.st.fills > 30 && g.st.fills > 60)) bad.push('arena ' + b + '/' + t + '/' + hh + ' ぬる かず ' + a.st.fills + '/' + g.st.fills);
+              arenaFills += a.st.fills;
+            });
+          });
+        });
+        check(arenaFills > 0, 'scenery: バトルの 遠景と ゆか（7エリア×4時間帯×2つの 高さ）を 描ける');
         check(bad.length === 0, 'scenery: タイトルの 絵に おかしな 色・とちゅうで 落ちる ところが ない ' + bad.slice(0, 3).join(' / '));
       })();
     } finally { global.document.createElement = saveCE; }
