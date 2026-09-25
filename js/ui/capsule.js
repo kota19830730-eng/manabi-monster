@@ -196,11 +196,21 @@ MQ.ui.capsule = (function () {
       class: 'btn capgo capgo--home', type: 'button',
       onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); pull(); }   // stopPropagation を 外さない（上の まわす と 同じ）
     }, [
-      h('span', { class: 'capgo__t', text: can.ok ? 'まわす' : (L.length ? 'あと ' + (can.short || 0) + 'まい' : 'じゅんびちゅう') }),
+      h('span', { class: 'capgo__t', text: can.ok ? 'まわす'
+        : can.why === 'きょうは おしまい' ? 'きょうは おしまい'
+        : (L.length ? 'あと ' + (can.short || 0) + 'まい' : 'じゅんびちゅう') }),
       h('span', { class: 'capgo__c', text: 'コイン ' + z.price })
     ]);
     if (!can.ok) btn.disabled = true;
     body.appendChild(btn);
+    /* 1日の 上限（v14.31）：まわす 前から 見せる（うそを つかない）。
+       上限なし（limit 0）の ときは 何も 出さない */
+    const left = Z.leftToday(p);
+    if (left !== null) {
+      body.appendChild(h('p', { class: 'caphome__left' + (left <= 0 ? ' is-done' : ''), text: left > 0
+        ? 'きょうは あと ' + left + 'かい まわせるよ'
+        : 'きょうは もう まわしたよ。あした また！' }));
+    }
     const wait = Z.waiting(p).length;
     body.appendChild(h('p', { class: 'capcoins', text: 'もっている コイン ' + (p.coins || 0) + (wait ? '　ごほうび チケット ' + wait + 'まい' : '') }));
   }

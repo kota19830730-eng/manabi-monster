@@ -143,3 +143,9 @@
 .przpct__list .przrate { font-size: 12px; }
 .przrate.is-me .przrate__n { font-weight: 700; color: var(--pp-ink); }
 .przrate.is-me .przrate__bar i { background: #f0a020; }
+
+/* ---- 1日に まわせる 回数（v14.31）----
+   「きょうは あと 2かい」を まわす 前から 見せる（うそを つかない）。
+   おしまいの ときも ばつに 見えない 色（赤では なく 灰）に する */
+.caphome__left { margin: 6px 0 0; font-size: 12px; text-align: center; color: var(--gold-1); }
+.caphome__left.is-done { color: var(--tx-sub); }

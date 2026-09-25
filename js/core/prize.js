@@ -30,6 +30,12 @@ MQ.prize = (function () {
   const MAX_TICKETS = 60;       // のこす チケットの 数（わたした ものから 古い じゅんに 消す）
   const DEFAULT_PRICE = 30;     // 1回の ねだん（1日 だいたい 15〜20まい たまる ので 1〜2日に 1回）
   const PRICES = [10, 20, 30, 50, 100];
+  /* 1日に まわせる 回数（v14.31）。0＝上限なし。
+     ユーザー「簡単な問題ばかりして コインを 稼げないように したい」への ふた の 半分。
+     コインの もらい方そのものは js/core/coins.js（★3 ずみの くり返しは 1まい）。
+     ここは「どれだけ 稼いでも ごほうびは 1日 N回まで」＝稼ぎの 速さを ごほうびに 変えられなく する。 */
+  const LIMITS = [1, 2, 3, 0];
+  const DEFAULT_LIMIT = 2;
 
   /* 出やすさ 5段階（w＝重み）。% は 出せる 景品の 重みの 合計で わって 出す */
   const LEVELS = [
@@ -138,6 +144,11 @@ MQ.prize = (function () {
     if (!p.prize || typeof p.prize !== 'object') p.prize = {};
     const z = p.prize;
     if (PRICES.indexOf(z.price) === -1) z.price = DEFAULT_PRICE;
+    /* 1日の 上限（v14.31）。古い セーブには ない ので はじめの 2回を 入れる */
+    if (LIMITS.indexOf(z.limit) === -1) z.limit = DEFAULT_LIMIT;
+    if (typeof z.day !== 'string') z.day = '';
+    if (typeof z.today !== 'number' || z.today < 0) z.today = 0;
+    if (z.day !== ymd()) { z.day = ymd(); z.today = 0; }   // 日が かわったら 0 に もどる
     if (!Array.isArray(z.items)) z.items = [];
     if (!Array.isArray(z.tickets)) z.tickets = [];
     if (typeof z.pulls !== 'number' || z.pulls < 0) z.pulls = 0;
@@ -223,10 +234,24 @@ MQ.prize = (function () {
     const z = ensure(p);
     if (!z) return { ok: false, why: 'ない' };
     if (!live(p).length) return { ok: false, why: 'じゅんびちゅう' };
+    /* 1日の 上限（v14.31）。**コインが たりない かより 先に** 見る
+       ＝「30まい ためたのに まわせない」より「きょうは もう おしまい」を 先に 言う */
+    const lf = leftToday(p);
+    if (lf !== null && lf <= 0) return { ok: false, why: 'きょうは おしまい', left: 0, limit: z.limit };
     const coins = p.coins || 0;
-    if (coins < z.price) return { ok: false, why: 'コインが たりない', short: z.price - coins };
-    return { ok: true };
+    if (coins < z.price) return { ok: false, why: 'コインが たりない', short: z.price - coins, left: lf };
+    return { ok: true, left: lf };
   }
+
+  /* きょう あと 何回 まわせるか（上限なしは null） */
+  function leftToday(p) {
+    const z = ensure(p);
+    if (!z || !z.limit) return null;
+    return Math.max(0, z.limit - (z.today || 0));
+  }
+  /* きょう 何回 まわしたか */
+  function usedToday(p) { const z = ensure(p); return z ? (z.today || 0) : 0; }
+  function setLimit(p, v) { const z = ensure(p); if (LIMITS.indexOf(v) === -1) return false; z.limit = v; return true; }
 
   /* ---- 1つ えらぶ ----
      ①かくてい：つぎで かくていに なる 景品が あれば それ（いくつも あれば いちばん 出にくい もの）
@@ -267,6 +292,7 @@ MQ.prize = (function () {
     it.miss = 0;
     it.got += 1;
     z.pulls += 1;
+    z.today = (z.today || 0) + 1;   // きょうの 回数（v14.31・ensure が 日づけで 0 に もどす）
     z.seq += 1;
     const ticket = {
       id: 't' + z.seq, itemId: it.id, name: it.name, icon: it.icon, level: it.level,
@@ -274,7 +300,7 @@ MQ.prize = (function () {
     };
     z.tickets.unshift(ticket);
     trim(z);
-    return { ok: true, item: Object.assign({}, it), ticket: ticket, rarity: rarityOf(it), pity: pick.pity, spent: z.price, coins: p.coins, soldOut: soldOut(it) };
+    return { ok: true, item: Object.assign({}, it), ticket: ticket, rarity: rarityOf(it), pity: pick.pity, spent: z.price, coins: p.coins, soldOut: soldOut(it), left: leftToday(p) };
   }
   function trim(z) {
     if (z.tickets.length <= MAX_TICKETS) return;
@@ -358,6 +384,7 @@ MQ.prize = (function () {
   return {
     resetAt: resetAt, ackReset: ackReset,
     MAX_ITEMS: MAX_ITEMS, NAME_MAX: NAME_MAX, DEFAULT_PRICE: DEFAULT_PRICE, PRICES: PRICES,
+    LIMITS: LIMITS, DEFAULT_LIMIT: DEFAULT_LIMIT, leftToday: leftToday, usedToday: usedToday, setLimit: setLimit,
     LEVELS: LEVELS, STOCKS: STOCKS, PITIES: PITIES, ICONS: ICONS, ICON_IDS: ICON_IDS,
     MIN_PCT: MIN_PCT, MAX_PCT: MAX_PCT, PRESETS: PRESETS,
     clampPct: clampPct, levelFromPct: levelFromPct, pctCap: pctCap, renorm: renorm, preview: preview,

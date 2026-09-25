@@ -34,6 +34,7 @@
     #roma    ローマ字の「うつ」問題で 止める
     #write   かん字を「書く」問題で 止める
     #result  けっか画面（ボス討伐＋レベルアップ）／#result2 にげられて ★0
+    #result4 ★3 を とった ステージを くり返した けっか画面（コインは 1まい・v14.31）
     #dex     図かん（主人公）
     #treasure たからばこ
     #parent  おうちの人ページ
@@ -96,6 +97,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/pals.js"></script>
 <script src="../js/core/levelup.js"></script>
 <script src="../js/core/forge.js"></script>
+<script src="../js/core/coins.js"></script>
 <script src="../js/core/pika.js"></script>
 <script src="../js/core/weekend.js"></script>
 <script src="../js/core/streak.js"></script>
@@ -1154,6 +1156,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
          #prizemc:win      … まわして 当たった（とばす）
          #prizemc:pity     … あと 1回で かくてい の 表示
          #prizemc:only     … カプセルマシンを かくして おうちの マシンだけ
+         #prizemc:limit    … 1日の 上限（v14.31）まで まわして「きょうは おしまい」
          #prizetix         … もちものの ごほうび チケット */
     if (mode.indexOf('prize') === 0) {
       const parts = mode.split(':');
@@ -1190,6 +1193,31 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         if (MQ.ui.capsule.kind() !== 'home') { const hb = document.querySelector('.capchip--home'); if (hb) hb.click(); await wait(80); }
         say('prizemc: しゅるい=' + MQ.ui.capsule.kind() + ' チップ=' + $$('.capchip').map(function (e) { return e.textContent; }).join('/'));
         say('prizemc: 景品 = ' + $$('.caphome__one').map(function (e) { return e.textContent; }).join(' | '));
+        /* 1日の 上限（v14.31） */
+        say('prizemc: きょう あと ' + MQ.prize.leftToday(MQ.save.current()) + '回（上限 ' + MQ.prize.ensure(MQ.save.current()).limit + '）');
+        say('prizemc: のこり回数の 行 = ' + ((document.querySelector('.caphome__left') || {}).textContent || 'ない'));
+        if (what === 'limit') {
+          const lim = MQ.prize.ensure(MQ.save.current()).limit;
+          for (let i = 0; i < lim; i++) {
+            const go = document.querySelector('.capgo');
+            if (!go || go.disabled) break;
+            go.click(); await wait(200);
+            /* 演出は skip() で「出た ところ」まで とばし、そのあと next() で とじる。
+               next() を よばないと rolling が true の ままで つぎが まわせない（v14.31 で はまった） */
+            MQ.ui.capsule.skip(); await wait(150);
+            if (MQ.ui.capsuleFx) { MQ.ui.capsuleFx.next(); await wait(200); }
+            for (let w = 0; w < 30 && MQ.ui.capsule.isRolling(); w++) {
+              if (MQ.ui.capsuleFx) MQ.ui.capsuleFx.next();
+              await wait(120);
+            }
+            /* 結果の 幕には とじる ボタンが ない（つぎの 描き直しで 消える）→ setKind で 描き直す */
+            MQ.ui.capsule.setKind('home'); await wait(150);
+          }
+          const btn = document.querySelector('.capgo');
+          say('prizemc: 上限 ' + lim + '回の あと → ボタン「' + (btn ? btn.textContent : 'ない') + '」 おせない=' + (btn ? btn.disabled : '?'));
+          say('prizemc: のこり回数の 行 = ' + ((document.querySelector('.caphome__left') || {}).textContent || 'ない'));
+          say('prizemc: あと ' + MQ.prize.leftToday(MQ.save.current()) + '回 / きょう ' + MQ.prize.usedToday(MQ.save.current()) + '回 まわした');
+        }
         if (what === 'win') {
           document.querySelector('.capgo').click();
           await wait(200);
@@ -4562,6 +4590,22 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
 
+    if (mode === 'result4') {
+      /* v14.31：もう ★3 を とった ステージを もう一度 クリア → コインは 1まい */
+      fresh();
+      MQ.save.update(function (pl) { pl.stars = pl.stars || {}; pl.stars['sansu3-6'] = 3; pl.coins = 50; });
+      const c0 = MQ.save.current().coins;
+      MQ.ui.battle.start('sansu3-6');
+      await wait(400);
+      await playBattle('result');
+      await wait(800);
+      const c1 = MQ.save.current().coins;
+      say('result4: 1行 = ' + ((document.querySelector('.rs__cap') || {}).textContent || 'MISSING'));
+      say('result4: コイン ' + c0 + ' → ' + c1 + '（ふえた ' + (c1 - c0) + 'まい）');
+      const cap = document.querySelector('.rs__cap');
+      if (cap) cap.scrollIntoView({ block: 'center' });
+      return;
+    }
     if (mode === 'result' || mode === 'result2' || mode === 'result3') {
       // #result  … ボスを たおして レベルアップも する にぎやかな ケース
       // #result2 … ボスに にげられて ★0 の さみしい ケース

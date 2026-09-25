@@ -204,6 +204,15 @@ MQ.ui.result = (function () {
       fever = h('p', { class: 'rs__fever', text: 'ごちゃまぜ バトル！　ぜんぶの 教科で たたかった　コイン +' + sum.mixCoins });
     }
 
+    /* ---- ★3 を とった ところの くり返し（v14.31） ----
+       ばつでは なく「つぎは どこへ 行くと いいか」を 教える 1行。
+       けいけんち・そうび・図かんは へって いない ので そこは 言わない */
+    let capLine = null;
+    if (rw.coinsCapped) {
+      capLine = h('p', { class: 'rs__fever rs__cap', text:
+        'ここは もう ★3！　コインは ' + rw.coinsCapped.now + 'まい。まだ ★3 で ない ところで たくさん もらえるよ' });
+    }
+
     /* ---- しゅうまつ イベント・ぴかぴか あつめ（v13.16） ---- */
     const wkText = (sum.weekend && !tokkun) ? weekendText(sum, rw) : null;
     const wkLine = wkText ? h('p', { class: 'rs__fever rs__wk', text: wkText }) : null;
@@ -326,7 +335,7 @@ MQ.ui.result = (function () {
 
     const panel = h('div', { class: 'rs ' + mood }, [
       h('div', { class: 'rs__fx' }),
-      banner, bossCard, lvBand, fever, wkLine, pikaLine, palRow, palOffer, best, mission, chips, items, ttl, btns
+      banner, bossCard, lvBand, fever, capLine, wkLine, pikaLine, palRow, palOffer, best, mission, chips, items, ttl, btns
     ]);
     MQ.ui.mount('screen-result', panel);
     requestAnimationFrame(function () { fit(panel); });

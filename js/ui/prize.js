@@ -331,6 +331,25 @@ MQ.ui.prize = (function () {
       ])
     ])]));
 
+    /* --- 1日に まわせる 回数（v14.31） ---
+       「かんたんな問題ばかりして コインを 稼げないように したい」への ふた。
+       コインの もらい方そのものは ★3 を とったステージのくり返しを 1枚に する（js/core/coins.js）。 */
+    box.push(group('1日にまわせる回数', null, [h('div', { class: 'pp-card pp-list' }, [
+      h('div', { class: 'pp-line pp-line--col' }, [
+        seg(P.LIMITS.map(function (v) { return { v: v, t: v ? '1日 ' + v + '回まで' : '上限なし' }; }), z.limit, function (v) {
+          MQ.save.update(function (pl) { MQ.prize.setLimit(pl, v); }); api.render();
+        }),
+        h('span', { class: 'pp-muted pp-small', text:
+          'コインをたくさんためた日でも、ごほうびはこの回数までです。'
+          + 'かんたんな問題をくり返して一気に稼ぐ、ということができなくなります。'
+          + '今日は' + P.usedToday(p) + '回まわしています'
+          + (z.limit ? '（あと' + P.leftToday(p) + '回）。' : '。')
+          + 'あわせて、すでに★3を取ったステージをくり返したときは、'
+          + 'もらえるコインが' + (MQ.coins ? MQ.coins.MASTERED_MAX : 1) + '枚になります'
+          + '（経験値・装備・図かんはこれまでどおりです）。' })
+      ])
+    ])]));
+
     // --- 景品 ---
     const list = z.items;
     const rates = P.rates(p);
@@ -541,7 +560,9 @@ MQ.ui.prize = (function () {
     const P = MQ.prize;
     const n = P.items(p).length, live = P.live(p).length, wait = P.waiting(p).length;
     const z = P.ensure(p);
-    const line = n ? '景品 ' + n + '個（出るもの ' + live + '個）・1回 コイン' + z.price + (wait ? '・まだわたしていないチケット ' + wait + '枚' : '')
+    const line = n ? '景品 ' + n + '個（出るもの ' + live + '個）・1回 コイン' + z.price
+      + (z.limit ? '・1日' + z.limit + '回まで' : '')   // 1日の 上限（v14.31）
+      + (wait ? '・まだわたしていないチケット ' + wait + '枚' : '')
       : '本物のごほうび（新しいゲーム・おかし など）をカプセルマシンに入れられます。';
     return h('section', { class: 'pp-section', id: 'pp-prize' }, [
       h('div', { class: 'pp-sec' }, [h('h2', { class: 'pp-h', text: 'ごほうびマシン' }), h('span', { class: 'pp-muted pp-small', text: '番号で鍵がかかっています' })]),

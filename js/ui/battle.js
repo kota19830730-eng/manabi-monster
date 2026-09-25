@@ -3420,7 +3420,7 @@ MQ.ui.battle = (function () {
       levelBefore: before, levelAfter: before, leveledUp: false,
       gear: null, densetsu: [], treasure: null, gold: false, pal: null, palOffer: null,
       frags: [], titles: [], best: null, fullSet: null,
-      missions: null
+      missions: null, coinsCapped: null
     };
 
     MQ.save.update(function (p) {
@@ -3429,7 +3429,12 @@ MQ.ui.battle = (function () {
       p.xp += sum.xp;
       p.battles = (p.battles || 0) + 1;
       p.defeated = (p.defeated || 0) + sum.defeated.length;
-      p.coins = Math.max(0, (p.coins || 0) + (sum.coins || 0) - (sum.coinsSpent || 0));
+      /* コイン（v14.31）：もう ★3 を とった ステージを くり返した ときは 1まいまで。
+         ★を 書きかえる のは この あと なので、ここで 見る p.stars は「この たたかいの 前」の きろく。
+         けいけんち・そうび・図かんは へらさない（へらすのは コインだけ） */
+      const got = MQ.coins ? MQ.coins.earn(p, sum) : { coins: sum.coins || 0, capped: false };
+      out.coinsCapped = got.capped ? { was: got.raw, now: got.coins } : null;
+      p.coins = Math.max(0, (p.coins || 0) + got.coins - (sum.coinsSpent || 0));
       // しょうごう用の カウンター
       p.itemUses = (p.itemUses || 0) + ((sum.itemsUsed || []).length);
       if (sum.fastBonus) p.fastCount = (p.fastCount || 0) + 1;

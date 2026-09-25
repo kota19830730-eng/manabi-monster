@@ -4649,3 +4649,7 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 
 /* しゅぎょうばの 歴史の 写真（v14.22）＝ 答えの わくの 下 */
 .dojo__pic { display: flex; justify-content: center; margin-top: 2px; }
+
+/* けっか画面：★3 を とった ところの くり返し（v14.31）。
+   ばつの 赤では なく「つぎは どこへ」の 青みで 出す */
+.rs__cap { color: #d8e8ff; background: rgba(104,160,255,.16); box-shadow: inset 0 0 0 2px #68a0ff; }

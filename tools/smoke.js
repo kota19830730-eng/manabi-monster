@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/guard.js', 'js/core/util.js', 'js/core/text.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/levelup.js', 'js/core/forge.js', 'js/core/pika.js', 'js/core/weekend.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/levelup.js', 'js/core/forge.js', 'js/core/coins.js', 'js/core/pika.js', 'js/core/weekend.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/core/vox.js'].concat(CONTENT_ORDER).forEach(load);   // vox.js（りったい・v12.0）は chest3d.js より 前
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
 load('js/core/capsule.js');
@@ -2752,6 +2752,9 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   const p = { coins: 0 };
   Z.ensure(p);
   check(p.prize.price === Z.DEFAULT_PRICE && Z.canPull(p).why === 'じゅんびちゅう', 'prize: 景品が ない ときは じゅんびちゅう（はずれを 作らない）');
+  /* この 節は くじの 中身（かくてい・数・期限）を 見る ので 1日の 上限（v14.31）は 外す。
+     上限そのものの 検査は 下の「コイン稼ぎの ふた（v14.31）」の 節 */
+  Z.setLimit(p, 0);
   const game = Z.save(p, { name: 'あたらしい ゲーム', icon: 'game', level: 5, stock: 1, pity: 10, until: null });
   const snack = Z.save(p, { name: 'おかし 1つ', icon: 'sweets', level: 1, stock: 0, pity: 0, until: null });
   const trip = Z.save(p, { name: 'こうえん', icon: 'outing', level: 3, stock: 2, pity: 0, until: '2026-09-14' });
@@ -2830,6 +2833,66 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   check(!Z.resetAt(), 'prize: 「確認した」で しるしが 消える');
   Z.setNow(null);
   console.log('おうちの人の マシン: わりあい・かくてい・数・期限・チケット・番号 OK');
+})();
+
+/* ---- コイン稼ぎの ふた（v14.31）----
+   ユーザー「おうちカプセルマシンは 簡単な問題ばかりして コインを 稼げないように したい」
+   B＝★3 を とった ステージの くり返しは コイン 1まい（js/core/coins.js）
+   C＝おうちの人の マシンは 1日 N回まで（js/core/prize.js） */
+(function () {
+  const C = MQ.coins;
+  const one = { coins: 4, mode: 'normal', mix: false, stageId: 'sansu3-1' };
+  /* B：ふつうに 進めて いる 子は 1まいも 変わらない */
+  check(C.earn({ stars: {} }, one).coins === 4, 'coins: まだ ★なしは そのまま');
+  check(C.earn({ stars: { 'sansu3-1': 2 } }, one).coins === 4, 'coins: ★2 までは そのまま');
+  const cap = C.earn({ stars: { 'sansu3-1': 3 } }, one);
+  check(cap.coins === C.MASTERED_MAX && cap.capped && cap.raw === 4, 'coins: ★3 ずみの くり返しは ' + C.MASTERED_MAX + 'まい');
+  /* そうびで ふえた ぶんも ふたの 中（ギンガ一式は 実測 13まい） */
+  check(C.earn({ stars: { 'sansu3-1': 3 } }, { coins: 13, mode: 'normal', stageId: 'sansu3-1' }).coins === C.MASTERED_MAX,
+    'coins: そうびで ふえても ★3 ずみなら ' + C.MASTERED_MAX + 'まい');
+  /* 0まいを ふやさない・ごちゃまぜ／とっくん／塔には かけない */
+  check(C.earn({ stars: { 'sansu3-1': 3 } }, { coins: 0, mode: 'normal', stageId: 'sansu3-1' }).coins === 0, 'coins: 0まいは ふやさない');
+  check(C.earn({ stars: { x: 3 } }, { coins: 4, mode: 'normal', mix: true, stageId: 'x' }).coins === 4, 'coins: ごちゃまぜには かけない');
+  check(C.earn({ stars: { x: 3 } }, { coins: 4, mode: 'tokkun', stageId: 'x' }).coins === 4, 'coins: とっくんには かけない');
+  check(C.earn({ stars: { x: 3 } }, { coins: 4, mode: 'tower', stageId: 'x' }).coins === 4, 'coins: さいごの塔には かけない');
+
+  /* C：1日の 上限 */
+  const Z = MQ.prize;
+  function machine() {
+    const p = { coins: 9999, name: 'テスト' };
+    Z.save(p, { name: 'ゲーム', icon: 'game', pct: 50, stock: 0, pity: 0 });
+    Z.save(p, { name: 'おかし', icon: 'sweets', pct: 50, stock: 0, pity: 0 });
+    return p;
+  }
+  const p1 = machine();
+  check(Z.ensure(p1).limit === Z.DEFAULT_LIMIT && Z.DEFAULT_LIMIT === 2, 'prize: はじめは 1日 2回（古い セーブにも 入る）');
+  check(Z.leftToday(p1) === 2 && Z.usedToday(p1) === 0, 'prize: きょう あと 2回');
+  check(Z.pull(p1, Math.random).ok && Z.pull(p1, Math.random).ok, 'prize: 2回までは まわせる');
+  const over = Z.pull(p1, Math.random);
+  check(!over.ok && over.why === 'きょうは おしまい', 'prize: 上限を こえたら 止まる');
+  const keep = p1.coins;
+  Z.pull(p1, Math.random);
+  check(p1.coins === keep, 'prize: 止まった ときは コインが へらない');
+  /* 日が かわったら もどる */
+  Z.setNow(new Date(2026, 8, 25, 12, 0, 0));
+  const p2 = machine();
+  Z.pull(p2, Math.random); Z.pull(p2, Math.random);
+  check(Z.leftToday(p2) === 0, 'prize: きょうは おしまい');
+  Z.setNow(new Date(2026, 8, 26, 12, 0, 0));
+  check(Z.leftToday(p2) === 2 && Z.usedToday(p2) === 0, 'prize: あしたに なると もどる');
+  Z.setNow(null);
+  /* 上限なしも えらべる */
+  const p3 = machine();
+  check(Z.setLimit(p3, 0) && Z.leftToday(p3) === null, 'prize: 上限なしに できる');
+  let n = 0;
+  for (let i = 0; i < 8; i++) if (Z.pull(p3, Math.random).ok) n++;
+  check(n === 8, 'prize: 上限なしなら 何回でも');
+  check(!Z.setLimit(p3, 7), 'prize: えらべない 数は 入らない');
+  /* 読みこみ順：coins.js は ui/battle.js より 前 */
+  check(INDEX_HTML.indexOf('js/core/coins.js') >= 0 && INDEX_HTML.indexOf('js/core/coins.js') < INDEX_HTML.indexOf('js/ui/battle.js'),
+    'coins: index.html で coins.js は ui/battle.js より 前');
+  check(fs.readFileSync(path.join(base, 'sw.js'), 'utf8').indexOf("'./js/core/coins.js'") >= 0, 'sw.js の FILES に ./js/core/coins.js');
+  console.log('コイン稼ぎの ふた（v14.31）: ★3 ずみは ' + C.MASTERED_MAX + 'まい・おうちマシン 1日 ' + Z.DEFAULT_LIMIT + '回 OK');
 })();
 check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょうごうが 入る');
 
