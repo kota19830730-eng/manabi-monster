@@ -75,6 +75,7 @@ MQ.ui.battle = (function () {
             d.guard = h('div', { class: 'guardrow', hidden: true })   // まもりの アイコン（ガードくだき・2026-09-14）
           ]),
           d.pal = h('div', { class: 'pal', hidden: true }, [
+            d.palSayBox = h('div', { class: 'pal__say', hidden: true }),   // 相棒の ひとこと（v14.35）
             d.palBox = h('div', { class: 'pal__box' }),
             h('div', { class: 'pal__tag' }, [                  // v14.32：なまえと ゲージは 足もとの 札（頭の 上だと 勇者に かくれて 切れた）
               d.palName = h('span', { class: 'pal__name', text: '' }),
@@ -325,6 +326,7 @@ MQ.ui.battle = (function () {
     // 手下が いる ラスボス戦（v14.15）は「まおうの しろ」の 幕 → 手下 → あとで FINAL BATTLE
     if (isTower) { if (MQ.battle.phase() === 'mob') castleIntro(); else towerIntro(); }
     else { renderQuestion(); modeBanner(); }
+    setTimeout(function () { palSay('start'); }, 900);   // 相棒の ひとこと（v14.35）
   }
 
   /* はじめての たたかい（v11.1）：1問めだけ、こたえ方を 短く 教える。
@@ -1829,6 +1831,7 @@ MQ.ui.battle = (function () {
       // mobStrike が ambushTok を ふやして 大わざの のこりの 演出を 止める（claude-69 の 指摘）
       const strikeMs = gbe ? null : counterStrike(q, res);
       if (strikeMs == null) { if (res.hit) struckFx(); else dodge(); }
+      setTimeout(function () { palSay('miss'); }, (strikeMs || 0) + 500);   // 相棒が はげます（v14.35）
       comboShow(res.combo || 0);
       d.msg.textContent = res.hit ? (res.frozen ? 'くらった！ でも 時とめで コンボは そのまま！ もう1回！' : 'くらった！ でも だいじょうぶ。もう1回 こたえよう！')
         : res.frozen ? 'おしい！ でも 時とめで コンボは そのまま！ もう1回！'
@@ -1920,6 +1923,7 @@ MQ.ui.battle = (function () {
         setTimeout(function () { MQ.bgm.play('fanfare', { then: res.last ? 'ending' : 'victory' }); }, 450);
         d.cur.classList.add('is-bossdown');
         if (V3()) { MQ.ui.v3.play(d.cur, 'mo-crumble'); MQ.ui.v3.play(d.hero, 'mo-win', 1000); }
+        setTimeout(function () { palSay('win', 1800); }, 700);   // 相棒も よろこぶ（v14.35）
         if (res.last) flash(true);
         wait(res.last ? 3200 : 2600, finish);
         return;
@@ -2074,6 +2078,7 @@ MQ.ui.battle = (function () {
     wait(1700, function () {
       d.warning.hidden = true;
       renderQuestion();
+      setTimeout(function () { palSay('boss'); }, 2600);   // 相棒の ひとこと（v14.35）：先制こうげきの あと
       ambush(bossPick);   // 2026-09-19：出て すぐ いきなり こうげき → ふつう／本気の パネル
     });
   }
@@ -3174,6 +3179,55 @@ MQ.ui.battle = (function () {
     ciWarm(player);   // v13.6：カットインの 3D を 先に 作る
   }
 
+  /* ---- 相棒の ひとこと（v14.35）----
+     ユーザー「相棒の 存在感が あまりない」→ バトル中 相棒は 一言も しゃべって いなかった。
+     たたかいの はじめ・ボス・まちがえた とき・ボスを たおした ときに 頭の 右に ふきだし。
+     ルールは 1つも 変えない（演出だけ）。うるさく ならない ように まちがいは 3問に 1回まで・
+     2回め いこうは 半分の 見こみ。口調は 段階で かわる（1＝こども／2＝げんき／3＝たのもしい） */
+  const PAL_SIZE = 64;        // 相棒の 大きさ（v14.35：40 → 64。主人公 84 の 8わり）
+  const PAL_TALK = {
+    1: { start: ['いっしょに がんばろう！', 'きょうも いくよ！', 'ぼくも ついてるよ！'],
+         boss: ['おおきい…！ でも まけない！', 'いっしょなら だいじょうぶ！'],
+         miss: ['だいじょうぶ！ つぎ いこう！', 'おしい！ もう いっかい！', 'ゆっくりで いいよ'],
+         win: ['やったね！', 'すごい すごい！'] },
+    2: { start: ['よし、いくぞ！', 'いつでも いけるぜ！', 'まかせて！'],
+         boss: ['きたな… いっしょに いくぞ！', 'ここからが 本番だ！'],
+         miss: ['ドンマイ！ つぎだ！', 'おちついて いこう！', 'つぎは いける！'],
+         win: ['やったな！', 'さすがだぜ！'] },
+    3: { start: ['まかせておけ！', 'きょうも ともに ゆこう', 'わたしが ついて いる'],
+         boss: ['あいては つよいぞ。だが われらなら！', 'さあ、ゆくぞ！'],
+         miss: ['あわてるな。つぎで とりかえせ', 'だいじょうぶ、しんじて いる', 'もう いちど、よく 見よう'],
+         win: ['みごとだ！', 'よく やった！'] }
+  };
+  let palTone = 1, palSaid = 0, palSayTimer = 0, palMissAt = 0;
+  function palToneOf(cur) { return Math.max(1, Math.min(3, (cur && cur.enemy && cur.enemy.stage) || 1)); }
+  function palSay(kind, ms) {
+    if (!palNow || !d.pal || d.pal.hidden || !d.palSayBox) return;
+    const set = (PAL_TALK[palTone] || PAL_TALK[1])[kind];
+    if (!set || !set.length) return;
+    if (kind === 'miss') {
+      const now = Date.now();
+      if (now - palMissAt < 15000 || (palSaid > 1 && Math.random() < 0.5)) return;   // 15びょうに 1回まで
+      palMissAt = now;
+    }
+    palSaid++;
+    d.palSayBox.textContent = MQ.util.pick(set);
+    d.palSayBox.hidden = false;
+    d.palSayBox.classList.remove('is-in');
+    void d.palSayBox.offsetWidth;
+    d.palSayBox.classList.add('is-in');
+    d.pal.classList.remove('is-talk');
+    void d.pal.offsetWidth;
+    d.pal.classList.add('is-talk');
+    if (d.arena) d.arena.classList.add('is-paltalk');   // 頭の 上の コンボの 帯を うすく
+    clearTimeout(palSayTimer);
+    palSayTimer = setTimeout(function () {
+      if (d.palSayBox) d.palSayBox.hidden = true;
+      if (d.pal) d.pal.classList.remove('is-talk');
+      if (d.arena) d.arena.classList.remove('is-paltalk');
+    }, ms || 2000);
+  }
+
   function syncPal(player) {
     const cur = MQ.pals ? MQ.pals.active(player) : null;
     palNow = cur;
@@ -3181,12 +3235,15 @@ MQ.ui.battle = (function () {
     if (d.arena) d.arena.classList.toggle('has-pal', !!cur);   // v14.32：セットゲージを 相棒の 札の となりへ
     d.palBox.innerHTML = '';
     if (!cur) return;
-    d.palBox.appendChild((V3() && MQ.ui.v3.monster(cur.id, 40, { ry: 22, mo: 'mo-title', cls: 'pal__img3d' })) || MQ.enemies.node(cur.id, { size: 40, cls: 'pal__img' }));
+    d.palBox.appendChild((V3() && MQ.ui.v3.monster(cur.id, PAL_SIZE, { ry: 22, mo: 'mo-title', cls: 'pal__img3d' })) || MQ.enemies.node(cur.id, { size: PAL_SIZE, cls: 'pal__img' }));
     d.palName.textContent = cur.name;                          // v14.32：札は 短く（Lv は メニューで 見る）
     d.pal.title = cur.name + ' Lv.' + cur.lv;
     d.palGauge.innerHTML = '';
-    const need = MQ.battle.palGaugeNeed ? MQ.battle.palGaugeNeed() : 3;
+    // ゲージの 数は 相棒の レベルで 3 → 2（v14.35・Lv15）。バトルが 始まる 前でも 決まる ように pals から 読む
+    const need = (MQ.pals.power(player) || {}).need || (MQ.battle.palGaugeNeed ? MQ.battle.palGaugeNeed() : 3);
     for (let i = 0; i < need; i++) d.palGauge.appendChild(h('span', { class: 'pal__dot' }));
+    palTone = palToneOf(cur);
+    palSaid = 0;
     syncPalGauge();
   }
 
@@ -3919,6 +3976,7 @@ MQ.ui.battle = (function () {
     demoEnd: function () { endSpecial(true); },   // v13.6：見本の ページで つぎの わざの 前に もどす
     start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,
     ciOption: ciOption,   // v14.3：カットインを 軽く する 案の 切りかえ（見本の ページ・harness 用）
+    palSay: function (kind, ms) { palMissAt = 0; palSay(kind, ms || 60000); },   // v14.35：相棒の ひとこと（harness 用）
     paintScene: paintScene,   // 背景（v12.6）を harness から 入れかえる 用
     lastJudge: function () { return lastJudge; },
     // メモ欄の 中を のぞく（tools/harness.html 用・v5.5）

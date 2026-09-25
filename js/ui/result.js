@@ -227,6 +227,9 @@ MQ.ui.result = (function () {
         h('div', { class: 'rs__palimg' }, [MQ.enemies.node(rw.pal.id, { size: 30 })]),
         h('div', { class: 'rs__palmid' }, [
           h('span', { class: 'rs__palname', text: ev ? ev.fromName + ' ▶ ' + ev.toName + ' に しんか！' : rw.pal.name + '　Lv.' + rw.pal.lv + (rw.pal.leveledUp ? '　レベルアップ！' : '') }),
+          // レベルで 強くなった（v14.35）：5レベルごとの ごほうびを その場で 見せる
+          (function () { const got = (MQ.pals.perksBetween && rw.pal.leveledUp) ? MQ.pals.perksBetween(rw.pal.lvBefore, rw.pal.lv) : [];
+            return got.length ? h('span', { class: 'rs__palperk', text: 'つよく なった！ ' + got[got.length - 1].text }) : null; })(),
           h('div', { class: 'rs__palbar' }, [h('div', { class: 'rs__palfill', style: { width: Math.round((info ? info.ratio : 0) * 100) + '%' } })])
         ]),
         h('span', { class: 'rs__palexp', text: '+' + rw.pal.gained })

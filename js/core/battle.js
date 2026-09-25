@@ -843,12 +843,22 @@ MQ.battle = (function () {
   function palPower() {
     return (s.pal && s.pal.power) || { xp: XP.pal, dmg: 1 };
   }
+  /* ゲージの 数：相棒の レベルで 3 → 2（v14.35・pals.power の need） */
+  function palNeed() {
+    const pw = s && s.pal && s.pal.power;
+    return (pw && pw.need) || (MQ.pals ? MQ.pals.gaugeNeed() : 3);
+  }
   function palHitNow() {
     if (!s.pal || !MQ.pals) return false;
     s.palGauge += 1 + (s.buff.palPlus || 0);     // きずなの わ（v5.4）で 早く たまる
-    const need = MQ.pals.gaugeNeed();
+    const need = palNeed();
     const hit = s.palGauge >= need;
-    if (hit) { s.palGauge = 0; s.palHits++; }
+    if (hit) {
+      s.palGauge = 0; s.palHits++;
+      /* Lv25 から 追い打ちで コンボ ＋1（v14.35）。コンボは この 前に 数えて ある ので そのまま 画面に 出る */
+      const pw = palPower();
+      if (pw.combo) s.combo += pw.combo;
+    }
     return hit;
   }
   /* セットゲージ（v14.2）：正解ごとに 1つ。いっぱいに なった 正解で セットわざ（1たたかい MAX 回まで） */
@@ -1540,7 +1550,7 @@ MQ.battle = (function () {
     },
     combo: function () { return s.combo; },
     palGauge: function () { return s.palGauge; },
-    palGaugeNeed: function () { return MQ.pals ? MQ.pals.gaugeNeed() : 3; },
+    palGaugeNeed: function () { return s ? palNeed() : (MQ.pals ? MQ.pals.gaugeNeed() : 3); },
     // セットわざ（v14.2）：{ id, gauge, need, used, max }。セットわざの ない たたかいは null
     setInfo: function () {
       if (!s || !s.setWaza || !MQ.setwaza) return null;

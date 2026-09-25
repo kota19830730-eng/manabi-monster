@@ -55,11 +55,45 @@ MQ.pals = (function () {
 
   function enemyOf(id) { return MQ.enemies ? MQ.enemies.get(id) : null; }
 
-  /* いまの 相棒の 追い打ちの つよさ。系統に 入って いない モンスターは 1段階めの あつかい */
+  /* ---- レベルで 目に見えて 強くなる（v14.35）----
+     ユーザー「相棒の 存在意義と 存在感が あまりない。もっと 育てたくなるように」→ 数えたら
+     レベルは 進化（Lv10・Lv20）にしか 効かず、Lv5 と Lv9・Lv21 と Lv30 は 何も 変わらなかった
+     （相棒が いても けいけんちは +10%・1段階も 3段階も「3問 正解ごとに 1回」は 同じ）。
+     → 5レベルごとに 1つ 目に見える ごほうび。**効果は 正解した ときだけ**（大原則）は そのまま。
+       ・追い打ちの けいけんち：5レベルごとに ＋2（Lv30 で ＋12）
+       ・Lv15：ゲージが 2つで 追い打ち（3問 → 2問）
+       ・Lv25：追い打ちで コンボ ＋1
+     ボスへの ダメージは いままでどおり（core の PAL_BOSS_MAX＝1。v12.7 の ボスの 強さを こわさない） */
+  const PERK_XP = 2;          // 5レベルごとに 追い打ちの けいけんち ＋2
+  const FAST_LV = 15;         // この レベルから ゲージが 2つ
+  const COMBO_LV = 25;        // この レベルから 追い打ちで コンボ ＋1
+  const PERKS = [
+    { lv: 5,  text: '追い打ちの けいけんち ＋2' },
+    { lv: 10, text: '追い打ちの けいけんち ＋4' },
+    { lv: 15, text: 'ゲージが 2つで 追い打ち！' },
+    { lv: 20, text: '追い打ちの けいけんち ＋8' },
+    { lv: 25, text: '追い打ちで コンボ ＋1！' },
+    { lv: 30, text: '追い打ちの けいけんち ＋12' }
+  ];
+  function lvBonus(lv) { return PERK_XP * Math.floor((lv || 1) / 5); }
+  /* lvA より 上 lvB まで で 手に 入れた ごほうび（けっか画面） */
+  function perksBetween(lvA, lvB) { return PERKS.filter(function (k) { return k.lv > lvA && k.lv <= lvB; }); }
+  /* つぎの ごほうび（メニュー。もう ない ときは null） */
+  function nextPerk(lv) { for (let i = 0; i < PERKS.length; i++) if (PERKS[i].lv > lv) return PERKS[i]; return null; }
+
+  /* いまの 相棒の 追い打ちの つよさ。系統に 入って いない モンスターは 1段階めの あつかい。
+     { xp, dmg, need（ゲージの 数）, combo（追い打ちで ふえる コンボ）} */
   function power(p) {
     const cur = active(p);
     const st = cur && cur.enemy ? (cur.enemy.stage || 1) : 1;
-    return POWER[st] || POWER[1];
+    const base = POWER[st] || POWER[1];
+    const lv = cur ? cur.lv : 1;
+    return {
+      xp: base.xp + lvBonus(lv),
+      dmg: base.dmg,
+      need: lv >= FAST_LV ? 2 : GAUGE_NEED,
+      combo: lv >= COMBO_LV ? 1 : 0
+    };
   }
 
   /* なかまゲージ：正解 何問で 追い打ちか。**まちがえても へらない**（v5.2） */
@@ -250,6 +284,7 @@ MQ.pals = (function () {
     hitOn: hitOn, price: price, shopList: shopList, shopOnly: shopOnly, canBuy: canBuy, buy: buy, offerFrom: offerFrom,
     gaugeNeed: gaugeNeed, displayName: displayName, baseName: baseName, setName: setName,
     power: power, POWER: POWER,
+    PERKS: PERKS, FAST_LV: FAST_LV, COMBO_LV: COMBO_LV, lvBonus: lvBonus, perksBetween: perksBetween, nextPerk: nextPerk,
     MAX_LV: MAX_LV, HIT_EVERY: HIT_EVERY, EVO_LV: EVO_LV, GAUGE_NEED: GAUGE_NEED,
     SURE_KILLS: SURE_KILLS, NAME_MAX: NAME_MAX
   };

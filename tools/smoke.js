@@ -2894,6 +2894,37 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   check(fs.readFileSync(path.join(base, 'sw.js'), 'utf8').indexOf("'./js/core/coins.js'") >= 0, 'sw.js の FILES に ./js/core/coins.js');
   console.log('コイン稼ぎの ふた（v14.31）: ★3 ずみは ' + C.MASTERED_MAX + 'まい・おうちマシン 1日 ' + Z.DEFAULT_LIMIT + '回 OK');
 })();
+
+/* ---- 相棒の 存在感（v14.35）：レベルで 目に見えて 強くなる ----
+   ユーザー「相棒の 存在意義と 存在感が あまりない。もっと 育てたくなるように」。
+   前は レベルが 進化（Lv10・Lv20）にしか 効かなかった。ボスへの ダメージは かえない（PAL_BOSS_MAX 1） */
+(function () {
+  const P = MQ.pals;
+  const one = MQ.enemies.pickIds('sansu', 1, 0.1)[0];
+  function at(id, lv) { const p = { pals: {}, pal: id }; p.pals[id] = { exp: P.expFor(lv) }; return P.power(p); }
+  const w1 = at(one, 1), w5 = at(one, 5), w14 = at(one, 14), w15 = at(one, 15), w25 = at(one, 25), w30 = at(one, 30);
+  check(w1.need === 3 && w14.need === 3 && w15.need === 2, 'pal: Lv15 から ゲージが 2つ（' + w1.need + '/' + w14.need + '/' + w15.need + '）');
+  check(w5.xp === w1.xp + 2 && w30.xp === w1.xp + 12, 'pal: 5レベルごとに 追い打ちの けいけんち +2（' + w1.xp + '→' + w30.xp + '）');
+  check(w1.combo === 0 && w25.combo === 1, 'pal: Lv25 から 追い打ちで コンボ +1');
+  check(w30.dmg === P.POWER[1].dmg && MQ.battle.PAL_BOSS_MAX === 1, 'pal: ボスへの ダメージは かえない（v12.7）');
+  check(P.perksBetween(4, 5).length === 1 && P.perksBetween(9, 16).length === 2 && P.perksBetween(12, 13).length === 0, 'pal: 手に 入れた ごほうびの 表');
+  check(P.nextPerk(1).lv === 5 && P.nextPerk(29).lv === 30 && P.nextPerk(30) === null, 'pal: つぎの ごほうび');
+  /* core：Lv15 の 相棒は 2問で 追い打ち・Lv25 は コンボ +1 */
+  const st = MQ.content.findStage('sansu3-1', { coins: 0, grade: 3, playGrade: 3, term: 0, units: {} }).stage;
+  function run(pw) {
+    MQ.battle.start({ stage: st, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 9), bossId: 'boss-dragon', mobs: 9,
+      pal: { id: one, name: 'テスト', lv: 1, stage: 1, power: pw } });
+    const hits = []; let combo = [];
+    for (let i = 0; i < 6; i++) { const q = MQ.battle.current(); const r = MQ.battle.answer(correctValue(q)); hits.push(r.palHit ? 1 : 0); combo.push(r.combo); MQ.battle.next(); }
+    return { hits: hits.join(''), combo: combo };
+  }
+  const a = run(w1), b = run(w15), c = run(w25);
+  check(a.hits === '001001', 'pal: Lv1 は 3問ごと（' + a.hits + '）');
+  check(b.hits === '010101', 'pal: Lv15 は 2問ごと（' + b.hits + '）');
+  check(c.combo[1] === 3 && c.combo[2] === 4, 'pal: Lv25 は 追い打ちで コンボ +1（' + c.combo.join(',') + '）');
+  check(MQ.battle.palGaugeNeed() === 2, 'pal: 画面の ゲージの 数も 2つ');
+  console.log('相棒の 存在感（v14.35）: Lv15 ゲージ 2つ・Lv25 コンボ+1・5レベルごと けいけんち+2 OK');
+})();
 check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょうごうが 入る');
 
 /* ---- 学期（v2.6）：ならった 単元だけ 出る ---- */

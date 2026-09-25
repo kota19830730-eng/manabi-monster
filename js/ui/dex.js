@@ -541,7 +541,10 @@ MQ.ui.dex = (function () {
           h('span', { class: 'palnow__name', text: cur.name }),
           h('span', { class: 'palnow__lv', text: 'Lv.' + cur.lv + (cur.max ? '（さいこう）' : '　つぎまで ' + cur.need) }),
           h('div', { class: 'palnow__bar' }, [h('div', { class: 'palnow__fill', style: { width: Math.round(cur.ratio * 100) + '%' } })]),
-          h('span', { class: 'palnow__evo', text: cur.evoAt ? 'Lv.' + cur.evoAt + ' で しんかする' : (e && e.stage === 3 ? 'さいごの すがた' : 'しんかは しない') })
+          h('span', { class: 'palnow__evo', text: cur.evoAt ? 'Lv.' + cur.evoAt + ' で しんかする' : (e && e.stage === 3 ? 'さいごの すがた' : 'しんかは しない') }),
+          // レベルで 強くなる（v14.35）：つぎの ごほうびを 見せる＝育てる 目当て
+          (function () { const nx = MQ.pals.nextPerk ? MQ.pals.nextPerk(cur.lv) : null;
+            return h('span', { class: 'palnow__perk', text: nx ? 'Lv.' + nx.lv + '：' + nx.text : 'さいこうの つよさ！' }); })()
         ])
       ]));
       // なまえを つける（v5.2）。8文字まで。からっぽに すると もとの 名前に もどる

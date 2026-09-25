@@ -4695,3 +4695,41 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .pal__tag .pal__dot { width: 7px; height: 7px; }
 .pal.is-hit .pal__tag { opacity: .4; }
 .arena.has-pal .setgauge { left: 98px; }
+
+/* ---- 相棒の 存在感（v14.35）----
+   ユーザー「相棒の 存在意義と 存在感が あまりない。バトル画面でも 小さい」「バトル画面も 大きくしたし もっと 活かしたい」。
+   実測：主人公 84px・てき 72〜96px に 対して 相棒 40px・左はしで 主人公に 半分 かくれて いた（x6〜46）。
+   → 主人公の 右どなり（同じ 草の 上・bottom 62）に 64px で 立つ。主人公の けんが 少し かさなる ので z は 1 の まま。
+   ・なまえと ゲージの 札は 相棒の 足もと。セットゲージは 主人公の 足もと（left 46）に もどす
+   ・ひとことは 相棒の 頭の 上。右（草の 上）に 出すと てき（とくに ボス 128px）に かかった＝v12.9 で 言われた 形。
+     頭の 上は コンボの 帯と ためゲージに かさなる ので、しゃべる 2びょうだけ その 2つを うすく する（.arena.is-paltalk） */
+.pal { left: 132px; bottom: 62px; z-index: 1; }
+.arena.has-pal .setgauge { left: 46px; }
+@keyframes palJump {
+  0% { transform: translate(0, 0); }
+  35% { transform: translate(92px, -30px); }     /* v14.35：主人公の となりから てきの 前まで */
+  55% { transform: translate(118px, -12px); }
+  100% { transform: translate(0, 0); }
+}
+.pal__say {
+  position: absolute; left: -6px; bottom: calc(100% + 8px); z-index: 4;
+  width: max-content; max-width: 128px; padding: 5px 8px;
+  font-family: var(--f-body); font-weight: 700; font-size: 12px; line-height: 1.3; color: #2a1f3d;
+  background: #fffbea; border-radius: 10px; box-shadow: 0 0 0 2px #e8b23a, 0 3px 0 rgba(10,10,40,.35);
+  pointer-events: none;
+}
+.pal__say::before {   /* しっぽ（下の 相棒の 頭へ） */
+  content: ''; position: absolute; left: 30px; bottom: -6px; width: 10px; height: 10px;
+  background: #fffbea; transform: rotate(45deg); box-shadow: 2px 2px 0 0 #e8b23a;
+}
+.pal__say.is-in { animation: palSayIn .22s ease-out both; }
+@keyframes palSayIn { 0% { opacity: 0; transform: translateY(6px) scale(.85); } 100% { opacity: 1; transform: none; } }
+.arena.is-paltalk .combo, .arena.is-paltalk .charge { opacity: .18; transition: opacity .15s; }
+.pal.is-talk .pal__box { animation: palTalk .5s ease-out; }
+@keyframes palTalk { 0% { transform: translateY(0); } 30% { transform: translateY(-9px); } 60% { transform: translateY(0); } 80% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
+.arena.is-cutin .pal__say { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .pal.is-talk .pal__box, .pal__say.is-in { animation: none; } }
+.pal .pal__tag { left: 6px; }   /* v14.35：主人公の 足もとの セットゲージ（x46〜134）と かさならない */
+/* レベルで 強くなる（v14.35）：メニューの つぎの ごほうび・けっか画面の「つよく なった！」 */
+.palnow__perk { display: block; margin-top: 3px; font-size: 11px; font-weight: 700; color: #ffd86b; }
+.rs__palperk { display: block; font-size: 10px; font-weight: 700; color: #ffd86b; line-height: 1.2; }
