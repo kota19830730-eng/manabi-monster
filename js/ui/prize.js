@@ -408,9 +408,9 @@ MQ.ui.prize = (function () {
     }) : [h('div', { class: 'pp-line' }, [h('span', { class: 'pp-muted pp-small', text: 'ありません。' })])])]));
 
     // --- これまでの 記録 ---
-    const done = P.tickets(p).filter(function (t) { return t.given; }).slice(0, 10);
+    const done = P.tickets(p).filter(function (t) { return t.given; });   // ぜんぶ（前は 10件だけ。のこるのは core の MAX_TICKETS＝60まいまで）
     if (done.length) {
-      box.push(group('これまでにわたしたもの', '新しい順・10件', [h('div', { class: 'pp-card pp-list' }, done.map(function (t) {
+      box.push(group('これまでにわたしたもの', '新しい順・' + done.length + '件', [h('div', { class: 'pp-card pp-list' }, done.map(function (t) {
         return h('div', { class: 'pp-line' }, [
           h('span', { class: 'pp-small', text: t.name }),
           h('span', { class: 'pp-muted pp-tiny', text: fmtAt(t.at) + ' 当たり → ' + fmtAt(t.givenAt) + ' わたした' })

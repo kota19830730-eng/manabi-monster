@@ -366,7 +366,9 @@ MQ.ui.dex = (function () {
       }
     }
     // ---- ごほうび チケット（v13.12・おうちの人の マシンで 当たった もの）----
-    const tix = MQ.prize ? MQ.prize.tickets(player).slice(0, 8) : [];
+    // ぜんぶ 見せる（前は 新しい 8まいだけ＝ユーザー「全部 見れるように」）。まだ もらって いない ものが 先・それぞれ 新しい じゅん
+    const allTix = MQ.prize ? MQ.prize.tickets(player) : [];
+    const tix = allTix.filter(function (t) { return !t.given; }).concat(allTix.filter(function (t) { return t.given; }));
     const tixBox = tix.length ? h('div', { class: 'tix' }, [
       h('div', { class: 'inv__head' }, [
         h('span', { class: 'inv__t', text: 'ごほうび チケット' }),

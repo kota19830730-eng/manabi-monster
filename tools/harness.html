@@ -1179,9 +1179,15 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
           { id: 't90', itemId: z.items[3].id, name: z.items[3].name, icon: 'time', level: 2, at: '2026-09-10T18:00:00', pity: false, given: true, givenAt: '2026-09-10T19:00:00' }
         ];
       };
-      if (mode.indexOf('prizemc') === 0 || mode === 'prizetix') {
-        MQ.save.update(function (pl) { sample(pl); withTickets(pl); if (what === 'only') pl.capsuleOff = true; });
-        if (mode === 'prizetix') {
+      if (mode.indexOf('prizemc') === 0 || mode.indexOf('prizetix') === 0) {
+        MQ.save.update(function (pl) {
+          sample(pl); withTickets(pl); if (what === 'only') pl.capsuleOff = true;
+          if (mode === 'prizetix:many') {   // 12まい（前は 新しい 8まいしか 出なかった）
+            const z = MQ.prize.ensure(pl);
+            for (let i = 0; i < 10; i++) z.tickets.push({ id: 'tm' + i, itemId: z.items[i % z.items.length].id, name: z.items[i % z.items.length].name + ' ' + (i + 1), icon: 'sweets', level: 1, at: '2026-09-0' + (1 + (i % 9)) + 'T18:00:00', pity: false, given: i % 3 === 0, givenAt: i % 3 === 0 ? '2026-09-09T19:00:00' : null });
+          }
+        });
+        if (mode.indexOf('prizetix') === 0) {
           MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); await wait(120);
           say('prizetix: チケット ' + $$('.tix__one').length + 'まい / まだ ' + $$('.tix__one:not(.is-given)').length);
           return;
