@@ -4196,8 +4196,9 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 
 /* 地図の いちばん 下の あき：ごちゃまぜの ボタン（26px）と ふだ（66px）に かくれる ぶん。
    ふだは ごちゃまぜの コインの ふだ（ドックの 上 35px）より 上に 置く（かさならない） */
-.map__pad { height: 30px; }
-.map__pad.has-chips { height: 72px; }
+/* 地図の いちばん 下の あき（v14.40）：地図の 絵の つづき（js/ui/map.js の padCanvas）。高さは JS が 30／72px を 入れる */
+.map__pad { display: block; image-rendering: pixelated; pointer-events: none; }
+.map__pad--smooth { image-rendering: auto; }
 
 /* 学年えらびの 中の「プレイヤーを かえる」 */
 .gradesheet__player {

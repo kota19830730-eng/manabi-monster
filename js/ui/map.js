@@ -537,6 +537,29 @@ MQ.ui.map = (function () {
     return 'linear-gradient(90deg, ' + c.seaDeep + ', ' + c.sea + ' 50%, ' + c.seaDeep + ')';
   }
 
+  /* 地図の いちばん 下の あき（ドックの ボタンを よける ぶん・v14.40）。
+     前は 地図の 絵の 外に ただの 箱を おいて いて、そこだけ 海の 色が ちがい
+     塔の 島の 下に まっすぐな よこ線が 見えた（ユーザーの iPhone の スクショ）。
+     いまは 地図の 絵の いちばん 下を **上下に 反転して** つづけて 描く（波も 色も そのまま つながる）。
+     .map__sheet の 中に おく ので 時間帯の 光（.map__tint）も いっしょに かかる */
+  function padCanvas(src, top, padH) {
+    const sy = src.height / Math.max(1, top);
+    const ph = Math.max(1, Math.round(padH * sy));
+    const c = h('canvas', {
+      class: 'map__pad' + (src.classList.contains('map__bg--smooth') ? ' map__pad--smooth' : ''),
+      style: { position: 'absolute', left: 0, top: top + 'px', width: '100%', height: padH + 'px' }
+    });
+    c.width = src.width; c.height = ph;
+    try {
+      const x = c.getContext('2d');
+      if (!x) return c;
+      const take = Math.min(ph, src.height);
+      x.translate(0, take); x.scale(1, -1);
+      x.drawImage(src, 0, src.height - take, src.width, take, 0, 0, src.width, take);
+    } catch (e) { /* 描けない ときは 下の 海の 色（.map__scroll の background）が 見える だけ */ }
+    return c;
+  }
+
   function towerArt() {
     const art = h('span', { class: 'tower__art' });
     TOWER_B.forEach(function (p) {
@@ -870,12 +893,18 @@ MQ.ui.map = (function () {
       ])
     ]);
 
+    // 地図の いちばん 下の あき（v14.40）：地図の 絵の つづきで うめる（padCanvas）
+    const mapH = Math.round(grid.heightPx), padH = hasChips ? 72 : 30;
+    canvas.style.height = mapH + 'px';
+    sheet.style.height = (mapH + padH) + 'px';
+    sheet.insertBefore(padCanvas(canvas, mapH, padH), layer);
+
     MQ.ui.mount('screen-map', h('div', { class: 'map map--' + plan.theme }, [
       top,
       /* ふちの かげ（.map__vig）は スクロールの 外（.map__view）に おく（v13.4.1）。
          中に あると 画面 1枚ぶんの 高さで いっしょに スクロールし、下の はしが 地図の まん中に よこ線で 出た（iPhone の スクショ） */
       h('div', { class: 'map__view' }, [
-        h('div', { class: 'map__scroll', style: { background: seaBg() } }, [sheet, h('div', { class: 'map__pad' + (hasChips ? ' has-chips' : '') })]),
+        h('div', { class: 'map__scroll', style: { background: seaBg() } }, [sheet]),
         h('div', { class: 'map__vig' })
       ]),
       dimEl,
