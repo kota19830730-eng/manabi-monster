@@ -285,7 +285,10 @@ MQ.ui.start = (function () {
         MQ.ui.logo(),
         h('div', { class: 'title__tagrow' }, [
           h('i', { class: 'tag__gem' }),
-          h('p', { class: 'title__tag', text: 'こたえた ぶんだけ つよくなる' }),
+          h('p', { class: 'title__tag' }, [
+            h('span', { class: 'title__tagclip' }, [h('span', { class: 'title__tagshine' })]),
+            h('span', { class: 'title__tagtx', text: 'こたえた ぶんだけ つよくなる' })
+          ]),
           h('i', { class: 'tag__gem' })
         ])
       ]),

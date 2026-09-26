@@ -527,18 +527,26 @@ body {
   display: inline-block; margin: 0; padding: 8px 20px;
   border-radius: 5px;
   border: 2px solid var(--gold);
-  background:
-    linear-gradient(115deg, rgba(255,255,255,0) 38%, rgba(255,240,190,.22) 47%, rgba(255,255,255,0) 56%),
-    linear-gradient(#26325a, #141c3c);
-  background-size: 260% 100%, 100% 100%;
-  background-repeat: no-repeat;
+  background: linear-gradient(#26325a, #141c3c);
   box-shadow: 0 5px 14px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.2), 0 0 16px rgba(255,212,71,.3);
   font-family: var(--f-head);
   font-size: 16px; line-height: 1.2; letter-spacing: .02em;
   color: #ffeccb; text-shadow: 0 2px 0 rgba(0,0,0,.55);
   white-space: nowrap;
+}
+/* 光の すじ（v14.39）：前は background-position を 動かして いて 1秒に 10回 描き直して いた。
+   いまは 同じ グラデーションを 子の 板（はば 260%）に 描いて transform で すべらせる。
+   位置は 前と 同じ：background-position 150% → -50% ＝ 板の 左はしが -2.4W → +0.8W
+   （板の はば 2.6W なので -92.3077% → 30.7692%）。しっぽ（::before／::after）は 外に ある ので
+   ふちで 切るのは 中の .title__tagclip だけ（p に overflow: hidden を つけない） */
+.title__tagclip { position: absolute; inset: 0; overflow: hidden; border-radius: 3px; pointer-events: none; }
+.title__tagshine {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 260%;
+  background: linear-gradient(115deg, rgba(255,255,255,0) 38%, rgba(255,240,190,.22) 47%, rgba(255,255,255,0) 56%);
+  transform: translateX(-92.3077%);
   animation: tagShine 4.6s ease-in-out infinite;
 }
+.title__tagtx { position: relative; }
 /* 折れた しっぽ。旗の すぐ 外に おく（内がわが へこんだ 五角形） */
 .title__tag::before, .title__tag::after {
   content: ''; position: absolute; top: 50%; margin-top: -12px;
@@ -549,8 +557,8 @@ body {
 .title__tag::before { left: -15px; clip-path: polygon(0 0, 100% 16%, 100% 84%, 0 100%, 42% 50%); }
 .title__tag::after  { right: -15px; clip-path: polygon(100% 0, 0 16%, 0 84%, 100% 100%, 58% 50%); }
 @keyframes tagShine {
-  0%, 62%  { background-position: 150% 0, 0 0; }
-  92%, 100% { background-position: -50% 0, 0 0; }
+  0%, 62%  { transform: translateX(-92.3077%); }
+  92%, 100% { transform: translateX(30.7692%); }
 }
 
 /* ---- 空の あき（画面が 高い ぶんは ここが のびる） ---- */
@@ -2434,20 +2442,26 @@ body {
      .bx__glow … 光る 目・コアが 呼吸するように 明るくなる
      .bx__eye  … ときどき まばたき（たてに つぶれる）
    ずらしは JS が --bxwait に 入れる */
-.arena .bx__glow, .title .bx__glow, .news__list .bx__glow {
+/* v14.39：前は bx__glow じたいの filter: brightness を 動かして いた（ボス戦で 1秒に 100回 描き直し）。
+   いまは 上に かさねた 白い 板（::after）の opacity だけ 動かす（GPU で すむ）。
+   brightness 1.4 と ほぼ 同じ 明るさ（白 .3 を かさねる）。まわりだけの ブロック（'o'）には かさねない */
+.bx__glow::after { content: none; }
+.arena .bx__glow::after, .title .bx__glow::after, .news__list .bx__glow::after {
+  content: ''; position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none;
   animation: bxGlow 2.6s ease-in-out infinite;
   animation-delay: calc(var(--bxwait, 0s) * -1);
 }
+.bx__glow--o::after { content: none !important; }
 .arena .bx__eye, .title .bx__eye {
   transform-origin: 50% 50%;
   animation: bxBlink 6.5s steps(1, end) infinite;
   animation-delay: var(--bxwait, 0s);
 }
-@keyframes bxGlow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.4); } }
+@keyframes bxGlow { 0%, 100% { opacity: 0; } 50% { opacity: .3; } }
 /* v14.16：光る ところが 多すぎる 絵は 呼吸させない（しるしは js/core/blocks.js が つける）。
    filter を 動かす アニメは 動く たびに 塗り直しに なる。ラスボスは 23〜54こ あり、
    ボス戦で メモに 字を 書く 反応が 落ちて いた。光そのものは そのまま のこる */
-.bx__glow--still { animation: none !important; }
+.bx__glow--still, .bx__glow--still::after { animation: none !important; }
 /* v14.16：字を 書いて いる あいだは アリーナの 3D を **その場で** 止める（見た目は 飛ばない）。
    ゆびを 動かす たびに 画面を 出さないと 線が 飛ぶ ので、そのあいだは 3D を 休ませる。
    指を はなして 0.9秒で もどる（js/ui/battle.js の writingOn／writingOff） */
@@ -2461,7 +2475,7 @@ body {
 .battle.is-writing .enemy__flat { display: block; }
 @keyframes bxBlink { 0%, 95.5%, 100% { transform: scaleY(1); } 96.5%, 98.5% { transform: scaleY(.12); } }
 @media (prefers-reduced-motion: reduce) {
-  .arena .bx__glow, .title .bx__glow, .news__list .bx__glow, .arena .bx__eye, .title .bx__eye { animation: none; }
+  .arena .bx__glow::after, .title .bx__glow::after, .news__list .bx__glow::after, .arena .bx__eye, .title .bx__eye { animation: none; }
 }
 .bxbox__png { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
 /* まだ 見ていない もの＝まっ黒の かげ */
@@ -3563,7 +3577,7 @@ a.pp-btn { text-decoration: none; box-sizing: border-box; }
 .card__unit, .card__model, .wcmp__cap { font-weight: 700; }
 
 /* 動きを へらす せっていの 端末では ひとことの 光を 止める（v7.9） */
-@media (prefers-reduced-motion: reduce) { .title__tag { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .title__tagshine { animation: none; } }
 
 /* =========================================================
    あたらしい こと！（お知らせ・v8.3）
@@ -3770,12 +3784,14 @@ a.pp-btn { text-decoration: none; box-sizing: border-box; }
    絵じたいは 変えない（class を つけるだけ）ので、どの 画面でも 同じに 光る。
    ※ わざの「スターバースト」（.fx--starburst）とは べつもの。名前を かぶらせない ため
       class は is-gearaura（gear ＝ そうび）。 */
+/* v14.39：前は この filter を 2.4秒で 動かして いた（gearAura）。filter を 動かすと 主人公の 絵を
+   毎コマ 描き直す ので、地図・メニューで 何も して いなくても CPU の 7わりを 食って いた（CPU×4 の 実測）。
+   **filter は 止めた まま**（呼吸の まん中の 強さ）。呼吸は バトルでは .gaura__glow（transform／opacity）、
+   ほかの 画面では 足もとの 光の わ（::before）が うけもつ。**filter の アニメに もどさない** */
 .hero.is-gearaura .hero__img,
-img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
-@keyframes gearAura {
+img.sprite.is-gearaura {
   /* 色は グレードごと（v13.19・css/gearaura.css の .ga--<グレード>）。なければ オーロラの むらさき＋金 */
-  0%, 100% { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 5px var(--ga1, rgba(180,140,255,.85))) drop-shadow(0 0 9px var(--ga2, rgba(255,212,71,.35))); }
-  50%      { filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 10px var(--ga1, rgba(205,175,255,1))) drop-shadow(0 0 17px var(--ga2, rgba(255,212,71,.65))); }
+  filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)) drop-shadow(0 0 7px var(--ga1, rgba(192,158,255,.92))) drop-shadow(0 0 13px var(--ga2, rgba(255,212,71,.5)));
 }
 .hero.is-gearaura::before {
   content: ''; position: absolute; z-index: -1; left: 50%; bottom: 2px;
@@ -3788,7 +3804,7 @@ img.sprite.is-gearaura { animation: gearAura 2.4s ease-in-out infinite; }
   50%      { opacity: 1;   transform: translateX(-50%) scale(1.12); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero.is-gearaura .hero__img, img.sprite.is-gearaura, .hero.is-gearaura::before { animation: none; }
+  .hero.is-gearaura::before { animation: none; }
 }
 
 /* ---- カプセルマシン（v9.0）----

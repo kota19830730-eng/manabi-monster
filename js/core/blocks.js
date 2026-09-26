@@ -188,7 +188,7 @@ MQ.blocks = (function () {
     if (sh.length) d.style.boxShadow = sh.join(', ');
     if (flags.indexOf('d') !== -1) d.style.transform = 'rotate(45deg)';
     // 光る ところ（目・コア）は 呼吸するように 明るさが 変わる
-    if (glow) d.className = 'bx__glow';
+    if (glow) d.className = flags.indexOf('o') !== -1 ? 'bx__glow bx__glow--o' : 'bx__glow';
     else if (isEye) d.className = 'bx__eye';
     return d;
   }
