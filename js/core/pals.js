@@ -93,11 +93,46 @@ MQ.pals = (function () {
       dmg: base.dmg,
       need: lv >= FAST_LV ? 2 : GAUGE_NEED,
       combo: lv >= COMBO_LV ? 1 : 0,
-      move: moveOf(cur ? bondOf(p, cur.id).lv : 0)
+      move: moveOf(cur ? bondOf(p, cur.id).lv : 0, cur ? cur.enemy : null)
     };
   }
   /* 相棒の ひっさつ（v14.36）。きずなで 強く なる */
-  function moveOf(bond) {
+  /* ---- 相棒の わざの 名前と 系統（v14.37）----
+     ユーザー「相棒システムやけど 主人公も 必殺技 出すから よく わからん。特別感も ない」→ 数えたら（300回）
+     相棒が 動く 瞬間の 7〜9わりが 主人公の わざと 同じ 正解で、ことばも 同じ「ひっさつ」だった。
+     → 相棒だけの 名前（カタカナ 2語・ユーザー「きずな ストライク」風＝かっこいい）を 系統ごとに 9しゅるい。
+       光は js/ui/palfx.js（pm-<kind>）・出し方は js/ui/battle.js の palTurnAttack（相棒だけの ターン）。
+       名前は kotoba.js の KEEP（どの 学年でも 同じ 字）。系統に ない もの（写真の モンスターも）は きずな ストライク */
+  const MOVE_KINDS = {
+    bond:   { name: 'きずな ストライク',   hex: '#ffc94d', sfx: 'star' },
+    fang:   { name: 'ファング クラッシュ', hex: '#ff6a5a', sfx: 'triple' },
+    blaze:  { name: 'ブレイズ ブレス',     hex: '#ff8a2a', sfx: 'fire' },
+    heavy:  { name: 'ヘビー タックル',     hex: '#e8c890', sfx: 'fire' },
+    sky:    { name: 'スカイ ダイブ',       hex: '#d6f0ff', sfx: 'wind' },
+    bolt:   { name: 'ボルト シュート',     hex: '#8fd0ff', sfx: 'bolt' },
+    aqua:   { name: 'アクア バースト',     hex: '#5fd8ff', sfx: 'ice' },
+    shadow: { name: 'シャドウ スラッシュ', hex: '#c48bff', sfx: 'leaf' },
+    holy:   { name: 'シャイン ブレイカー', hex: '#ffe9a8', sfx: 'star' }
+  };
+  /* 系統（enemies.js の line・なければ shape）→ わざ。ここに ない ものは bond */
+  const KIND_OF = {
+    fang:   'wolf shark sharkx fang fox crab scorpion snake serp angler puffer lizard sameoni beetle cap-mwolf cap-cerberus cap-lionking cap-mleon',
+    blaze:  'drago magma sun cap-phoenix',
+    heavy:  'golem turtle mole mushroom tree tank mecha hedgehog snail robot cap-hammer cap-shielder cap-axer cap-whale',
+    sky:    'bird hawk owl bat butterfly bee kite balloon rocket cloud tornado cap-mhawk cap-owl cap-comet',
+    bolt:   'bolt ufo saucer star crystal alpha dice cap-orb cap-starcat',
+    aqua:   'tako krak fish jelly seahorse penguin frog moon cap-kappa cap-serpent',
+    shadow: 'ninja ghost spect skull skullhorse zukan spider arac eyeball cap-kasa cap-chochin cap-dagger',
+    holy:   'cap-knight cap-paladin cap-lancer cap-archer cap-mage cap-unicorn cap-kirin cap-kitsune'
+  };
+  const KIND_BY_LINE = {};
+  Object.keys(KIND_OF).forEach(function (k) { KIND_OF[k].split(' ').forEach(function (l) { KIND_BY_LINE[l] = k; }); });
+  function moveKindOf(e) {
+    if (!e) return 'bond';
+    return KIND_BY_LINE[e.line || ''] || KIND_BY_LINE[e.shape || ''] || 'bond';
+  }
+  function moveOf(bond, enemy) {
+    const kind = moveKindOf(enemy), mk = MOVE_KINDS[kind];
     return {
       need: MOVE_NEED,
       xp: MOVE_XP + (bond >= 1 ? 10 : 0),
@@ -105,7 +140,8 @@ MQ.pals = (function () {
       cover: bond >= 3 ? 1 : 0,
       uses: bond >= 4 ? 2 : 1,
       gold: bond >= 5,
-      bond: bond
+      bond: bond,
+      kind: kind, name: mk.name, hex: mk.hex, sfx: mk.sfx   // v14.37：系統ごとの 名前・色・音
     };
   }
 
@@ -344,7 +380,7 @@ MQ.pals = (function () {
     gaugeNeed: gaugeNeed, displayName: displayName, baseName: baseName, setName: setName,
     power: power, POWER: POWER,
     bondOf: bondOf, bondUp: bondUp, bondLevel: bondLevel, bondBest: bondBest, moveOf: moveOf,
-    BOND_AT: BOND_AT, BOND_PERKS: BOND_PERKS, MOVE_NEED: MOVE_NEED, MOVE_XP: MOVE_XP,
+    BOND_AT: BOND_AT, BOND_PERKS: BOND_PERKS, MOVE_NEED: MOVE_NEED, MOVE_XP: MOVE_XP, MOVE_KINDS: MOVE_KINDS, moveKindOf: moveKindOf, moveOf: moveOf,
     PERKS: PERKS, FAST_LV: FAST_LV, COMBO_LV: COMBO_LV, lvBonus: lvBonus, perksBetween: perksBetween, nextPerk: nextPerk,
     MAX_LV: MAX_LV, HIT_EVERY: HIT_EVERY, EVO_LV: EVO_LV, GAUGE_NEED: GAUGE_NEED,
     SURE_KILLS: SURE_KILLS, NAME_MAX: NAME_MAX

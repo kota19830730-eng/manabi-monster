@@ -2994,6 +2994,56 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   check(rb.palMove && rb.dmg >= 2, 'ひっさつ: ボスに ＋1ダメージ（' + rb.dmg + '）');
   console.log('相棒の ひっさつと きずな（v14.36）: たまる・タッチ・つぎの 正解・♥3 かばう・♥4 2回・ボス ＋1 OK');
 })();
+
+/* ---- 相棒の ターン（v14.37）：系統ごとの 名前（KEEP・どの 学年でも 同じ）・かまえた 正解では セットわざを かさねない・光の 台本と 読みこみ順 ----
+   ユーザー「主人公も 必殺技 出すから よく わからん。特別感も ない」→ 相棒の 出番を 主人公から 切り分けた */
+(function () {
+  const P = MQ.pals, B = MQ.battle, K = P.MOVE_KINDS;
+  check(!!K && Object.keys(K).length === 9, 'ターン: 相棒の わざ 9しゅるい');
+  Object.keys(K).forEach(function (k) {
+    const nm = K[k].name;
+    check(/^[ァ-ヴー]+ [ァ-ヴー]+$/.test(nm) || nm === 'きずな ストライク', 'ターン: ' + nm + ' は カタカナ 2語');
+    check(MQ.kotoba.KEEP.indexOf(nm) >= 0, 'ターン: ' + nm + ' が kotoba.js の KEEP に ある');
+    [1, 3, 5, 6].forEach(function (g) { check(MQ.text.fit(nm + '！', { level: g }) === nm + '！', 'ターン: ' + nm + ' は 小' + g + 'でも そのまま（' + MQ.text.fit(nm + '！', { level: g }) + '）'); });
+    check(/^#[0-9a-f]{6}$/i.test(K[k].hex) && !!K[k].sfx, 'ターン: ' + k + ' の 色と 音');
+  });
+  // どの モンスターにも わざが つく（系統に ない ものと 写真の モンスターは きずな ストライク）
+  const kinds = {};
+  MQ.enemies.list.forEach(function (e) { const k = P.moveKindOf(e); if (!K[k]) check(false, 'ターン: ' + e.id + ' の わざ'); kinds[k] = (kinds[k] || 0) + 1; });
+  check(Object.keys(kinds).length === 9, 'ターン: 9しゅるい ぜんぶに モンスターが いる（' + JSON.stringify(kinds) + '）');
+  check(P.moveKindOf(MQ.enemies.get('drago-1')) === 'blaze' && P.moveKindOf(MQ.enemies.get('wolf-gray')) === 'fang' && P.moveKindOf(MQ.enemies.get('slime-green')) === 'bond', 'ターン: ドラコ＝ブレイズ・ウルフン＝ファング・スライム＝きずな');
+  check(P.moveKindOf({ id: 'my-x', line: 'my-x' }) === 'bond' && P.moveKindOf(null) === 'bond', 'ターン: 写真の モンスターは きずな ストライク');
+  const one = 'drago-1';
+  const p = { pals: {}, pal: one }; p.pals[one] = { exp: 0, bond: 0 };
+  const mv = P.power(p).move;
+  check(mv.kind === 'blaze' && mv.name === 'ブレイズ ブレス' && mv.hex === K.blaze.hex && mv.uses === 1, 'ターン: power().move に 系統と 名前（' + JSON.stringify(mv) + '）');
+  // core：かまえた 正解では セットわざを 出さず つぎの 正解に まわす（相棒の ターンに 主人公の わざを かさねない）
+  const st = MQ.content.findStage('sansu3-1', { coins: 0, grade: 3, playGrade: 3, term: 0, units: {} }).stage;
+  B.start({ stage: st, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 14), bossId: 'boss-dragon', mobs: 14, chest: false, setWaza: 'set-kihon',
+    pal: { id: one, name: 'テスト', lv: 1, stage: 1, power: P.power(p) } });
+  function ok1() { const r = B.answer(correctValue(B.current())); B.next(); return r; }
+  const need = MQ.setwaza.NEED;
+  let r6 = null;
+  for (let i = 0; i < need; i++) r6 = ok1();
+  check(r6 && r6.setMove === true, 'ターン: セットわざは ' + need + '問めで 出る（前提）');
+  check(B.palMoveInfo().ready, 'ターン: ' + need + '問で 相棒の わざが たまる（追い打ち 2回）');
+  for (let i = 0; i < need - 1; i++) ok1();      // セットゲージ あと 1
+  check(B.armPalMove() === true, 'ターン: タッチで かまえ');
+  const rT = ok1();
+  check(rT.palMove === true && !rT.setMove, 'ターン: かまえた 正解は 相棒だけ（セットわざは 出ない）');
+  const rN = ok1();
+  check(rN.setMove === true && !rN.palMove, 'ターン: セットわざは つぎの 正解に まわる（うしなわない）');
+  // 光の 台本（js/ui/palfx.js）・当たる 時間・読みこみ順
+  const fxP = fs.readFileSync(path.join(base, 'js/ui/palfx.js'), 'utf8');
+  const uiB = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8');
+  Object.keys(K).forEach(function (k) { check(fxP.indexOf("'pm-" + k + "': { dur:") >= 0, 'ターン: ' + k + ' の 光の 台本（palfx.js）'); });
+  check(fxP.indexOf('const IMP = 380') >= 0 && uiB.indexOf('const PT_HIT = 380') >= 0, 'ターン: 当たる 時間が palfx.js と battle.js で 同じ（380）');
+  check(uiB.indexOf('if (palTurn) palTurnAttack(true);') >= 0 && uiB.indexOf('if (palTurn) palTurnAttack(false);') >= 0, 'ターン: 相棒の ターンでは attack（主人公）を よばない');
+  check(uiB.indexOf('function palAfter(spc) { if (spc) palAttack(); else setTimeout(palAttack, 460); }') >= 0, 'ターン: D 追い打ちは 主人公の あと');
+  check(INDEX_HTML.indexOf('js/ui/palfx.js') > INDEX_HTML.indexOf('js/ui/fxcanvas.js') && INDEX_HTML.indexOf('js/ui/fxcanvas.js') > 0, 'ターン: palfx.js は fxcanvas.js の あと');
+  check(fs.readFileSync(path.join(base, 'sw.js'), 'utf8').indexOf('./js/ui/palfx.js') > 0 && fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8').indexOf('js/ui/palfx.js') > 0, 'ターン: sw と harness に palfx.js');
+  console.log('相棒の ターン（v14.37）: 名前 9・KEEP・かまえた 正解は 相棒だけ・セットわざは つぎへ・台本と 読みこみ順 OK');
+})();
 check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょうごうが 入る');
 
 /* ---- 学期（v2.6）：ならった 単元だけ 出る ---- */

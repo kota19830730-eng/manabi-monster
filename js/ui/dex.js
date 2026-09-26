@@ -545,6 +545,9 @@ MQ.ui.dex = (function () {
           h('div', { class: 'palnow__bar' }, [h('div', { class: 'palnow__fill', style: { width: Math.round(cur.ratio * 100) + '%' } })]),
           h('span', { class: 'palnow__evo', text: cur.evoAt ? 'Lv.' + cur.evoAt + ' で しんかする' : (e && e.stage === 3 ? 'さいごの すがた' : 'しんかは しない') }),
           // レベルで 強くなる（v14.35）：つぎの ごほうびを 見せる＝育てる 目当て
+          (function () {   // 相棒の わざ（v14.37）：系統ごとの 名前（バトルで タッチ → つぎの 正解で 出る）
+            const mk = MQ.pals.MOVE_KINDS && MQ.pals.moveKindOf ? MQ.pals.MOVE_KINDS[MQ.pals.moveKindOf(e)] : null;
+            return mk ? h('span', { class: 'palnow__move', text: 'わざ：' + mk.name } ) : null; })(),
           (function () { const nx = MQ.pals.nextPerk ? MQ.pals.nextPerk(cur.lv) : null;
             return h('span', { class: 'palnow__perk', text: nx ? 'Lv.' + nx.lv + '：' + nx.text : 'さいこうの つよさ！' }); })(),
           (function () {   // きずな（v14.36）

@@ -891,6 +891,7 @@ MQ.battle = (function () {
   function palMoveNow() {
     if (!s.pmArmed) return false;
     s.pmArmed = false; s.pmCharge = 0; s.pmUsed++;
+    s.pmNow = true;   // v14.37：この 正解は 相棒の ターン（setHitNow が 見る）
     return true;
   }
   function palMoveXp() { const mv = palMove(); return mv ? mv.xp : 0; }
@@ -900,6 +901,7 @@ MQ.battle = (function () {
     if (!s.setWaza || !MQ.setwaza || s.setMoves >= MQ.setwaza.MAX) return false;
     s.setGauge += s.gear.setX2 ? 2 : 1;   // ギンガの かぶと（v14.8）：セットゲージ 2ばい
     if (s.setGauge < MQ.setwaza.NEED) return false;
+    if (s.pmNow) { s.setGauge = MQ.setwaza.NEED; return false; }   // 相棒の ターン（v14.37）：同じ 正解に セットわざを かさねない（いっぱいの まま つぎの 正解で 出る）
     s.setGauge = 0;
     s.setMoves++;
     return true;
@@ -909,6 +911,7 @@ MQ.battle = (function () {
     const q = current();
     const wasRetry = s.retry;
     s.gbEvent = null;                                // ガードくだき（2026-09-14）：この 答えの 出来事だけ
+    s.pmNow = false;                                 // 相棒の ターン（v14.37）：この 答えで 相棒の わざが 出たか
     if (s.phase === 'boss') s.bossAnswered = true;   // 本気モードは もう 変えられない（v12.7）
 
     if (isCorrect(q, value)) {

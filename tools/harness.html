@@ -179,6 +179,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/fxcanvas.js"></script>
 <script src="../js/ui/fxtext.js"></script>
 <script src="../js/ui/bossfx.js"></script>
+<script src="../js/ui/palfx.js"></script>
 <script src="../js/ui/setwaza.js"></script>
 <script src="../js/ui/news.js"></script>
 <script src="../js/ui/look.js"></script>
@@ -387,6 +388,9 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
   /* いま 画面に 出ている 一瞬（ふきだし・ひっさつの エフェクト）を
      スクリーンショットに のこす ため、これいじょう タイマーを 進めない。 */
   function freeze() { window.setTimeout = function () { return 0; }; }
+  /* v14.37：left の transition を 切る（virtual-time では 進まない）／要素の 四角を ステージ px で */
+  function noTrans() { const st = document.createElement('style'); st.textContent = '#screen-battle .hero, #screen-battle .pal { transition: none !important; }'; document.head.appendChild(st); }
+  function rectOf(el) { if (!el) return 'MISSING'; const k = (MQ.stage && MQ.stage.size) ? (MQ.stage.size().scale || 1) : 1; const b = document.getElementById('stage').getBoundingClientRect(); const r = el.getBoundingClientRect(); return 'x' + Math.round((r.left - b.left) / k) + '-' + Math.round((r.right - b.left) / k); }
   function fakeDrawing() {
     const W = 900, H = 1200;
     const c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -4530,6 +4534,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
           say('palmove: きずなの 行=' + (($('.palnow__bond') || {}).textContent || 'MISSING'));
           return;
         }
+        noTrans();   // v14.37：left の transition は virtual-time で 進まない → 切って 行き先の 位置を 写す
         MQ.ui.battle.start('sansu3-2');
         await wait(600);
         for (let i = 0; i < 14 && !MQ.battle.palMoveInfo().ready; i++) { answerViaUI(true); await wait(1900); }
@@ -4544,7 +4549,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         if (!sub) { freeze(); return; }
         pal.click();
         await wait(300);
-        say('palmove: タッチ → かまえ=' + MQ.battle.palMoveInfo().armed + ' ひとこと=' + (($('.pal__say') || {}).textContent || ''));
+        say('palmove: タッチ → かまえ=' + MQ.battle.palMoveInfo().armed + ' ひとこと=' + (($('.pal__say') || {}).textContent || '') +
+            ' ターン=' + $('#screen-battle .arena').classList.contains('is-palturn') + ' 主人公さがる=' + $('#screen-battle .hero').classList.contains('is-back') + ' 帯=' + (($('.palbanner--turn') || {}).textContent || 'MISSING'));
         if (sub === 'arm') { freeze(); return; }
         if (sub === 'result') {
           await playBattle('palresult');
@@ -4552,16 +4558,33 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
           say('palmove: けっか=' + (($('.rs__palbond') || {}).textContent || 'MISSING'));
           return;
         }
-        answerViaUI(true); await wait(420);
-        const bn = document.querySelector('.palbanner--move');
+        answerViaUI(true); await wait(430);   // v14.37：相棒の ターン（当たる 380ms の すぐ あと）
         const st = document.createElement('style');
-        st.textContent = '.palbanner, .pal__burst, .pal.is-moving { animation-delay: -.35s !important; animation-play-state: paused !important; }';
+        st.textContent = '.ci, .ci *, .ci *::before, .fxband, .fxname, .pal.is-turnhit, .palbanner { animation-delay: -.43s !important; animation-play-state: paused !important; }';
         document.head.appendChild(st);
-        const arena = document.querySelector('#screen-battle .arena');
-        if (bn && arena) arena.appendChild(bn.cloneNode(true));
-        const ring = document.querySelector('.pal__burst');
-        if (ring && arena) arena.appendChild(ring.cloneNode(true));
-        say('palmove: 出た=' + (bn ? bn.textContent : 'MISSING') + ' のこり=' + MQ.battle.palMoveInfo().left);
+        const ci = document.querySelector('.ci--palturn'), nm = document.querySelector('.fxname--pal');
+        say('palmove: ターン=' + document.querySelector('#screen-battle .arena').classList.contains('is-palturn') + ' 主人公さがる=' + document.querySelector('#screen-battle .hero').classList.contains('is-back') +
+            ' 主人公こうげき=' + document.querySelector('#screen-battle .hero').classList.contains('is-attack') +
+            ' カットイン=' + (ci ? ci.querySelector('.ci__tx').textContent : 'MISSING') + ' 技名=' + (nm ? nm.getAttribute('aria-label') : 'MISSING') + ' のこり=' + MQ.battle.palMoveInfo().left);
+        freeze();
+        return;
+      }
+      /* #palturn[:<kind>] … 相棒の ターンを 系統ごとに 見る（v14.37・demoPalTurn）。kind＝bond fang blaze heavy sky bolt aqua shadow holy */
+      if (mode.indexOf('palturn') === 0) {
+        const kind = mode.split(':')[1] || '';
+        noTrans();
+        MQ.ui.battle.start('sansu3-2');
+        await wait(2600);
+        if (kind === 'stance') { MQ.ui.battle.demoPalStance(true); await wait(400); say('palturn: かまえ ターン=' + $('#screen-battle .arena').classList.contains('is-palturn')); freeze(); return; }
+        const mv = MQ.ui.battle.demoPalTurn(kind || null);
+        await wait(430);
+        const st = document.createElement('style');
+        st.textContent = '.ci, .ci *, .ci *::before, .fxband, .fxname, .pal.is-turnhit, .palbanner, .enemy, .enemy * { animation-delay: -.43s !important; animation-play-state: paused !important; }';
+        document.head.appendChild(st);
+        say('palturn: ' + (mv ? mv.kind + ' ' + mv.name : 'MISSING') + ' カットイン=' + (document.querySelector('.ci--palturn') ? 'あり' : 'MISSING') +
+            ' 技名=' + ((document.querySelector('.fxname--pal') || { getAttribute: function () { return 'MISSING'; } }).getAttribute('aria-label')) +
+            ' 光=' + (MQ.ui.fxc && MQ.ui.fxc.state() ? MQ.ui.fxc.state().parts + '粒 t=' + MQ.ui.fxc.state().t : 'なし') + ' 主人公さがる=' + $('#screen-battle .hero').classList.contains('is-back') +
+            ' 相棒=' + rectOf($('#screen-battle .pal')) + ' 主人公=' + rectOf($('#screen-battle .hero')) + ' 相棒anim=' + getComputedStyle($('#screen-battle .pal')).animationName);
         freeze();
         return;
       }

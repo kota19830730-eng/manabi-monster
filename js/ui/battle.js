@@ -1727,7 +1727,10 @@ MQ.ui.battle = (function () {
     const res = MQ.battle.answer(value);
     closeBag();
     syncBuffs();
-    if (res.palMove) setTimeout(palMoveFx, 60);   // 相棒の ひっさつ（v14.36）
+    /* 相棒の ターン（v14.37）：かまえて いた 正解は 相棒だけが 動く（主人公は さがって 見て いる）。
+       たからばこは たたかう 相手が いない ので 帯だけ（v14.36 の まま） */
+    const palTurn = !!res.palMove && res.outcome !== 'chest';
+    if (res.palMove && res.outcome === 'chest') setTimeout(palMoveFx, 60);
     const gbe = guardEventFx();   // ガードくだき（2026-09-14）：ヒビ・こわれた・はね返した・なおった
 
     /* ---- たからばこ ---- */
@@ -1759,8 +1762,11 @@ MQ.ui.battle = (function () {
       const spc = specialFor(res);
       if (res.counter) counterFx();
       if (res.weakHit) weakFx();
-      attack(res.crit, true, spc, { combo: res.combo || 0, finish: false, withPal: !!(spc && res.palHit) });
-      if (res.palHit) palAttack();
+      if (palTurn) palTurnAttack(true);
+      else {
+        attack(res.crit, true, spc, { combo: res.combo || 0, finish: false, withPal: !!(spc && res.palHit) });
+        if (res.palHit) palAfter(spc);
+      }
       if (res.burst) burstHit();
       popDamage(res.dmg + 'ダメージ +' + res.xp, res.crit || !!res.burst || !!res.counter || !!res.weakHit);
       comboShow(res.combo);
@@ -1777,11 +1783,12 @@ MQ.ui.battle = (function () {
       const spc = specialFor(res);
       if (res.counter) counterFx();          // てきの こうげきを はね返した（v7.7）
       if (res.weakHit) weakFx();             // 弱点を ついた（v8.1）
-      attack(res.crit, false, spc, { combo: res.combo || 0, finish: isFinisher(res) || !!res.elite, withPal: !!(spc && res.palHit) });
+      if (palTurn) palTurnAttack(false);
+      else attack(res.crit, false, spc, { combo: res.combo || 0, finish: isFinisher(res) || !!res.elite, withPal: !!(spc && res.palHit) });
       if (res.burst) burstHit();
       popDamage((res.counter ? 'カウンター ' : res.weakHit ? 'ばつぐん ' : '') + '+' + res.xp, res.crit || res.rare || !!res.multi || !!res.burst || !!res.counter || !!res.weakHit || !!res.elite);
       comboShow(res.combo);
-      if (res.palHit) palAttack();
+      if (res.palHit && !palTurn) palAfter(spc);   // D（v14.37）：追い打ちは 主人公の こうげきの あとに
       if (res.multi) {
         MQ.sfx.multiKO(res.multi);
         flash(true);
@@ -1912,8 +1919,11 @@ MQ.ui.battle = (function () {
       else if (res.open) { flash(true); skillBanner('すきを ついた！', 'open'); }
       else if (res.cloneKO) { flash(true); skillBanner('見やぶった！', 'clone'); }
       const bsp = specialFor(res);
-      attack(res.crit, true, bsp, { combo: res.combo || 0, finish: !!res.defeated, withPal: !!(bsp && res.palHit) });
-      if (res.palHit) palAttack();
+      if (palTurn) palTurnAttack(true);
+      else {
+        attack(res.crit, true, bsp, { combo: res.combo || 0, finish: !!res.defeated, withPal: !!(bsp && res.palHit) });
+        if (res.palHit) palAfter(bsp);
+      }
       if (res.burst) burstHit();
       popDamage((res.counter ? 'カウンター ' + res.dmg + 'ダメージ ' : res.weakHit || res.open || res.setMove ? res.dmg + 'ダメージ ' : res.burst ? res.dmg + 'ダメージ ' : '') + '+' + res.xp, res.crit || !!res.burst || !!res.counter || !!res.weakHit || !!res.open || !!res.cloneKO || !!res.broke || !!res.setMove);
       comboShow(res.combo);
@@ -1929,8 +1939,12 @@ MQ.ui.battle = (function () {
         MQ.bgm.stop();
         // ドーン の あとに ファンファーレ → けっか画面で しょうりの 曲へ つながる
         setTimeout(function () { MQ.bgm.play('fanfare', { then: res.last ? 'ending' : 'victory' }); }, 450);
-        d.cur.classList.add('is-bossdown');
-        if (V3()) { MQ.ui.v3.play(d.cur, 'mo-crumble'); MQ.ui.v3.play(d.hero, 'mo-win', 1000); }
+        (function (bossEl) {   // 相棒の ターン（v14.37）で たおした ときは 当たって から くずれる
+          setTimeout(function () {
+            bossEl.classList.add('is-bossdown');
+            if (V3()) { MQ.ui.v3.play(bossEl, 'mo-crumble'); MQ.ui.v3.play(d.hero, 'mo-win', 1000); }
+          }, palTurn ? PT_HIT + 120 : 0);
+        })(d.cur);
         setTimeout(function () { palSay('win', 1800); }, 700);   // 相棒も よろこぶ（v14.35）
         if (res.last) flash(true);
         wait(res.last ? 3200 : 2600, finish);
@@ -2954,6 +2968,7 @@ MQ.ui.battle = (function () {
     Object.keys(ELEMENTS2).forEach(function (k) { list.push(ELEMENTS2[k].name); });
     Object.keys(SP_LINES).forEach(function (k) { SP_LINES[k].forEach(function (x) { list.push(x); }); });
     PAL_LINES.forEach(function (x) { list.push(x.replace('{p}', palNow ? palNow.name : '')); });
+    if (MQ.pals && MQ.pals.MOVE_KINDS) { Object.keys(MQ.pals.MOVE_KINDS).forEach(function (k) { list.push(MQ.pals.MOVE_KINDS[k].name + '！'); }); list.push('の ターン！ ぼくの ばん！'); }   // v14.37 相棒の わざ
     if (MQ.setwaza && MQ.setwaza.list) MQ.setwaza.list().forEach(function (w) { list.push(w.name, w.ruby || '', (w.lines || []).join('')); });
     if (MQ.treasure && MQ.treasure.powers) MQ.treasure.powers.forEach(function (p) { list.push(p.name + '！'); });
     list.push('0123456789 コンボ！ ひっさつ！カウンター！セットわざ！');
@@ -3303,10 +3318,11 @@ MQ.ui.battle = (function () {
     d.pal.classList.toggle('is-ready', ready);
     d.pal.classList.toggle('is-armed', !!(i.on && i.armed));
     d.pal.classList.toggle('is-gold', !!(i.on && i.gold));
-    if (d.palTapTag) d.palTapTag.textContent = i.on && i.armed ? 'つぎで！' : 'タッチ！';
+    if (d.palTapTag) d.palTapTag.textContent = i.on && i.armed ? 'ぼくの ばん！' : 'タッチ！';
+    palTurnStance((i.on && i.armed && !MQ.battle.isOver()) || palTurnHold);   // 相棒の ターン（v14.37）：かまえて いる あいだ 前に 出る
     if (ready && !palWasReady) {
       MQ.sfx.palReady();
-      setTimeout(function () { palSayText(MQ.util.pick(['ひっさつ、いけるよ！ タッチして！', 'ぼくを タッチ！', 'じゅんび OK！ タッチ！'])); }, 700);
+      setTimeout(function () { palSayText(MQ.util.pick(['わざ、いけるよ！ タッチして！', 'ぼくを タッチ！', 'じゅんび OK！ タッチ！'])); }, 700);
     }
     palWasReady = ready;
   }
@@ -3315,23 +3331,156 @@ MQ.ui.battle = (function () {
     if (!palNow || !MQ.battle.palMoveInfo) return;
     const i = MQ.battle.palMoveInfo();
     if (!i.on) return;
-    if (i.armed) { palSayText('つぎの 正解で いくよ！'); return; }
+    if (i.armed) { palSayText('ぼくの ばん！ つぎの 正解で いくよ！'); return; }
     if (MQ.battle.armPalMove()) {
       MQ.sfx.palArm();
       palWasReady = false;
-      syncPalMove();
-      palSayText('まかせて！ つぎの 正解で ひっさつだ！', 2200);
+      syncPalMove();          // かまえ＝相棒が 前に 出て 主人公が さがる（v14.37）
+      palTurnCall();
       return;
     }
-    if (i.left <= 0) { palSayText('きょうの ひっさつは つかったよ'); return; }
+    if (i.left <= 0) { palSayText('この たたかいの わざは つかったよ'); return; }
     const need = Math.max(1, i.need - i.charge);
-    palSayText('おいうち あと ' + need + '回で ひっさつ！');
+    palSayText('おいうち あと ' + need + '回で ぼくの ターン！');
   }
+  /* ---- 相棒の ターン（v14.37）----
+     ユーザー「相棒システムやけど 主人公も 必殺技 出すから よく わからん。特別感も ない」
+     数えたら（小3 さんすう1・300回・正答 90%）：相棒の 追い打ち＋ひっさつ 6〜10回の うち **7〜9わりが 主人公の わざ（3コンボ〜）と
+     同じ 正解に 出て**、ことばも 同じ「ひっさつ」＝見分けが つかなかった（scratchpad の palcount.js）。
+     → A：タッチ＝**その場で 相棒が 前に 出て 主人公が 一歩 さがる**（.arena.is-palturn／.hero.is-back）。
+          つぎの 正解は **相棒だけの ターン**＝主人公は こうげきしない（attack を よばない）。
+          主人公の わざは その 正解では 出ない（コンボは 切れない・つぎの 正解で 出る）。セットわざは core が つぎに まわす（pmNow）。
+       B：相棒だけの カットイン（palCutIn・あたたかい 色＝主人公の 紺と 分ける）＋系統ごとの 名前（js/core/pals.js の MOVE_KINDS）＋
+          系統ごとの 光（js/ui/palfx.js の pm-<kind>）＋足もとの 帯に 技名（palMoveName）。
+       D：ふつうの 追い打ちは 主人公の こうげきの **あと**に（palAfter・同時に 光らない）。
+     ルールは 変えない（けいけんち・ダメージ・回数は v14.36 の まま）。 */
+  const PT_HIT = 380;     // 相棒が とびかかって 当たる 時間（js/ui/palfx.js の IMP・css の palTurnJump と そろえる）
+  const PT_MS = 1300;     // ターンの 長さ（ザコの 1700ms の 待ちに おさまる）
+  let palTurnHold = false;
+  function palMoveOf() {
+    const mv = palNowPower && palNowPower.move;
+    return mv && mv.name ? mv : { kind: 'bond', name: 'きずな ストライク', hex: '#ffc94d', sfx: 'star' };
+  }
+  function palTurnStance(on) {
+    if (d.arena) d.arena.classList.toggle('is-palturn', !!on);
+    if (d.hero) d.hero.classList.toggle('is-back', !!on);
+  }
+  /* タッチした しゅんかん：帯「〇〇の ターン！」＋ひとこと（わざの 名前） */
+  function palTurnCall() {
+    if (!palNow || !d.fx) return;
+    const mv = palMoveOf();
+    d.fx.querySelectorAll('.palbanner').forEach(function (b) { b.remove(); });
+    const b = h('div', { class: 'palbanner palbanner--turn', text: palNow.name + 'の ターン！' });
+    d.fx.appendChild(b);
+    growFollow(b);
+    setTimeout(function () { b.remove(); }, 1400);
+    palSayText(mv.name + '、いくよ！', 2400);
+  }
+  /* D：追い打ちは 主人公の こうげき（0.48秒・当たるのは 0.2秒）の あとに。わざと いっしょの ときは いままでどおり（palJoin で 走る） */
+  function palAfter(spc) { if (spc) palAttack(); else setTimeout(palAttack, 460); }
+  /* 相棒だけの カットイン（下の 問題の ところ・.ci--palturn＝あたたかい 色・まん中に 相棒の 全身・上に 技名・下に なまえ） */
+  function palCutIn(mv) {
+    if (!d.fxs || !palNow) return;
+    const arenaH = d.arena.offsetHeight;
+    const lower = (d.root.offsetHeight || 700) - arenaH;
+    const hgt = Math.max(120, Math.min(236, lower - 18));
+    const box = h('div', { class: 'ci ci--palturn ci--t2' + (mv.gold ? ' is-gold' : '') });
+    box.style.setProperty('--el', mv.hex || '#ffc94d');
+    box.style.setProperty('--ci-h', hgt + 'px');
+    box.style.setProperty('--ci-ms', '900ms');
+    box.appendChild(h('span', { class: 'ci__bg' }));
+    box.appendChild(h('span', { class: 'ci__speed' }));
+    const win = h('span', { class: 'ci__win' });
+    const fig = Math.round(hgt * 0.9);
+    const pb = h('span', { class: 'ci__hero ci__palbig' });
+    pb.style.setProperty('--fig', fig + 'px');
+    pb.appendChild((V3() && MQ.ui.v3.monster(palNow.id, fig, { ry: 22, unit: ciUnit(fig), mo: 'mo-menace', cls: 'ci__palfig' })) || MQ.enemies.node(palNow.id, { size: fig }));
+    win.appendChild(pb);
+    box.appendChild(win);
+    box.appendChild(h('span', { class: 'ci__tx', text: mv.name + '！' }));
+    box.appendChild(h('span', { class: 'ci__palname', text: palNow.name }));
+    box.appendChild(h('span', { class: 'ci__shine' }));
+    d.fxs.style.setProperty('--arena-h', arenaH + 'px');
+    d.fxs.appendChild(box);
+  }
+  /* 足もとの 帯に 技名（主人公の わざと 同じ SVG の 字・色は 系統の 色）。金色（♥5）は 星の 色 */
+  function palMoveName(mv) {
+    if (!d.fxs) return;
+    d.fxs.style.setProperty('--arena-h', d.arena.offsetHeight + 'px');
+    d.fxs.appendChild(h('span', { class: 'fxband fxband--pal' }));
+    const st = { ink: '#6a2c06', shadow: '#2e1202', glow: mv.hex || '#ffc94d', grad: ['#ffffff', '#fff4d8', '#ffd9a0'] };
+    d.fxs.appendChild(MQ.ui.fxtext ? MQ.ui.fxtext.name(mv.name + '！', mv.gold ? 'star' : st, { size: 32, cls: 'fxname--pal' })
+      : h('span', { class: 'fxname fxname--pal', text: mv.name + '！' }));
+  }
+  /* 相棒だけの ターン：カットイン → とびかかる → 光 → 当たる → （ザコなら）たおれる。主人公は 動かない。
+     boss＝ボス・中ボス（たおれ方は よぶ側）／mvOver＝見本用に わざを 入れかえる／demo＝てきを たおさない */
+  function palTurnAttack(boss, mvOver, demo) {
+    if (!palNow || !d.pal || d.pal.hidden || !d.cur) { palMoveFx(); return; }
+    const mv = mvOver || palMoveOf();
+    const gold = !!mv.gold, foe = d.cur;
+    palTurnHold = true;
+    palTurnStance(true);
+    clearTimeout(palSayTimer);   // かまえの ときの ひとことは 消す（帯と かさなる）
+    if (d.palSayBox) d.palSayBox.hidden = true;
+    d.pal.classList.remove('is-talk');
+    if (d.arena) d.arena.classList.remove('is-paltalk');
+    d.hero.classList.remove('is-attack', 'is-special', 'is-finish', 'atk--slash', 'atk--thrust', 'atk--smash');   // 主人公は 見て いるだけ
+    palCutIn(mv);
+    palMoveName(mv);
+    d.pal.classList.remove('is-hit', 'is-moving', 'is-turnhit');
+    void d.pal.offsetWidth;
+    d.pal.classList.add('is-turnhit');
+    if (V3()) MQ.ui.v3.play(d.pal, 'mo-attack', 700);
+    MQ.sfx.palMove();
+    const fxc = MQ.ui.fxc;
+    const canvas = !!(fxc && fxc.attach(d.root) && fxc.ok() && fxc.has('pm-' + mv.kind));
+    if (canvas) {
+      const foeImg = foe.querySelector('.enemy__img3d, .enemy__img') || foe;
+      const palImg = d.pal.querySelector('.pal__img3d, .pal__img') || d.pal;
+      fxc.play('pm-' + mv.kind, { foe: boxOf(foeImg, 0), hero: boxOf(palImg, 0), height: d.arena.offsetHeight });
+    }
+    if (d.msg) d.msg.classList.add('is-quiet');
+    setTimeout(function () {   // 当たる
+      if (!d.cur) return;
+      foe.classList.remove('is-appear', 'is-enrage');
+      foe.classList.add('is-hit');
+      if (V3()) MQ.ui.v3.play(foe, 'mo-hurt', 520);
+      foe.classList.remove('is-blast', 'is-blast-big', 'is-blast-max');
+      void foe.offsetWidth;
+      foe.classList.add(gold ? 'is-blast-big' : 'is-blast');
+      flash(gold); whiteOut(); hitSparks(gold ? 12 : 9); punch(true); shake(true);
+      MQ.sfx.special(gold ? 3 : 2, mv.sfx || 'star');
+      if (!canvas) { const ring = h('span', { class: 'pal__burst' + (gold ? ' is-gold' : '') }); d.fx.appendChild(ring); setTimeout(function () { ring.remove(); }, 900); }
+    }, PT_HIT);
+    setTimeout(function () {
+      foe.classList.remove('is-hit');
+      if (!boss && !demo && !foe.classList.contains('is-down')) { foe.classList.add('is-down'); if (V3()) MQ.ui.v3.play(foe, 'mo-fall'); MQ.sfx.defeat(); }
+    }, PT_HIT + 480);
+    setTimeout(function () {
+      palTurnHold = false;
+      d.pal.classList.remove('is-turnhit');
+      if (d.msg) d.msg.classList.remove('is-quiet');
+      syncPalMove();
+      if (fxc) fxc.fade();
+    }, PT_MS);
+  }
+  /* 見本・harness 用：かまえ（前に 出る）と ターン（わざを 出す・てきは たおさない） */
+  function demoPalStance(on) { build(); palTurnHold = !!on; palTurnStance(!!on); if (on) palTurnCall(); }
+  function demoPalTurn(kind) {
+    build();
+    if (!palNow) return null;
+    const base0 = palMoveOf();
+    const mk = kind && MQ.pals.MOVE_KINDS ? MQ.pals.MOVE_KINDS[kind] : null;
+    const mv = mk ? Object.assign({}, base0, { kind: kind, name: mk.name, hex: mk.hex, sfx: mk.sfx }) : base0;
+    palTurnAttack(false, mv, true);
+    return mv;
+  }
+
   function palMoveFx() {
     if (!palNow || !d.pal || d.pal.hidden) return;
     d.fx.querySelectorAll('.palbanner').forEach(function (b) { b.remove(); });
     const gold = d.pal.classList.contains('is-gold');
-    const b = h('div', { class: 'palbanner palbanner--move' + (gold ? ' is-gold' : ''), text: palNow.name + 'の ひっさつ！' });
+    const b = h('div', { class: 'palbanner palbanner--move' + (gold ? ' is-gold' : ''), text: palMoveOf().name + '！' });   // v14.37：系統ごとの 名前
     d.fx.appendChild(b);
     growFollow(b);
     if (d.msg) d.msg.classList.add('is-quiet');
@@ -4072,6 +4221,7 @@ MQ.ui.battle = (function () {
     start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,
     ciOption: ciOption,   // v14.3：カットインを 軽く する 案の 切りかえ（見本の ページ・harness 用）
     palSay: function (kind, ms) { palMissAt = 0; palSay(kind, ms || 60000); },   // v14.35：相棒の ひとこと（harness 用）
+    demoPalTurn: demoPalTurn, demoPalStance: demoPalStance,   // v14.37：相棒の ターンを 見本・harness で 出す
     paintScene: paintScene,   // 背景（v12.6）を harness から 入れかえる 用
     lastJudge: function () { return lastJudge; },
     // メモ欄の 中を のぞく（tools/harness.html 用・v5.5）
