@@ -583,6 +583,8 @@ MQ.battle = (function () {
       pmCharge: 0, pmArmed: false, pmUsed: 0, pmBossDone: false,
       palCover: (opts.pal && opts.pal.power && opts.pal.power.move && !opts.timeAttack) ? (opts.pal.power.move.cover || 0) : 0,
       palCovered: 0,
+      palWhisper: (opts.pal && opts.pal.power && opts.pal.power.move && !opts.timeAttack) ? (opts.pal.power.move.whisper || 0) : 0,   // v14.38 C：ヒントの ささやき
+      palWhispered: 0,
       setWaza: setw ? setw.id : null,   // セットわざ（v14.2）
       setGauge: 0,                 // セットゲージ（正解で たまる・まちがえても へらない）
       setMoves: 0,                 // この たたかいで 出した セットわざの 数
@@ -743,6 +745,24 @@ MQ.battle = (function () {
     if (!q || s.phase !== 'mob' || q.chest || s.retry) return null;
     if (s.guidedQ === q.id) return null;
     if (!q.hint && q.type !== 'choice' && q.type !== 'roma') return null;
+    s.guidedQ = q.id;
+    return makeHint(q, { max: 1 });
+  }
+
+  /* 相棒の ささやき（v14.38 C）：子どもが 相棒を タッチ（ひっさつが たまって いない とき）→ いまの 問題の ヒント。
+     中身は みちしるべ と 同じ（ヒントの 文／えらぶ問題は まちがいを 1つ 消す／ローマ字は さいしょの 2字）＝**答えは 見せない**。
+     1たたかい palWhisper 回（1・♥2 で 2）。たからばこ・まちがえ直し（もう ヒントが 出て いる）・もう 見た 問題では 出ない。タイムアタックでは なし */
+  function palWhisperInfo() {
+    if (!s || !s.pal) return { on: false, left: 0, can: false };
+    const q = current();
+    const can = s.palWhisper > 0 && !!q && !q.chest && !s.retry && s.guidedQ !== q.id && s.phase !== 'done';
+    return { on: true, left: s.palWhisper, can: can, why: s.palWhisper <= 0 ? 'left' : (!q || q.chest ? 'chest' : s.retry ? 'retry' : s.guidedQ === q.id ? 'seen' : '') };
+  }
+  function palWhisperNow() {
+    const i = palWhisperInfo();
+    if (!i.can) return null;
+    const q = current();
+    s.palWhisper--; s.palWhispered++;
     s.guidedQ = q.id;
     return makeHint(q, { max: 1 });
   }
@@ -1533,6 +1553,7 @@ MQ.battle = (function () {
       palHits: s.palHits,
       palMoves: s.pmUsed,              // 相棒の ひっさつを 出した 回数（v14.36・きずなの おまけ）
       palCovered: s.palCovered,
+      palWhispered: s.palWhispered,   // v14.38 C
       palId: s.pal ? s.pal.id : null
     };
   }
@@ -1602,6 +1623,8 @@ MQ.battle = (function () {
     palGauge: function () { return s.palGauge; },
     palMoveInfo: function () { return palMoveInfo(); },
     armPalMove: function () { return armPalMove(); },
+    palWhisperInfo: function () { return palWhisperInfo(); },   // v14.38 C
+    palWhisper: function () { return palWhisperNow(); },
     palGaugeNeed: function () { return s ? palNeed() : (MQ.pals ? MQ.pals.gaugeNeed() : 3); },
     // セットわざ（v14.2）：{ id, gauge, need, used, max }。セットわざの ない たたかいは null
     setInfo: function () {

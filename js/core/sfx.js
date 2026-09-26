@@ -148,6 +148,7 @@ MQ.sfx = (function () {
     // くらった（どすっ）
     // 相棒の ひっさつ（v14.36）：たまった（きらきら）・かまえた・出た
     palReady: function () { tone(1568, 0.07, 'square', 0.08); tone(2093, 0.07, 'square', 0.08, 0.07); tone(2637, 0.14, 'square', 0.08, 0.14); },
+    palWhisper: function () { tone(1047, 0.06, 'triangle', 0.1); tone(1319, 0.06, 'triangle', 0.1, 0.06); tone(1568, 0.1, 'triangle', 0.09, 0.12); },   // v14.38 C：ささやき（ポロン）
     palArm: function () { tone(784, 0.08, 'square', 0.12); tone(1175, 0.08, 'square', 0.12, 0.08); tone(1568, 0.16, 'square', 0.12, 0.16); },
     palMove: function () { sweep(0.22, 0.3, 0, 400, 3000); noise(0.3, 0.5, 0.18, 1200, 'lowpass'); tone(130, 0.3, 'square', 0.22, 0.18, 50); tone(2093, 0.1, 'square', 0.12, 0.2); tone(2637, 0.2, 'square', 0.1, 0.28); },
     enemyHit: function () { noise(0.14, 0.3, 0, 700, 'lowpass'); tone(140, 0.18, 'square', 0.18, 0, 70); },

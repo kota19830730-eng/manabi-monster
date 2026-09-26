@@ -328,7 +328,10 @@ MQ.ui.battle = (function () {
     // 手下が いる ラスボス戦（v14.15）は「まおうの しろ」の 幕 → 手下 → あとで FINAL BATTLE
     if (isTower) { if (MQ.battle.phase() === 'mob') castleIntro(); else towerIntro(); }
     else { renderQuestion(); modeBanner(); }
-    setTimeout(function () { palSay('start'); }, 900);   // 相棒の ひとこと（v14.35）
+    setTimeout(function () {   // 相棒の ひとこと（v14.35）。v14.38 C：ときどき「こまったら タッチ」の 案内
+      if (palNow && Math.random() < 0.5 && MQ.battle.palWhisperInfo && MQ.battle.palWhisperInfo().left > 0) palSayText('こまったら ぼくを タッチ！ ヒントを おしえるよ', 2600);
+      else palSay('start');
+    }, 900);
   }
 
   /* はじめての たたかい（v11.1）：1問めだけ、こたえ方を 短く 教える。
@@ -1842,9 +1845,10 @@ MQ.ui.battle = (function () {
       // mobStrike が ambushTok を ふやして 大わざの のこりの 演出を 止める（claude-69 の 指摘）
       const strikeMs = gbe ? null : counterStrike(q, res);
       if (strikeMs == null) { if (res.hit) struckFx(); else dodge(); }
-      setTimeout(function () { palSay('miss'); }, (strikeMs || 0) + 500);   // 相棒が はげます（v14.35）
+      if (!res.covered) setTimeout(function () { palSay('miss'); }, (strikeMs || 0) + 500);   // 相棒が はげます（v14.35）。かばった ときは「まかせて！」を のこす（v14.38）
       comboShow(res.combo || 0);
-      if (res.covered && palNow) {   // きずな ♥3（v14.36）：相棒が かばって コンボを まもった
+      if (res.covered && palNow) {   // 相棒が かばって コンボを まもった（v14.36 ♥3 → v14.38 C で だれでも 1回）
+        palCoverFx();
         d.msg.textContent = palNow.name + 'が かばって くれた！ コンボは そのまま！ もう1回！';
         setTimeout(function () { palSayText(MQ.util.pick(['まかせて！', 'ぼくが まもる！', 'だいじょうぶ！'])); }, 300);
       } else
@@ -3339,9 +3343,12 @@ MQ.ui.battle = (function () {
       palTurnCall();
       return;
     }
+    /* v14.38 C：わざが たまって いない ときは ヒントを ささやく（たすける 役） */
+    if (palWhisperTap()) return;
     if (i.left <= 0) { palSayText('この たたかいの わざは つかったよ'); return; }
     const need = Math.max(1, i.need - i.charge);
-    palSayText('おいうち あと ' + need + '回で ぼくの ターン！');
+    const wi = MQ.battle.palWhisperInfo ? MQ.battle.palWhisperInfo() : { left: 0 };
+    palSayText(wi.why === 'retry' ? 'ヒントは もう 出て いるよ！' : wi.why === 'seen' ? 'ヒントは もう 出て いるよ！' : (wi.on && wi.left <= 0 ? 'ヒントは つかったよ！ ' : '') + 'おいうち あと ' + need + '回で ぼくの ターン！');
   }
   /* ---- 相棒の ターン（v14.37）----
      ユーザー「相棒システムやけど 主人公も 必殺技 出すから よく わからん。特別感も ない」
@@ -3474,6 +3481,35 @@ MQ.ui.battle = (function () {
     const mv = mk ? Object.assign({}, base0, { kind: kind, name: mk.name, hex: mk.hex, sfx: mk.sfx }) : base0;
     palTurnAttack(false, mv, true);
     return mv;
+  }
+
+  /* ---- 相棒の ささやき（v14.38 C）：タッチで ヒント。答えは 見せない（みちしるべと 同じ 中身） ---- */
+  function palWhisperTap() {
+    if (!MQ.battle.palWhisper || locked) return false;
+    const hint = MQ.battle.palWhisper();
+    if (!hint) return false;
+    const q = MQ.battle.current();
+    showHint(hint, q, -1);
+    d.pal.classList.remove('is-whisper');
+    void d.pal.offsetWidth;
+    d.pal.classList.add('is-whisper');
+    setTimeout(function () { if (d.pal) d.pal.classList.remove('is-whisper'); }, 700);
+    if (MQ.sfx.palWhisper) MQ.sfx.palWhisper(); else MQ.sfx.palArm();
+    const left = (MQ.battle.palWhisperInfo() || {}).left || 0;
+    palSayText(hint.kind === 'eliminate' ? 'ちがうのを 1つ 消したよ！' : 'ヒントだよ！ よく 読んでね', 2200);
+    d.msg.textContent = palNow.name + 'が ヒントを おしえて くれた！' + (left > 0 ? '（あと ' + left + '回）' : '');
+    return true;
+  }
+  /* かばう（v14.38 C・だれでも 1回）：相棒が 主人公と てきの あいだに とびこんで たてに なる */
+  function palCoverFx() {
+    if (!palNow || !d.pal || d.pal.hidden) return;
+    d.pal.classList.remove('is-hit', 'is-moving', 'is-cover');
+    void d.pal.offsetWidth;
+    d.pal.classList.add('is-cover');
+    const sh = h('span', { class: 'pal__shield' });
+    d.pal.appendChild(sh);
+    MQ.sfx.palArm();
+    setTimeout(function () { sh.remove(); if (d.pal) d.pal.classList.remove('is-cover'); }, 900);
   }
 
   function palMoveFx() {
@@ -4221,7 +4257,8 @@ MQ.ui.battle = (function () {
     start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,
     ciOption: ciOption,   // v14.3：カットインを 軽く する 案の 切りかえ（見本の ページ・harness 用）
     palSay: function (kind, ms) { palMissAt = 0; palSay(kind, ms || 60000); },   // v14.35：相棒の ひとこと（harness 用）
-    demoPalTurn: demoPalTurn, demoPalStance: demoPalStance,   // v14.37：相棒の ターンを 見本・harness で 出す
+    demoPalTurn: demoPalTurn, demoPalStance: demoPalStance,
+    palTap: function () { palTap(null); },   // v14.38 C：harness 用   // v14.37：相棒の ターンを 見本・harness で 出す
     paintScene: paintScene,   // 背景（v12.6）を harness から 入れかえる 用
     lastJudge: function () { return lastJudge; },
     // メモ欄の 中を のぞく（tools/harness.html 用・v5.5）

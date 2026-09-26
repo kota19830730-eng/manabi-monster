@@ -137,7 +137,8 @@ MQ.pals = (function () {
       need: MOVE_NEED,
       xp: MOVE_XP + (bond >= 1 ? 10 : 0),
       callName: bond >= 2,
-      cover: bond >= 3 ? 1 : 0,
+      cover: bond >= 3 ? 2 : 1,          // v14.38 C：かばうのは だれでも 1回（♥3 で 2回）
+      whisper: bond >= 2 ? 2 : 1,        // v14.38 C：ヒントの ささやき（タッチ・♥2 で 2回）
       uses: bond >= 4 ? 2 : 1,
       gold: bond >= 5,
       bond: bond,
@@ -157,8 +158,8 @@ MQ.pals = (function () {
   const BOND_AT = [4, 12, 24, 40, 60]; // ♥1〜♥5 に なる きずなの 点
   const BOND_PERKS = [
     { lv: 1, text: 'ひっさつの けいけんち ＋10' },
-    { lv: 2, text: 'なまえを よんで くれる' },
-    { lv: 3, text: 'まちがえた とき 1回 かばって くれる' },
+    { lv: 2, text: 'なまえを よんで くれる・ヒントが 2回' },
+    { lv: 3, text: 'かばって くれるのが 2回に' },
     { lv: 4, text: 'ひっさつが 2回 出せる' },
     { lv: 5, text: 'ひっさつが 金色に！' }
   ];

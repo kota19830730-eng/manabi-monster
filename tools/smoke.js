@@ -2940,7 +2940,7 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   const p1 = player(3); const u3 = P.bondUp(p1, false);
   check(u3.up && u3.lv === 1 && u3.perk && u3.perk.lv === 1, 'きずな: ♥1 に なる');
   const m0 = P.power(player(0)).move, m4 = P.power(player(40)).move, m5 = P.power(player(60)).move;
-  check(m0.uses === 1 && m4.uses === 2 && m0.cover === 0 && m4.cover === 1 && m5.gold && !m4.gold, 'きずな: ♥3 かばう・♥4 2回・♥5 金色');
+  check(m0.uses === 1 && m4.uses === 2 && m0.cover === 1 && m4.cover === 2 && m5.gold && !m4.gold, 'きずな: かばう だれでも 1・♥3 で 2（v14.38）・♥4 2回・♥5 金色');
   check(P.power(player(4)).move.xp === m0.xp + 10, 'きずな: ♥1 で ひっさつの けいけんち ＋10');
   // 進化しても のこる
   const e1 = MQ.enemies.get(one);
@@ -2984,7 +2984,11 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   B.answer(correctValue(B.current())); B.next();
   ok1();
   const cv2 = B.answer(wrongValue(B.current()));
-  check(!cv2.covered && cv2.combo === 0, 'きずな ♥3: かばうのは 1回だけ');
+  check(cv2.covered === true, 'きずな ♥3: 2回め も かばう（v14.38）');
+  B.answer(correctValue(B.current())); B.next();
+  ok1();
+  const cv3 = B.answer(wrongValue(B.current()));
+  check(!cv3.covered && cv3.combo === 0, 'きずな ♥3: かばうのは 2回まで');
   // ボス：＋1ダメージ（1たたかい 1回）
   start(40, Object.assign({ mobs: 6, enemies: MQ.enemies.pickIds('sansu', 6) }, B.BOSS_SET.normal, { attacks: false }));
   while (B.phase() === 'mob') ok1();
@@ -3043,6 +3047,52 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   check(INDEX_HTML.indexOf('js/ui/palfx.js') > INDEX_HTML.indexOf('js/ui/fxcanvas.js') && INDEX_HTML.indexOf('js/ui/fxcanvas.js') > 0, 'ターン: palfx.js は fxcanvas.js の あと');
   check(fs.readFileSync(path.join(base, 'sw.js'), 'utf8').indexOf('./js/ui/palfx.js') > 0 && fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8').indexOf('js/ui/palfx.js') > 0, 'ターン: sw と harness に palfx.js');
   console.log('相棒の ターン（v14.37）: 名前 9・KEEP・かまえた 正解は 相棒だけ・セットわざは つぎへ・台本と 読みこみ順 OK');
+})();
+
+/* ---- 相棒が たすける（v14.38 C）：ささやき（タッチで ヒント・答えは 見せない・1回／♥2 で 2回）・かばうは だれでも 1回 ---- */
+(function () {
+  const P = MQ.pals, B = MQ.battle;
+  const one = MQ.enemies.pickIds('sansu', 1, 0.1)[0];
+  function pw(bond) { const p = { pals: {}, pal: one }; p.pals[one] = { exp: 0, bond: bond }; return P.power(p); }
+  check(pw(0).move.whisper === 1 && pw(12).move.whisper === 2 && pw(0).move.cover === 1 && pw(24).move.cover === 2, 'たすける: ヒント 1（♥2 で 2）・かばう 1（♥3 で 2）');
+  const st = MQ.content.findStage('sansu3-1', { coins: 0, grade: 3, playGrade: 3, term: 0, units: {} }).stage;
+  function start(bond, o) {
+    B.start(Object.assign({ stage: st, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 9), bossId: 'boss-dragon', mobs: 9, chest: false,
+      pal: { id: one, name: 'テスト', lv: 1, stage: 1, power: pw(bond) } }, o || {}));
+  }
+  function ok1() { const r = B.answer(correctValue(B.current())); B.next(); return r; }
+  start(0);
+  const i0 = B.palWhisperInfo();
+  check(i0.on && i0.left === 1 && i0.can, 'たすける: はじめは ささやき 1回');
+  const q = B.current();
+  const hnt = B.palWhisper();
+  check(!!hnt && typeof hnt.text === 'string', 'たすける: ヒントが 出る');
+  const ansTxt = q.type === 'choice' ? String(q.choices[q.answer]) : String(q.answer);
+  check(hnt.kind === 'eliminate' ? hnt.remove.indexOf(q.answer) < 0 : true, 'たすける: 正解は 消さない');
+  check(B.palWhisper() === null && B.palWhisperInfo().left === 0, 'たすける: 1たたかい 1回');
+  check(B.summary().palWhispered === 1, 'たすける: 数える');
+  ok1();
+  // ♥2 は 2回・まちがえ直しでは 出ない
+  start(12);
+  B.answer(wrongValue(B.current()));
+  check(!B.palWhisperInfo().can && B.palWhisperInfo().why === 'retry' && B.palWhisper() === null, 'たすける: まちがえ直しでは 出ない（もう ヒントが ある）');
+  B.answer(correctValue(B.current())); B.next();
+  check(!!B.palWhisper() && B.palWhisper() === null, 'たすける: 同じ 問題で 2回は 出ない');
+  ok1();
+  check(!!B.palWhisper() && B.palWhisperInfo().left === 0, 'たすける: ♥2 は 2回');
+  // タイムアタックでは なし・相棒が いなければ なし
+  start(0, { timeAttack: 60 });
+  check(B.palWhisperInfo().left === 0 && B.palWhisper() === null, 'たすける: タイムアタックでは なし');
+  B.start({ stage: st, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 3), bossId: 'boss-dragon', mobs: 3, chest: false });
+  check(!B.palWhisperInfo().on && B.palWhisper() === null, 'たすける: 相棒が いなければ なし');
+  // かばうは ♥0 でも 1回
+  start(0);
+  ok1(); ok1();
+  const cv = B.answer(wrongValue(B.current()));
+  check(cv.covered === true && cv.combo === 2, 'たすける: ♥0 でも 1回 かばう（' + cv.combo + '）');
+  const uiB = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8');
+  check(uiB.indexOf('if (palWhisperTap()) return;') >= 0 && uiB.indexOf('palCoverFx();') >= 0, 'たすける: 画面（タッチで ささやき・かばう 演出）');
+  console.log('相棒が たすける（v14.38）: ささやき 1回（♥2 で 2）・答えは 見せない・まちがえ直しでは なし・かばう だれでも 1回 OK');
 })();
 check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょうごうが 入る');
 

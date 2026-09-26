@@ -4588,6 +4588,29 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         freeze();
         return;
       }
+      /* #palhint[:cover] … 相棒の ささやき（v14.38 C）。はじめの 問題で 相棒を click() → ヒント。:cover は 2問 正解して まちがえ → かばう */
+      if (mode.indexOf('palhint') === 0) {
+        const sub = mode.split(':')[1] || '';
+        noTrans();
+        if (MQ.fever && MQ.fever.battleOpts) MQ.fever.battleOpts = function () { return { fever: null, support: null }; };   // ヒント先出し（サポート）を 切る
+        MQ.save.update(function (pl) { pl.equipped.armor = null; });   // よろいの 時とめを 外す（かばうを 見る）
+        MQ.ui.battle.start('sansu3-2');
+        await wait(3200);
+        if (sub === 'cover') {
+          answerViaUI(true); await wait(1900); answerViaUI(true); await wait(1900);
+          answerViaUI(false); await wait(380);
+          const st = document.createElement('style'); st.textContent = '.pal.is-cover, .pal__shield { animation-delay: -.45s !important; animation-play-state: paused !important; }'; document.head.appendChild(st);
+          say('palhint: かばう=' + $('#screen-battle .pal').classList.contains('is-cover') + ' たて=' + !!$('.pal__shield') + ' ふきだし=' + ($('#screen-battle .arena__msg') || {}).textContent);
+          freeze(); return;
+        }
+        $('#screen-battle .pal').click();
+        await wait(300);
+        say('palhint: ヒント=' + (!$('.hintbox').hidden ? $('.hintbox').textContent : 'MISSING') + ' 消えた えらぶ=' + document.querySelectorAll('.choice.is-out').length +
+            ' ひとこと=' + (($('.pal__say') || {}).textContent || '') + ' のこり=' + MQ.battle.palWhisperInfo().left);
+        $('#screen-battle .pal').click(); await wait(200);
+        say('palhint: 2回め ひとこと=' + (($('.pal__say') || {}).textContent || ''));
+        freeze(); return;
+      }
       // #palname … なまえを つける（v5.2）
       if (mode === 'palname') {
         MQ.ui.dex.render('pals');

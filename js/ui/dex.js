@@ -548,6 +548,9 @@ MQ.ui.dex = (function () {
           (function () {   // 相棒の わざ（v14.37）：系統ごとの 名前（バトルで タッチ → つぎの 正解で 出る）
             const mk = MQ.pals.MOVE_KINDS && MQ.pals.moveKindOf ? MQ.pals.MOVE_KINDS[MQ.pals.moveKindOf(e)] : null;
             return mk ? h('span', { class: 'palnow__move', text: 'わざ：' + mk.name } ) : null; })(),
+          (function () {   // たすける（v14.38 C）
+            const mv = MQ.pals.power && MQ.pals.power(player).move;
+            return mv ? h('span', { class: 'palnow__help', text: 'たすける：ヒント ' + (mv.whisper || 1) + '回・かばう ' + (mv.cover || 1) + '回' }) : null; })(),
           (function () { const nx = MQ.pals.nextPerk ? MQ.pals.nextPerk(cur.lv) : null;
             return h('span', { class: 'palnow__perk', text: nx ? 'Lv.' + nx.lv + '：' + nx.text : 'さいこうの つよさ！' }); })(),
           (function () {   // きずな（v14.36）
