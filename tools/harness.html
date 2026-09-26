@@ -4513,7 +4513,52 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         // コインで こうかんできる ように、会った ことに する
         ['serp-1', 'krak-1', 'hawk-2', 'bolt-3'].forEach(function (id) { pl.dex[id] = (pl.dex[id] || 0) + 1; });
         if (mode === 'palresult') pl.pals['drago-1'].exp = MQ.pals.expFor(10) - 30;   // あと少しで しんか
+        if (mode.indexOf('palmove') === 0) pl.pals['drago-1'].bond = mode.indexOf(':gold') > 0 ? 60 : 30;   // v14.36：きずな ♥4（:gold は ♥5）
       });
+      /* #palmove[:arm|:fire|:gold|:menu|:result] … 相棒の ひっさつ と きずな（v14.36）
+         追い打ち 2回（6問）で たまる → 相棒を 本当に click() → つぎの 正解で ひっさつ */
+      if (mode.indexOf('palmove') === 0) {
+        const sub = mode.split(':')[1] || '';
+        if (sub === 'menu') {
+          MQ.ui.dex.render('pals'); MQ.ui.show('screen-dex'); await wait(300);
+          say('palmove: きずなの 行=' + (($('.palnow__bond') || {}).textContent || 'MISSING'));
+          return;
+        }
+        MQ.ui.battle.start('sansu3-2');
+        await wait(600);
+        for (let i = 0; i < 14 && !MQ.battle.palMoveInfo().ready; i++) { answerViaUI(true); await wait(1900); }
+        await wait(2600);   // 「ぼくを タッチ！」の ふきだしが 消えて「タッチ！」の 札が 出るまで
+        const pal = $('#screen-battle .pal');
+        const inf = MQ.battle.palMoveInfo();
+        const r = pal.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        say('palmove: たまった=' + inf.ready + ' ほし=' + document.querySelectorAll('.pal__star.is-on').length + '/' + document.querySelectorAll('.pal__star').length +
+            ' 光る=' + pal.classList.contains('is-ready') + ' タッチの 札=' + (getComputedStyle($('.pal__tap')).display !== 'none') +
+            ' 指が とどく=' + (top && pal.contains(top) ? 'OK' : 'NG ' + (top ? top.className : 'null')));
+        if (!sub) { freeze(); return; }
+        pal.click();
+        await wait(300);
+        say('palmove: タッチ → かまえ=' + MQ.battle.palMoveInfo().armed + ' ひとこと=' + (($('.pal__say') || {}).textContent || ''));
+        if (sub === 'arm') { freeze(); return; }
+        if (sub === 'result') {
+          await playBattle('palresult');
+          await wait(900);
+          say('palmove: けっか=' + (($('.rs__palbond') || {}).textContent || 'MISSING'));
+          return;
+        }
+        answerViaUI(true); await wait(420);
+        const bn = document.querySelector('.palbanner--move');
+        const st = document.createElement('style');
+        st.textContent = '.palbanner, .pal__burst, .pal.is-moving { animation-delay: -.35s !important; animation-play-state: paused !important; }';
+        document.head.appendChild(st);
+        const arena = document.querySelector('#screen-battle .arena');
+        if (bn && arena) arena.appendChild(bn.cloneNode(true));
+        const ring = document.querySelector('.pal__burst');
+        if (ring && arena) arena.appendChild(ring.cloneNode(true));
+        say('palmove: 出た=' + (bn ? bn.textContent : 'MISSING') + ' のこり=' + MQ.battle.palMoveInfo().left);
+        freeze();
+        return;
+      }
       // #palname … なまえを つける（v5.2）
       if (mode === 'palname') {
         MQ.ui.dex.render('pals');

@@ -146,6 +146,10 @@ MQ.sfx = (function () {
     // カウンター（キン！と はね返して ドン）
     counter: function () { tone(2093, 0.06, 'square', 0.14); tone(2794, 0.12, 'square', 0.12, 0.05); noise(0.08, 0.3, 0.02, 5000, 'highpass'); noise(0.22, 0.4, 0.14); tone(110, 0.2, 'square', 0.2, 0.14, 45); },
     // くらった（どすっ）
+    // 相棒の ひっさつ（v14.36）：たまった（きらきら）・かまえた・出た
+    palReady: function () { tone(1568, 0.07, 'square', 0.08); tone(2093, 0.07, 'square', 0.08, 0.07); tone(2637, 0.14, 'square', 0.08, 0.14); },
+    palArm: function () { tone(784, 0.08, 'square', 0.12); tone(1175, 0.08, 'square', 0.12, 0.08); tone(1568, 0.16, 'square', 0.12, 0.16); },
+    palMove: function () { sweep(0.22, 0.3, 0, 400, 3000); noise(0.3, 0.5, 0.18, 1200, 'lowpass'); tone(130, 0.3, 'square', 0.22, 0.18, 50); tone(2093, 0.1, 'square', 0.12, 0.2); tone(2637, 0.2, 'square', 0.1, 0.28); },
     enemyHit: function () { noise(0.14, 0.3, 0, 700, 'lowpass'); tone(140, 0.18, 'square', 0.18, 0, 70); },
     /* ---- 敵がわの 攻防（v8.1） ---- */
     // 中ボス 登場（低い ドン ドン ＋ うなり）

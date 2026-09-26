@@ -4733,3 +4733,61 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 /* レベルで 強くなる（v14.35）：メニューの つぎの ごほうび・けっか画面の「つよく なった！」 */
 .palnow__perk { display: block; margin-top: 3px; font-size: 11px; font-weight: 700; color: #ffd86b; }
 .rs__palperk { display: block; font-size: 10px; font-weight: 700; color: #ffd86b; line-height: 1.2; }
+
+/* =========================================================
+   相棒の ひっさつ（C）と きずな（E）（v14.36）
+   ・追い打ちで ほし（.pal__star）が たまる → 相棒の 足もとが 光って 頭の 上に「タッチ！」
+   ・タッチ → かまえ（オレンジ）→ つぎの 正解で「〇〇の ひっさつ！」
+   ・3D の 相棒に filter を かけない（v12.0 の きまり）→ 光は うしろの ::before で
+   ========================================================= */
+.pal { pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pal::before {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 86px; height: 86px; margin: -43px 0 0 -43px;
+  border-radius: 50%; background: radial-gradient(circle, rgba(255,226,120,.75) 0%, rgba(255,200,60,.35) 45%, rgba(255,200,60,0) 70%);
+  opacity: 0; transform: scale(.6); pointer-events: none; z-index: -1;
+}
+.pal.is-ready::before { animation: palReadyGlow 1.1s ease-in-out infinite; }
+.pal.is-armed::before { opacity: 1; transform: scale(1.05); background: radial-gradient(circle, rgba(255,160,60,.85) 0%, rgba(255,120,40,.4) 45%, rgba(255,120,40,0) 70%); }
+.pal.is-gold.is-armed::before { background: radial-gradient(circle, rgba(255,255,210,.95) 0%, rgba(255,215,90,.55) 45%, rgba(255,215,90,0) 72%); }
+@keyframes palReadyGlow { 0%, 100% { opacity: .55; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.12); } }
+.pal__tap {
+  position: absolute; left: 50%; bottom: calc(100% + 6px); z-index: 4; display: none;
+  padding: 2px 8px; border-radius: 9px; background: #ffd34d; box-shadow: 0 0 0 2px #fff4c2, 0 3px 0 #a86a00;
+  font-family: var(--f-head); font-size: 12px; color: #4a2a00; white-space: nowrap; pointer-events: none;
+  transform: translateX(-50%); animation: palTapBob .8s ease-in-out infinite;
+}
+.pal.is-ready .pal__tap { display: block; }
+.pal.is-ready.is-talk .pal__tap { display: none; }
+@keyframes palTapBob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
+.pal__mv { display: flex; gap: 2px; }
+.pal__mv[hidden] { display: none; }
+.pal__star { width: 7px; height: 7px; background: rgba(10,16,40,.7); border: 1px solid rgba(255,190,110,.6); transform: rotate(45deg); }
+.pal__star.is-on { background: #ffab3d; border-color: #ffe2b0; box-shadow: 0 0 5px 1px rgba(255,160,50,.9); }
+.pal.is-moving { animation: palJump .75s ease-out; }
+.palbanner--move {
+  top: 62px; padding: 4px 16px; font-size: 17px; color: #4a2a00;
+  background: linear-gradient(#ffe98a, #ffb534); border-color: #fff6cf;
+  box-shadow: 0 0 14px 4px rgba(255,190,60,.7); animation-duration: 1.3s;
+}
+.palbanner--move.is-gold { background: linear-gradient(90deg, #ffe07a, #fff6d0, #ffd04a, #fff6d0, #ffe07a); box-shadow: 0 0 20px 6px rgba(255,230,140,.9); }
+.pal__burst {
+  position: absolute; right: 44px; top: 70px; width: 90px; height: 90px; border-radius: 50%;
+  border: 5px solid #ffc94d; box-shadow: 0 0 18px 6px rgba(255,200,80,.8), inset 0 0 14px 4px rgba(255,230,150,.7);
+  opacity: 0; transform: scale(.2); animation: palBurst .8s ease-out .22s forwards; pointer-events: none; z-index: 5;
+}
+.pal__burst.is-gold { border-color: #fff4c2; box-shadow: 0 0 26px 10px rgba(255,240,170,.95), inset 0 0 18px 6px rgba(255,255,220,.8); }
+@keyframes palBurst { 0% { opacity: 1; transform: scale(.2); } 60% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(1.4); } }
+@media (prefers-reduced-motion: reduce) { .pal.is-ready::before, .pal__tap, .pal.is-moving, .pal__burst { animation: none; } }
+/* メニューと けっか画面の きずな */
+.palnow__bond { display: block; margin-top: 3px; font-size: 11px; font-weight: 700; color: #ff9fb6; }
+.palnow__bond b { color: #ff5f86; letter-spacing: 1px; }
+.rs__palbond { display: block; font-size: 10px; font-weight: 700; color: #ff9fb6; line-height: 1.2; }
+/* v14.36：コンボ・ためゲージの 字が 相棒に かさなっても タッチが とどく ように（見せる だけの 部品） */
+.combo, .charge { pointer-events: none; }
+/* v14.36：「タッチ！」は 頭の 上だと コンボの 帯に かくれた（800×1280 で 実測）→ 相棒の 右どなり（てきとの あいだの 草の 上） */
+.pal__tap { left: calc(100% - 4px); bottom: auto; top: 16px; transform: none; animation-name: palTapNudge; }
+.pal__tap::before { content: ''; position: absolute; left: -5px; top: 50%; margin-top: -4px; width: 8px; height: 8px; background: #ffd34d; transform: rotate(45deg); }
+.pal.is-ready.is-talk .pal__tap { display: block; }
+@keyframes palTapNudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-4px); } }
+.pal.is-armed .pal__tap { display: block; background: #ff9a3d; color: #fff; box-shadow: 0 0 0 2px #ffe0bf, 0 3px 0 #a84a00; }
+.pal.is-armed .pal__tap::before { background: #ff9a3d; }

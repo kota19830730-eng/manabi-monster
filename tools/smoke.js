@@ -1230,7 +1230,7 @@ check(MQ.hero.titles.length >= 30, 'しょうごう 30しゅるい いじょう:
     pals: (function () {
       const o = {};
       MQ.enemies.list.slice(0, 10).forEach(function (e, i) {
-        o[e.id] = { exp: i === 0 ? MQ.pals.expFor(10) : 0 };
+        o[e.id] = { exp: i === 0 ? MQ.pals.expFor(10) : 0, bond: i === 0 ? 60 : 0 };   // きずな ♥5（v14.36）
       });
       return o;
     })(),
@@ -2925,6 +2925,75 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   check(MQ.battle.palGaugeNeed() === 2, 'pal: 画面の ゲージの 数も 2つ');
   console.log('相棒の 存在感（v14.35）: Lv15 ゲージ 2つ・Lv25 コンボ+1・5レベルごと けいけんち+2 OK');
 })();
+
+/* ---- 相棒の ひっさつ（C）と きずな（E）（v14.36）----
+   追い打ち 2回で たまる → 子どもが タッチ（armPalMove）→ つぎの 正解で 出る。効果は 正解した ときだけ。
+   きずなは いっしょに たたかった 回数（ひっさつを 出すと ＋1）。進化しても のこる */
+(function () {
+  const P = MQ.pals, B = MQ.battle;
+  const one = MQ.enemies.pickIds('sansu', 1, 0.1)[0];
+  check(P.bondLevel(0) === 0 && P.bondLevel(3) === 0 && P.bondLevel(4) === 1 && P.bondLevel(59) === 4 && P.bondLevel(60) === 5, 'きずな: ♥の さかいめ');
+  function player(bond, lv) { const p = { pals: {}, pal: one }; p.pals[one] = { exp: P.expFor(lv || 1), bond: bond || 0 }; return p; }
+  const p0 = player(0);
+  const u1 = P.bondUp(p0, false), u2 = P.bondUp(p0, true);
+  check(u1.gained === 1 && u2.gained === 2 && p0.pals[one].bond === 3, 'きずな: 1回 ＋1・ひっさつを 出すと ＋2');
+  const p1 = player(3); const u3 = P.bondUp(p1, false);
+  check(u3.up && u3.lv === 1 && u3.perk && u3.perk.lv === 1, 'きずな: ♥1 に なる');
+  const m0 = P.power(player(0)).move, m4 = P.power(player(40)).move, m5 = P.power(player(60)).move;
+  check(m0.uses === 1 && m4.uses === 2 && m0.cover === 0 && m4.cover === 1 && m5.gold && !m4.gold, 'きずな: ♥3 かばう・♥4 2回・♥5 金色');
+  check(P.power(player(4)).move.xp === m0.xp + 10, 'きずな: ♥1 で ひっさつの けいけんち ＋10');
+  // 進化しても のこる
+  const e1 = MQ.enemies.get(one);
+  if (e1 && e1.evo) {
+    const pe = player(20, 10); P.evolveIfReady(pe);
+    check(pe.pals[e1.evo] && pe.pals[e1.evo].bond === 20, 'きずな: 進化しても のこる');
+  }
+  const st = MQ.content.findStage('sansu3-1', { coins: 0, grade: 3, playGrade: 3, term: 0, units: {} }).stage;
+  function start(bond, o) {
+    B.start(Object.assign({ stage: st, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 9), bossId: 'boss-dragon', mobs: 9, chest: false,
+      pal: { id: one, name: 'テスト', lv: 1, stage: 1, power: P.power(player(bond)) } }, o || {}));
+  }
+  function ok1() { const r = B.answer(correctValue(B.current())); B.next(); return r; }
+  // たまるまで：追い打ち 2回（Lv1 は 3問ごと）＝ 6問
+  start(0);
+  check(!B.palMoveInfo().ready && !B.armPalMove(), 'ひっさつ: はじめは タッチしても 出ない');
+  for (let i = 0; i < 6; i++) ok1();
+  const inf = B.palMoveInfo();
+  check(inf.on && inf.ready && inf.charge === 2, 'ひっさつ: 追い打ち 2回で たまる（' + JSON.stringify(inf) + '）');
+  const q = B.current();
+  const wrongFirst = B.answer(wrongValue(q));
+  check(!wrongFirst.palMove, 'ひっさつ: まちがえた ときは 出ない');
+  B.answer(correctValue(q)); B.next();   // タッチ まえの 正解では 出ない
+  check(B.armPalMove() === true && B.palMoveInfo().armed, 'ひっさつ: タッチで かまえる');
+  const r = ok1();
+  check(r.palMove === true && B.palMoveInfo().left === 0 && !B.palMoveInfo().ready, 'ひっさつ: つぎの 正解で 出る・1たたかい 1回');
+  check(B.summary().palMoves === 1, 'ひっさつ: 出した 回数');
+  // ♥4 は 2回
+  start(40);
+  for (let i = 0; i < 6; i++) ok1();
+  B.armPalMove(); ok1();
+  check(B.palMoveInfo().left === 1, 'ひっさつ: ♥4 は のこり 1回');
+  // タイムアタックでは 出ない
+  start(0, { timeAttack: 60 });
+  check(!B.palMoveInfo().on, 'ひっさつ: タイムアタックでは なし');
+  // ♥3 かばう：コンボが ある ときの 1回めの まちがいで コンボが のこる
+  start(24);
+  ok1(); ok1();
+  const cv = B.answer(wrongValue(B.current()));
+  check(cv.covered === true && cv.combo === 2, 'きずな ♥3: かばって コンボが のこる（' + cv.combo + '）');
+  B.answer(correctValue(B.current())); B.next();
+  ok1();
+  const cv2 = B.answer(wrongValue(B.current()));
+  check(!cv2.covered && cv2.combo === 0, 'きずな ♥3: かばうのは 1回だけ');
+  // ボス：＋1ダメージ（1たたかい 1回）
+  start(40, Object.assign({ mobs: 6, enemies: MQ.enemies.pickIds('sansu', 6) }, B.BOSS_SET.normal, { attacks: false }));
+  while (B.phase() === 'mob') ok1();
+  const hp0 = B.summary ? null : null;
+  check(B.armPalMove() === true, 'ひっさつ: ボスの 前に たまって いる');
+  const rb = B.answer(correctValue(B.current())); B.next();
+  check(rb.palMove && rb.dmg >= 2, 'ひっさつ: ボスに ＋1ダメージ（' + rb.dmg + '）');
+  console.log('相棒の ひっさつと きずな（v14.36）: たまる・タッチ・つぎの 正解・♥3 かばう・♥4 2回・ボス ＋1 OK');
+})();
 check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょうごうが 入る');
 
 /* ---- 学期（v2.6）：ならった 単元だけ 出る ---- */
@@ -3886,7 +3955,7 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
   check(B.summary().escaped.some(function (e) { return e.key.indexOf('call:') === 0 && !e.q.called; }), 'skill: にげた敵に 入る（called は のこさない）');
   // しょうごう
   check(MQ.hero.titles.some(function (t) { return t.id === 't-elite10'; }) && MQ.hero.titles.some(function (t) { return t.id === 't-weak10'; }), 'v8.1: しょうごう 2つ');
-  check(MQ.hero.titles.length === 65, 'しょうごう 65（v14.8 で コンプリート 3つ・v14.11 で まじん・あんこく 3つ・v14.12 で スターバーストの ゆうしゃ）: ' + MQ.hero.titles.length);
+  check(MQ.hero.titles.length === 66, 'しょうごう 66（v14.8 で コンプリート 3つ・v14.11 で まじん・あんこく 3つ・v14.12 で スターバーストの ゆうしゃ・v14.36 で さいこうの あいぼう）: ' + MQ.hero.titles.length);
   // 古い セーブ
   MQ.save.importText(JSON.stringify({ version: 2, players: [{ id: 'o', name: 'o', grade: 3, xp: 0 }], currentId: 'o', settings: {} }));
   check(MQ.save.current().elites === 0 && MQ.save.current().weakHits === 0, 'v8.1: 古い セーブは 0');

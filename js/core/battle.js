@@ -579,6 +579,10 @@ MQ.battle = (function () {
       pal: opts.pal || null,       // いまの 相棒（{ id, name }）。いなければ null
       palHits: 0,
       palGauge: 0,                 // なかまゲージ（正解で たまる・まちがえても へらない・v5.2）
+      // 相棒の ひっさつ（v14.36）：追い打ちで たまり、子どもが 相棒を タッチ → つぎの 正解で 出る
+      pmCharge: 0, pmArmed: false, pmUsed: 0, pmBossDone: false,
+      palCover: (opts.pal && opts.pal.power && opts.pal.power.move && !opts.timeAttack) ? (opts.pal.power.move.cover || 0) : 0,
+      palCovered: 0,
       setWaza: setw ? setw.id : null,   // セットわざ（v14.2）
       setGauge: 0,                 // セットゲージ（正解で たまる・まちがえても へらない）
       setMoves: 0,                 // この たたかいで 出した セットわざの 数
@@ -855,12 +859,42 @@ MQ.battle = (function () {
     const hit = s.palGauge >= need;
     if (hit) {
       s.palGauge = 0; s.palHits++;
+      const mv = palMove();
+      if (mv && !s.pmArmed && s.pmUsed < mv.uses) s.pmCharge = Math.min(mv.need, s.pmCharge + 1);
       /* Lv25 から 追い打ちで コンボ ＋1（v14.35）。コンボは この 前に 数えて ある ので そのまま 画面に 出る */
       const pw = palPower();
       if (pw.combo) s.combo += pw.combo;
     }
     return hit;
   }
+  /* ---- 相棒の ひっさつ（v14.36）---- */
+  function palMove() {
+    const pw = s && s.pal && s.pal.power;
+    return (pw && pw.move && !s.timeAttack) ? pw.move : null;
+  }
+  function palMoveInfo() {
+    const mv = s ? palMove() : null;
+    if (!mv) return { on: false, charge: 0, need: 0, ready: false, armed: false, left: 0, gold: false };
+    const left = mv.uses - s.pmUsed;
+    return { on: true, charge: s.pmCharge, need: mv.need, ready: !s.pmArmed && left > 0 && s.pmCharge >= mv.need,
+      armed: s.pmArmed, left: left, gold: !!mv.gold, used: s.pmUsed };
+  }
+  /* 子どもが 相棒を タッチ。たまって いれば かまえる（つぎの 正解で 出る） */
+  function armPalMove() {
+    if (!s || s.phase === 'done') return false;
+    const i = palMoveInfo();
+    if (!i.ready) return false;
+    s.pmArmed = true;
+    return true;
+  }
+  /* 正解した ときに よぶ。かまえて いれば ここで 出る */
+  function palMoveNow() {
+    if (!s.pmArmed) return false;
+    s.pmArmed = false; s.pmCharge = 0; s.pmUsed++;
+    return true;
+  }
+  function palMoveXp() { const mv = palMove(); return mv ? mv.xp : 0; }
+
   /* セットゲージ（v14.2）：正解ごとに 1つ。いっぱいに なった 正解で セットわざ（1たたかい MAX 回まで） */
   function setHitNow() {
     if (!s.setWaza || !MQ.setwaza || s.setMoves >= MQ.setwaza.MAX) return false;
@@ -895,12 +929,13 @@ MQ.battle = (function () {
       /* ---- たからばこ ---- */
       if (q.chest) {
         const palHit = palHitNow();
-        const xp = gain(XP.chest + (palHit ? palPower().xp : 0) + s.gear.xpAdd);
+        const pm = palMoveNow();
+        const xp = gain(XP.chest + (palHit ? palPower().xp : 0) + (pm ? palMoveXp() : 0) + s.gear.xpAdd);
         const coins = (q.coins || 1) * (s.gear.chestX2 ? 2 : 1);   // たからばこ よび（金色）は 2まい・まじんの マント（v14.11）で 2ばい
         s.coins += coins;
         s.chestOpened = true;
         s.chestCount++;
-        return { outcome: 'chest', xp: xp, coins: coins, combo: s.combo, crit: crit, note: q.note, palHit: palHit };
+        return { outcome: 'chest', xp: xp, coins: coins, combo: s.combo, crit: crit, note: q.note, palHit: palHit, palMove: pm };
       }
 
       /* ---- ボスが 呼んだ ザコ（v8.1）：ふつうの ザコと 同じ けいけんち。ボスの 問題数には 数えない ---- */
@@ -908,6 +943,8 @@ MQ.battle = (function () {
         const palHit = palHitNow();
         let xp = wasRetry ? XP.mobRetry : XP.mob;
         if (palHit) xp += palPower().xp;
+        const pm = palMoveNow();
+        if (pm) xp += palMoveXp();
         if (crit) xp += critXp();
         const setHit = setHitNow();          // セットわざ（v14.2）
         if (setHit) xp += MQ.setwaza.XP;
@@ -916,7 +953,7 @@ MQ.battle = (function () {
         s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
         s.defeated.push(q.enemyId);
         noteReview(q, wasRetry);
-        return { outcome: 'correct', called: true, xp: xp, crit: crit, combo: s.combo, palHit: palHit, note: q.note, rare: false, setMove: setHit };
+        return { outcome: 'correct', called: true, xp: xp, crit: crit, combo: s.combo, palHit: palHit, palMove: pm, note: q.note, rare: false, setMove: setHit };
       }
 
       /* ---- ボス ---- */
@@ -931,6 +968,9 @@ MQ.battle = (function () {
         const blocked = (s.bossHard || s.lastStrict) && wasRetry;
         let dmg = blocked ? 0 : (s.buff.dmg > 1 ? Math.min(s.buff.dmg, s.bossHp) : 1);
         if (palHit) dmg = Math.min(dmg + Math.min(PAL_BOSS_MAX, palPower().dmg), s.bossHp);   // 相棒の 追い打ち（ボスには 1まで・v12.7）
+        // 相棒の ひっさつ（v14.36）：本気で ガードされた 正解では 出ない（かまえた まま）。ボスへの ＋1は 1たたかい 1回
+        const pm = !blocked && palMoveNow();
+        if (pm && !s.pmBossDone) { dmg = Math.min(dmg + 1, s.bossHp); s.pmBossDone = true; }
         // カウンター（v7.7）：ボスの 大わざの 問題に 1回めで 正解 → 2ダメージ
         const counter = !wasRetry && attacking();
         // あんこくの よろい（v14.11）：本気モードの カウンターは 3ダメージ
@@ -950,7 +990,7 @@ MQ.battle = (function () {
            カウンター・弱点・すきだらけ・セットわざは 一発で やぶる */
         let guarded = false;
         if (s.lastStrict && s.enraged && !s.final) {
-          if (counter || weakHit || open || setHit || blocked) s.bossStreak = 0;
+          if (counter || weakHit || open || setHit || pm || blocked) s.bossStreak = 0;
           else {
             s.bossStreak++;
             if (s.bossStreak < lastGuardNeed()) { guarded = true; dmg = 0; }
@@ -1000,7 +1040,7 @@ MQ.battle = (function () {
         noteReview(q, wasRetry);
         if (!defeated && s.bossAsked >= s.bossMax) { s.phase = 'done'; s.bossFled = true; s.endedAt = now(); }
         return {
-          outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note, palHit: palHit,
+          outcome: 'bosshit', xp: xp, crit: crit, combo: s.combo, note: q.note, palHit: palHit, palMove: pm,
           counter: counter, setMove: setHit,
           weakHit: weakHit, skill: skill, clonePos: pl ? pl.pos : 0, broke: broke, open: open, cloneKO: cloneKO,   // v8.1
           dmg: dmg, burst: usedBurst && !counter && !weakHit && !open ? dmg : 0, coins: defeated ? bossCoins : 0,
@@ -1014,8 +1054,10 @@ MQ.battle = (function () {
 
       /* ---- ザコ ---- */
       const palHit = palHitNow();
+      const pm = palMoveNow();              // 相棒の ひっさつ（v14.36）
       let xp = wasRetry ? XP.mobRetry : XP.mob;
       if (palHit) xp += palPower().xp;
+      if (pm) xp += palMoveXp();
       if (q.rare) xp *= XP.rareMul;
       if (crit) xp += critXp();
 
@@ -1048,13 +1090,13 @@ MQ.battle = (function () {
       /* ---- 中ボス（v8.1）：HP2。つよい 一発（クリティカル・カウンター・追い打ち・ばくれつ・弱点）なら 2ダメージ ---- */
       if (q.elite) {
         // オーロラの たて（げきレア・v9.0）… 中ボスを 一発で たおせる
-        const dmg = Math.min(s.eliteLeft, (crit || counter || palHit || burst || weakHit || setHit || s.gear.pierce) ? 2 : 1);
+        const dmg = Math.min(s.eliteLeft, (crit || counter || palHit || pm || burst || weakHit || setHit || s.gear.pierce) ? 2 : 1);
         s.eliteLeft -= dmg;
         if (s.eliteLeft > 0) {
           xp = gain(xp);
           s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
           return {
-            outcome: 'elitehit', xp: xp, crit: crit, combo: s.combo, palHit: palHit, note: q.note, setMove: setHit,
+            outcome: 'elitehit', xp: xp, crit: crit, combo: s.combo, palHit: palHit, palMove: pm, note: q.note, setMove: setHit,
             burst: burst, counter: counter, weakHit: weakHit, dmg: dmg, hpLeft: s.eliteLeft, hpMax: q.eliteHp || ELITE_HP
           };
         }
@@ -1068,7 +1110,7 @@ MQ.battle = (function () {
         s.defeated.push(q.enemyId);
         noteReview(q, wasRetry);
         return {
-          outcome: 'correct', elite: true, xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit, setMove: setHit,
+          outcome: 'correct', elite: true, xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit, palMove: pm, setMove: setHit,
           multi: null, note: q.note, burst: burst, coins: 1, revenge: false, counter: counter, weakHit: weakHit, dmg: dmg
         };
       }
@@ -1087,7 +1129,7 @@ MQ.battle = (function () {
       if (q.revenge) s.revengeBeaten.push(q.id);
       noteReview(q, wasRetry);
       return {
-        outcome: 'correct', xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit,
+        outcome: 'correct', xp: xp, crit: crit, combo: s.combo, rare: !!q.rare, palHit: palHit, palMove: pm,
         multi: multi, note: q.note, burst: burst, coins: coins, revenge: !!q.revenge, counter: counter,
         weakHit: weakHit, summon: !!q.summon, review: !!q.review, reviewOk: !!q.review && !wasRetry, setMove: setHit
       };
@@ -1116,9 +1158,12 @@ MQ.battle = (function () {
       // 時とめ：この 問題では コンボが 切れない
       let frozen = false;
       if (s.buff.freeze > 0) { s.buff.freeze--; s.frozenQ = q.id; frozen = true; }
+      // きずな ♥3（v14.36）：相棒が 1回 かばって コンボを まもる（コンボが ある ときだけ・時とめが 先）
+      let covered = false;
+      if (!frozen && s.palCover > 0 && s.combo > 0 && s.frozenQ !== q.id) { s.palCover--; s.palCovered++; s.frozenQ = q.id; covered = true; }
       if (s.frozenQ !== q.id) s.combo = 0;
       if (q.groupId) s.groupClean = false;
-      return { outcome: 'retry', hint: makeHint(q), frozen: frozen, combo: s.combo, hit: hit, skill: skillNow, elite: !!q.elite, weak: !!q.weak };
+      return { outcome: 'retry', hint: makeHint(q), frozen: frozen, covered: covered, combo: s.combo, hit: hit, skill: skillNow, elite: !!q.elite, weak: !!q.weak };
     }
 
     // てっぺき まもり：2回目に まちがえても にげられない（答えは 見せずに もう1回）
@@ -1483,6 +1528,8 @@ MQ.battle = (function () {
       typeOk: Object.assign({}, s.typeOk),
       itemsUsed: s.itemsUsed.slice(),
       palHits: s.palHits,
+      palMoves: s.pmUsed,              // 相棒の ひっさつを 出した 回数（v14.36・きずなの おまけ）
+      palCovered: s.palCovered,
       palId: s.pal ? s.pal.id : null
     };
   }
@@ -1550,6 +1597,8 @@ MQ.battle = (function () {
     },
     combo: function () { return s.combo; },
     palGauge: function () { return s.palGauge; },
+    palMoveInfo: function () { return palMoveInfo(); },
+    armPalMove: function () { return armPalMove(); },
     palGaugeNeed: function () { return s ? palNeed() : (MQ.pals ? MQ.pals.gaugeNeed() : 3); },
     // セットわざ（v14.2）：{ id, gauge, need, used, max }。セットわざの ない たたかいは null
     setInfo: function () {

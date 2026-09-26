@@ -74,12 +74,14 @@ MQ.ui.battle = (function () {
             h('div', { class: 'shadow shadow--hero' }),
             d.guard = h('div', { class: 'guardrow', hidden: true })   // まもりの アイコン（ガードくだき・2026-09-14）
           ]),
-          d.pal = h('div', { class: 'pal', hidden: true }, [
+          d.pal = h('div', { class: 'pal', hidden: true, onclick: palTap }, [
             d.palSayBox = h('div', { class: 'pal__say', hidden: true }),   // 相棒の ひとこと（v14.35）
+            d.palTapTag = h('span', { class: 'pal__tap', text: 'タッチ！' }),   // 相棒の ひっさつ（v14.36）
             d.palBox = h('div', { class: 'pal__box' }),
             h('div', { class: 'pal__tag' }, [                  // v14.32：なまえと ゲージは 足もとの 札（頭の 上だと 勇者に かくれて 切れた）
               d.palName = h('span', { class: 'pal__name', text: '' }),
-              d.palGauge = h('div', { class: 'pal__gauge' })
+              d.palGauge = h('div', { class: 'pal__gauge' }),
+              d.palMv = h('div', { class: 'pal__mv' })            // ひっさつの ほし（v14.36）
             ])
           ]),
           d.foes = h('div', { class: 'foes' })
@@ -964,7 +966,8 @@ MQ.ui.battle = (function () {
   function palOf(player) {
     const cur = MQ.pals ? MQ.pals.active(player) : null;
     // 追い打ちの つよさは 段階で 変わる（v8.2）
-    return cur ? { id: cur.id, name: cur.name, lv: cur.lv, stage: (cur.enemy && cur.enemy.stage) || 1, power: MQ.pals.power(player) } : null;
+    return cur ? { id: cur.id, name: cur.name, lv: cur.lv, stage: (cur.enemy && cur.enemy.stage) || 1, power: MQ.pals.power(player),
+      bond: cur.bond ? cur.bond.lv : 0, hero: player ? player.name : '' } : null;
   }
 
   function bagOf(player) { return MQ.treasure.bagItems(player); }
@@ -1724,6 +1727,7 @@ MQ.ui.battle = (function () {
     const res = MQ.battle.answer(value);
     closeBag();
     syncBuffs();
+    if (res.palMove) setTimeout(palMoveFx, 60);   // 相棒の ひっさつ（v14.36）
     const gbe = guardEventFx();   // ガードくだき（2026-09-14）：ヒビ・こわれた・はね返した・なおった
 
     /* ---- たからばこ ---- */
@@ -1833,6 +1837,10 @@ MQ.ui.battle = (function () {
       if (strikeMs == null) { if (res.hit) struckFx(); else dodge(); }
       setTimeout(function () { palSay('miss'); }, (strikeMs || 0) + 500);   // 相棒が はげます（v14.35）
       comboShow(res.combo || 0);
+      if (res.covered && palNow) {   // きずな ♥3（v14.36）：相棒が かばって コンボを まもった
+        d.msg.textContent = palNow.name + 'が かばって くれた！ コンボは そのまま！ もう1回！';
+        setTimeout(function () { palSayText(MQ.util.pick(['まかせて！', 'ぼくが まもる！', 'だいじょうぶ！'])); }, 300);
+      } else
       d.msg.textContent = res.hit ? (res.frozen ? 'くらった！ でも 時とめで コンボは そのまま！ もう1回！' : 'くらった！ でも だいじょうぶ。もう1回 こたえよう！')
         : res.frozen ? 'おしい！ でも 時とめで コンボは そのまま！ もう1回！'
         : res.skill === 'kamae' ? 'たてで ふせがれた！ でも だいじょうぶ。もう1回！'
@@ -3211,7 +3219,27 @@ MQ.ui.battle = (function () {
       palMissAt = now;
     }
     palSaid++;
-    d.palSayBox.textContent = MQ.util.pick(set);
+    let line = MQ.util.pick(set);
+    // きずな ♥2（v14.36）：ときどき なまえを よんで くれる
+    const pb = palPower();
+    if (pb && pb.move && pb.move.callName && palHero && Math.random() < 0.5 && PAL_NAME_TALK[kind]) line = MQ.util.pick(PAL_NAME_TALK[kind]).replace('{n}', palHero);
+    showPalSay(line, ms);
+  }
+  const PAL_NAME_TALK = {
+    start: ['{n}、いっしょに いこう！', '{n}と なら まけないよ！'],
+    boss: ['{n}、いっしょに たおそう！', '{n}、しんじてるよ！'],
+    miss: ['{n}なら だいじょうぶ！', 'ドンマイ、{n}！'],
+    win: ['{n}、さいこう！', 'やったね、{n}！']
+  };
+  let palHero = '';
+  function palPower() { return palNowPower; }
+  let palNowPower = null;
+  function palSayText(text, ms) {
+    if (!palNow || !d.pal || d.pal.hidden || !d.palSayBox) return;
+    showPalSay(text, ms);
+  }
+  function showPalSay(line, ms) {
+    d.palSayBox.textContent = line;
     d.palSayBox.hidden = false;
     d.palSayBox.classList.remove('is-in');
     void d.palSayBox.offsetWidth;
@@ -3244,6 +3272,9 @@ MQ.ui.battle = (function () {
     for (let i = 0; i < need; i++) d.palGauge.appendChild(h('span', { class: 'pal__dot' }));
     palTone = palToneOf(cur);
     palSaid = 0;
+    palHero = player ? player.name || '' : '';
+    palNowPower = cur ? MQ.pals.power(player) : null;
+    palWasReady = false;
     syncPalGauge();
   }
 
@@ -3253,6 +3284,68 @@ MQ.ui.battle = (function () {
     const now = MQ.battle.palGauge ? MQ.battle.palGauge() : 0;
     const dots = d.palGauge.children;
     for (let i = 0; i < dots.length; i++) dots[i].classList.toggle('is-on', i < now);
+    syncPalMove();
+  }
+
+  /* ---- 相棒の ひっさつ（v14.36）----
+     追い打ちで ほしが たまる → 相棒が 光って「タッチ！」→ 子どもが 相棒を タッチ →
+     つぎの 正解で 相棒の ひっさつ。効果は 正解した ときだけ（大原則）。 */
+  let palWasReady = false;
+  function syncPalMove() {
+    if (!d.palMv || !d.pal) return;
+    const i = MQ.battle.palMoveInfo ? MQ.battle.palMoveInfo() : { on: false };
+    d.palMv.hidden = !i.on || i.left <= 0;
+    if (i.on) {
+      d.palMv.innerHTML = '';
+      for (let k = 0; k < i.need; k++) d.palMv.appendChild(h('span', { class: 'pal__star' + (i.armed || k < i.charge ? ' is-on' : '') }));
+    }
+    const ready = !!(i.on && i.ready && !MQ.battle.isOver());
+    d.pal.classList.toggle('is-ready', ready);
+    d.pal.classList.toggle('is-armed', !!(i.on && i.armed));
+    d.pal.classList.toggle('is-gold', !!(i.on && i.gold));
+    if (d.palTapTag) d.palTapTag.textContent = i.on && i.armed ? 'つぎで！' : 'タッチ！';
+    if (ready && !palWasReady) {
+      MQ.sfx.palReady();
+      setTimeout(function () { palSayText(MQ.util.pick(['ひっさつ、いけるよ！ タッチして！', 'ぼくを タッチ！', 'じゅんび OK！ タッチ！'])); }, 700);
+    }
+    palWasReady = ready;
+  }
+  function palTap(ev) {
+    if (ev) ev.stopPropagation();
+    if (!palNow || !MQ.battle.palMoveInfo) return;
+    const i = MQ.battle.palMoveInfo();
+    if (!i.on) return;
+    if (i.armed) { palSayText('つぎの 正解で いくよ！'); return; }
+    if (MQ.battle.armPalMove()) {
+      MQ.sfx.palArm();
+      palWasReady = false;
+      syncPalMove();
+      palSayText('まかせて！ つぎの 正解で ひっさつだ！', 2200);
+      return;
+    }
+    if (i.left <= 0) { palSayText('きょうの ひっさつは つかったよ'); return; }
+    const need = Math.max(1, i.need - i.charge);
+    palSayText('おいうち あと ' + need + '回で ひっさつ！');
+  }
+  function palMoveFx() {
+    if (!palNow || !d.pal || d.pal.hidden) return;
+    d.fx.querySelectorAll('.palbanner').forEach(function (b) { b.remove(); });
+    const gold = d.pal.classList.contains('is-gold');
+    const b = h('div', { class: 'palbanner palbanner--move' + (gold ? ' is-gold' : ''), text: palNow.name + 'の ひっさつ！' });
+    d.fx.appendChild(b);
+    growFollow(b);
+    if (d.msg) d.msg.classList.add('is-quiet');
+    setTimeout(function () { b.remove(); if (d.msg) d.msg.classList.remove('is-quiet'); }, 1300);
+    d.pal.classList.remove('is-hit', 'is-moving');
+    void d.pal.offsetWidth;
+    d.pal.classList.add('is-moving');
+    if (V3()) MQ.ui.v3.play(d.pal, 'mo-attack', 700);
+    MQ.sfx.palMove();
+    flash(true);
+    setTimeout(function () { hitSparks(10); }, 260);
+    const ring = h('span', { class: 'pal__burst' + (gold ? ' is-gold' : '') });
+    d.fx.appendChild(ring);
+    setTimeout(function () { ring.remove(); d.pal.classList.remove('is-moving'); syncPalMove(); }, 900);
   }
 
   /* 追い打ちの ときの 帯（「〇〇の こうげき！」）。
@@ -3561,6 +3654,8 @@ MQ.ui.battle = (function () {
         const wkp = (!ctx.tokkun && ctx.weekend) ? ctx.weekend : null;
         out.pal = MQ.pals.gain(p, Math.round(sum.xp * (sum.palXpMul || 1) * ((wkp && wkp.palXp) || 1)));
         out.palOffer = MQ.pals.offerFrom(p, sum.defeated, null, (wkp && wkp.palOffer) || 1);
+        // きずな（v14.36）：いっしょに たたかった 回数。ひっさつを 出した たたかいは ＋1
+        if (sum.palId && sum.total > 0 && MQ.pals.bondUp) out.palBond = MQ.pals.bondUp(p, (sum.palMoves || 0) > 0);
       }
 
       /* ---- ★ と じぶんの さいこう記ろく（ごちゃまぜ バトルには つかない・v7.3） ---- */

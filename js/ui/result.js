@@ -230,6 +230,13 @@ MQ.ui.result = (function () {
           // レベルで 強くなった（v14.35）：5レベルごとの ごほうびを その場で 見せる
           (function () { const got = (MQ.pals.perksBetween && rw.pal.leveledUp) ? MQ.pals.perksBetween(rw.pal.lvBefore, rw.pal.lv) : [];
             return got.length ? h('span', { class: 'rs__palperk', text: 'つよく なった！ ' + got[got.length - 1].text }) : null; })(),
+          (function () {   // きずな（v14.36）
+            const b = rw.palBond;
+            if (!b) return null;
+            const hearts = '♥'.repeat(b.lv) + '♡'.repeat(MQ.pals.BOND_AT.length - b.lv);
+            if (b.up && b.perk) return h('span', { class: 'rs__palbond', text: 'きずな ' + hearts + '　' + b.perk.text + '！' });
+            return h('span', { class: 'rs__palbond', text: 'きずな ' + hearts + (b.info && b.info.next != null ? '　つぎの ♥まで あと ' + b.info.need : '') });
+          })(),
           h('div', { class: 'rs__palbar' }, [h('div', { class: 'rs__palfill', style: { width: Math.round((info ? info.ratio : 0) * 100) + '%' } })])
         ]),
         h('span', { class: 'rs__palexp', text: '+' + rw.pal.gained })

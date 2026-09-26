@@ -990,6 +990,7 @@ MQ.hero = (function () {
     { id: 't-pal1',      name: 'なかまと ともに',        how: 'なかまを 1体 つくる',       test: function (p) { return palCount(p) >= 1; } },
     { id: 't-pal10',     name: 'なかまの リーダー',       how: 'なかまを 10体 あつめる',     test: function (p) { return palCount(p) >= 10; } },
     { id: 't-palLv10',   name: 'きずなの あかし',        how: '相棒を Lv.10 に そだてる',   test: function (p) { return palBestLv(p) >= 10; } },
+    { id: 't-bond5',     name: 'さいこうの あいぼう',     how: '相棒との きずなを ♥5 に する', test: function (p) { return !!(MQ.pals && MQ.pals.bondBest(p) >= 5); } },
     // そうび（v5.4）
     { id: 't-gearset',   name: 'そろいの きし',          how: 'そうびを 1しゅるい そろえる', test: function (p) { return !!fullSetOf(p); } },
     { id: 't-hoshiset',  name: 'ほしの ゆうしゃ',        how: 'ほしの そうびを そろえる',    test: function (p) { return hasSet(p, 'hoshi'); } },

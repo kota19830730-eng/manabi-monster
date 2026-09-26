@@ -92,8 +92,64 @@ MQ.pals = (function () {
       xp: base.xp + lvBonus(lv),
       dmg: base.dmg,
       need: lv >= FAST_LV ? 2 : GAUGE_NEED,
-      combo: lv >= COMBO_LV ? 1 : 0
+      combo: lv >= COMBO_LV ? 1 : 0,
+      move: moveOf(cur ? bondOf(p, cur.id).lv : 0)
     };
+  }
+  /* 相棒の ひっさつ（v14.36）。きずなで 強く なる */
+  function moveOf(bond) {
+    return {
+      need: MOVE_NEED,
+      xp: MOVE_XP + (bond >= 1 ? 10 : 0),
+      callName: bond >= 2,
+      cover: bond >= 3 ? 1 : 0,
+      uses: bond >= 4 ? 2 : 1,
+      gold: bond >= 5,
+      bond: bond
+    };
+  }
+
+  /* ---- 相棒の ひっさつ（C）と きずな（E）（v14.36）----
+     ユーザー「相棒ボタンで わざを 出す（C）と きずな（E） お願いします」。
+     C：追い打ちを MOVE_NEED 回 すると 相棒が ひかる → **子どもが 相棒を タッチ** → **つぎの 正解で** 相棒の ひっさつ。
+        ザコ＝けいけんち ＋MOVE_XP／中ボス＝一発／ボス＝＋1ダメージ（1たたかい 1回まで）。
+        大原則は そのまま＝**正解した ときだけ 出る**・押さなくても 何も へらない。
+     E：いっしょに たたかった 回数で たまる きずな（♥0〜5）。ひっさつを 使った たたかいは ＋1 おまけ。
+        進化しても のこる（evolveIfReady が 引きつぐ）。♥ごとに 1つ ごほうび（BOND_PERKS）。 */
+  const MOVE_NEED = 2;                 // 追い打ち 何回で ひっさつが たまるか
+  const MOVE_XP = 30;                  // ザコの ときの けいけんち
+  const BOND_AT = [4, 12, 24, 40, 60]; // ♥1〜♥5 に なる きずなの 点
+  const BOND_PERKS = [
+    { lv: 1, text: 'ひっさつの けいけんち ＋10' },
+    { lv: 2, text: 'なまえを よんで くれる' },
+    { lv: 3, text: 'まちがえた とき 1回 かばって くれる' },
+    { lv: 4, text: 'ひっさつが 2回 出せる' },
+    { lv: 5, text: 'ひっさつが 金色に！' }
+  ];
+  function bondLevel(pts) { let lv = 0; while (lv < BOND_AT.length && (pts || 0) >= BOND_AT[lv]) lv++; return lv; }
+  function bondOf(p, id) {
+    const rec = p && p.pals && id ? p.pals[id] : null;
+    const pts = rec ? (rec.bond || 0) : 0;
+    const lv = bondLevel(pts);
+    const next = lv < BOND_AT.length ? BOND_AT[lv] : null;
+    return { pts: pts, lv: lv, max: BOND_AT.length, next: next, need: next == null ? 0 : next - pts,
+      nextPerk: BOND_PERKS[lv] || null };
+  }
+  /* たたかいの あとに よぶ（used＝ひっさつを 使った）。かえり値：{ id, gained, lvBefore, lv, up, perk } */
+  function bondUp(p, used) {
+    const cur = active(p);
+    if (!cur) return null;
+    const rec = p.pals[cur.id];
+    const before = bondLevel(rec.bond || 0);
+    const add2 = 1 + (used ? 1 : 0);
+    rec.bond = (rec.bond || 0) + add2;
+    const lv = bondLevel(rec.bond);
+    return { id: cur.id, gained: add2, pts: rec.bond, lvBefore: before, lv: lv, up: lv > before,
+      perk: lv > before ? BOND_PERKS[lv - 1] : null, info: bondOf(p, cur.id) };
+  }
+  function bondBest(p) {
+    if (!p || !p.pals) return 0;
+    return Object.keys(p.pals).reduce(function (b, id) { return Math.max(b, bondLevel((p.pals[id] || {}).bond || 0)); }, 0);
   }
 
   /* なかまゲージ：正解 何問で 追い打ちか。**まちがえても へらない**（v5.2） */
@@ -133,6 +189,7 @@ MQ.pals = (function () {
       need: Math.max(0, next - exp),
       ratio: lv >= MAX_LV ? 1 : Math.max(0, Math.min(1, (exp - base) / Math.max(1, next - base))),
       evoAt: e && e.evo ? EVO_LV[e.stage] || null : null,
+      bond: bondOf(p, id),
       got: rec.got || null
     };
   }
@@ -180,6 +237,8 @@ MQ.pals = (function () {
     const old = p.pals[to] || null;
     delete p.pals[cur.id];
     p.pals[to] = { exp: Math.max(rec.exp || 0, old ? old.exp || 0 : 0), got: rec.got, from: cur.id };
+    const bd = Math.max(rec.bond || 0, old ? old.bond || 0 : 0);
+    if (bd) p.pals[to].bond = bd;                  // きずなも そのまま（v14.36）
     const nm = rec.name || (old && old.name);
     if (nm) p.pals[to].name = nm;                  // つけた なまえは そのまま（v5.2）
     p.pal = to;
@@ -284,6 +343,8 @@ MQ.pals = (function () {
     hitOn: hitOn, price: price, shopList: shopList, shopOnly: shopOnly, canBuy: canBuy, buy: buy, offerFrom: offerFrom,
     gaugeNeed: gaugeNeed, displayName: displayName, baseName: baseName, setName: setName,
     power: power, POWER: POWER,
+    bondOf: bondOf, bondUp: bondUp, bondLevel: bondLevel, bondBest: bondBest, moveOf: moveOf,
+    BOND_AT: BOND_AT, BOND_PERKS: BOND_PERKS, MOVE_NEED: MOVE_NEED, MOVE_XP: MOVE_XP,
     PERKS: PERKS, FAST_LV: FAST_LV, COMBO_LV: COMBO_LV, lvBonus: lvBonus, perksBetween: perksBetween, nextPerk: nextPerk,
     MAX_LV: MAX_LV, HIT_EVERY: HIT_EVERY, EVO_LV: EVO_LV, GAUGE_NEED: GAUGE_NEED,
     SURE_KILLS: SURE_KILLS, NAME_MAX: NAME_MAX
