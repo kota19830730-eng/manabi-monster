@@ -6488,6 +6488,32 @@ function stripComments(src) {
   console.log('v14.27/28 読解 OK（' + [1, 2, 3, 4, 5, 6].map(function (g) { return '小' + g + ' ' + MQ['dokkai' + g].stories.length + '本'; }).join(' / ') + '）');
 })();
 
+/* ---- 生成式の ステージにも「さいきん 出た 問題を よける」（v14.40）---- */
+(function () {
+  const ids = ['sansu2-9', 'sansu2-14', 'sansu6-13', 'sansu4-15', 'sansu4-8', 'sansu1-10'];
+  const worst = [];
+  ids.forEach(function (id) {
+    const f = MQ.content.findStage(id);
+    check(!!f, 'v14.40: ' + id + ' が ある');
+    if (!f) return;
+    const seen = {}; let dup = 0, tot = 0;
+    for (let b = 0; b < 3; b++) {
+      const qs = f.stage.make(12, {});
+      check(qs.length === 12, 'v14.40: ' + id + ' は 12問');
+      const lv = qs.map(function (q) { return q.lv; });
+      check(lv.join('') === lv.slice().sort().join(''), 'v14.40: ' + id + ' は やさしい じゅん');
+      qs.forEach(function (q) { tot++; if (seen[q.id]) dup++; seen[q.id] = 1; });
+    }
+    worst.push(Math.round(100 * dup / tot));
+    check(dup / tot <= 0.12, 'v14.40: ' + id + ' 3回で ダブり ' + Math.round(100 * dup / tot) + '%（12% いか が 合格）');
+  });
+  // しゅぎょうば（lv だけ）は さいきんに 入れない
+  const f = MQ.content.findStage('sansu3-9');
+  const before = JSON.stringify(f ? f.stage.make(3, { lv: 2 }).length : 0);
+  check(before === '3', 'v14.40: しゅぎょうばの よび方でも 問題が 出る');
+  console.log('v14.40 生成式の さいきんよけ OK（3回で ダブり ' + worst.join('/') + '%）');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

@@ -238,10 +238,69 @@ MQ.content = (function () {
     };
   }
 
+  /* ---- 生成式の ステージにも「さいきん 出た 問題を よける」（v14.40）----
+     算数の 生成器は 1回の make の 中では 同じ 問題を 出さないが、前の たたかいは 見て いなかった。
+     図の 問題が 多い ステージ（小2 かたち・ぶんすう、小6 ならべ方、小4 直方体・すいちょく）は
+     3回 たたかうと 25〜33% が 見た 問題だった（実測）。
+     → できた 問題の うち さいきん 2回ぶん（GEN_RECENT）に 出た ものを、同じ むずかしさの 別の 問題に 入れかえる。
+        見つからなければ そのまま（問題の 種類が 少ない ステージで こまらない）。
+     しゅぎょうば（opts.lv だけ・boss なし）は ここを 通さず そのまま（予習の 問題で さいきんを うめない）。
+     きろくは p.qrecent[ステージ]（id の 短い ハッシュ）。セーブが ない ときは メモリ。 */
+  const GEN_RECENT = 36;
+  const memRecent = {};
+  function shortHash(s) {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  function recentStore() {
+    const p = MQ.terms && MQ.terms.current ? MQ.terms.current() : null;
+    if (!p) return { p: null, all: memRecent };
+    if (!p.qrecent || typeof p.qrecent !== 'object' || Array.isArray(p.qrecent)) p.qrecent = {};
+    return { p: p, all: p.qrecent };
+  }
+  function genFresh(key, make) {
+    return function (n, opts) {
+      const out = make(n, opts);
+      if (opts && opts.lv && !('boss' in opts)) return out;   // しゅぎょうば
+      const st = recentStore();
+      let list = st.all[key];
+      if (!Array.isArray(list)) list = st.all[key] = [];
+      const recent = {};
+      list.forEach(function (x) { recent[x] = 1; });
+      const hid = function (q) { return shortHash(String(q.id || q.prompt || q.text || '')); };
+      const inOut = {};
+      out.forEach(function (q) { inOut[hid(q)] = 1; });
+      let spare = [];
+      for (let i = 0; i < out.length; i++) {
+        const k = hid(out[i]);
+        if (!recent[k]) continue;
+        const lv = levelOf(out[i]);
+        let found = -1;
+        for (let round = 0; round < 4 && found < 0; round++) {
+          if (!spare.length) spare = make(n, opts) || [];
+          for (let j = 0; j < spare.length; j++) {
+            const c = spare[j], ck = hid(c);
+            if (levelOf(c) === lv && !recent[ck] && !inOut[ck]) { found = j; break; }
+          }
+          if (found < 0) spare = [];
+        }
+        if (found < 0) continue;
+        const c = spare.splice(found, 1)[0];
+        delete inOut[k]; inOut[hid(c)] = 1;
+        out[i] = c;
+      }
+      out.forEach(function (q) { list.push(hid(q)); });
+      if (list.length > GEN_RECENT) list.splice(0, list.length - GEN_RECENT);
+      bagSave(st.p);
+      return out;
+    };
+  }
+
   function sansuStage(no, name, when, available) {
     return {
       id: 'sansu3-' + no, no: no, name: name, when: when, available: available,
-      make: function (n, opts) { return MQ.sansu3.make(no, n, opts); }
+      make: genFresh('sansu3-' + no, function (n, opts) { return MQ.sansu3.make(no, n, opts); })
     };
   }
 
@@ -249,7 +308,7 @@ MQ.content = (function () {
   function sansu1Stage(no, name) {
     return {
       id: 'sansu1-' + no, no: no, name: name, when: '', available: true,
-      make: function (n, opts) { return MQ.sansu1.make(no, n, opts); }
+      make: genFresh('sansu1-' + no, function (n, opts) { return MQ.sansu1.make(no, n, opts); })
     };
   }
 
@@ -257,7 +316,7 @@ MQ.content = (function () {
   function sansu2Stage(no, name) {
     return {
       id: 'sansu2-' + no, no: no, name: name, when: '', available: true,
-      make: function (n, opts) { return MQ.sansu2.make(no, n, opts); }
+      make: genFresh('sansu2-' + no, function (n, opts) { return MQ.sansu2.make(no, n, opts); })
     };
   }
 
@@ -265,7 +324,7 @@ MQ.content = (function () {
   function sansu4Stage(no, name) {
     return {
       id: 'sansu4-' + no, no: no, name: name, when: '', available: true,
-      make: function (n, opts) { return MQ.sansu4.make(no, n, opts); }
+      make: genFresh('sansu4-' + no, function (n, opts) { return MQ.sansu4.make(no, n, opts); })
     };
   }
 
@@ -273,7 +332,7 @@ MQ.content = (function () {
   function sansu6Stage(no, name) {
     return {
       id: 'sansu6-' + no, no: no, name: name, when: '', available: true,
-      make: function (n, opts) { return MQ.sansu6.make(no, n, opts); }
+      make: genFresh('sansu6-' + no, function (n, opts) { return MQ.sansu6.make(no, n, opts); })
     };
   }
 
@@ -281,7 +340,7 @@ MQ.content = (function () {
   function sansu5Stage(no, name) {
     return {
       id: 'sansu5-' + no, no: no, name: name, when: '', available: true,
-      make: function (n, opts) { return MQ.sansu5.make(no, n, opts); }
+      make: genFresh('sansu5-' + no, function (n, opts) { return MQ.sansu5.make(no, n, opts); })
     };
   }
 

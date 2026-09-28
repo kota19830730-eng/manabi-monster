@@ -4857,3 +4857,24 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 @keyframes palShield { 0%, 25% { opacity: 0; transform: scale(.4); } 40% { opacity: 1; transform: scale(1.15); } 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.3); } }
 .palnow__help { display: block; margin-top: 3px; font-size: 11px; font-weight: 700; color: #9fd8ff; }
 @media (prefers-reduced-motion: reduce) { .pal.is-whisper .pal__box, .pal.is-cover, .pal__shield { animation: none; } }
+
+/* =======================================================
+   おうちの方へ（v14.40）：プレイヤーを 作った 直後の 1画面。
+   おうちの人ページ（.pp）の 明るい 見た目を 借りる。大人の 文（data-noconv）
+   ======================================================= */
+.pgd__in { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 12px; }
+.pgd__title { font-family: var(--pp-fh); font-weight: 700; font-size: 21px; margin: 0; color: var(--pp-ink); }
+.pgd__lead { margin: 0; font-size: 13px; color: var(--pp-mut); }
+.pgd__card { display: flex; gap: 10px; background: var(--pp-card); border: 1px solid var(--pp-line); border-radius: 12px; padding: 12px 12px 12px 10px; }
+.pgd__no { flex: 0 0 24px; height: 24px; border-radius: 50%; background: var(--pp-gold); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.pgd__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pgd__h { margin: 0; font-family: var(--pp-fh); font-weight: 700; font-size: 15px; }
+.pgd__p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--pp-mut); }
+.pgd__opts { display: flex; gap: 8px; }
+.pgd__opt { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 6px; border: 1.5px solid var(--pp-line); border-radius: 10px; background: #fff; color: var(--pp-ink); cursor: pointer; }
+.pgd__opt b { font-size: 14px; }
+.pgd__opt small { font-size: 11px; color: var(--pp-dim); }
+.pgd__opt.is-on { border-color: var(--pp-gold); background: #fff6dd; box-shadow: inset 0 0 0 1px var(--pp-gold); }
+.pgd__link { align-self: flex-start; padding: 6px 12px; border: 1px solid var(--pp-line); border-radius: 8px; background: #fff; color: var(--pp-gold-tx); font-weight: 700; font-size: 13px; cursor: pointer; }
+.pgd__foot { padding: 10px 16px 14px; background: var(--pp-card); border-top: 1px solid var(--pp-line); }
+.pgd__go { width: 100%; padding: 13px; border: 0; border-radius: 12px; background: var(--pp-gold); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 3px 0 #9a6a0c; }

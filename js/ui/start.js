@@ -70,7 +70,87 @@ MQ.ui.start = (function () {
       MQ.save.addLog(pl, name + ' が ぼうけんに 出た');
     });
     MQ.ui.syncCustom();
-    MQ.ui.goMap();
+    guide();
+  }
+
+  /* =======================================================
+     おうちの人へ（v14.40）：プレイヤーを 作った 直後に 1画面だけ。
+     学期・よみあげ・ごほうびマシンの 3つ。大人の 文なので ことばの 学年変換を 止めて 作る
+     （おうちの人ページと 同じ .pp の 見た目・data-noconv）。
+     「あとで」でも 地図へ 行ける。えらばなかった ものは いままでの 初期値の まま。
+     ======================================================= */
+  function guide() {
+    const p = MQ.save.current();
+    if (!p) { MQ.ui.goMap(); return; }
+    if (MQ.text) MQ.text.pause(true);
+    try { guideInner(p); } finally { if (MQ.text) MQ.text.pause(false); }
+    MQ.ui.show('screen-start');
+  }
+  function guideInner(p) {
+    const sug = MQ.terms && MQ.terms.suggested ? MQ.terms.suggested() : 0;
+    const month = (MQ.terms && MQ.terms.now ? MQ.terms.now() : new Date()).getMonth() + 1;
+    const pick = { term: sug || 0, readJa: MQ.speech && MQ.speech.readJaOn ? (MQ.speech.readJaOn(p) ? 'on' : 'off') : 'auto' };
+
+    function row(name, opts, get, set) {
+      const el = h('div', { class: 'pgd__opts' });
+      function paint() {
+        el.textContent = '';
+        opts.forEach(function (o) {
+          el.appendChild(h('button', {
+            class: 'pgd__opt' + (get() === o[0] ? ' is-on' : ''), type: 'button', 'aria-pressed': String(get() === o[0]),
+            onclick: function () { MQ.sfx.tap(); set(o[0]); paint(); }
+          }, [h('b', { text: o[1] }), o[2] ? h('small', { text: o[2] }) : null]));
+        });
+      }
+      paint();
+      el.setAttribute('aria-label', name);
+      return el;
+    }
+    function card(no, title, text, body) {
+      return h('section', { class: 'pgd__card' }, [
+        h('div', { class: 'pgd__no', text: no }),
+        h('div', { class: 'pgd__main' }, [
+          h('h2', { class: 'pgd__h', text: title }),
+          h('p', { class: 'pgd__p', text: text }),
+          body
+        ])
+      ]);
+    }
+    function finish(toPrize) {
+      MQ.sfx.tap();
+      MQ.save.update(function (pl) {
+        pl.term = pick.term; pl.units = {};
+        pl.readJa = pick.readJa;
+        pl.guided = true;
+      });
+      if (toPrize && MQ.ui.parent) { MQ.ui.parent.open('prize', { from: 'map' }); return; }
+      MQ.ui.goMap();
+    }
+
+    const termOpts = sug ? [[sug, sug + '学期まで', 'いまは ' + month + '月・おすすめ'], [0, 'ぜんぶ出す', '予習・復習も まぜる']]
+                         : [[0, 'ぜんぶ出す', '']];
+    const wrap = h('div', { class: 'pp pgd', 'data-noconv': '' }, [
+      h('div', { class: 'pp__body' }, [
+        h('div', { class: 'pgd__in' }, [
+          h('p', { class: 'pp-kicker', text: 'おうちの方へ' }),
+          h('h1', { class: 'pgd__title', text: 'はじめる前に 3つだけ' }),
+          h('p', { class: 'pgd__lead', text: (p.name || '') + 'さん（小' + (p.grade || 3) + '）の設定です。あとからタイトル右上の「おうちの人」でいつでも変えられます。' }),
+          card('1', '学校で習ったところだけ出す',
+            'まだ習っていない単元は出しません。単元ごとの調整や教科書会社の選択は「おうちの人」の設定で。',
+            row('学期', termOpts, function () { return pick.term; }, function (v) { pick.term = v; })),
+          card('2', '問題文の読み上げ',
+            '算数・理科・社会の問題文を「きく」ボタンで読みます（国語は答えがわかるので読みません）。',
+            row('読み上げ', [['on', 'つける', ''], ['off', 'つけない', '']], function () { return pick.readJa; }, function (v) { pick.readJa = v; })),
+          card('3', 'ごほうびマシン',
+            'コインで回すマシンに、本物のごほうび（おやつ・公園など）を入れられます。設定は4けたの番号で鍵をかけます。',
+            h('button', { class: 'pgd__link', type: 'button', text: 'いま設定する', onclick: function () { finish(true); } })),
+        ]),
+      ]),
+      h('div', { class: 'pgd__foot' }, [
+        h('button', { class: 'pgd__go', type: 'button', text: 'これではじめる（お子さんに渡す）', onclick: function () { finish(false); } })
+      ])
+    ]);
+    MQ.ui.mount('screen-start', wrap);
   }
 
   /* =======================================================
@@ -360,5 +440,5 @@ MQ.ui.start = (function () {
     MQ.ui.show('screen-start');
   }
 
-  return { render: render, maker: maker, resetOpening: resetOpening, OPEN_MS: OPEN_MS };
+  return { render: render, maker: maker, guide: guide, resetOpening: resetOpening, OPEN_MS: OPEN_MS };
 })();

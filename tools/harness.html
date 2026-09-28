@@ -715,6 +715,33 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('open: ' + at + '秒 アニメ ' + anims.length + '本 / 勇者 top ' + Math.round(hero.top) + ' / ロゴ top ' + Math.round(logo.top) + ' / スライム left ' + Math.round(slime.left) + ' / is-opening=' + $('#screen-start .title').classList.contains('is-opening'));
       return;
     }
+    /* おうちの方へ（v14.40）：プレイヤーを 作ると 1画面 はさまる。:go＝はじめる／:prize＝いま設定する */
+    if (mode.indexOf('welcome') === 0) {
+      const arg = mode.split(':')[1] || '';
+      try { localStorage.clear(); } catch (e) {}
+      MQ.save.load(); MQ.save.setSetting('sfx', false); MQ.save.setSetting('bgm', false);
+      if (MQ.terms.setNow) MQ.terms.setNow(new Date(2026, 8, 28, 10, 0, 0));
+      MQ.ui.start.maker();
+      await wait(120);
+      const inp = $('#screen-start .input'); inp.value = 'テスト';
+      const go = $$('#screen-start button').filter(function (b) { return b.textContent.indexOf(MQ.text.fit('これで ぼうけんへ！')) >= 0; })[0];
+      go.click();
+      await wait(200);
+      say('welcome: 画面 ' + ($('.pgd') ? 'あり OK' : 'なし MISSING') + '／カード ' + $$('.pgd__card').length + '（3 が 正）');
+      say('welcome: 学期の えらび ' + $$('.pgd__opt.is-on').map(function (b) { return b.textContent; }).join(' | '));
+      say('welcome: 大人の 文 ' + ($('.pgd__title').textContent === 'はじめる前に 3つだけ' ? 'そのまま OK' : 'かわった MISSING:' + $('.pgd__title').textContent));
+      if (arg === 'go') {
+        $$('.pgd__opt')[3].click();   // 読み上げ つけない
+        $('.pgd__go').click(); await wait(300);
+        const pl = MQ.save.current();
+        say('welcome: go term=' + pl.term + '（2 が 正）readJa=' + pl.readJa + '（off が 正）guided=' + pl.guided + ' 地図 ' + ($('#screen-map.is-active') ? 'OK' : 'MISSING'));
+      }
+      if (arg === 'prize') {
+        $('.pgd__link').click(); await wait(300);
+        say('welcome: prize おうちの人ページ ' + ($('#screen-parent.is-active') ? 'OK' : 'MISSING'));
+      }
+      return;
+    }
     if (mode === 'maker') { try { localStorage.clear(); } catch (e) {} MQ.save.load(); MQ.ui.start.maker(); return; }
     if (mode === 'look') { fresh(); MQ.ui.look.edit(); return; }
     if (mode === 'map' || mode.indexOf('map:') === 0) {
