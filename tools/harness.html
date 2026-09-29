@@ -221,6 +221,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
   MQ.ui.setTextures();
   // しゅうまつ イベント（v13.16）：撮る・検査する ときは 平日に 固定（#weekend・#wkbattle で 変える）
   if (MQ.weekend) MQ.weekend.setNow(new Date(2026, 8, 9, 13, 0, 0));
+  // 重い 端末で 自動 2D（v14.41）：headless は 1コマが おそい ので ふだんは はからない（#v3probe で ためす）
+  if (MQ.ui.v3) MQ.ui.v3.autoProbe = false;
 
   /* headless の Chrome には 声が 入って いない ので、にせの 声を 入れる（v5.3）。
      読んだ 中身は window.__spoke に たまる。*/
@@ -740,6 +742,25 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         $('.pgd__link').click(); await wait(300);
         say('welcome: prize おうちの人ページ ' + ($('#screen-parent.is-active') ? 'OK' : 'MISSING'));
       }
+      return;
+    }
+    /* 重い 端末で 自動 2D（v14.41）。#v3probe:slow＝1秒に 約16回・#v3probe:fast＝約60回（rAF を にせに する）
+       :hide＝とちゅうで 画面を かくす（決めない）・:manual＝りったいを 手で さわった（はからない） */
+    if (mode.indexOf('v3probe') === 0) {
+      const kind = mode.split(':')[1] || 'slow';
+      fresh();
+      if (kind === 'manual') MQ.save.setSetting('v3auto', 'manual');
+      const gap = kind === 'fast' ? 16 : 62;
+      if (kind !== 'real') window.requestAnimationFrame = function (cb) { return setTimeout(function () { cb(performance.now()); }, gap); };
+      MQ.ui.v3.autoProbe = true;
+      if (kind === 'real' && mode.split(':')[2]) MQ.ui.v3.PROBE.skip = +mode.split(':')[2];
+      MQ.ui.battle.start('sansu3-1');
+      if (kind === 'hide') { await wait(600); MQ.ui.show('screen-map'); }
+      await wait(10000);   // はかるのは 6秒後から 3秒
+      say('v3probe:' + kind + ' v3auto=' + MQ.save.getSetting('v3auto', null) + ' fps=' + MQ.save.getSetting('v3fps', null) + ' りったい=' + (MQ.save.getSetting('v3', true) !== false) + ' toast=' + (($('#toast') || {}).textContent || ''));
+      const want = { slow: ['2d', false], fast: ['ok', true], hide: [null, true], manual: ['manual', true] }[kind];
+      if (!want) return;   // :real＝本物の rAF（CDP で CPU を おそく して はかる）
+      say('v3probe: ' + ((MQ.save.getSetting('v3auto', null) === want[0] && (MQ.save.getSetting('v3', true) !== false) === want[1]) ? 'OK' : 'NG'));
       return;
     }
     if (mode === 'maker') { try { localStorage.clear(); } catch (e) {} MQ.save.load(); MQ.ui.start.maker(); return; }

@@ -27,13 +27,13 @@ MQ.ui = MQ.ui || {};
   };
 
   // 下に ちょこっと出る お知らせ
-  MQ.ui.toast = function (text) {
+  MQ.ui.toast = function (text, ms) {
     const t = document.getElementById('toast');
     if (!t) return;
     t.textContent = text;
     t.classList.add('is-shown');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.remove('is-shown'); }, 2200);
+    toastTimer = setTimeout(function () { t.classList.remove('is-shown'); }, ms || 2200);
   };
 
   /* あたらしい バージョンが 入った ときの お知らせ（v2.3）。「こうしん」で 読みなおす */
@@ -225,7 +225,7 @@ MQ.ui = MQ.ui || {};
       // りったい（v12.0）：主人公・モンスター・たからばこを 3D に。重い 端末や 好みで 2D に もどせる（つぎの 画面から）
       MQ.vox ? mk('りったい',
         function () { return MQ.save.getSetting('v3', true) !== false; },
-        function (on) { MQ.save.setSetting('v3', on); MQ.ui.toast(on ? 'りったいに するよ（つぎの 画面から）' : '2D に もどすよ（つぎの 画面から）'); })
+        function (on) { MQ.save.setSetting('v3', on); MQ.save.setSetting('v3auto', 'manual'); MQ.ui.toast(on ? 'りったいに するよ（つぎの 画面から）' : '2D に もどすよ（つぎの 画面から）'); })
         : null,
       // よみあげ（v5.3）。声が 入って いない 端末では 出さない
       (MQ.speech && (MQ.speech.ready('en') || MQ.speech.ready('ja')))

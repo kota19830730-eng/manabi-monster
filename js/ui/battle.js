@@ -325,6 +325,7 @@ MQ.ui.battle = (function () {
     // 手下が いる ラスボス戦（v14.15）は 手下の あいだ ふつうの 曲 → ラスボスで まおうの 曲
     MQ.bgm.play(isTower && MQ.battle.phase() !== 'mob' ? 'maou' : 'battle');
     MQ.ui.show('screen-battle');
+    if (MQ.ui.v3 && MQ.ui.v3.probe) MQ.ui.v3.probe();   // 重い 端末では 自動で 2D（v14.41・1回だけ はかる）
     // 手下が いる ラスボス戦（v14.15）は「まおうの しろ」の 幕 → 手下 → あとで FINAL BATTLE
     if (isTower) { if (MQ.battle.phase() === 'mob') castleIntro(); else towerIntro(); }
     else { renderQuestion(); modeBanner(); }

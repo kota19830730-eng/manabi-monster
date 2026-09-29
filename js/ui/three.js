@@ -185,7 +185,51 @@
     play(el, mo, 800);
   }
 
+  /* 重い 端末では 自動で 2D（v14.41・2026-09-29・ユーザー OK）
+     さいしょの 3D の たたかいで、画面が 1秒に 描きかわる 回数（rAF）を 数える。
+     25回 みまんなら「りったい」を 切って 1回だけ 知らせる（つぎの 画面から 2D）。
+     1回 決めたら もう はからない（せってい v3auto）。とちゅうで 画面を かくした・たたかいを 出た ときは 決めずに つぎへ。
+     スペック（コア数・メモリ）では 決めない（iPad は 本当の 値を 出さない）。 */
+  const PROBE = { skip: 6000, span: 3000, minFps: 25 };   // skip：はじめの 6秒は カットインの 絵づくり・字の よみこみで 重い（CPU×4 で 1.2秒からだと 11回・6秒からだと 43〜59回）
+  let probing = false;
+  function judge(fps) { return fps < PROBE.minFps ? '2d' : 'ok'; }
+  function inBattle() {
+    const s = document.getElementById('screen-battle');
+    return !!(s && s.classList.contains('is-active'));
+  }
+  function probe() {
+    if (!MQ.ui.v3.autoProbe || probing || !on()) return false;
+    if (MQ.save.getSetting('v3auto', null)) return false;
+    const raf = window.requestAnimationFrame;
+    if (!raf || !window.performance || document.hidden) return false;
+    probing = true;
+    const begin = performance.now();
+    let t0 = null, n = 0, hid = false;
+    function vis() { if (document.hidden) hid = true; }
+    document.addEventListener('visibilitychange', vis);
+    function stop() { probing = false; document.removeEventListener('visibilitychange', vis); }
+    function step() {
+      const now = performance.now();
+      if (hid || !inBattle()) { stop(); return; }              // 決めない（つぎの たたかいで もう一度）
+      if (now - begin < PROBE.skip) { raf(step); return; }     // 出だしの 組み立ては 数えない
+      if (t0 === null) { t0 = now; n = 0; raf(step); return; }
+      n++;
+      if (now - t0 < PROBE.span) { raf(step); return; }
+      stop();
+      const fps = Math.round(n * 1000 / (now - t0) * 10) / 10;
+      const res = judge(fps);
+      MQ.save.setSetting('v3auto', res);
+      MQ.save.setSetting('v3fps', fps);
+      if (res === '2d') {
+        MQ.save.setSetting('v3', false);
+        MQ.ui.toast('うごきを かるく したよ（せっていの「りったい」で もどせるよ）', 4500);
+      }
+    }
+    raf(step);
+    return true;
+  }
+
   MQ.ui = MQ.ui || {};
-  MQ.ui.v3 = { on: on, monster: monster, hero: hero, chest: chest, play: play, idle: idle, dashTo: dashTo, enter: enter, sceneOf: sceneOf, hideOf: hideOf,
+  MQ.ui.v3 = { autoProbe: true, probe: probe, judge: judge, PROBE: PROBE, on: on, monster: monster, hero: hero, chest: chest, play: play, idle: idle, dashTo: dashTo, enter: enter, sceneOf: sceneOf, hideOf: hideOf,
     clearCache: function () { Object.keys(monCache).forEach(function (k) { delete monCache[k]; }); Object.keys(heroCache).forEach(function (k) { delete heroCache[k]; }); } };
 })();
