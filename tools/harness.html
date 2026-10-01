@@ -97,6 +97,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/pals.js"></script>
 <script src="../js/core/levelup.js"></script>
 <script src="../js/core/forge.js"></script>
+<script src="../js/core/keep.js"></script>
 <script src="../js/core/coins.js"></script>
 <script src="../js/core/pika.js"></script>
 <script src="../js/core/weekend.js"></script>
@@ -746,6 +747,46 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     /* 重い 端末で 自動 2D（v14.41）。#v3probe:slow＝1秒に 約16回・#v3probe:fast＝約60回（rAF を にせに する）
        :hide＝とちゅうで 画面を かくす（決めない）・:manual＝りったいを 手で さわった（はからない） */
+    /* きろくを まもる（v14.42）。#keep＝iPhone の タブ（バーが 出る）／#keep:app＝ホーム画面から（出ない）／#keep:android＝出ない
+       #keep:close＝とじる → 出ない → 14日 あと 出る → 3回で おしまい／#keep:go＝やり方 → 設定の「ホーム画面に入れる」
+       #keep:home＝おうちの人ページの カード／#keep:guide＝はじめての 画面の 1行 */
+    if (mode.split(':')[0] === 'keep') {
+      const kind = mode.split(':')[1] || 'ios';
+      fresh();
+      const dev = kind === 'app' ? { ios: true, standalone: true, persisted: false } : kind === 'android' ? { ios: false, standalone: false, persisted: true } : { ios: true, standalone: false, persisted: false };
+      MQ.keep.fake(dev);
+      const bar = function () { MQ.ui.start.render(); MQ.ui.show('screen-start'); const t = $('.title'); if (t) t.classList.remove('is-opening'); return !!$('.keepbar'); };
+      if (kind === 'guide') { MQ.ui.start.guide(); say('keep: guide の 1行 ' + ($('.pgd__keep') ? 'OK' : 'MISSING')); return; }
+      const shown = bar();
+      say('keep:' + kind + ' バー=' + shown + ' risk=' + MQ.keep.info().risk);
+      if (kind === 'app' || kind === 'android') { say('keep: ' + (!shown ? 'OK' : 'NG')); return; }
+      if (kind === 'ios') { say('keep: ' + (shown ? 'OK' : 'NG')); return; }
+      if (kind === 'close') {
+        const realNow = Date.now; const DAY = 24 * 60 * 60 * 1000; let t = realNow(); const res = [shown];
+        Date.now = function () { return t; };
+        $('.keepbar__x').click(); res.push(!!$('.keepbar'));           // とじた すぐ あと＝なし
+        res.push(bar());                                               // 描き直しても なし
+        t += 15 * DAY; res.push(bar());                                // 15日 あと＝出る（2回め）
+        $('.keepbar__x').click(); t += 15 * DAY; res.push(bar());      // 3回め
+        $('.keepbar__x').click(); t += 15 * DAY; res.push(bar());      // 3回 とじた＝もう 出ない
+        Date.now = realNow;
+        say('keep: close ' + res.join(',') + ' ' + (res.join(',') === 'true,false,false,true,true,false' ? 'OK' : 'NG'));
+        return;
+      }
+      if (kind === 'go') {
+        $('.keepbar__go').click(); await wait(200);
+        const el = $('#pp-install'); const sc = el && el.closest('.pp__body');
+        say('keep: go 画面=' + (MQ.ui.parent.isOpen() ? MQ.ui.parent.view() : 'なし') + ' スクロール=' + (sc ? sc.scrollTop : -1) + ' 1行=' + (($('.pp-keepline') || {}).textContent || ''));
+        say('keep: ' + (MQ.ui.parent.isOpen() && MQ.ui.parent.view() === 'settings' && sc && sc.scrollTop > 100 && /まだ守られていません/.test(($('.pp-keepline') || {}).textContent || '') ? 'OK' : 'NG'));
+        return;
+      }
+      if (kind === 'home') {
+        MQ.ui.parent.open('home', { from: 'title' }); await wait(100);
+        say('keep: home カード ' + ($('#pp-keep') ? 'OK' : 'MISSING'));
+        return;
+      }
+      return;
+    }
     if (mode.indexOf('v3probe') === 0) {
       const kind = mode.split(':')[1] || 'slow';
       fresh();

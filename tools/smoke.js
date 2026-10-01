@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/guard.js', 'js/core/util.js', 'js/core/text.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/levelup.js', 'js/core/forge.js', 'js/core/coins.js', 'js/core/pika.js', 'js/core/weekend.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/levelup.js', 'js/core/forge.js', 'js/core/keep.js', 'js/core/coins.js', 'js/core/pika.js', 'js/core/weekend.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/core/vox.js'].concat(CONTENT_ORDER).forEach(load);   // vox.js（りったい・v12.0）は chest3d.js より 前
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
 load('js/core/capsule.js');
@@ -6512,6 +6512,38 @@ function stripComments(src) {
   const before = JSON.stringify(f ? f.stage.make(3, { lv: 2 }).length : 0);
   check(before === '3', 'v14.40: しゅぎょうばの よび方でも 問題が 出る');
   console.log('v14.40 生成式の さいきんよけ OK（3回で ダブり ' + worst.join('/') + '%）');
+})();
+
+/* ---- きろくを まもる（v14.42）---- */
+(function () {
+  const K = MQ.keep;
+  check(!!K, 'keep: MQ.keep が ある');
+  check(K.info().risk === false, 'keep: node（navigator なし・ふつうの PC）では あぶなく ない');
+  MQ.save.load();
+  K.fake({ ios: true, standalone: false, persisted: false });
+  check(K.info().risk === true, 'keep: iPhone の タブは あぶない');
+  const t0 = 1000000000000, DAY = 24 * 60 * 60 * 1000;
+  MQ.save.setSetting('keepNoticeN', 0); MQ.save.setSetting('keepNoticeAt', 0);
+  check(K.noticeDue(t0) === true, 'keep: はじめは 知らせる');
+  K.noticeClosed(t0);
+  check(K.noticeDue(t0 + DAY) === false, 'keep: とじた つぎの 日は 出さない');
+  check(K.noticeDue(t0 + 14 * DAY) === true, 'keep: 14日 あとに また 出す');
+  K.noticeClosed(t0 + 14 * DAY); K.noticeClosed(t0 + 28 * DAY);
+  check(K.noticeDue(t0 + 400 * DAY) === false, 'keep: 3回 とじたら もう 出さない');
+  K.fake({ ios: true, standalone: true, persisted: false });
+  MQ.save.setSetting('keepNoticeN', 0); MQ.save.setSetting('keepNoticeAt', 0);
+  check(K.info().risk === false && K.noticeDue(t0) === false, 'keep: ホーム画面の アイコンからは あぶなく ない・知らせない');
+  K.fake({ ios: false, standalone: false, persisted: true });
+  check(K.info().risk === false, 'keep: Android の タブは 知らせない（persist で 守る）');
+  (global.__pending = global.__pending || []).push(K.ask().then(function (v) {
+    check(v === true && MQ.save.getSetting('keep', '') === 'ok', 'keep: 守られたら せってい keep=ok');
+    K.fake(null);
+    return K.ask().then(function (w) { check(w === null, 'keep: storage.persist が ない ところ（node）では null・落ちない'); });
+  }));
+  check(INDEX_HTML.indexOf('js/core/keep.js') > INDEX_HTML.indexOf('js/core/save.js') && INDEX_HTML.indexOf('js/core/keep.js') < INDEX_HTML.indexOf('js/ui/boot.js'), 'keep: index.html で keep.js は save.js の あと・boot.js の 前');
+  check(fs.readFileSync(path.join(base, 'sw.js'), 'utf8').indexOf("'./js/core/keep.js'") >= 0, 'sw.js の FILES に ./js/core/keep.js');
+  check(fs.readFileSync(path.join(base, 'js/ui/boot.js'), 'utf8').indexOf('MQ.keep.ask()') >= 0, 'keep: boot.js が ask() を よぶ');
+  console.log('v14.42 きろくを まもる OK');
 })();
 
 Promise.all(global.__pending || []).then(function () {

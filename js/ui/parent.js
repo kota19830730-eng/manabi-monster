@@ -173,6 +173,7 @@ MQ.ui.parent = (function () {
     ]));
 
     const main = [];
+    main.push(keepCard());   // きろくを まもる（v14.42）
 
     if (!ov.played) {
       main.push(h('div', { class: 'pp-card pp-empty' }, [
@@ -543,13 +544,44 @@ MQ.ui.parent = (function () {
      App Store は つかわない。Safari の「ホーム画面に追加」で アプリの ように ひらける（index.html に apple-touch-icon ほか）。
      iPhone・iPad は Safari の タブと ホーム画面の アイコンで 記録が 別々 なので、移し方も 書く。
      ======================================================= */
+  /* きろくを まもる（v14.42）：iPhone／iPad で ホーム画面に 入れずに あそんで いる ときだけ、レポートの いちばん 上に 出す。
+     ホーム画面の アイコンから ひらけば 消える（info().risk が false に なる） */
+  function keepCard() {
+    if (!MQ.keep || !MQ.keep.info().risk) return null;
+    return h('div', { class: 'pp-card pp-pad pp-keep', id: 'pp-keep' }, [
+      h('p', { class: 'pp-h pp-c-weak', style: { margin: '0 0 4px' }, text: '記録が消えるおそれがあります' }),
+      h('p', { class: 'pp-small', style: { margin: '0 0 8px' }, text: 'iPhone・iPad では、ホーム画面に入れずに Safari で遊んでいると、しばらく（目安は7日）開かなかったときに記録が自動で消されることがあります。ホーム画面のアイコンから開けば消えません。' }),
+      btn('入れ方を見る', 'pp-btn--s pp-btn--sm', function () { openInstall(); })
+    ]);
+  }
+  function openInstall(fromWhere) {
+    open('settings', fromWhere ? { from: fromWhere } : null);
+    const el = document.getElementById('pp-install');
+    const sc = el && el.closest ? el.closest('.pp__body') : null;
+    if (el && sc) sc.scrollTop = Math.max(0, el.offsetTop - 8);
+  }
+  /* 「記録の保護」の 1行（設定の「ホーム画面に入れる」の いちばん 上）。けっかは あとから 入る */
+  function keepLine() {
+    const el = h('p', { class: 'pp-small pp-keepline', style: { margin: '4px 0 8px' }, text: '' });
+    if (!MQ.keep) return el;
+    const inf = MQ.keep.info();
+    const say = function (t, cls) { el.textContent = t; el.className = 'pp-small pp-keepline ' + (cls || ''); };
+    if (inf.risk) { say('記録の保護：まだ守られていません。下の手順でホーム画面に入れると、記録が自動で消されなくなります。', 'pp-c-weak'); return el; }
+    if (inf.standalone) { say('記録の保護：ホーム画面のアイコンから開いているので、記録が自動で消されることはありません。', 'pp-c-good'); return el; }
+    MQ.keep.ask().then(function (v) {
+      if (v === true) say('記録の保護：この端末では、記録が自動で消されないよう守られています。', 'pp-c-good');
+      else say('記録の保護：端末の空きが少なくなると、記録が消されることがあります。ホーム画面に入れるか、ときどき上の「きろくの ほぞん」で控えをとっておくと安心です。', 'pp-muted');
+    });
+    return el;
+  }
+
   function installSection() {
     const ua = navigator.userAgent || '';
     const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
     let standalone = !!navigator.standalone;
     try { standalone = standalone || window.matchMedia('(display-mode: standalone)').matches; } catch (e) { /* なにもしない */ }
     const line = function (t, cls) { return h('p', { class: 'pp-small' + (cls ? ' ' + cls : ''), style: { margin: '4px 0' }, text: t }); };
-    const body = [];
+    const body = [keepLine()];
     if (standalone) {
       body.push(line('いまは ホーム画面のアイコンから開いています。このまま使えます。'));
     } else {
@@ -1023,7 +1055,7 @@ MQ.ui.parent = (function () {
   }
 
   return {
-    open: open, refresh: refresh, isOpen: isOpen, render: render,
+    open: open, refresh: refresh, isOpen: isOpen, render: render, openInstall: openInstall,
     feedbackUrl: feedbackUrl, feedbackInfo: feedbackInfo, FEEDBACK_FORM: FEEDBACK_FORM,
     reportHtml: reportHtml,
     setKind: function (k) { kind = k; },

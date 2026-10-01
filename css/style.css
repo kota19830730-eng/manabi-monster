@@ -4878,3 +4878,23 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .pgd__link { align-self: flex-start; padding: 6px 12px; border: 1px solid var(--pp-line); border-radius: 8px; background: #fff; color: var(--pp-gold-tx); font-weight: 700; font-size: 13px; cursor: pointer; }
 .pgd__foot { padding: 10px 16px 14px; background: var(--pp-card); border-top: 1px solid var(--pp-line); }
 .pgd__go { width: 100%; padding: 13px; border: 0; border-radius: 12px; background: var(--pp-gold); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 3px 0 #9a6a0c; }
+
+/* =======================================================
+   きろくを まもる（v14.42）
+   タイトルの 下の ほうに 出る おうちの方むけの 1行（iPhone／iPad で ホーム画面に 入れずに あそんで いる とき だけ）。
+   こうしんの バー（.upd）と 同じ 紺＋金わく。大人の 文なので 本文の 書体・小さめ。
+   ======================================================= */
+.keepbar { position: absolute; left: 8px; right: 8px; top: 44px; z-index: 7;
+           display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; border-radius: 12px;
+           background: rgba(16,24,48,.94); border: 2px solid #FFD166; box-shadow: 0 6px 16px rgba(0,0,0,.35);
+           color: #fff; font-family: var(--f-body); font-size: 12px; line-height: 1.35; }
+.keepbar__t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.keepbar__t b { color: #FFD166; font-size: 11px; font-weight: 700; }
+.keepbar__go { flex: none; padding: 7px 12px; border: 0; border-radius: 9px; background: #FFD166; color: #3a2a06;
+               font-family: var(--f-body); font-weight: 700; font-size: 13px; cursor: pointer; }
+.keepbar__x { flex: none; width: 30px; height: 30px; border: 0; border-radius: 50%; background: rgba(255,255,255,.14); color: #fff;
+              font-size: 16px; line-height: 1; cursor: pointer; }
+.title.is-opening .keepbar { opacity: 0; }   /* オープニングの あいだは 出さない（1.75秒） */
+.keepbar { transition: opacity .3s; }
+.pp-keep { border-color: var(--pp-weak); margin-bottom: 10px; }
+.pgd__keep { margin: 0; padding: 9px 11px; border: 1px solid var(--pp-weak); border-radius: 10px; background: #fff; font-size: 12.5px; color: var(--pp-ink); }

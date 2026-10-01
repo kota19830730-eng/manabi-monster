@@ -21,7 +21,13 @@
   MQ.bgm.setEnabled(MQ.save.getSetting('bgm', true));
   MQ.ui.setTextures();
   MQ.ui.syncCustom();
-  if (MQ.sonSkin) MQ.sonSkin.warm();   // v14.5 息子さんの 4体の「そのまま／かっこよく」の 進化形
+  if (MQ.sonSkin) MQ.sonSkin.warm();
+  /* きろくを まもる（v14.42）：ブラウザに「消さないで」と たのむ。ひらいた ときと、さいしょに さわった とき
+     （さわった あとで ないと みとめない ブラウザが ある）。もう 守られて いれば 何も しない */
+  if (MQ.keep) {
+    MQ.keep.ask();
+    document.addEventListener('click', function () { MQ.keep.ask(); }, { once: true, capture: true });
+  }   // v14.5 息子さんの 4体の「そのまま／かっこよく」の 進化形
 
   // 音は 最初の タップの あとから 鳴らせる
   document.addEventListener('pointerdown', function () { MQ.sfx.unlock(); MQ.bgm.kick(); }, { once: true });

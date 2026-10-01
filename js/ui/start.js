@@ -135,6 +135,8 @@ MQ.ui.start = (function () {
           h('p', { class: 'pp-kicker', text: 'おうちの方へ' }),
           h('h1', { class: 'pgd__title', text: 'はじめる前に 3つだけ' }),
           h('p', { class: 'pgd__lead', text: (p.name || '') + 'さん（小' + (p.grade || 3) + '）の設定です。あとからタイトル右上の「おうちの人」でいつでも変えられます。' }),
+          // きろくを まもる（v14.42）：iPhone／iPad で タブから ひらいて いる ときだけ
+          (MQ.keep && MQ.keep.info().risk) ? h('p', { class: 'pgd__keep', text: 'iPhone・iPad の方へ：Safari のままだと、しばらく開かなかったときに記録が消えることがあります。共有ボタン →「ホーム画面に追加」で入れたアイコンから遊んでください（くわしくは「おうちの人」の設定に）。' }) : null,
           card('1', '学校で習ったところだけ出す',
             'まだ習っていない単元は出しません。単元ごとの調整や教科書会社の選択は「おうちの人」の設定で。',
             row('学期', termOpts, function () { return pick.term; }, function (v) { pick.term = v; })),
@@ -313,6 +315,30 @@ MQ.ui.start = (function () {
       MQ.ui.syncCustom();
       MQ.ui.parent.open('home', { from: 'title' });
     }
+    /* きろくを まもる（v14.42）：iPhone／iPad で ホーム画面に 入れずに あそんで いる 家に、おうちの方むけの 1行。
+       「やり方」→ おうちの人ページの「ホーム画面に入れる」。とじたら 14日 あと・3回まで（js/core/keep.js） */
+    function keepBar() {
+      if (!MQ.keep || !players.length || !MQ.keep.noticeDue()) return null;
+      if (MQ.text) MQ.text.pause(true);
+      let bar;
+      try {
+        bar = h('div', { class: 'keepbar', role: 'status', 'data-noconv': '' }, [
+          h('span', { class: 'keepbar__t' }, [h('b', { text: 'おうちの方へ' }), h('span', { text: 'ホーム画面に入れないと、記録が消えることがあります' })]),
+          h('button', { class: 'keepbar__go', type: 'button', text: 'やり方', onclick: function () {
+            MQ.sfx.unlock(); MQ.sfx.tap();
+            if (!MQ.save.current()) MQ.save.setCurrent(players[0].id);
+            MQ.ui.syncCustom();
+            MQ.ui.parent.openInstall('title');
+          } }),
+          h('button', { class: 'keepbar__x', type: 'button', 'aria-label': 'とじる', text: '×', onclick: function () {
+            MQ.sfx.unlock(); MQ.sfx.tap();
+            MQ.keep.noticeClosed();
+            if (bar.parentNode) bar.parentNode.removeChild(bar);
+          } })
+        ]);
+      } finally { if (MQ.text) MQ.text.pause(false); }
+      return bar;
+    }
 
     const actions = [];
 
@@ -359,6 +385,7 @@ MQ.ui.start = (function () {
       h('div', { class: 'title__sound' }, MQ.ui.soundButtons()),
       // 右上：おうちの人ページ（大人むけ。子どもの ボタンとは 分けて 小さく おく）
       h('button', { class: 'sw sw--parent', type: 'button', text: 'おうちの人', onclick: openParent }),
+      keepBar(),
       // 上の あき（ロゴを 下げる ため。画面が 高い ほど 大きく なる）
       h('div', { class: 'title__top' }, [MQ.ui.scenery ? MQ.ui.scenery.titleTop() : null]),   // 背景（v12.6）：太陽・月
       h('div', { class: 'title__head' }, [
