@@ -81,10 +81,10 @@ MQ.speech = (function () {
   /* 読む。かえり値は 読みはじめた か どうか */
   function speak(text, lang, opts) {
     const s = api();
-    const t = String(text == null ? '' : text).trim();
+    const want = lang === 'ja' ? 'ja' : 'en';
+    const t = want === 'ja' ? jaSay(text) : String(text == null ? '' : text).trim();   // v14.43：記号・単位を ことばに
     if (!s || !t) return false;
     init();
-    const want = lang === 'ja' ? 'ja' : 'en';
     const v = voiceFor(want);
     if (!v) return false;
     stop();                                  // かさねて 読まない
@@ -112,6 +112,9 @@ MQ.speech = (function () {
   function plain(html) {
     let s = String(html == null ? '' : html);
     s = s.replace(/<br\s*\/?>/gi, ' ');
+    // ふりがなは 読み（rt）だけ（「値あたい」と 2回 読まない・v14.43）
+    s = s.replace(/<rp>[^<]*<\/rp>/gi, '');
+    s = s.replace(/<ruby>([^<]*)<rt>([^<]*)<\/rt><\/ruby>/gi, '$2');
     s = s.replace(/<[^>]*>/g, '');
     s = s.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
     return s.replace(/\s+/g, ' ').trim();
@@ -126,6 +129,60 @@ MQ.speech = (function () {
      これを 読み上げると 声が「やま」と 言って **答えを 教えて しまう** ので 読まない。 */
   function hasKanji(s) { return /[\u4E00-\u9FFF\u3005]/.test(String(s || '')); }
 
+  /* v14.43：英語の 声に わたす 前に 日本語の まじりを とる。
+     「Hola（オラ）」の カタカナの ふりがな・「My name is 〇〇.」の 〇〇 を 英語の 声が 読むと へんに なる */
+  function enClean(s) {
+    return String(s || '')
+      .replace(/[（(][^）)]*[぀-ヿ][^）)]*[）)]/g, ' ')
+      .replace(/[〇○]+/g, ' ')
+      .replace(/\s+([.,?!])/g, '$1')
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  /* v14.43：日本語の 声に わたす 前に 記号・単位を ことばに する。
+     そのままだと 端末によって「＋」を 読まない・「mm」を「エムエム」・
+     「●○○○」を「くろまる しろまる…」・「3:4」を「3じ4ふん」などと 読む */
+  const UNIT = [
+    ['km²', 'へいほうキロメートル'], ['km2', 'へいほうキロメートル'],
+    ['cm²', 'へいほうセンチメートル'], ['cm2', 'へいほうセンチメートル'],
+    ['m²', 'へいほうメートル'], ['m2', 'へいほうメートル'],
+    ['cm³', 'りっぽうセンチメートル'], ['cm3', 'りっぽうセンチメートル'],
+    ['m³', 'りっぽうメートル'], ['m3', 'りっぽうメートル'],
+    ['mm', 'ミリメートル'], ['cm', 'センチメートル'], ['km', 'キロメートル'],
+    ['kg', 'キログラム'], ['mg', 'ミリグラム'],
+    ['kL', 'キロリットル'], ['mL', 'ミリリットル'], ['ml', 'ミリリットル'], ['dL', 'デシリットル'], ['dl', 'デシリットル'],
+    ['ha', 'ヘクタール'], ['L', 'リットル'], ['m', 'メートル'], ['g', 'グラム'], ['t', 'トン'], ['a', 'アール']
+  ];
+  // m2・cm3 などは うしろに 数字が つづく とき（5m20cm の「m2」など）は へいほう／りっぽうに しない
+  const UNIT_RE = new RegExp('([0-9０-９)）□○△x]|なん|何)\\s?(' + UNIT.map(function (u) {
+    return /[23]$/.test(u[0]) ? u[0] + '(?![0-9])' : u[0];
+  }).join('|') + ')(?![A-Za-z²³])', 'g');
+  const UNIT_OF = {};
+  UNIT.forEach(function (u) { UNIT_OF[u[0]] = u[1]; });
+  function jaSay(text) {
+    let s = String(text == null ? '' : text);
+    s = s.replace(/[●○◯]{2,}/g, ' ');                 // ●○の ならびは 図（数えさせる ところ）
+    s = s.replace(/正[正T一下]+/g, ' ');                  // 正の字の ならびも 図（「正」1字の ときは のこす）
+    s = s.replace(/([一-鿿A-Za-z0-9])[（(][぀-ヿー ]+[）)]/g, '$1');   // 「小数第一位（しょうすう だいいちい）」の 読みがなは 2回 読まない
+    s = s.replace(/(\d),(?=\d{3})/g, '$1');            // 890,000,000 → 890000000
+    s = s.replace(UNIT_RE, function (m, pre, u) { return pre + UNIT_OF[u]; });
+    s = s.replace(/([0-9０-９])\s*℃/g, '$1ど');
+    s = s.replace(/%|％/g, 'パーセント');
+    s = s.replace(/([+＋])\s*(極|きょく)/g, 'プラス$2').replace(/([−\-－])\s*(極|きょく)/g, 'マイナス$2');
+    s = s.replace(/\s*[+＋]\s*/g, ' たす ');
+    s = s.replace(/(^|[\s(（0-9□○△x])\s*[−－]\s*(?=[\s0-9□○△x(（])/g, '$1 ひく ');
+    s = s.replace(/(\d|\s)-(\s|\d)/g, '$1 ひく $2');
+    s = s.replace(/\s*[×✕]\s*/g, ' かける ');
+    s = s.replace(/\s*÷\s*/g, ' わる ');
+    s = s.replace(/\s*[=＝]\s*/g, ' は ');
+    s = s.replace(/([0-9a-zA-Z□○△)）])\s*:\s*(?=[0-9a-zA-Z□○△(（])/g, '$1 たい ');
+    s = s.replace(/([0-9])\s*[〜~～]\s*(?=[0-9])/g, '$1から');
+    s = s.replace(/□/g, 'しかく').replace(/△/g, 'さんかく').replace(/[○〇◯]/g, 'まる').replace(/●/g, 'くろまる');
+    s = s.replace(/\s*[→⇒]\s*/g, '、').replace(/↓/g, 'やじるし');
+    s = s.replace(/\?/g, '？').replace(/[()（）]/g, ' ');
+    return s.replace(/\s+/g, ' ').trim();
+  }
+
   /* "…" の 中の 英語を 集めて つなげる。
      なければ 文の 中の 英語らしい ところ を さがす */
   function englishIn(text) {
@@ -136,9 +193,9 @@ MQ.speech = (function () {
     while ((m = re.exec(s)) !== null) {
       const inner = m[1].trim();
       // 「ニーハオ」の ような カタカナの ふりがなは 読まない
-      if (hasLatin(inner)) out.push(inner);
+      if (hasLatin(inner)) out.push(enClean(inner));
     }
-    if (out.length) return out.join(', ');
+    if (out.length) return out.filter(function (x, i) { return x && out.indexOf(x) === i; }).join(', ');
     // かぎかっこが ない ときは、英語の かたまりを ひろう
     const words = s.match(/[A-Za-z][A-Za-z'’.\-]*(?:\s+[A-Za-z][A-Za-z'’.\-]*)*/g);
     if (!words) return '';
@@ -165,7 +222,8 @@ MQ.speech = (function () {
     // ② 小1 は 問題文を 日本語で（まだ 字が すらすら 読めない ため）。
     //    ただし **かん字の 入った 問題は 読まない**（声が 答えを 言って しまう）
     if (grade === 1) {
-      const jp = plain(q.prompt || q.text || '');
+      // 画面がわが 図（とけいの 文字ばん・●○の ならび）を のぞいた 文を text1 で わたす
+      const jp = o.text1 != null ? String(o.text1).trim() : plain(q.prompt || q.text || '');
       if (!jp || hasKanji(jp)) return null;
       return { text: jp, lang: 'ja', label: 'きく' };
     }
@@ -204,7 +262,7 @@ MQ.speech = (function () {
   return {
     init: init, ready: ready, speak: speak, stop: stop,
     voices: voices, refresh: refresh, voiceFor: voiceFor,
-    plain: plain, englishIn: englishIn, hasLatin: hasLatin, hasKanji: hasKanji,
+    plain: plain, englishIn: englishIn, jaSay: jaSay, enClean: enClean, hasLatin: hasLatin, hasKanji: hasKanji,
     forQuestion: forQuestion, forNote: forNote, readJaOn: readJaOn,
     RATE: RATE
   };

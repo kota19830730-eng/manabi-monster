@@ -1338,15 +1338,26 @@ MQ.ui.battle = (function () {
 
   /* v14.34：読み上げる 問題文＝カードの 文だけ（図・表・とけい・グラフの 中の 字は 読まない）。
      分数の ある 問題は 読まない（数が ぬけて 意味が かわる）＝ 空を かえす */
-  function cardSpeech() {
-    if (!d.prompt) return '';
-    if (d.prompt.querySelector('.frac')) return '';
+  /* v14.43：とけいの 文字ばん（.clock）・●○の ならび（.dots）・正の字（.tally）も 図なので 読まない
+     （小1の とけいの 問題で「なんじ？123456789101112」と 読んで いた）。
+     ふりがな（ruby）は 読み（rt）だけ を 読む（「値あたい」と 2回 読んで いた）。 */
+  function cardSpeechText() {
+    if (!d.prompt) return { text: '', fig: false };
+    if (d.prompt.querySelector('.frac')) return { text: '', fig: true };
     const c = d.prompt.cloneNode(true);
-    const figs = c.querySelectorAll('svg, table, img, canvas, .clock, .clockq__fig, .figbox, .figpair, .figwide, .graph, .tbl, .soroban, .hissan');
+    const figs = c.querySelectorAll('svg, table, img, canvas, .clock, .clockbox, .clockq__fig, .figbox, .figpair, .figwide, .graph, .tbl, .soroban, .hissan, .dots, .tally');
     figs.forEach(function (x) { x.remove(); });
-    const t = (c.textContent || '').replace(/\s+/g, ' ').trim();
+    c.querySelectorAll('rp').forEach(function (x) { x.remove(); });
+    c.querySelectorAll('ruby').forEach(function (r) {
+      const rt = r.querySelector('rt');
+      r.parentNode.replaceChild(document.createTextNode(rt ? rt.textContent : r.textContent), r);
+    });
+    return { text: (c.textContent || '').replace(/\s+/g, ' ').trim(), fig: figs.length > 0 };
+  }
+  function cardSpeech() {
+    const r = cardSpeechText();
     // 短い 文は 読まない（ねらいは 長い 文章題）。図の ある カードは 場所が せまいので 20字から（14字だと タブレットで 図の 2択が 15px はみ出した）
-    return t.length >= (figs.length ? 20 : 14) ? t : '';
+    return r.text.length >= (r.fig ? 20 : 14) ? r.text : '';
   }
 
   /* よみあげ（v5.3）：英語の 文（英語ステージ）／小1の 問題文 に「きく」を つける。
@@ -1360,7 +1371,7 @@ MQ.ui.battle = (function () {
     const grade = ctx && ctx.world ? ctx.world.grade : 0;
     const areaId = q.areaId || (ctx && ctx.area ? ctx.area.id : '');
     const readJa = MQ.speech.readJaOn ? MQ.speech.readJaOn(MQ.save.current()) : false;
-    const say = MQ.speech.forQuestion(q, { areaId: areaId, grade: grade, readJa: readJa, text: readJa ? cardSpeech() : null });
+    const say = MQ.speech.forQuestion(q, { areaId: areaId, grade: grade, readJa: readJa, text: readJa ? cardSpeech() : null, text1: grade === 1 ? cardSpeechText().text : null });
     const btn = MQ.ui.listenButton(say);
     if (!btn) return;
     d.listen.appendChild(btn);

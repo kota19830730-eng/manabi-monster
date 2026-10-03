@@ -3229,6 +3229,35 @@ check(Array.isArray(migrated.titles) && migrated.titles.length >= 1, 'しょう�
     check(S.readJaOn({ grade: 3 }) === true && S.readJaOn({ grade: 2 }) === true && S.readJaOn({ grade: 4 }) === false, 'よみあげ: 自動は 小3まで');
     check(S.readJaOn({ grade: 5, readJa: 'on' }) === true && S.readJaOn({ grade: 2, readJa: 'off' }) === false && S.readJaOn(null) === false, 'よみあげ: つける／なし');
   })();
+  /* v14.43：読みが へんに なる ところ（記号・単位・図の 字・ふりがな） */
+  (function () {
+    const J = S.jaSay;
+    const eq = function (a, b, m) { const got = J(a); check(got === b, 'よみあげv14.43: ' + m + ' → ' + got); };
+    eq('7 + 1', '7 たす 1', 'たす');
+    eq('13 − 8', '13 ひく 8', 'ひく');
+    eq('4 × 6 ÷ 3', '4 かける 6 わる 3', 'かける・わる');
+    eq('□ + 1 = 10 □に はいる かずは？', 'しかく たす 1 は 10 しかくに はいる かずは？', '□と =');
+    eq('9cm は なんmm？', '9センチメートル は なんミリメートル？', 'cm・mm');
+    eq('5cm9mm は 何cm？', '5センチメートル9ミリメートル は 何センチメートル？', 'cm の あとに 数字');
+    eq('6L 5dL は なんdL？', '6リットル 5デシリットル は なんデシリットル？', 'L・dL');
+    eq('1ha は 何m2？', '1ヘクタール は 何へいほうメートル？', 'ha・m2');
+    eq('体積は 何cm³？', '体積は 何りっぽうセンチメートル？', 'cm³');
+    eq('4 : 2 = 24 : x', '4 たい 2 は 24 たい x', '比');
+    eq('5% を 小数で', '5パーセント を 小数で', '%');
+    eq('724,970,000 百万の 位', '724970000 百万の 位', '3けたの カンマ');
+    eq('●は いくつ あるかな？ ●○○○', 'くろまるは いくつ あるかな？', '●○の ならびは 読まない');
+    eq('かん電池の ＋極と −極', 'かん電池の プラス極と マイナス極', '＋極・−極');
+    eq('雨 → 川 → 海', '雨、川、海', '→');
+    eq('1.9 の 小数第一位（しょうすう だいいちい）の 数字は？', '1.9 の 小数第一位の 数字は？', '読みがなを 2回 読まない');
+    eq('雲の 量が 0〜8 の 天気は？', '雲の 量が 0から8 の 天気は？', '〜');
+    check(S.plain('比の <ruby>値<rt>あたい</rt></ruby>は？') === '比の あたいは？', 'よみあげv14.43: ふりがなは 読みだけ');
+    // 小1の とけい：画面がわが 文字ばんを のぞいた 文（text1）を わたす
+    const ck = S.forQuestion({ prompt: '<span class="clockq"><span class="clockq__t">なんじ？</span><span class="clockbox"><span class="clock__num">1</span></span></span>' }, { areaId: 'sansu', grade: 1, text1: 'なんじ？' });
+    check(ck && ck.text === 'なんじ？', 'よみあげv14.43: 小1の とけいの 文字ばんを 読まない');
+    check(S.enClean('Hola（オラ）') === 'Hola', 'よみあげv14.43: 英語の カタカナの ふりがなは 読まない');
+    check(S.enClean("My name is 〇〇.") === 'My name is.', 'よみあげv14.43: 〇〇 は 読まない');
+    check(S.englishIn('"Sure." "Sure."') === 'Sure.', 'よみあげv14.43: 同じ 英語を 2回 読まない');
+  })();
   // 英語が 入って いない 英語ステージの 問題は ボタンを 出さない
   check(S.forQuestion({ prompt: 'アルファベットは ぜんぶで 何文字？' }, { areaId: 'eigo', grade: 4 }) === null, '英語が なければ ボタンなし');
   // ふきだし（note）

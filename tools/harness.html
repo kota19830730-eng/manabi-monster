@@ -3835,7 +3835,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       await wait(600);
       let heard = '';
       const sp0 = MQ.speech.speak;
-      MQ.speech.speak = function (t) { heard = t; return false; };
+      MQ.speech.speak = function (t, lang) { heard = (lang === 'ja' && MQ.speech.jaSay) ? MQ.speech.jaSay(t) : t; return false; };   // v14.43：じっさいに 声に わたす 文
       for (let i = 0; i < 4; i++) {
         const q = MQ.battle.current();
         const btn = $('.card__listen .listen');
