@@ -3686,6 +3686,15 @@ MQ.monsterGen = (function () {
     if (x1 < 0) return null;
     return { x0: x0, y0: y0, x1: x1 + 1, y1: y1 + 1, w: x1 + 1 - x0, h: y1 + 1 - y0, cx: Math.round((x0 + x1 + 1) / 2) };
   }
+  /* 頭の まんなか（v14.44）：上 25% の 帯に 絵が ある ところの まんなか。
+     いちばん 上の 行だけだと 子どもの 絵では つのの 先に ひっぱられて かんむりが はしに 行った */
+  function topBand(mask, N, bb) {
+    const yb = bb.y0 + Math.max(2, Math.round(bb.h * 0.25));
+    let sx = 0, n = 0, a = N, b = -1;
+    for (let y = bb.y0; y < yb; y++) for (let x = 0; x < N; x++) if (mask[y * N + x]) { sx += x; n++; if (x < a) a = x; if (x > b) b = x; }
+    if (!n) return { cx: bb.cx, w: bb.w };
+    return { cx: Math.round(sx / n), w: Math.max(10, Math.min(bb.w, b + 1 - a)) };
+  }
   /* 頭の てっぺん：いちばん 上の 行に 絵が ある ところの まんなか */
   function topCenter(mask, N, bb) {
     let a = N, b = -1;
@@ -3694,11 +3703,13 @@ MQ.monsterGen = (function () {
     return { cx: Math.round((a + b + 1) / 2), w: b + 1 - a };
   }
   /* stage 2／3 の 部品（うしろ・前）を かえす。単位は px（48×48） */
-  function evoParts(mask, stage, N) {
+  function evoParts(mask, stage, N, style) {
     N = N || 48;
     const bb = maskBox(mask, N);
     if (!bb) return { back: [], front: [] };
-    const t = topCenter(mask, N, bb);
+    const t = style ? topBand(mask, N, bb) : topCenter(mask, N, bb);
+    // v14.44：進化の すがたを 子どもが えらぶ（おうさま＝いままで／つばさ／ほのお）
+    if (style === 'wing' || style === 'flame') return evoStyleParts(bb, t, stage, N, style, mask);
     const back = [], front = [];
     if (stage >= 3) {
       // マント（うしろ）
@@ -3736,21 +3747,177 @@ MQ.monsterGen = (function () {
     }
     return { back: back, front: front };
   }
-  /* 絵（dataURL）から つぎの 段階の 絵を 作る。ブラウザだけ（canvas を つかう） */
-  function evoPng(url, stage, cb) {
+  /* 進化の すがた（v14.44）：つばさ／ほのお。部品は 四角の ならび（48〜64マス）。
+     はみ出す ところは 切る（clip）。左の 部品を 作って 体の まんなかで 右に うつす */
+  const EVO_WING = '#EAF6FF', EVO_WING2 = '#9FD3FF', EVO_HALO = '#FFE066';
+  const EVO_FIRE = '#FF7A1A', EVO_FIRE2 = '#FFD23F', EVO_FIRE3 = '#E8341C';
+  const EVO_STYLES = [
+    { id: 'king', name: 'おうさま' },
+    { id: 'wing', name: 'つばさ' },
+    { id: 'flame', name: 'ほのお' }
+  ];
+  function evoClip(r, N) {
+    let x = r[0], y = r[1], w = r[2], h = r[3];
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > N) w = N - x;
+    if (y + h > N) h = N - y;
+    return w > 0 && h > 0 ? [x, y, w, h, r[4]] : null;
+  }
+  function evoStyleParts(bb, t, stage, N, style, mask) {
+    const back = [], front = [];
+    // りんかく：その 行の いちばん 左／右・その 列の いちばん 上（体に くっつけて おく ため）
+    const rowEdge = function (y) { let a = -1, b = -1; for (let x = 0; x < N; x++) if (mask[y * N + x]) { if (a < 0) a = x; b = x; } return a < 0 ? null : [a, b]; };
+    const colTop = function (x) { for (let y = 0; y < N; y++) if (mask[y * N + x]) return y; return -1; };
+    const mir = function (r) { return [2 * bb.cx - r[0] - r[2], r[1], r[2], r[3], r[4]]; };
+    const both = function (list, out) { list.forEach(function (r) { out.push(r); out.push(mir(r)); }); };
+    if (style === 'wing') {
+      const y = bb.y0 + Math.round(bb.h * 0.25);
+      const ed = rowEdge(Math.min(N - 1, y + 3)) || [bb.x0, bb.x1 - 1];
+      const ax = ed[0] + 3, rx = ed[1] - 3;   // 体の 中に 3マス めりこませる（うしろに かくれて つながって 見える）
+      // [左へ どれだけ 出るか, 上下, はば, 高さ, 色]
+      const W = stage >= 3 ? [[6, 0, 9, 15, EVO_WING], [11, -5, 8, 14, EVO_WING], [15, -9, 6, 12, EVO_WING2], [18, -12, 5, 8, EVO_WING2]]
+                           : [[5, 0, 7, 10, EVO_WING], [9, -4, 6, 9, EVO_WING], [12, -7, 5, 6, EVO_WING2]];
+      W.forEach(function (w) {
+        back.push([ax - w[0], y + w[1], w[2], w[3], w[4]]);
+        back.push([rx + w[0] - w[2] + 1, y + w[1], w[2], w[3], w[4]]);
+      });
+      if (stage >= 3) {   // 光の わ（頭の 上）
+        const cy = Math.max(0, bb.y0 - 9), cx = t.cx;
+        front.push([cx - 6, cy, 12, 2, EVO_HALO]);
+        front.push([cx - 9, cy + 2, 3, 2, EVO_HALO]);
+        front.push([cx + 6, cy + 2, 3, 2, EVO_HALO]);
+        front.push([cx - 6, cy + 4, 12, 2, EVO_HALO]);
+      }
+      front.push([bb.cx - 3, bb.y0 + Math.round(bb.h * 0.5), 6, 6, '#5FD8FF']);
+    } else {   // flame
+      const hy = Math.max(0, bb.y0 - (stage >= 3 ? 11 : 8));
+      const cx = t.cx;
+      if (stage >= 3) {
+        // うしろの ほのおの オーラ（体の 左右と 上）
+        const yb = bb.y1 - Math.round(bb.h * 0.05), H = Math.round(bb.h * 0.85);
+        const fl = function (x, w, hk) {   // 1本の ほのお（下 太い → 上 細い・まん中は 明るい）
+          const h1 = Math.round(H * 0.45 * hk), h2 = Math.round(H * 0.28 * hk), h3 = Math.round(H * 0.16 * hk);
+          return [
+            [x, yb - h1, w, h1, EVO_FIRE3],
+            [x + 1, yb - h1 - h2, w - 2, h2, EVO_FIRE],
+            [x + 2, yb - h1 - h2 - h3, Math.max(2, w - 4), h3, EVO_FIRE2],
+            [x + 2, yb - h1 + 2, Math.max(2, w - 4), Math.round(h1 * 0.6), EVO_FIRE2]
+          ];
+        };
+        void fl;
+        let i = 0;
+        for (let x = bb.x0 + 1; x < bb.x1 - 1; x += 5, i++) {
+          const top = colTop(x);
+          if (top < 0) continue;
+          const hk = [7, 10, 6, 9, 8][i % 5];
+          back.push([x - 2, top - hk, 5, hk + 3, EVO_FIRE3]);
+          back.push([x - 1, top - hk - 2, 3, 4, EVO_FIRE]);
+          back.push([x - 1, top - Math.round(hk / 2), 3, Math.round(hk / 2) + 2, EVO_FIRE2]);
+        }
+        // 左右の はしにも 1本ずつ（体の なかほどから 立ちのぼる）
+        const my = bb.y0 + Math.round(bb.h * 0.45);
+        const me = rowEdge(Math.min(N - 1, my)) || [bb.x0, bb.x1 - 1];
+        back.push([me[0] - 3, my - 9, 5, 12, EVO_FIRE3]); back.push([me[0] - 2, my - 11, 3, 4, EVO_FIRE]);
+        back.push([me[1] - 1, my - 9, 5, 12, EVO_FIRE3]); back.push([me[1], my - 11, 3, 4, EVO_FIRE]);
+        front.push([cx - 9, hy + 6, 4, 6, EVO_FIRE]);
+        front.push([cx + 5, hy + 6, 4, 6, EVO_FIRE]);
+        front.push([cx - 5, hy + 2, 4, 10, EVO_FIRE]);
+        front.push([cx + 1, hy + 3, 4, 9, EVO_FIRE]);
+        front.push([cx - 2, hy, 4, 12, EVO_FIRE3]);
+        front.push([cx - 1, hy + 4, 2, 7, EVO_FIRE2]);
+      } else {
+        front.push([cx - 6, hy + 4, 4, 6, EVO_FIRE]);
+        front.push([cx - 2, hy, 4, 10, EVO_FIRE3]);
+        front.push([cx + 2, hy + 3, 4, 7, EVO_FIRE]);
+        front.push([cx - 1, hy + 4, 2, 5, EVO_FIRE2]);
+      }
+      front.push([bb.cx - 3, bb.y0 + Math.round(bb.h * 0.5), 6, 6, EVO_GEM]);
+    }
+    return {
+      back: back.map(function (r) { return evoClip(r, N); }).filter(Boolean),
+      front: front.map(function (r) { return evoClip(r, N); }).filter(Boolean)
+    };
+  }
+
+  /* 絵の 色から 相棒の わざの 系統を きめる（v14.44）。ブラウザだけ。
+     色の ある 点が 15% いじょう → いちばん 多い 色あい／ほとんど 灰色 → 明るさで きめる */
+  function moveKindOfColor(stats) {
+    const c = stats.counts, total = stats.total || 1;
+    let colored = 0;
+    Object.keys(c).forEach(function (k) { if (k.indexOf('g:') !== 0) colored += c[k]; });
+    let best = null, bn = -1;
+    Object.keys(c).forEach(function (k) {
+      const isGray = k.indexOf('g:') === 0;
+      if (colored / total >= 0.15 ? isGray : !isGray) return;
+      if (c[k] > bn) { bn = c[k]; best = k; }
+    });
+    const map = { red: 'blaze', orange: 'blaze', brown: 'heavy', yellow: 'bolt', green: 'fang', cyan: 'aqua', blue: 'aqua', sky: 'sky', purple: 'shadow', pink: 'holy',
+                  'g:light': 'holy', 'g:mid': 'heavy', 'g:dark': 'shadow' };
+    return map[best] || 'bond';
+  }
+  function colorBucket(r, g, b) {
+    const mx = Math.max(r, g, b) / 255, mn = Math.min(r, g, b) / 255, l = (mx + mn) / 2, dd = mx - mn;
+    const s = dd === 0 ? 0 : dd / (1 - Math.abs(2 * l - 1));
+    if (s < 0.22 || l < 0.12 || l > 0.94) return l > 0.7 ? 'g:light' : l < 0.3 ? 'g:dark' : 'g:mid';
+    let hh;
+    const R = r / 255, Gg = g / 255, B = b / 255;
+    if (mx === R) hh = ((Gg - B) / dd) % 6; else if (mx === Gg) hh = (B - R) / dd + 2; else hh = (R - Gg) / dd + 4;
+    hh = (hh * 60 + 360) % 360;
+    if (hh >= 15 && hh < 45 && l < 0.42) return 'brown';
+    if (hh < 15 || hh >= 345) return l > 0.72 ? 'pink' : 'red';
+    if (hh < 45) return 'orange';
+    if (hh < 72) return 'yellow';
+    if (hh < 165) return 'green';
+    if (hh < 195) return 'cyan';
+    if (hh < 250) return l > 0.65 ? 'sky' : 'blue';
+    if (hh < 315) return 'purple';
+    return 'pink';
+  }
+  function moveKindFromPng(url, cb) {
+    if (typeof Image === 'undefined' || !url) { cb(null); return; }
+    const im = new Image();
+    im.onload = function () {
+      const N = 48;
+      const cv = document.createElement('canvas');
+      cv.width = N; cv.height = N;
+      const g = cv.getContext('2d');
+      g.drawImage(im, 0, 0, N, N);
+      const d = g.getImageData(0, 0, N, N).data;
+      const counts = {};
+      let total = 0;
+      for (let i = 0; i < N * N; i++) {
+        if (d[i * 4 + 3] < 120) continue;
+        const k = colorBucket(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]);
+        counts[k] = (counts[k] || 0) + 1;
+        total++;
+      }
+      cb(total ? moveKindOfColor({ counts: counts, total: total }) : null);
+    };
+    im.onerror = function () { cb(null); };
+    im.src = url;
+  }
+
+  /* 絵（dataURL）から つぎの 段階の 絵を 作る。ブラウザだけ（canvas を つかう）。style＝すがた（v14.44） */
+  function evoPng(url, stage, cb, style) {
     const im = new Image();
     im.onload = function () {
       // v14.4 きみの 絵（64マス）は その 大きさの まま（48に ちぢめると ぼやける）
       const N = Math.max(48, Math.min(64, im.naturalWidth || 48));
+      /* v14.44：すがたを えらぶ とき（style あり）は 本体を 少し 小さく して 下ぞろえ。
+         子どもの 絵は マスいっぱいに 広がって いて、つばさ・ほのお・マントを おく すきまが ない ため。
+         style なし（息子さんの 絵の すがた・sonskin）は いままで どおり */
+      const sc = style ? (stage >= 3 ? 0.74 : 0.86) : 1;
+      const dw = Math.round(N * sc), dx = Math.round((N - dw) / 2), dy = N - dw;
       const tmp = document.createElement('canvas');
       tmp.width = N; tmp.height = N;
       const tg = tmp.getContext('2d');
       tg.imageSmoothingEnabled = false;
-      tg.drawImage(im, 0, 0, N, N);
+      tg.drawImage(im, dx, dy, dw, dw);
       const d = tg.getImageData(0, 0, N, N).data;
       const mask = new Uint8Array(N * N);
       for (let i = 0; i < N * N; i++) mask[i] = d[i * 4 + 3] > 40 ? 1 : 0;
-      const parts = evoParts(mask, stage, N);
+      const parts = evoParts(mask, stage, N, style);
       const cv = document.createElement('canvas');
       cv.width = N; cv.height = N;
       const g = cv.getContext('2d');
@@ -3758,15 +3925,16 @@ MQ.monsterGen = (function () {
         list.forEach(function (r) {
           g.fillStyle = r[4];
           g.fillRect(r[0], r[1], r[2], r[3]);
-          // 右と 下に 暗い 面（ゲームの 絵と 同じ 立体感）
+          // 右と 下に 暗い 面（ゲームの 絵と 同じ 立体感）。細い 部品は 1マス
+          const e = r[2] >= 4 && r[3] >= 4 ? 2 : 1;
           g.fillStyle = 'rgba(0,0,0,.25)';
-          g.fillRect(r[0] + r[2] - 2, r[1], 2, r[3]);
-          g.fillRect(r[0], r[1] + r[3] - 2, r[2], 2);
+          if (r[2] > e) g.fillRect(r[0] + r[2] - e, r[1], e, r[3]);
+          if (r[3] > e) g.fillRect(r[0], r[1] + r[3] - e, r[2], e);
         });
       }
       draw(parts.back);
       g.imageSmoothingEnabled = false;
-      g.drawImage(im, 0, 0, N, N);
+      g.drawImage(tmp, 0, 0);
       draw(parts.front);
       cb(cv.toDataURL('image/png'));
     };
@@ -3809,6 +3977,8 @@ MQ.monsterGen = (function () {
     png: png,
     evoParts: evoParts,
     evoPng: evoPng,
+    evoParts: evoParts, EVO_STYLES: EVO_STYLES,
+    moveKindFromPng: moveKindFromPng, moveKindOfColor: moveKindOfColor, colorBucket: colorBucket,
     fromCells: fromCells,
     // テスト用
     pop: pop

@@ -43,6 +43,21 @@ MQ.ui.start = (function () {
     const art = v3on() ? MQ.ui.v3.monster(id, size, { ry: TITLE_RY[cls] == null ? -22 : TITLE_RY[cls], mo: 'mo-title', flat: true }) : null;   // flat＝上の 面なし（v12.1・軽く）
     return h('div', { class: 'tmob tmob--' + cls }, [art || MQ.enemies.node(id, { size: size })]);
   }
+  /* タイトルの 手まえの 左（にんじゃの 場所）に いちばん 新しい きみの モンスター（v14.44）。
+     いなければ にんじゃ。小さな ふだ「きみの」を 足もとに */
+  function mineMob() {
+    const p = MQ.save && MQ.save.current ? MQ.save.current() : null;
+    const list = p && Array.isArray(p.custom) ? p.custom : [];
+    for (let i = 0; i < list.length; i++) {
+      const id = list[i].id;
+      if (!MQ.enemies.get(id)) continue;
+      const el = mob(id, 62, 'ninja');
+      el.classList.add('tmob--mine');
+      el.appendChild(h('span', { class: 'tmob__tag', text: 'きみの ' + list[i].name }));
+      return el;
+    }
+    return null;
+  }
   /* タイトルの 勇者（3D）＝ 見本の この キャラ（青い かみ・ひかる けん・Lv30）。その子の アバターでは ない（v5.0 の きまりは そのまま） */
   const TITLE_HERO = { level: 30, look: {}, equipped: { weapon: 'tetsu-weapon' } };
   function heroFig() {
@@ -246,7 +261,7 @@ MQ.ui.start = (function () {
       heroFig(),
 
       // 手まえ：にんじゃ・ゴールデンスライム・たからばこ・マグマゴン
-      mob('ninja-2', 62, 'ninja'),
+      mineMob() || mob('ninja-2', 62, 'ninja'),
       mob('slime-golden', 58, 'gold'),
       chest(),
       mob('magma-3', 62, 'magma'),

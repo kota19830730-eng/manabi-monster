@@ -806,6 +806,179 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     if (mode === 'maker') { try { localStorage.clear(); } catch (e) {} MQ.save.load(); MQ.ui.start.maker(); return; }
     if (mode === 'look') { fresh(); MQ.ui.look.edit(); return; }
+    /* #mine[:debut|:shot|:result|:title|:map|:chance] … きみの モンスター（v14.44）
+       debut＝作った 直後の たたかいで 3体めに かならず 出る・金の 帯／shot＝帯を 止めて 撮る
+       result＝たおすと かならず「なかまに なりたそう」／title＝タイトルの 手まえ／map＝地図の ふだ
+       chance＝作った エリアで 何わり 出るか（100回 はじめるだけ） */
+    if (mode === 'mine' || mode.indexOf('mine:') === 0) {
+      const sub = mode.split(':')[1] || 'debut';
+      fresh();
+      const png = MQ.sonSkin.sample('sameoni', 'cool');
+      const mon = { id: 'my-test', name: 'ガブリン', area: 'sansu', png: png };
+      if (sub !== 'pal') { mon.png2 = png; mon.png3 = png; }   // pal は 本物の しくみで 2・3段階めを 作る
+      MQ.save.update(function (p) { MQ.save.addCustom(p, mon); p.meetMine = mon.id; });
+      MQ.ui.syncCustom();
+      if (sub === 'title') {
+        MQ.ui.start.render(); MQ.ui.show('screen-start'); await wait(2600);
+        say('mine: タイトル=' + ($('.tmob--mine') ? 'いる' : 'MISSING') + ' ふだ=' + (($('.tmob__tag') || {}).textContent || 'MISSING'));
+        return;
+      }
+      if (sub === 'map') {
+        MQ.ui.goMap(); await wait(300); MQ.ui.map.paint(); dismissTowerPop();
+        say('mine: 地図の ふだ=' + ($('.minechip') ? (($('.minechip').textContent) || '') : 'MISSING'));
+        return;
+      }
+      if (sub === 'chance') {
+        MQ.save.update(function (p) { delete p.meetMine; });
+        let n = 0;
+        const orig = MQ.battle.start;
+        MQ.battle.start = function (o) { if (o && o.rareId === 'my-test') n++; return orig.apply(this, arguments); };
+        for (let i = 0; i < 100; i++) MQ.ui.battle.start('sansu3-2');
+        MQ.battle.start = orig;
+        say('mine: 100回中 出た=' + n);
+        return;
+      }
+      /* #mine:pal[:flame|:wing|:talk] … 相棒に した きみの モンスター（v14.44）：わざの 系統（色で 自動）・進化の すがた・せりふ */
+      /* #mine:sheet … 息子さんの 4体（そのまま／かっこよく）× すがた 3つ × 2・3段階 を ならべる */
+      if (sub === 'list') {   // じぶんの モンスター 一覧の「たいけつ」ボタン
+        MQ.ui.photo.render(); await wait(400);
+        const c = $$('#screen-dex .cell').filter(function (x) { return x.textContent.indexOf('ガブリン') >= 0; })[0];
+        if (c) c.scrollIntoView({ block: 'center' });
+        say('mine: 一覧=' + (c ? c.textContent : 'MISSING'));
+        return;
+      }
+      if (sub === 'sheet') {
+        const box = document.createElement('div');
+        box.style.cssText = 'position:fixed;inset:0;z-index:99;background:#1b2440;overflow:auto;padding:6px;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;color:#fff;font:11px sans-serif';
+        document.body.appendChild(box);
+        const lines = ['skullhorse', 'sameoni', 'abc', 'zukan'];
+        const jobs = [];
+        lines.forEach(function (ln) { ['trace', 'cool'].forEach(function (k) {
+          const src = MQ.sonSkin.sample(ln, k); if (!src) return;
+          const cell = function (u) { const im = document.createElement('img'); im.src = u; im.style.cssText = 'width:64px;height:64px;image-rendering:pixelated;background:#2c3a66'; box.appendChild(im); return im; };
+          cell(src);
+          ['king', 'wing', 'flame'].forEach(function (st) { [2, 3].forEach(function (sg) { const im = cell(src); jobs.push(new Promise(function (r) { MQ.monsterGen.evoPng(src, sg, function (u) { if (u) im.src = u; r(); }, st); })); }); });
+        }); });
+        await Promise.all(jobs);
+        say('mine: sheet ' + jobs.length);
+        return;
+      }
+      /* #mine:duel[:boss|:pal] … じぶんの モンスターと たいけつ（v14.44）
+         duel＝なかまで ない → 勝つと「なかまに なりたそう」／pal＝相棒 → きずな ＋2／boss＝ボスが 出た ところで 止める */
+      if (sub === 'duel') {
+        const sub2 = mode.split(':')[2] || '';
+        MQ.save.update(function (p) { delete p.meetMine; if (sub2 === 'pal') { MQ.pals.add(p, 'my-test', 0); MQ.pals.setActive(p, 'my-test'); } });
+        noTrans();
+        const sid = MQ.ui.battle.duelStage('my-test');
+        MQ.ui.battle.startDuel('my-test');
+        await wait(600);
+        say('mine: たいけつ ステージ=' + sid + ' ボス=' + MQ.battle.bossId() + ' ザコ=' + MQ.battle.foeCount().total);
+        if (sub2 === 'boss') {
+          let g = 0;
+          while (MQ.battle.phase() === 'mob' && g++ < 12) { answerViaUI(true); await wait(60); if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); } await wait(1700); }
+          await wait(4200);
+          const pick = document.querySelector('.bosspick__btn--norm'); if (pick) pick.click();
+          await wait(400);
+          say('mine: ボスの ふきだし=' + (($('#screen-battle .arena__msg') || {}).textContent || '') + ' WARNING=' + (($('.warning__sub') || {}).textContent || ''));
+          freeze(); return;
+        }
+        const b0 = (MQ.save.current().pals['my-test'] || {}).bond || 0;
+        const st0 = JSON.stringify(MQ.save.current().stars);
+        await playBattle('mine');
+        await wait(1200);
+        const pl = MQ.save.current();
+        say('mine: けっか=' + (($('.rs__duel') || {}).textContent || 'MISSING') + ' なりたそう=' + (($('.rs__palotext') || {}).textContent || 'なし') +
+            ' きずな ' + b0 + '→' + ((pl.pals['my-test'] || {}).bond || 0) + ' ★かわらない=' + (JSON.stringify(pl.stars) === st0 ? 'OK' : 'NG') +
+            ' ボタン=' + (($('.rs__btns .btn--big') || {}).textContent || ''));
+        return;
+      }
+      if (sub === 'pal') {
+        const sub2 = mode.split(':')[2] || '';
+        MQ.save.update(function (p) { delete p.meetMine; });
+        await wait(1800);
+        MQ.save.update(function (p) { MQ.pals.add(p, 'my-test-3', 0); MQ.pals.setActive(p, 'my-test-3'); p.pals['my-test-3'].exp = MQ.pals.expFor(20); });
+        const pl = MQ.save.current();
+        say('mine: 色で きまった わざ=' + ((pl.custom[0] || {}).moveKind || 'MISSING') + ' 相棒=' + MQ.pals.active(pl).id);
+        if (sub2 === 'talk') {
+          MQ.ui.battle.start('sansu3-2'); await wait(1500);
+          const got = [];
+          for (let i = 0; i < 8; i++) { MQ.ui.battle.palSay('start'); got.push((($('#screen-battle .pal__say') || {}).textContent || '')); }
+          say('mine: せりふ=' + got.join(' / '));
+          freeze(); return;
+        }
+        MQ.ui.dex.render('pals'); MQ.ui.show('screen-dex'); await wait(1200);
+        if (sub2 === 'flame' || sub2 === 'wing') {
+          const btn = $$('.palmine__style').filter(function (b) { return b.textContent.indexOf(sub2 === 'flame' ? 'ほのお' : 'つばさ') >= 0; })[0];
+          if (btn) btn.click();
+          await wait(1500);
+          const k = $$('.palmine__kind').filter(function (b) { return b.textContent.indexOf('いなずま') >= 0; })[0];
+          if (k) k.click();
+          await wait(600);
+          const p2 = MQ.save.current();
+          say('mine: すがた=' + ((p2.custom[0] || {}).evoStyle || '-') + ' わざ=' + ((p2.custom[0] || {}).moveKind || '-') + ' → ' + MQ.pals.MOVE_KINDS[MQ.pals.moveKindOf(MQ.enemies.get('my-test-3'))].name);
+        }
+        const wrap = $('#screen-dex .dex__body') || $('#screen-dex');
+        const pm = $('.palmine'); if (pm) pm.scrollIntoView({ block: 'center' });
+        say('mine: えらぶ欄=' + (pm ? 'ある' : 'MISSING') + ' わざ=' + $$('.palmine__kind').length + ' すがた=' + $$('.palmine__style').length);
+        return;
+      }
+      noTrans();
+      MQ.ui.battle.start('sansu3-2');
+      await wait(600);
+      let g = 0;
+      while (g++ < 8) {
+        const q = MQ.battle.current();
+        if (q && q.enemyId === 'my-test') break;
+        answerViaUI(true); await wait(60); if (MQ.battle.isRetry()) { answerViaUI(true); await wait(60); }
+        say('mine: step ' + g + ' ' + (q ? q.enemyId : '-') + ' idx=' + MQ.battle.mobIndex());
+        await wait(2400);
+      }
+      const q = MQ.battle.current();
+      say('mine: 何問めで 出た=' + g + ' てき=' + (q ? q.enemyId : '-') + ' 帯=' + (($('.minebanner') || {}).textContent || 'MISSING') +
+          ' ふきだし=' + (($('#screen-battle .arena__msg') || {}).textContent || ''));
+      if (sub === 'debut' || sub === 'shot') {
+        if (sub === 'shot') { const bn = $('.minebanner'); if (bn) { const c = bn.cloneNode(true); c.style.animation = 'none'; $('#screen-battle .arena').appendChild(c); } }
+        freeze(); return;
+      }
+      if (sub === 'result') {
+        await playBattle('mine');
+        await wait(1200);
+        say('mine: なかまに なりたそう=' + (($('.rs__palotext') || {}).textContent || 'MISSING') + ' 予約=' + (MQ.save.current().meetMine ? 'のこった NG' : 'きえた OK'));
+        return;
+      }
+    }
+    /* #blockcmp:<フォルダ file URL>:<接尾>[:<体の 名前,…>] … きみの絵テスト道具の <名前><接尾>-pick0/1/2.png（そのまま／かっこよく／ブロックふう）を
+       2D と 3D で ならべる（--allow-file-access-from-files が いる）。右はしは ゲームの モンスター（3D） */
+    if (mode.indexOf('blockcmp:') === 0) {
+      fresh();
+      const parts = mode.split(':');
+      const dir = decodeURIComponent(parts[1]), suf = parts[2] || 'B';
+      const names = (parts[3] || 'skull,shark,abc,zukan').split(',');
+      const refs = ['skull-white', 'drago-2', 'golem-gray', 'bat-purple', 'slime-green', 'ghost-white'];
+      const box = document.createElement('div');
+      box.style.cssText = 'position:fixed;inset:0;z-index:99;background:#86c9ee;display:grid;grid-template-columns:repeat(8,104px);gap:6px 2px;align-content:start;justify-content:center;padding:6px;font:bold 12px sans-serif;color:#123;text-align:center';
+      document.body.appendChild(box);
+      ['', 'そのまま', 'そのまま 3D', 'かっこよく', 'ブロックふう', 'ブロックふう 3D', 'もっと ブロック', 'もっと 3D'].forEach(function (t) { const b = document.createElement('div'); b.textContent = t; box.appendChild(b); });
+      const cell = function () { const w = document.createElement('div'); w.style.cssText = 'width:104px;height:104px;position:relative;display:grid;place-items:center'; box.appendChild(w); return w; };
+      const customs = [];
+      names.forEach(function (n) { [0, 1, 2, 3].forEach(function (k) { customs.push({ id: 'bc-' + n + '-' + k, name: n, area: 'sansu', png: dir + '/' + n + suf + '-pick' + k + '.png', trace: true }); }); });
+      MQ.enemies.setCustom(customs);
+      const loads = [];
+      names.forEach(function (n, r) {
+        const lab = document.createElement('div'); lab.textContent = n; lab.style.alignSelf = 'center'; box.appendChild(lab);
+        cell().appendChild(MQ.enemies.node('bc-' + n + '-0', { size: 96 }));
+        const c3 = cell(); const v3a = MQ.ui.v3.monster('bc-' + n + '-0', 104, { ry: -22, mo: 'mo-title' }); if (v3a) c3.appendChild(v3a);
+        cell().appendChild(MQ.enemies.node('bc-' + n + '-1', { size: 96 }));
+        cell().appendChild(MQ.enemies.node('bc-' + n + '-2', { size: 96 }));
+        const c6 = cell(); const v3b = MQ.ui.v3.monster('bc-' + n + '-2', 104, { ry: -22, mo: 'mo-title' }); if (v3b) c6.appendChild(v3b);
+        cell().appendChild(MQ.enemies.node('bc-' + n + '-3', { size: 96 }));
+        const c8 = cell(); const v3d = MQ.ui.v3.monster('bc-' + n + '-3', 104, { ry: -22, mo: 'mo-title' }); if (v3d) c8.appendChild(v3d);
+        void refs;
+      });
+      await wait(1500);
+      say('blockcmp: 3D=' + box.querySelectorAll('.v3').length + ' img=' + box.querySelectorAll('img').length);
+      return;
+    }
     if (mode === 'map' || mode.indexOf('map:') === 0) {
       fresh(); MQ.ui.goMap(); await wait(200); MQ.ui.map.paint();
       const n = parseInt(mode.slice(4), 10);   // #map:600 で その いちまで スクロール（-1 は いちばん下）

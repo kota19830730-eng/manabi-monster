@@ -216,6 +216,8 @@ MQ.ui.result = (function () {
     /* ---- しゅうまつ イベント・ぴかぴか あつめ（v13.16） ---- */
     const wkText = (sum.weekend && !tokkun) ? weekendText(sum, rw) : null;
     const wkLine = wkText ? h('p', { class: 'rs__fever rs__wk', text: wkText }) : null;
+    // たいけつ（v14.44）
+    const duelLine = rw.duel ? h('p', { class: 'rs__fever rs__duel', text: 'きみの ' + rw.duel.name + ' に しょうり！' + (rw.duel.bond ? '　きずな ＋' + rw.duel.bond : '') + '（' + rw.duel.wins + 'かいめ）' }) : null;
     const pikaLine = pikaRow(sum, rw, tokkun, mix, player);
 
     /* ---- 3b. なかま（v4.3）：そだった ぶんと、なかまに なりたい 子 ---- */
@@ -255,8 +257,8 @@ MQ.ui.result = (function () {
           txt.textContent = (oe ? oe.name : '') + ' が なかまに なった！';
         }
       });
-      const txt = h('span', { class: 'rs__palotext', text: (oe ? oe.name : '') + ' が なかまに なりたそう！' });
-      palOffer = h('div', { class: 'rs__paloffer' }, [
+      const txt = h('span', { class: 'rs__palotext', text: (rw.debut ? 'きみの ' : '') + (oe ? oe.name : '') + ' が なかまに なりたそう！' });
+      palOffer = h('div', { class: 'rs__paloffer' + (rw.debut ? ' rs__paloffer--mine' : '') }, [
         h('div', { class: 'rs__palimg' }, [rw.palOffer ? MQ.enemies.node(rw.palOffer, { size: 30 }) : null]),
         txt, btn
       ]);
@@ -320,6 +322,7 @@ MQ.ui.result = (function () {
     function again() {
       MQ.sfx.tap();
       if (tokkun) MQ.ui.battle.startTokkun();
+      else if (ctx.duel) MQ.ui.battle.startDuel(ctx.duel);   // たいけつ（v14.44）
       else MQ.ui.battle.start(ctx.stage.id, { timeAttack: ctx.timeAttack });
     }
     function toMap() { MQ.sfx.tap(); MQ.ui.goMap(); }
@@ -327,6 +330,9 @@ MQ.ui.result = (function () {
     let main, row;
     if (tokkun) {
       main = h('button', { class: 'btn btn--big', type: 'button', onclick: again }, [h('span', { text: '▶ もう1回 とっくん' }), h('span', { class: 'btn__shine' })]);
+      row = [h('button', { class: 'btn btn--stone', type: 'button', text: 'マップへ', onclick: toMap })];
+    } else if (ctx.duel) {
+      main = h('button', { class: 'btn btn--big', type: 'button', onclick: again }, [h('span', { text: '▶ もう1回 たいけつ' }), h('span', { class: 'btn__shine' })]);
       row = [h('button', { class: 'btn btn--stone', type: 'button', text: 'マップへ', onclick: toMap })];
     } else if (nx) {
       main = h('button', {
@@ -345,7 +351,7 @@ MQ.ui.result = (function () {
 
     const panel = h('div', { class: 'rs ' + mood }, [
       h('div', { class: 'rs__fx' }),
-      banner, bossCard, lvBand, fever, capLine, wkLine, pikaLine, palRow, palOffer, best, mission, chips, items, ttl, btns
+      banner, bossCard, lvBand, fever, capLine, wkLine, duelLine, pikaLine, palRow, palOffer, best, mission, chips, items, ttl, btns
     ]);
     MQ.ui.mount('screen-result', panel);
     requestAnimationFrame(function () { fit(panel); });

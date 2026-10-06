@@ -1545,7 +1545,12 @@ MQ.ui.photo = (function () {
     cvT.getContext('2d').putImageData(odT, 0, 0);
     // v14.5 かっこよく しあげ（形は 絵の まま・線と 色と 光を ゲームの モンスターに そろえる）
     let cool = [];
-    try { cool = [coolTrace(grid, fills, N, WHITE, DARK, 2, { M: N, taps: eyeTaps.map(function (t) { return [t[0] * N - 0.5, t[1] * N - 0.5]; }) })]; } catch (e) { cool = []; }   // 48マスの「つよく」（opt.strong）は 小さな 目・トゲが つぶれる ので 出さない（ユーザー決定 2026-09-14「二枚で」）
+    try {
+      const taps = eyeTaps.map(function (t) { return [t[0] * N - 0.5, t[1] * N - 0.5]; });
+      cool = [coolTrace(grid, fills, N, WHITE, DARK, 2, { M: N, taps: taps })];
+      try { cool.push(coolTrace(grid, fills, N, WHITE, DARK, 3, { M: N, taps: taps })); } catch (e2) { cool.push(null); }   // v14.45 ブロックふう
+      try { cool.push(coolTrace(grid, fills, N, WHITE, DARK, 3, { M: N, taps: taps, snap: 2 })); } catch (e3) { cool.push(null); }   // v14.45 もっと ブロック
+    } catch (e) { cool = []; }   // 48マスの「つよく」（opt.strong）は 小さな 目・トゲが つぶれる ので 出さない（ユーザー決定 2026-09-14「二枚で」）
     return { png: drawn ? cvT.toDataURL('image/png') : '', cool: cool, N: N, drawn: drawn, cells: cells, info: { ink: [Math.round(inkRef), Math.round(LD), Math.round(cf * 100) / 100], eyes: lastCoolEyes, colors: pal.length, pal: pal.map(function (c) { return c.map(Math.round).join(',') + '@' + Math.round(hueOf3(c)); }), regs: regLog.sort(function (a, b) { return parseInt(b) - parseInt(a); }).slice(0, 14) } };
   }
   function hueOf3(c) {
@@ -1652,11 +1657,17 @@ MQ.ui.photo = (function () {
        ④ ブロックの 光（上・左は 明るく、下・右は こく）
        lvl 2 は さらに ⑤ 外がわに こい 色の 輪かく ⑥ 上から 下へ 3だんの 明るさ ⑦ ひとみに 光 ⑧ 色を あざやかに
      かえり値：PNG の dataURL */
-  const COOL = { M: 48, big: 0.06, thin: 0.55, eye: 0.04, eyeMax: 0.035 };
+  const COOL = { M: 48, big: 0.06, thin: 0.55, eye: 0.04, eyeMax: 0.035, blockColors: 6 };
   let lastCoolEyes = [];
   function coolTrace(g0, fills, N, WHITE, DARK, lvl, opt) {
     opt = opt || {};
     const strong = !!opt.strong;   // つよく＝48マス・色の 中の 線を ぜんぶ 消す／ひかえめ＝絵と 同じ マス数・大きな 色の 中の すじだけ
+    /* ブロックふう（v14.45・lvl 3）：マス数は そのまま（64）。ほかの モンスターと 同じ ぬり方に する＝
+         色は 6つまで／色の 中の 線は 大きさに かかわらず 消す／外がわの 輪かくは 描かない（ふちの 明暗で 形を 出す）／
+         色の 中は 平ら・上の 2〜3マスは 明るく・右と 下の 2〜3マスは 暗く（blocks.js の 上の 面・右の 面・下の 面と 同じ）。
+       24マスに あらく する 案は「何か わからない」（ユーザー 2026-10-06）→ 細かさは 落とさない */
+    const block = lvl >= 3;
+    const snap = block ? (opt.snap || 1) : 1;   // 2＝形と 色を 2×2マスの かたまりに（ブロックを 大きく 見せる。目は あとから 64マスで のせる）
     const M = opt.M || COOL.M, pad = 1, IN = M - pad * 2;
     const OUT = -2, RING = -3, PUP = -4;
     // ① 48マスに：1マスに 入る 点を 多数決（線は 少し 強めに 数える）
@@ -1680,6 +1691,52 @@ MQ.ui.photo = (function () {
       }
     }
     function at(i, j) { return i < 0 || j < 0 || i >= M || j >= M ? 0 : g[j * M + i]; }
+    if (snap > 1) {
+      // 2×2（snap×snap）の かたまりごとに 多数決（線も 1つの 色として 数える）→ かたまり ぜんぶ その 色
+      for (let j = 0; j + snap <= M; j += snap) {
+        for (let i = 0; i + snap <= M; i += snap) {
+          const cnt = new Map();
+          let best = 0, bv = 0, none = 0;
+          for (let v = 0; v < snap; v++) for (let u = 0; u < snap; u++) {
+            const t = g[(j + v) * M + i + u];
+            if (!t) { none++; continue; }
+            const w = (cnt.get(t) || 0) + 1;
+            cnt.set(t, w);
+            if (w > bv) { bv = w; best = t; }
+          }
+          const fillv = none * 2 > snap * snap ? 0 : best;
+          for (let v = 0; v < snap; v++) for (let u = 0; u < snap; u++) g[(j + v) * M + i + u] = fillv;
+        }
+      }
+    }
+    if (block && fills.length > COOL.blockColors) {
+      // 近い 色を まとめる（k-means・はじめの 種は いちばん 使われて いる 色から 遠い じゅん）
+      const used = new Map();
+      for (let c = 0; c < M * M; c++) if (g[c] > 0 && g[c] !== WHITE && g[c] !== DARK) used.set(g[c], (used.get(g[c]) || 0) + 1);
+      const keys = Array.from(used.keys()).sort(function (a, b) { return used.get(b) - used.get(a); });
+      if (keys.length > COOL.blockColors) {
+        const dist = function (a, b) { const r = a[0] - b[0], gg = a[1] - b[1], bb = a[2] - b[2]; return r * r * 0.9 + gg * gg * 1.2 + bb * bb * 0.8; };
+        const cen = [fills[keys[0] - 1].slice()];
+        while (cen.length < COOL.blockColors) {
+          let far = null, fd = -1;
+          keys.forEach(function (k) { let m = 1e9; cen.forEach(function (c) { m = Math.min(m, dist(fills[k - 1], c)); }); if (m > fd) { fd = m; far = k; } });
+          if (fd < 600) break;
+          cen.push(fills[far - 1].slice());
+        }
+        const lab = function (k) { let b = 0, bd = 1e9; cen.forEach(function (c, i) { const v = dist(fills[k - 1], c); if (v < bd) { bd = v; b = i; } }); return b; };
+        for (let it = 0; it < 5; it++) {
+          const sum = cen.map(function () { return [0, 0, 0, 0]; });
+          keys.forEach(function (k) { const i = lab(k), w = used.get(k); sum[i][0] += fills[k - 1][0] * w; sum[i][1] += fills[k - 1][1] * w; sum[i][2] += fills[k - 1][2] * w; sum[i][3] += w; });
+          sum.forEach(function (sm, i) { if (sm[3]) cen[i] = [sm[0] / sm[3], sm[1] / sm[3], sm[2] / sm[3]]; });
+        }
+        // 同じ かたまりの 色は いちばん 使われて いる 色の 番号に そろえる（fills は その 色に 近い 平均に）
+        const rep = [], map = {};
+        keys.forEach(function (k) { const i = lab(k); if (rep[i] === undefined) rep[i] = k; map[k] = rep[i]; });
+        fills = fills.slice();
+        rep.forEach(function (k, i) { if (k !== undefined) fills[k - 1] = cen[i].map(Math.round); });
+        for (let c = 0; c < M * M; c++) if (map[g[c]]) g[c] = map[g[c]];
+      }
+    }
     const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     const N8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
     function flood(c0, same, nb) {
@@ -1780,7 +1837,7 @@ MQ.ui.photo = (function () {
           for (let i = 0; i < M; i++) {
             const c = j * M + i;
             if (g[c] !== -1) continue;
-            let L = 0, one = true, big = strong;
+            let L = 0, one = true, big = strong || block;
             N8.forEach(function (d) {
               const v = at(i + d[0], j + d[1]);
               if (v <= 0) return;
@@ -1965,8 +2022,36 @@ MQ.ui.photo = (function () {
         else if (colored) { const gi = Math.max(ex0, pcx - 1), gj = Math.max(ey0, pcy - 1); if (g[gj * M + gi] !== PUP) eyeGlint[gj * M + gi] = 1; }
       });
     }
+    if (block) {
+      // 外がわに 面した 線は となりの 色に（黒い ふちを なくす＝ほかの モンスターと 同じ。ふちの 明暗で 形を 出す）
+      for (let pass = 0; pass < 3; pass++) {
+        const h = g.slice();
+        let changed = 0;
+        for (let j = 0; j < M; j++) {
+          for (let i = 0; i < M; i++) {
+            const c = j * M + i;
+            if (g[c] !== -1) continue;
+            let outside = false;
+            N4.forEach(function (d) { if (!at(i + d[0], j + d[1])) outside = true; });
+            if (!outside) continue;
+            const cnt = new Map();
+            let best = 0, bv = 0;
+            N8.forEach(function (d) {
+              const v = at(i + d[0], j + d[1]);
+              if (v <= 0 || v === RING || v === PUP) return;
+              const w = (cnt.get(v) || 0) + 1;
+              cnt.set(v, w);
+              if (w > bv) { bv = w; best = v; }
+            });
+            if (best) { h[c] = best; changed++; }
+          }
+        }
+        g = h;
+        if (!changed) break;
+      }
+    }
     // 外がわの 輪かく（lvl2）：絵の となりの 空いた マスに こい 色の 輪かく
-    if (lvl >= 2) {
+    if (lvl >= 2 && !block) {
       const h = g.slice();
       for (let j = 0; j < M; j++) {
         for (let i = 0; i < M; i++) {
@@ -1989,13 +2074,26 @@ MQ.ui.photo = (function () {
       return lvl >= 2 ? sat(f, 1.15) : f.slice();
     }
     const R = regions();
-    const ry0 = [], ry1 = [];
+    const ry0 = [], ry1 = [], rx0 = [], rx1 = [];
     for (let c = 0; c < M * M; c++) {
       const id = R.lab[c];
       if (!id) continue;
-      const y = (c - c % M) / M;
+      const x = c % M, y = (c - x) / M;
       if (ry0[id] === undefined || y < ry0[id]) ry0[id] = y;
       if (ry1[id] === undefined || y > ry1[id]) ry1[id] = y;
+      if (rx0[id] === undefined || x < rx0[id]) rx0[id] = x;
+      if (rx1[id] === undefined || x > rx1[id]) rx1[id] = x;
+    }
+    // ブロックふう：面の はば（かたまりの 小さい ほうの 辺 ÷ 7・1〜3マス。blocks.js の rightFace／topFace と 同じ 考え方）
+    function faceBand(id) {
+      const w = rx1[id] - rx0[id] + 1, hh = ry1[id] - ry0[id] + 1, m = Math.min(w, hh);
+      const b = m < 3 ? 0 : Math.max(1, Math.min(3, Math.round(m / 7)));
+      return snap > 1 && b ? Math.max(snap, Math.round(b / snap) * snap) : b;
+    }
+    function run(i, j, dx, dy) {   // 同じ 色が その 向きに なんマス つづくか（じぶんは 数えない）
+      const v = at(i, j); let n = 0;
+      while (at(i + dx * (n + 1), j + dy * (n + 1)) === v) n++;
+      return n;
     }
     // 線の 色：まわり 2マスで いちばん 多い 色（白 いがい）の こい 色
     function lineColor(i, j) {
@@ -2038,6 +2136,17 @@ MQ.ui.photo = (function () {
         else if (v === -1 || v === OUT || v === RING) col = lineColor(i, j);
         else {
           col = base(v);
+          if (block) {
+            // 平らな 色＋ふちの 面（上の 面は 明るく・右と 下の 面は 暗く）。目の 中は さわらない
+            if (iris[c]) col = mix(sat(col, 1.25), [255, 255, 255], 0.1);
+            else if (!eyeIn[c]) {
+              const id = R.lab[c], band = faceBand(id);
+              const dr = run(i, j, 1, 0), db = run(i, j, 0, 1), dt = run(i, j, 0, -1);
+              if (band && (dr < band || db < band)) col = mul(col, dr < 1 || db < 1 ? 0.66 : 0.76);
+              else if (band && dt < band) col = mix(col, [255, 255, 255], dt < 1 ? 0.34 : 0.22);
+              else if (!band) { const dn = at(i, j + 1), rt = at(i + 1, j), up = at(i, j - 1); if (dn !== v || rt !== v) col = mul(col, 0.74); else if (up !== v) col = mix(col, [255, 255, 255], 0.3); }
+            }
+          } else {
           if (lvl >= 2) {
             const id = R.lab[c], hh = ry1[id] - ry0[id] + 1;
             if (iris[c]) col = mix(sat(col, 1.25), [255, 255, 255], 0.1);
@@ -2047,6 +2156,7 @@ MQ.ui.photo = (function () {
           if (dn !== v || rt !== v) col = mul(col, lvl >= 2 ? 0.72 : 0.78);
           else if (up !== v) col = mix(col, [255, 255, 255], lvl >= 2 ? 0.38 : 0.28);
           else if (lf !== v) col = mix(col, [255, 255, 255], 0.14);
+          }
         }
         if (eyeGlint[c]) col = [252, 252, 255];
         od.data[c * 4] = Math.round(col[0]); od.data[c * 4 + 1] = Math.round(col[1]); od.data[c * 4 + 2] = Math.round(col[2]); od.data[c * 4 + 3] = 255;
@@ -2185,7 +2295,7 @@ MQ.ui.photo = (function () {
       // v14.4 いちばん 先頭は「きみの 絵」＝絵の 形と 色 そのまま（ユーザー「絵の 再現性を 一番 こだわって」）
       if (traced.png && traced.drawn >= 40) {
         const tl = [{ kind: 'trace', tag: 'trace', trace: true, png: traced.png }];
-        (traced.cool || []).forEach(function (png) { if (png) tl.push({ kind: 'trace', tag: 'cool', trace: true, png: png }); });   // v14.5 かっこよく しあげ（形と 色は 絵の まま）
+        (traced.cool || []).forEach(function (png, i) { if (png) tl.push({ kind: 'trace', tag: i === 0 ? 'cool' : i === 1 ? 'block' : 'block2', trace: true, png: png }); });   // v14.5 かっこよく／v14.45 ブロックふう（形と 色は 絵の まま）
         list = tl.concat(list);
       }
       if (list.length) {
@@ -2591,7 +2701,7 @@ MQ.ui.photo = (function () {
       if (p.letters && letterPick.length && MQ.monsterGen.letterPng) return MQ.monsterGen.letterPng(letterPick, p.cols || null);
       return p.png;
     }
-    function pickName(p) { if (p.label) return p.label; return p.trace ? (p.tag === 'cool' ? 'かっこよく' : 'そのまま') : MQ.monsterGen.kindName ? MQ.monsterGen.kindName(p.tag || p.kind) : ''; }
+    function pickName(p) { if (p.label) return p.label; return p.trace ? (p.tag === 'cool' ? 'かっこよく' : p.tag === 'block' ? 'ブロックふう' : p.tag === 'block2' ? 'もっと ブロック' : 'そのまま') : MQ.monsterGen.kindName ? MQ.monsterGen.kindName(p.tag || p.kind) : ''; }
     // 候補 1体ぶんの タイル（絵＋名前）
     function pickTile(p, i, big) {
       return h('button', {
@@ -2860,12 +2970,13 @@ MQ.ui.photo = (function () {
       MQ.ui.growCustom(mon, function () {
         MQ.save.update(function (p) {
           MQ.save.addCustom(p, mon);
+          p.meetMine = mon.id;   // v14.44：つぎの ふつうの たたかいで かならず 会う
           MQ.save.addLog(p, 'じぶんの モンスター「' + name + '」を つくった' + how);
         });
         MQ.ui.syncCustom();
       });
       MQ.sfx.rare();
-      MQ.ui.toast(name + ' が なかまに なった！ バトルに 出てくるよ');
+      MQ.ui.toast(name + ' が できた！ つぎの たたかいで 会えるよ');
       img = null; outUrl = ''; edited = '';
       origImg = null; origCrop = null; aiUsed = false; aiError = '';
       MQ.ui.dex.render('mons');
@@ -2879,6 +2990,16 @@ MQ.ui.photo = (function () {
         MQ.blocks.imgBox(m.png, { size: 52, cls: 'cell__img' }),
         h('span', { class: 'cell__name', text: m.name }),
         h('span', { class: 'cell__tag', text: area ? area.short : '' }),
+        h('button', {
+          class: 'btn btn--small btn--gold', type: 'button', text: 'たいけつ',
+          onclick: function () {
+            MQ.sfx.tap();
+            // 進化して いれば その すがたで（相棒の Lv で 決まる）
+            const pl = MQ.save.current();
+            const id = [m.id + '-3', m.id + '-2', m.id].filter(function (x) { return MQ.pals.has(pl, x) && MQ.enemies.get(x); })[0] || m.id;
+            MQ.ui.battle.startDuel(id);
+          }
+        }),
         h('button', {
           class: 'btn btn--small btn--cream', type: 'button', text: '直す',
           onclick: function () {

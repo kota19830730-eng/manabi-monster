@@ -527,6 +527,50 @@ MQ.ui.dex = (function () {
   /* ---------- なかま（相棒・v4.3） ----------
      連れて 歩けるのは 1体。たたかいで けいけんちの 半分が 入り、Lv10・Lv20 で 進化する。
      ふやし方は ①たおすと たまに なかまに なりたがる（けっか画面）②コインで こうかん */
+  /* きみの モンスター（v14.44）：相棒が 写真から 作った 子の とき、
+     わざの 系統（絵の 色で 自動・えらべる）と 進化の すがた（おうさま／つばさ／ほのお）を えらぶ */
+  const stylePreview = {};
+  function minePanel(cur, e) {
+    const base = String(cur.id).replace(/-[23]$/, '');
+    const p = MQ.save.current();
+    const m = (p.custom || []).filter(function (x) { return x.id === base; })[0];
+    if (!m) return null;
+    const nowKind = MQ.pals.moveKindOf(e);
+    const kinds = h('div', { class: 'palmine__chips' }, MQ.pals.MOVE_ORDER.map(function (k) {
+      const mk = MQ.pals.MOVE_KINDS[k];
+      return h('button', {
+        class: 'chip palmine__kind' + (k === nowKind ? ' is-on' : ''), type: 'button', style: { '--mk': mk.hex },
+        onclick: function () { if (k === nowKind) return; MQ.sfx.tap(); MQ.ui.setCustomMove(base, k); MQ.ui.toast('わざが ' + mk.name + ' に なった！'); render('pals'); }
+      }, [h('i', { class: 'palmine__dot' }), MQ.pals.MOVE_SHORT[k]]);
+    }));
+    const nowStyle = m.evoStyle || 'king';
+    const styles = h('div', { class: 'palmine__styles' }, MQ.monsterGen.EVO_STYLES.map(function (st) {
+      const key = base + '|' + st.id;
+      const img = h('img', { class: 'palmine__img', alt: st.name, src: stylePreview[key] || m.png3 || m.png });
+      if (!stylePreview[key]) MQ.monsterGen.evoPng(m.png, 3, function (u) { if (u) { stylePreview[key] = u; img.src = u; } }, st.id);
+      return h('button', {
+        class: 'palmine__style' + (st.id === nowStyle ? ' is-on' : ''), type: 'button',
+        onclick: function () {
+          if (st.id === nowStyle) return;
+          MQ.sfx.tap();
+          MQ.ui.restyleCustom(base, st.id, function (ok) { if (ok) { MQ.ui.toast('しんかの すがたを ' + st.name + ' に した！'); render('pals'); } });
+        }
+      }, [img, h('span', { text: st.name })]);
+    }));
+    const duel = h('button', {
+      class: 'btn btn--small btn--gold palmine__duel', type: 'button', text: 'たいけつ する！',
+      onclick: function () { MQ.sfx.tap(); MQ.ui.battle.startDuel(cur.id); }
+    });
+    return h('div', { class: 'palmine' }, [
+      h('span', { class: 'palmine__label', text: 'きみの モンスター' }),
+      h('p', { class: 'palmine__h', text: cur.name + ' が ボスに なって しょうぶ！ かつと きずなが ふえる' }),
+      duel,
+      h('p', { class: 'palmine__h', text: 'わざの しゅるい（はじめは 絵の 色で きまったよ）' }),
+      kinds,
+      h('p', { class: 'palmine__h', text: 'しんかした すがた（Lv.20 の すがたを 見てね）' }),
+      styles
+    ]);
+  }
   function palsTab(player) {
     const cur = MQ.pals.active(player);
     const own = MQ.pals.own(player);
@@ -597,6 +641,7 @@ MQ.ui.dex = (function () {
         ]));
         setTimeout(function () { try { input.focus(); } catch (e) {} }, 60);
       }
+      if (!naming && e && e.by === 'photo') kids.push(minePanel(cur, e));
     } else {
       naming = false;
       kids.push(h('p', { class: 'note', text: 'まだ なかまが いないよ。たたかいの あと「なかまに なりたそう！」と 出たら なかまに できるよ。コインでも こうかんできる。' }));

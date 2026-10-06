@@ -819,7 +819,9 @@ MQ.ui.map = (function () {
     const mixOn = !firstTime && MQ.content.mixOpen(player);
     // しゅうまつ イベント（v13.16）：土・日だけ 地図の すみに まつりの ふだ
     const wkNow = (!firstTime && MQ.weekend) ? MQ.weekend.today(player) : null;
-    const hasChips = hasLetter || hasRevenge || !!wkNow;
+    // きみの モンスターが まって いる（v14.44）：作った あと まだ 会って いない とき。てがみが ある 日は てがみが 先
+    const waitMine = (!firstTime && !hasLetter && player.meetMine) ? MQ.enemies.get(player.meetMine) : null;
+    const hasChips = hasLetter || hasRevenge || !!wkNow || !!waitMine;
     function tab(label, ico, onclick, cls, extra, aria) {
       return h('button', {
         class: 'maptab' + (cls ? ' ' + cls : ''), type: 'button', 'aria-label': aria || label,
@@ -835,6 +837,12 @@ MQ.ui.map = (function () {
         }, [
           h('span', { class: 'tegamibtn__env' }, [h('i', { class: 'flap' }), h('i', { class: 'seal' })]),
           h('b', { class: 'tegamibtn__t', text: 'てがみ' })
+        ]) : waitMine ? h('button', {
+          class: 'mapchip minechip', type: 'button', 'aria-label': 'きみの モンスターが まって いる',
+          onclick: function () { MQ.sfx.tap(); MQ.ui.toast('つぎの たたかいで ' + waitMine.name + ' に 会えるよ！ どの ステージでも OK'); }
+        }, [
+          MQ.enemies.node(waitMine.id, { size: 30, cls: 'minechip__mon' }),
+          h('span', { class: 'minechip__t' }, [h('i', { text: 'きみの モンスター' }), h('b', { text: 'まってるよ' })])
         ]) : h('span'),
         wkNow ? h('button', {
           class: 'mapchip wkchip wkchip--' + wkNow.id, type: 'button', 'aria-label': 'しゅうまつ イベント',

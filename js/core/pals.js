@@ -129,6 +129,7 @@ MQ.pals = (function () {
   Object.keys(KIND_OF).forEach(function (k) { KIND_OF[k].split(' ').forEach(function (l) { KIND_BY_LINE[l] = k; }); });
   function moveKindOf(e) {
     if (!e) return 'bond';
+    if (e.moveKind && MOVE_KINDS[e.moveKind]) return e.moveKind;   // きみの モンスター（v14.44）：絵の 色／子どもが えらんだ
     return KIND_BY_LINE[e.line || ''] || KIND_BY_LINE[e.shape || ''] || 'bond';
   }
   function moveOf(bond, enemy) {
@@ -381,6 +382,8 @@ MQ.pals = (function () {
     gaugeNeed: gaugeNeed, displayName: displayName, baseName: baseName, setName: setName,
     power: power, POWER: POWER,
     bondOf: bondOf, bondUp: bondUp, bondLevel: bondLevel, bondBest: bondBest, moveOf: moveOf,
+    MOVE_ORDER: ['bond', 'blaze', 'aqua', 'fang', 'bolt', 'sky', 'heavy', 'shadow', 'holy'],
+    MOVE_SHORT: { bond: 'きずな', blaze: 'ほのお', aqua: 'みず', fang: 'キバ', bolt: 'いなずま', sky: 'そら', heavy: 'ちから', shadow: 'やみ', holy: 'ひかり' },
     BOND_AT: BOND_AT, BOND_PERKS: BOND_PERKS, MOVE_NEED: MOVE_NEED, MOVE_XP: MOVE_XP, MOVE_KINDS: MOVE_KINDS, moveKindOf: moveKindOf, moveOf: moveOf,
     PERKS: PERKS, FAST_LV: FAST_LV, COMBO_LV: COMBO_LV, lvBonus: lvBonus, perksBetween: perksBetween, nextPerk: nextPerk,
     MAX_LV: MAX_LV, HIT_EVERY: HIT_EVERY, EVO_LV: EVO_LV, GAUGE_NEED: GAUGE_NEED,

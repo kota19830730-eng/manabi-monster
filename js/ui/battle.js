@@ -18,6 +18,12 @@ MQ.ui.battle = (function () {
   const FIRST_MOBS = 6;         // はじめての たたかいは ザコ 6体（ふつうは 12体・v11.1）
   const RARE_CHANCE = 0.4;
   const RARE_CHANCE_FEVER = 0.8;   // フィーバー教科（v7.2）では レア（じぶんの モンスターも）が 出やすい
+  /* きみの モンスター（v14.44）：写真から 作った 子が いる エリアでは、ほかの レアとは べつに この 見こみで 出る。
+     前は レアの わく（40%）×ゴールデンで ない（50%）×息子さんの 絵と 半分こ＝1たたかい 10% しか なかった */
+  const MINE_CHANCE = 0.3;
+  const MINE_CHANCE_FEVER = 0.5;
+  const DUEL_MOBS = 4;             // たいけつ（v14.44）：ボスの 前の ザコ
+  const MINE_DEBUT_AT = 1;         // 作った 直後の はじめての 登場は 2体め（1体めは 帯・3体めは てきの こうげきの 番）
   const TRIO_CHANCE = 0.35;
 
   let d = null;
@@ -216,7 +222,8 @@ MQ.ui.battle = (function () {
     const isTower = !!found.stage.tower;
     const isMix = !!found.stage.mix;
     const atk = player.attacks !== false;   // てきの ため → カウンター（v7.7・おうちの人ページで 切れる）
-    ctx = { player: player, world: found.world, area: found.area, stage: found.stage, timeAttack: opts.timeAttack || 0, mix: isMix };
+    ctx = { player: player, world: found.world, area: found.area, stage: found.stage, timeAttack: opts.timeAttack || 0, mix: isMix,
+            duel: (!isTower && !isMix && opts.duel && MQ.enemies.get(opts.duel)) ? opts.duel : null };   // たいけつ（v14.44）
     d.root.classList.toggle('battle--tower', isTower);
     /* しゅうまつ イベント（v13.16）：ふつうの たたかいと ごちゃまぜ だけ（塔・タイムアタックは なし）。
        ゴールデン まつりは ゴールデンスライムを かならず 1体 出す（ここ）。コイン・たからばこは core が */
@@ -264,6 +271,21 @@ MQ.ui.battle = (function () {
         // ラスボスの 手下（v14.15）：城に 入ると 手下 → 中ボス 1体 → ラスボス（ぜんぶで 約20問）
         mobs: ctx.timeAttack ? 0 : LAST_MOBS, elite: !ctx.timeAttack
       });
+    } else if (ctx.duel) {
+      /* じぶんの モンスターと たいけつ（v14.44）：ザコ 4体 → きみの モンスターが ボス（HP5・さいだい 8問＝ふつうの ボスと 同じ）。
+         ★・きろく・そうび・たからものは つかない（ステージの 記ろくを うごかさない）。勝つと きずな／なかまに なりたがる */
+      const opened = ctx.area.stages.filter(function (st) { return MQ.content.isAvailable(st); });
+      const hard = opened.length > 1 ? Math.max(0, opened.indexOf(found.stage)) / (opened.length - 1) : 0.5;
+      const BS = BSET().normal;
+      MQ.battle.start({
+        stage: found.stage, mode: 'normal',
+        bossHp: BS.bossHp, bossMax: BS.bossMax, enrageAt: BS.enrageAt, finalAt: BS.finalAt,
+        escaped: [], review: [], enemies: MQ.enemies.pickIds(ctx.area.id, DUEL_MOBS, hard), bossId: ctx.duel,
+        rareId: null, trioIds: null, chest: false, mobs: DUEL_MOBS,
+        items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
+        gear: MQ.hero.gearPower(player), attacks: atk,
+        elite: false, summon: false, areaId: ctx.area.id
+      });
     } else {
       // リベンジ（v3.1）：にげてから 時間が たった 敵だけ（古い ものから）。にげた その日は とっくんで
       const ready = MQ.save.revengeReady(player, ctx.area.id).slice().sort(function (a, b) { return Date.parse(a.at || 0) - Date.parse(b.at || 0); });
@@ -290,6 +312,18 @@ MQ.ui.battle = (function () {
       const trio = MQ.enemies.trioFor(ctx.area.id);
       if (trio && Math.random() < TRIO_CHANCE) { trioIds = trio; rareId = null; }
       if (wk && wk.golden) { rareId = MQ.enemies.goldenId(); trioIds = null; }   // ゴールデン まつり（v13.16）
+      /* きみの モンスター（v14.44）：
+         ① 作った 直後は つぎの ふつうの たたかいで かならず 会う（どの エリアでも・3体め）
+         ② そのあとは 作った エリアで 30%（フィーバー 50%）。ゴールデン まつりより あとに 決める＝まつりの 日も 会える */
+      let rareAt = null;
+      ctx.debut = null;
+      const debutId = (!first && !ctx.timeAttack && player.meetMine && MQ.enemies.isMine(player.meetMine)) ? player.meetMine : null;
+      if (debutId) {
+        rareId = debutId; rareAt = MINE_DEBUT_AT; trioIds = null; ctx.debut = debutId;
+      } else if (!first && !ctx.timeAttack) {
+        const mine = MQ.enemies.mineIdsFor(ctx.area.id);
+        if (mine.length && Math.random() < (fs.fever ? MINE_CHANCE_FEVER : MINE_CHANCE)) { rareId = MQ.util.pick(mine); trioIds = null; }
+      }
       const boss = MQ.enemies.bossFor(ctx.area.id, hard);   // v14.7：ステージの 位置で 序盤・中盤・終盤の ボス
       ctx.first = first;
       /* ボスを 強く（v12.7）：HP5・最大8問（はじめての たたかいは HP3 の まま）。
@@ -310,7 +344,7 @@ MQ.ui.battle = (function () {
         bossHp: BS.bossHp, bossMax: BS.bossMax, enrageAt: BS.enrageAt, finalAt: BS.finalAt,
         recap: story ? [] : recap,
         escaped: story ? [] : escaped, review: story ? [] : reviewList, enemies: enemies, bossId: boss.id,
-        rareId: rareId, trioIds: trioIds, chest: true, mobs: mobCount,
+        rareId: rareId, rareAt: rareAt, trioIds: trioIds, chest: true, mobs: mobCount,
         timeAttack: ctx.timeAttack, items: bagOf(player), coins: player.coins || 0, pal: palOf(player),
         gear: MQ.hero.gearPower(player),
         fever: fs.fever, support: sup, attacks: first ? false : atk,
@@ -385,6 +419,44 @@ MQ.ui.battle = (function () {
       b.remove();
       if (d.msg) d.msg.classList.remove('is-quiet');
     }, 2600);
+  }
+
+  /* きみの モンスターの はじめての 登場（v14.44）：作った 子と はじめて 会う しゅんかん。
+     アリーナの まん中に 金の 帯「きみの モンスター とうじょう！」と 名前。2.4秒で 消える */
+  function debutBanner(e) {
+    const b = h('div', { class: 'minebanner' }, [
+      h('b', { class: 'minebanner__t', text: 'きみの モンスター とうじょう！' }),
+      h('span', { class: 'minebanner__n', text: e.name || '' })
+    ]);
+    d.fx.appendChild(b);
+    if (d.msg) d.msg.classList.add('is-quiet');
+    MQ.sfx.rare();
+    setTimeout(function () { if (MQ.sfx.levelup) MQ.sfx.levelup(); }, 260);
+    setTimeout(function () {
+      b.remove();
+      if (d.msg) d.msg.classList.remove('is-quiet');
+    }, 2400);
+  }
+
+  /* じぶんの モンスターと たいけつ（v14.44）：その 子の エリアの いま あそべる いちばん 先の ステージの 問題で。
+     id は 1段階めでも 進化した すがたでも よい（相棒が 進化して いれば その すがたが ボス） */
+  function duelStage(id) {
+    const e = MQ.enemies.get(id);
+    const w = MQ.content.activeWorld();
+    const p = MQ.save.current();
+    if (!e || !w || !p) return null;
+    const alias = { rika: 'rikashakai', shakai: 'rikashakai' };
+    const areas = w.areas.filter(function (a) { return !a.tower && a.stages && a.stages.length; });
+    const area = areas.filter(function (a) { return a.id === e.area || alias[a.id] === e.area || alias[e.area] === a.id; })[0] || areas[0];
+    if (!area) return null;
+    const open = area.stages.filter(function (st) { return MQ.content.isAvailable(st) && MQ.content.isUnlocked(p, area, st) && !st.story; });
+    const st = open[open.length - 1] || area.stages.filter(function (s) { return MQ.content.isAvailable(s) && !s.story; })[0];
+    return st ? st.id : null;
+  }
+  function startDuel(id) {
+    const sid = duelStage(id);
+    if (!sid) { MQ.ui.toast('いまは たいけつ できる ステージが ないよ'); return; }
+    start(sid, { duel: id });
   }
 
   // にげた敵だけと たたかう（とっくん）
@@ -894,7 +966,7 @@ MQ.ui.battle = (function () {
       d.msg.textContent = 'すきだらけだ！ 正解で 2ダメージ！';
     } else if (bossPhase) {
       // ふきだしは 3行まで（v12.8）。名前は 右上の パネルに ある ので くり返さない
-      d.msg.textContent = !bossOnScreen ? (last ? e.name + 'が 立ちはだかる…！' : 'ボスの ' + e.name + ' が たちふさがる！')
+      d.msg.textContent = !bossOnScreen ? (last ? e.name + 'が 立ちはだかる…！' : ctx && ctx.duel ? 'きみの ' + e.name + ' が しょうぶを いどんで きた！' : 'ボスの ' + e.name + ' が たちふさがる！')
         : MQ.battle.isFinal && MQ.battle.isFinal() ? 'さいごの 力だ！' + left
         : MQ.battle.isEnraged() ? 'おこって いる！' + left
         : 'こうげきだ！' + left;
@@ -914,9 +986,12 @@ MQ.ui.battle = (function () {
     } else {
       d.msg.textContent = q.revenge ? 'リベンジ！ にげた ' + e.name + ' が もどってきた！ たおせば ボーナス！'
         : q.review ? 'まえの もんだいが もどってきた！ こんどは いけるぞ！'
+        : q.rare && e.by === 'photo' ? 'きみの ' + e.name + ' が あらわれた！ けいけんち 3ばい！'
         : q.rare ? e.name + ' が あらわれた！ けいけんち 3ばい！'
         : e.name + ' が あらわれた！';
     }
+    // きみの モンスターの はじめての 登場（v14.44）：大きな 帯
+    if (ctx && ctx.debut && q.enemyId === ctx.debut && !ctx.debutShown && !q.chest && !bossPhase) { ctx.debutShown = true; debutBanner(e); }
     // 弱点（v8.1）：この 問題の 教科が 弱点 → チャンス
     if (q.weak && !q.chest && !q.called) d.msg.textContent += bossPhase ? ' 弱点！ チャンス！' : ' ' + weakText(q.weak) + '！ チャンス！';
     if (bossPhase && !q.called) bossOnScreen = true;
@@ -1950,7 +2025,7 @@ MQ.ui.battle = (function () {
 
       if (res.defeated) {
         d.msg.textContent = (res.burst ? 'ばくれつ こうげき！ ' : '') + (res.hard ? '本気の ' + e.name + ' を たおした！！ ごほうび 2ばい！'
-          : res.last ? e.name + 'を たおした！！！' : 'ボスの ' + e.name + ' を たおした！！');
+          : res.last ? e.name + 'を たおした！！！' : (ctx && ctx.duel ? 'きみの ' : 'ボスの ') + e.name + ' を たおした！！');
         MQ.sfx.bossdown();
         MQ.bgm.stop();
         // ドーン の あとに ファンファーレ → けっか画面で しょうりの 曲へ つながる
@@ -2106,7 +2181,7 @@ MQ.ui.battle = (function () {
     d.msg.textContent = '';
     d.foes.innerHTML = '';
     d.warnText.textContent = 'WARNING';
-    d.warnSub.textContent = 'ボスが ちかづいてくる…！';
+    d.warnSub.textContent = ctx && ctx.duel ? 'きみの モンスターが あらわれる…！' : 'ボスが ちかづいてくる…！';
     if (d.bg) d.bg.classList.add('is-dusk');   // v12.6：ボス戦は 空が 暗く なる（塔は もともと 夜・CSS で 効かない）
     endSpecial(true);   // v13.6：さいごの ザコを 大わざで たおして 画面が 広がって いたら もどす
     d.warning.className = 'warning';
@@ -2144,7 +2219,7 @@ MQ.ui.battle = (function () {
       }
     }
     d.pick = h('div', { class: 'bosspick' + (last ? ' bosspick--last' : '') }, [
-      h('p', { class: 'bosspick__t', text: (last ? '' : 'ボスの ') + e.name + ' が あらわれた！' }),
+      h('p', { class: 'bosspick__t', text: (last ? '' : ctx && ctx.duel ? 'きみの ' : 'ボスの ') + e.name + ' が あらわれた！' }),
       h('p', { class: 'bosspick__s', text: 'どっちで たたかう？' }),
       h('button', { class: 'bosspick__btn bosspick__btn--norm', type: 'button', onclick: function () { choose(false); } }, [
         h('b', { text: 'ふつうに たたかう' }),
@@ -3251,11 +3326,20 @@ MQ.ui.battle = (function () {
     }
     palSaid++;
     let line = MQ.util.pick(set);
+    // きみの モンスター（v14.44）：絵を かいた 子に 話しかける（半分くらい）
+    if (palNow.enemy && palNow.enemy.by === 'photo' && palHero && MINE_TALK[kind] && Math.random() < 0.6) { showPalSay(MQ.util.pick(MINE_TALK[kind]).replace('{n}', palHero), ms); return; }
     // きずな ♥2（v14.36）：ときどき なまえを よんで くれる
     const pb = palPower();
     if (pb && pb.move && pb.move.callName && palHero && Math.random() < 0.5 && PAL_NAME_TALK[kind]) line = MQ.util.pick(PAL_NAME_TALK[kind]).replace('{n}', palHero);
     showPalSay(line, ms);
   }
+  /* きみの モンスターの せりふ（v14.44）：かいて くれた 子への ことば */
+  const MINE_TALK = {
+    start: ['{n}が かいて くれた ぼくだよ！', 'かいて くれて ありがとう！ いくよ！', '{n}の 絵の 力、見せて やる！'],
+    boss: ['{n}の 絵は まけないぞ！', 'ぼくを かいた {n}なら たおせる！'],
+    miss: ['{n}、ぼくが ついてる！', 'だいじょうぶ！ {n}なら できる！'],
+    win: ['{n}に かいて もらえて よかった！', 'ぼくたち さいこうの コンビだね！']
+  };
   const PAL_NAME_TALK = {
     start: ['{n}、いっしょに いこう！', '{n}と なら まけないよ！'],
     boss: ['{n}、いっしょに たおそう！', '{n}、しんじてるよ！'],
@@ -3797,6 +3881,11 @@ MQ.ui.battle = (function () {
   }
 
   function applyRewards(sum) {
+    // きみの モンスターに 会えた（v14.44）：会えたら 予約を 消す（とちゅうで やめたら つぎの たたかいで また 会う）
+    if (ctx && ctx.debut && ctx.debutShown) {
+      const did = ctx.debut;
+      MQ.save.update(function (p) { if (p.meetMine === did) delete p.meetMine; });
+    }
     const before = MQ.hero.progress(ctx.player.xp).level;
     const out = {
       levelBefore: before, levelAfter: before, leveledUp: false,
@@ -3828,7 +3917,7 @@ MQ.ui.battle = (function () {
       // まじん・あんこく（v14.11）：ごちゃまぜで ボスを たおした 数・本気で ボスを たおした 数
       if (sum.bossBeaten && !ctx.tokkun) {
         if (ctx.mix) p.mixWins = (p.mixWins || 0) + 1;
-        if (sum.bossHard) p.hardWins = (p.hardWins || 0) + 1;
+        if (sum.bossHard && !ctx.duel) p.hardWins = (p.hardWins || 0) + 1;   // たいけつ（v14.44・ザコ 4体の みじかい たたかい）は 数えない
       }
       // フィーバー教科（v7.2）：教科ごとの たたかった 回数（いちばん やって いない 教科を さがす ため）
       if (MQ.fever && !ctx.tokkun && !ctx.stage.tower && !ctx.mix) MQ.fever.addPlay(p, ctx.area.id);
@@ -3851,12 +3940,25 @@ MQ.ui.battle = (function () {
         const wkp = (!ctx.tokkun && ctx.weekend) ? ctx.weekend : null;
         out.pal = MQ.pals.gain(p, Math.round(sum.xp * (sum.palXpMul || 1) * ((wkp && wkp.palXp) || 1)));
         out.palOffer = MQ.pals.offerFrom(p, sum.defeated, null, (wkp && wkp.palOffer) || 1);
+        // たいけつ（v14.44）：勝ったら その 子の きずな ＋2（相棒で なくても）／なかまで なければ なりたがる
+        if (ctx.duel && sum.bossBeaten) {
+          const baseId = String(ctx.duel).replace(/-[23]$/, '');
+          const own = [baseId, baseId + '-2', baseId + '-3'].filter(function (x) { return MQ.pals.has(p, x); })[0];
+          p.duelWins = p.duelWins || {};
+          p.duelWins[baseId] = (p.duelWins[baseId] || 0) + 1;
+          out.duel = { id: ctx.duel, name: (MQ.enemies.get(ctx.duel) || {}).name || '', wins: p.duelWins[baseId], bond: 0 };
+          if (own) { p.pals[own].bond = (p.pals[own].bond || 0) + 2; out.duel.bond = 2; }
+          else { out.palOffer = ctx.duel; out.debut = ctx.duel; }
+          MQ.save.addLog(p, 'じぶんの モンスター「' + out.duel.name + '」との たいけつで しょうり！');
+        }
+        // きみの モンスターの はじめての 登場（v14.44）：たおしたら かならず「なかまに なりたそう」
+        if (ctx.debut && sum.defeated.indexOf(ctx.debut) >= 0 && !MQ.pals.has(p, ctx.debut)) { out.palOffer = ctx.debut; out.debut = ctx.debut; }
         // きずな（v14.36）：いっしょに たたかった 回数。ひっさつを 出した たたかいは ＋1
         if (sum.palId && sum.total > 0 && MQ.pals.bondUp) out.palBond = MQ.pals.bondUp(p, (sum.palMoves || 0) > 0);
       }
 
       /* ---- ★ と じぶんの さいこう記ろく（ごちゃまぜ バトルには つかない・v7.3） ---- */
-      if (!ctx.tokkun && !ctx.mix) {
+      if (!ctx.tokkun && !ctx.mix && !ctx.duel) {
         const prevStars = p.stars[ctx.stage.id] || 0;
         if (sum.stars > prevStars) p.stars[ctx.stage.id] = sum.stars;
 
@@ -3911,13 +4013,13 @@ MQ.ui.battle = (function () {
       });
 
       /* ---- そうび（グレード1〜3。★2以上で 1つずつ） ---- */
-      if (sum.stars >= 2 && !ctx.tokkun && !ctx.mix) {
+      if (sum.stars >= 2 && !ctx.tokkun && !ctx.mix && !ctx.duel) {
         const g = MQ.hero.nextGear(p);
         if (g) { p.gear.push(g.id); p.equipped[g.slot] = g.id; out.gear = g; }
       }
 
       /* ---- たからもの（ボスを たおしたら） ---- */
-      if (sum.bossBeaten && !ctx.tokkun) {
+      if (sum.bossBeaten && !ctx.tokkun && !ctx.duel) {
         const tr = MQ.treasure.forStage(ctx.stage.id);
         if (tr) {
           const had = p.treasure[tr.id] || 0;
@@ -3937,7 +4039,7 @@ MQ.ui.battle = (function () {
       if (MQ.pika) {
         out.pika = MQ.pika.claim(p);
         if (out.pika.tickets || out.pika.coins) MQ.save.addLog(p, 'ぴかぴかを ' + out.pika.count + 'こ あつめた！' + (out.pika.tickets ? ' むりょうけん ' + out.pika.tickets + 'まい' : ' コイン +' + out.pika.coins));
-        out.pikaTr = (!ctx.tokkun && !ctx.mix) ? MQ.pika.stageTreasure(p, ctx.stage.id) : null;
+        out.pikaTr = (!ctx.tokkun && !ctx.mix && !ctx.duel) ? MQ.pika.stageTreasure(p, ctx.stage.id) : null;
       }
 
       /* ---- まなびの かけら（エリアで ★8） ---- */
@@ -4266,7 +4368,7 @@ MQ.ui.battle = (function () {
     demoQuestion: function () { build(); renderQuestion(); },   // 見本：core を 進めた あとの 問題を 出す（中ボスの はんげきを 見る）
     demoWarning: function (last) { build(); if (last) towerIntro(); else bossIntro(); },   // v13.6：harness #warning
     demoEnd: function () { endSpecial(true); },   // v13.6：見本の ページで つぎの わざの 前に もどす
-    start: start, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,
+    start: start, startDuel: startDuel, duelStage: duelStage, startTokkun: startTokkun, startDrill: startDrill, demoSpecial: demoSpecial, demoItem: demoItem, openBag: openBag, SP_MOTION: SP_MOTION,
     ciOption: ciOption,   // v14.3：カットインを 軽く する 案の 切りかえ（見本の ページ・harness 用）
     palSay: function (kind, ms) { palMissAt = 0; palSay(kind, ms || 60000); },   // v14.35：相棒の ひとこと（harness 用）
     demoPalTurn: demoPalTurn, demoPalStance: demoPalStance,

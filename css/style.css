@@ -4898,3 +4898,60 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .keepbar { transition: opacity .3s; }
 .pp-keep { border-color: var(--pp-weak); margin-bottom: 10px; }
 .pgd__keep { margin: 0; padding: 9px 11px; border: 1px solid var(--pp-weak); border-radius: 10px; background: #fff; font-size: 12.5px; color: var(--pp-ink); }
+
+
+/* =========================================================
+   きみの モンスターに 会う（v14.44）
+   ・バトル：はじめての 登場の 金の 帯（.minebanner）
+   ・タイトル：手まえの 左の 子の 足もとの ふだ（.tmob__tag）
+   ・地図：すみの ふだ「きみの モンスター まってるよ」（.minechip）
+   ========================================================= */
+.minebanner {
+  /* 上の 段（てき・タイム）の 上に 出す＝会う しゅんかんの モンスターに かぶらない */
+  position: absolute; left: 50%; top: 6px; z-index: 9;
+  transform: translate(-50%, 0);
+  min-width: 240px; padding: 8px 18px 9px;
+  background: linear-gradient(#fff3b8, #ffc93c);
+  border: 3px solid #7a4a00; border-radius: 12px;
+  box-shadow: 0 4px 0 #5a3500, 0 0 0 3px #fff6d6 inset, 0 0 24px rgba(255,214,90,.8);
+  text-align: center; pointer-events: none;
+  animation: mineIn .45s cubic-bezier(.2,1.6,.4,1) both, mineOut .3s ease-in 2.05s both;
+}
+.minebanner__t { display: block; font-family: var(--f-head); font-size: 19px; color: #5a2a00; white-space: nowrap; }
+.minebanner__n { display: block; margin-top: 2px; font-weight: 700; font-size: 15px; color: #7a3a00; }
+@keyframes mineIn { from { opacity: 0; transform: translate(-50%, 0) scale(.4); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes mineOut { to { opacity: 0; transform: translate(-50%, -20px) scale(1.05); } }
+@media (prefers-reduced-motion: reduce) { .minebanner { animation: none; } }
+
+.tmob--mine .tmob__tag {
+  position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%);
+  max-width: 96px; overflow: hidden; text-overflow: ellipsis;
+  padding: 1px 6px; border-radius: 8px; white-space: nowrap;
+  background: #fff6d6; border: 2px solid #7a4a00; color: #5a2a00;
+  font-weight: 700; font-size: 10px; line-height: 14px;
+}
+
+.mapchip.minechip { background: linear-gradient(#fff6d6, #ffd76a); color: #4a2a06; gap: 4px; }
+.minechip__mon { flex: 0 0 auto; }
+.minechip__t { display: flex; flex-direction: column; line-height: 1.05; }
+.minechip__t i { font-style: normal; font-family: var(--f-body); font-size: 9px; font-weight: 700; }
+.minechip__t b { font-size: 13px; }
+
+/* けっか画面：きみの モンスターの「なかまに なりたそう」は 2行まで（v14.44・名前が 長いと 切れた） */
+.rs__paloffer--mine .rs__palotext { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.2; }
+
+/* なかまタブ：きみの モンスターの わざ・進化の すがた（v14.44） */
+.palmine { margin: 10px 0 4px; padding: 10px 10px 12px; border: 3px solid var(--gold); border-radius: 12px; background: rgba(245,197,66,.10); }
+.palmine__label { display: inline-block; padding: 1px 8px; border-radius: 8px; background: var(--gold); color: #4a2a06; font-weight: 700; font-size: 11px; }
+.palmine__h { margin: 8px 0 4px; font-size: 12px; font-weight: 700; color: #eaf0ff; }
+.palmine__chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.palmine__kind { display: inline-flex; align-items: center; gap: 4px; padding: 0 9px; height: 28px; font-size: 12px; }
+.palmine__dot { width: 10px; height: 10px; border-radius: 3px; background: var(--mk); box-shadow: inset -2px -2px 0 rgba(0,0,0,.25); }
+.palmine__styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.palmine__style { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border: 3px solid rgba(255,255,255,.18); border-radius: 10px; background: rgba(10,20,50,.55); color: #eaf0ff; font-family: var(--f-head); font-size: 12px; cursor: pointer; }
+.palmine__style.is-on { border-color: var(--gold); background: rgba(245,197,66,.22); }
+.palmine__img { width: 84px; height: 84px; image-rendering: pixelated; }
+
+/* たいけつ（v14.44） */
+.palmine__duel { display: block; margin: 6px auto 2px; padding: 0 22px; font-size: 14px; }
+.rs__duel { border-color: #ff9a3c; }

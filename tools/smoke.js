@@ -6575,6 +6575,50 @@ function stripComments(src) {
   console.log('v14.42 きろくを まもる OK');
 })();
 
+/* ---- きみの モンスターに 会う（v14.44） ---- */
+(function () {
+  // レア敵は 2体同時（なかまを よぶ）に 上書きされない＝きめた 場所に かならず いる
+  let lost = 0, atOk = 0;
+  for (let i = 0; i < 300; i++) {
+    MQ.battle.start({ stage: st6, mode: 'normal', escaped: [], enemies: MQ.enemies.pickIds('sansu', 12), bossId: 'boss-dragon', mobs: 12, rareId: 'skullhorse', rareAt: 1, summon: true });
+    let seen = -1;
+    for (let k = 0; k < 16 && MQ.battle.phase() === 'mob'; k++) {
+      const q = MQ.battle.current();
+      if (q.enemyId === 'skullhorse' && seen < 0) seen = MQ.battle.mobIndex();
+      MQ.battle.answer(correctValue(q)); MQ.battle.next();
+    }
+    if (seen < 0) lost++; else if (seen === 1) atOk++;
+  }
+  check(lost === 0, 'v14.44: レア敵が 2体同時に 上書きされない（消えた ' + lost + '/300）');
+  check(atOk === 300, 'v14.44: rareAt で きめた 場所（2体め）に 出る（' + atOk + '/300）');
+  const ub = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8');
+  check(/MINE_CHANCE = 0.3/.test(ub) && ub.indexOf('p.meetMine === did') >= 0 && ub.indexOf('debutBanner(e)') >= 0, 'v14.44: battle.js に 出やすさ・予約を 消す・登場の 帯');
+  check(fs.readFileSync(path.join(base, 'js/ui/photo.js'), 'utf8').indexOf('p.meetMine = mon.id') >= 0, 'v14.44: 作ったら つぎの たたかいで 会う 予約');
+  check(typeof MQ.enemies.mineIdsFor === 'function' && typeof MQ.enemies.isMine === 'function', 'v14.44: enemies.mineIdsFor / isMine');
+  // ② 相棒の 個性：進化の すがた 3つ（部品が マスの 外に 出ない・つばさ／ほのおは おうさまと ちがう）
+  const G = MQ.monsterGen;
+  check(G.EVO_STYLES && G.EVO_STYLES.map(function (x) { return x.id; }).join(',') === 'king,wing,flame', 'v14.44: 進化の すがたは おうさま・つばさ・ほのお');
+  [48, 64].forEach(function (N) {
+    const mask = new Uint8Array(N * N);
+    for (let y = Math.round(N * 0.3); y < N - 2; y++) for (let x = 2; x < N - 2; x++) mask[y * N + x] = 1;   // マスいっぱいの 絵
+    ['wing', 'flame'].forEach(function (st) { [2, 3].forEach(function (sg) {
+      const pr = G.evoParts(mask, sg, N, st);
+      const all = pr.back.concat(pr.front);
+      check(all.length >= 4 && all.every(function (r) { return r[0] >= 0 && r[1] >= 0 && r[0] + r[2] <= N && r[1] + r[3] <= N && r[2] > 0 && r[3] > 0; }), 'v14.44: ' + st + ' ' + sg + '段階の 部品は ' + N + 'マスの 中');
+    }); });
+  });
+  // わざの 系統は 絵の 色で：赤→ほのお／青→みず／黄→いなずま／ほぼ 黒→やみ
+  const kc = function (r, g, b) { const c = {}; c[G.colorBucket(r, g, b)] = 100; return G.moveKindOfColor({ counts: c, total: 100 }); };
+  check(kc(230, 40, 30) === 'blaze' && kc(40, 90, 220) === 'aqua' && kc(240, 210, 30) === 'bolt' && kc(30, 30, 30) === 'shadow' && kc(60, 200, 60) === 'fang', 'v14.44: 絵の 色 → わざの 系統');
+  check(MQ.pals.moveKindOf({ moveKind: 'aqua', line: 'drago' }) === 'aqua' && MQ.pals.moveKindOf({ line: 'drago' }) === 'blaze', 'v14.44: えらんだ わざが 系統より 先');
+  check(MQ.pals.MOVE_ORDER.length === Object.keys(MQ.pals.MOVE_KINDS).length, 'v14.44: えらべる わざは ぜんぶの 系統');
+  // ③ たいけつ：★・たからもの・本気の 数を うごかさない
+  const ubb = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8');
+  check(/startDuel: startDuel/.test(ubb) && ubb.indexOf('if (!ctx.tokkun && !ctx.mix && !ctx.duel) {') >= 0 && ubb.indexOf('sum.bossBeaten && !ctx.tokkun && !ctx.duel') >= 0 && ubb.indexOf('sum.bossHard && !ctx.duel') >= 0, 'v14.44: たいけつは ★・たからもの・本気の 数を うごかさない');
+  check(fs.readFileSync(path.join(base, 'js/ui/result.js'), 'utf8').indexOf('startDuel(ctx.duel)') >= 0, 'v14.44: けっか画面の もういちどは たいけつ');
+  console.log('v14.44 きみの モンスターに 会う OK');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

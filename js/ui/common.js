@@ -275,15 +275,54 @@ MQ.ui = MQ.ui || {};
   const growing = {};
   MQ.ui.growCustom = function (mon, cb) {
     const done = function () { if (cb) { const f = cb; cb = null; f(); } };
+    /* 1.5秒より おくれて 絵が とどいた とき（v14.44）：あとから ほぞんして 図かんにも 入れ直す
+       （前は 2・3段階めが 出ないまま に なる ことが あった） */
+    const late = function () {
+      if (cb) return;
+      const p = MQ.save.current();
+      if (!p || !(p.custom || []).some(function (x) { return x === mon; })) return;
+      if (mon.png2 && mon.png3) delete mon.noGrow;
+      MQ.save.update(function () {});
+      MQ.enemies.setCustom(p.custom);
+    };
     if (!mon || !mon.png || !MQ.monsterGen || !MQ.monsterGen.evoPng) { done(); return; }
-    if (mon.png2 && mon.png3) { done(); return; }
-    let left = 2;
-    const step = function () { if (--left <= 0) done(); };
+    const needKind = !mon.moveKind && MQ.monsterGen.moveKindFromPng;
+    if (mon.png2 && mon.png3 && !needKind) { done(); return; }
+    let left = (mon.png2 && mon.png3 ? 0 : 2) + (needKind ? 1 : 0);
+    const step = function () { if (--left <= 0) { if (cb) done(); else late(); } };
     setTimeout(done, 1500);
     try {
-      MQ.monsterGen.evoPng(mon.png, 2, function (u) { if (u) mon.png2 = u; step(); });
-      MQ.monsterGen.evoPng(mon.png, 3, function (u) { if (u) mon.png3 = u; step(); });
+      if (!(mon.png2 && mon.png3)) {
+        MQ.monsterGen.evoPng(mon.png, 2, function (u) { if (u) mon.png2 = u; step(); }, mon.evoStyle || 'king');
+        MQ.monsterGen.evoPng(mon.png, 3, function (u) { if (u) mon.png3 = u; step(); }, mon.evoStyle || 'king');
+      }
+      // わざの 系統（v14.44）：絵の 色で きめる（あとで 子どもが かえられる）
+      if (needKind) MQ.monsterGen.moveKindFromPng(mon.png, function (k) { mon.moveKind = k || 'bond'; step(); });
     } catch (e) { done(); }
+  };
+
+  /* 進化の すがたを かえる（v14.44）：2・3段階めの 絵を 作り直して ほぞん */
+  MQ.ui.restyleCustom = function (id, style, cb) {
+    const p = MQ.save.current();
+    const m = p && (p.custom || []).filter(function (x) { return x.id === id; })[0];
+    if (!m || !MQ.monsterGen || !MQ.monsterGen.evoPng) { if (cb) cb(false); return; }
+    let u2 = null, u3 = null, left = 2;
+    const fin = function () {
+      if (--left > 0) return;
+      if (!u2 || !u3) { if (cb) cb(false); return; }
+      MQ.save.update(function (pl) {
+        (pl.custom || []).forEach(function (x) { if (x.id === id) { x.evoStyle = style; x.png2 = u2; x.png3 = u3; } });
+      });
+      MQ.ui.syncCustom();
+      if (cb) cb(true);
+    };
+    MQ.monsterGen.evoPng(m.png, 2, function (u) { u2 = u; fin(); }, style);
+    MQ.monsterGen.evoPng(m.png, 3, function (u) { u3 = u; fin(); }, style);
+  };
+  /* わざの 系統を かえる（v14.44） */
+  MQ.ui.setCustomMove = function (id, kind) {
+    MQ.save.update(function (pl) { (pl.custom || []).forEach(function (x) { if (x.id === id) x.moveKind = kind; }); });
+    MQ.ui.syncCustom();
   };
 
   MQ.ui.syncCustom = function () {
@@ -291,7 +330,7 @@ MQ.ui = MQ.ui || {};
     MQ.enemies.setCustom(p ? p.custom : []);
     if (!p || !p.custom || !p.custom.length) return;
     // むかしの セーブ（1段階だけ）に あとから 2・3段階めの 絵を 足す
-    const need = p.custom.filter(function (m) { return m.png && !(m.png2 && m.png3) && !m.noGrow && !growing[m.id]; });
+    const need = p.custom.filter(function (m) { return m.png && (!(m.png2 && m.png3) || !m.moveKind) && !m.noGrow && !growing[m.id]; });
     if (!need.length) return;
     need.forEach(function (m) { growing[m.id] = 1; });
     let left = need.length;

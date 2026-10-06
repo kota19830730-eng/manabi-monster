@@ -393,16 +393,22 @@ MQ.battle = (function () {
       mobs = sortByLevel(mobs);
 
       // レア敵（けいけんち3倍）
+      let rareIdx = -1;
       if (opts.rareId && mobs.length) {
-        const at = MQ.util.randInt(0, mobs.length - 1);
+        // rareAt（v14.44）：きみの モンスターの はじめての 登場は 2体め（1問めの 帯と かさならない）
+        const at = opts.rareAt != null ? Math.max(0, Math.min(opts.rareAt, mobs.length - 1)) : MQ.util.randInt(0, mobs.length - 1);
         mobs[at].enemyId = opts.rareId;
+        rareIdx = at;
       }
 
       // まとめて 出てくる 敵（2体同時／3体同時）
       const trio = opts.trioIds && opts.trioIds.length >= 3 ? opts.trioIds.slice(0, 3) : null;
       const groupSize = trio ? 3 : 2;
       if (mobs.length >= groupSize + 2) {
-        const at = MQ.util.randInt(1, mobs.length - groupSize - 1);
+        /* レア敵と かさならない 場所に する（v14.44）。前は 2体めの 入れかえで レア敵が 消える ことが あった */
+        let at = MQ.util.randInt(1, mobs.length - groupSize - 1);
+        for (let t = 0; t < 12 && rareIdx >= at && rareIdx < at + groupSize; t++) at = MQ.util.randInt(1, mobs.length - groupSize - 1);
+        if (rareIdx >= at && rareIdx < at + groupSize) at = rareIdx + 1 <= mobs.length - groupSize - 1 ? rareIdx + 1 : Math.max(1, rareIdx - groupSize);
         const ids = [];
         for (let i = 0; i < groupSize; i++) {
           ids.push(trio ? trio[i] : mobs[at + i].enemyId);
