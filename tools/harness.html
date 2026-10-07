@@ -747,42 +747,78 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     }
     /* 重い 端末で 自動 2D（v14.41）。#v3probe:slow＝1秒に 約16回・#v3probe:fast＝約60回（rAF を にせに する）
        :hide＝とちゅうで 画面を かくす（決めない）・:manual＝りったいを 手で さわった（はからない） */
-    /* きろくを まもる（v14.42）。#keep＝iPhone の タブ（バーが 出る）／#keep:app＝ホーム画面から（出ない）／#keep:android＝出ない
-       #keep:close＝とじる → 出ない → 14日 あと 出る → 3回で おしまい／#keep:go＝やり方 → 設定の「ホーム画面に入れる」
-       #keep:home＝おうちの人ページの カード／#keep:guide＝はじめての 画面の 1行 */
+    /* きろくを まもる（v14.42 → v14.46）。#keep＝iPhone の タブ（案内画面が 出る）／#keep:app＝ホーム画面から（出ない）／#keep:android＝出ない
+       #keep:close＝とじる → 同じ 日は 出ない → つぎの 日 出る／#keep:save＝案内の「ファイルに保存」（にせの 共有メニュー）
+       #keep:home＝おうちの人ページの カード／#keep:settings＝設定の「記録のバックアップ」／#keep:restore＝ファイルから 戻す／#keep:guide＝はじめての 画面の 1行
+       :stay を つけると 案内画面を のこして 撮る */
     if (mode.split(':')[0] === 'keep') {
       const kind = mode.split(':')[1] || 'ios';
+      const stay = mode.indexOf(':stay') > 0;
       fresh();
       const dev = kind === 'app' ? { ios: true, standalone: true, persisted: false } : kind === 'android' ? { ios: false, standalone: false, persisted: true } : { ios: true, standalone: false, persisted: false };
       MQ.keep.fake(dev);
-      const bar = function () { MQ.ui.start.render(); MQ.ui.show('screen-start'); const t = $('.title'); if (t) t.classList.remove('is-opening'); return !!$('.keepbar'); };
+      const DAY = 24 * 60 * 60 * 1000;
+      if (kind === 'save' || kind === 'home' || kind === 'settings' || kind === 'restore') { const p0 = MQ.save.current(); if (p0) { p0.battles = 3; MQ.save.persist(); } }
+      const guide = async function () {
+        const old = $('.keepguide'); if (old) old.remove();
+        MQ.ui.start.render(); MQ.ui.show('screen-start'); const t = $('.title'); if (t) t.classList.remove('is-opening');
+        await wait(2300);
+        return !!$('.keepguide');
+      };
       if (kind === 'guide') { MQ.ui.start.guide(); say('keep: guide の 1行 ' + ($('.pgd__keep') ? 'OK' : 'MISSING')); return; }
-      const shown = bar();
-      say('keep:' + kind + ' バー=' + shown + ' risk=' + MQ.keep.info().risk);
+      const shown = await guide();
+      say('keep:' + kind + ' 案内=' + shown + ' バー=' + !!$('.keepbar') + ' risk=' + MQ.keep.info().risk);
       if (kind === 'app' || kind === 'android') { say('keep: ' + (!shown ? 'OK' : 'NG')); return; }
-      if (kind === 'ios') { say('keep: ' + (shown ? 'OK' : 'NG')); return; }
+      if (kind === 'ios') { say('keep: ' + (shown && !$('.keepbar') ? 'OK' : 'NG')); if (stay) return; return; }
       if (kind === 'close') {
-        const realNow = Date.now; const DAY = 24 * 60 * 60 * 1000; let t = realNow(); const res = [shown];
-        Date.now = function () { return t; };
-        $('.keepbar__x').click(); res.push(!!$('.keepbar'));           // とじた すぐ あと＝なし
-        res.push(bar());                                               // 描き直しても なし
-        t += 15 * DAY; res.push(bar());                                // 15日 あと＝出る（2回め）
-        $('.keepbar__x').click(); t += 15 * DAY; res.push(bar());      // 3回め
-        $('.keepbar__x').click(); t += 15 * DAY; res.push(bar());      // 3回 とじた＝もう 出ない
+        const realNow = Date.now; let tt = realNow(); const res = [shown];
+        Date.now = function () { return tt; };
+        $('.keepguide__ok').click(); res.push(!!$('.keepguide'));   // とじた すぐ あと＝なし
+        res.push(await guide());                                      // 同じ 日に 描き直しても なし
+        tt += DAY; res.push(await guide());                           // つぎの 日＝出る
         Date.now = realNow;
-        say('keep: close ' + res.join(',') + ' ' + (res.join(',') === 'true,false,false,true,true,false' ? 'OK' : 'NG'));
+        say('keep: close ' + res.join(',') + ' ' + (res.join(',') === 'true,false,false,true' ? 'OK' : 'NG'));
         return;
       }
-      if (kind === 'go') {
-        $('.keepbar__go').click(); await wait(200);
-        const el = $('#pp-install'); const sc = el && el.closest('.pp__body');
-        say('keep: go 画面=' + (MQ.ui.parent.isOpen() ? MQ.ui.parent.view() : 'なし') + ' スクロール=' + (sc ? sc.scrollTop : -1) + ' 1行=' + (($('.pp-keepline') || {}).textContent || ''));
-        say('keep: ' + (MQ.ui.parent.isOpen() && MQ.ui.parent.view() === 'settings' && sc && sc.scrollTop > 100 && /まだ守られていません/.test(($('.pp-keepline') || {}).textContent || '') ? 'OK' : 'NG'));
+      if (kind === 'save') {
+        const got = [];
+        navigator.canShare = function (d) { return !!(d && d.files && d.files.length); };
+        navigator.share = function (d) { got.push(d.files[0]); return Promise.resolve(); };
+        const btn = $('.keepguide__save');
+        say('keep: 保存ボタン=' + !!btn + ' 赤=' + !!(btn && btn.classList.contains('is-due')) + ' 前=' + MQ.keep.backupAt());
+        if (stay) return;
+        btn.click(); await wait(200);
+        const f = got[0];
+        const ok = f && f.name === MQ.ui.backupName() && f.size > 100 && MQ.keep.backupAt() > 0 && !MQ.keep.backupDue();
+        say('keep: save ファイル=' + (f ? f.name + ' ' + f.size : 'なし') + ' 日=' + MQ.keep.backupAt() + ' ' + (ok ? 'OK' : 'NG'));
         return;
       }
       if (kind === 'home') {
+        const g = $('.keepguide'); if (g) g.remove();
         MQ.ui.parent.open('home', { from: 'title' }); await wait(100);
-        say('keep: home カード ' + ($('#pp-keep') ? 'OK' : 'MISSING'));
+        const c = $('#pp-keep');
+        say('keep: home カード ' + (c ? 'OK' : 'MISSING') + ' 保存ボタン=' + !!(c && /記録をファイルに保存/.test(c.textContent)) + ' 1行=' + (($('.pp-keep__last') || {}).textContent || ''));
+        return;
+      }
+      if (kind === 'settings') {
+        const g = $('.keepguide'); if (g) g.remove();
+        MQ.ui.parent.open('settings', { from: 'title' }); await wait(100);
+        const el = $('#pp-backup'); const sc = el && el.closest('.pp__body'); if (sc) sc.scrollTop = Math.max(0, el.offsetTop - 8);
+        say('keep: settings ' + (el && /ファイルから戻す/.test(el.textContent) ? 'OK' : 'NG'));
+        return;
+      }
+      if (kind === 'restore') {
+        const g = $('.keepguide'); if (g) g.remove();
+        const text = MQ.save.exportText();
+        const n0 = MQ.save.get().players.length;
+        MQ.save.createPlayer('けす子', null, 2);
+        const n1 = MQ.save.get().players.length;
+        const conf = window.confirm; window.confirm = function () { return true; };
+        const bad = MQ.ui.restoreText('{"x":1}');
+        const ok = MQ.ui.restoreText(text);
+        window.confirm = conf;
+        const n2 = MQ.save.get().players.length;
+        say('keep: restore ' + n0 + '→' + n1 + '→' + n2 + ' bad=' + bad + ' ' + (!bad && ok && n2 === n0 && n1 === n0 + 1 ? 'OK' : 'NG'));
         return;
       }
       return;

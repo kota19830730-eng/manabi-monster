@@ -1226,7 +1226,8 @@ MQ.ui.dex = (function () {
       area.select();
       let copied = false;
       try { copied = document.execCommand('copy'); } catch (e) {}
-      // ファイルとしても 保存できるように する
+      // ファイルとしても 保存できるように する（v14.46：iPhone は 共有メニュー・日づけを のこす）
+      if (MQ.ui.saveBackup) { MQ.ui.saveBackup(); return; }
       try {
         const blob = new Blob([text], { type: 'application/json' });
         const url = URL.createObjectURL(blob);

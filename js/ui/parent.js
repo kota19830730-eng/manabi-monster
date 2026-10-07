@@ -481,6 +481,7 @@ MQ.ui.parent = (function () {
     main.push(wrapSec(S.judge()));
     main.push(wrapSec(S.capsule(p)));
     main.push(wrapSec(S.records(p)));
+    main.push(backupSection());   // v14.46
     main.push(installSection());
     main.push(creditsSection());
     main.push(wrapSec(S.ai()));
@@ -548,10 +549,41 @@ MQ.ui.parent = (function () {
      ホーム画面の アイコンから ひらけば 消える（info().risk が false に なる） */
   function keepCard() {
     if (!MQ.keep || !MQ.keep.info().risk) return null;
+    const at = MQ.keep.backupAt();
+    const due = MQ.keep.backupDue();
     return h('div', { class: 'pp-card pp-pad pp-keep', id: 'pp-keep' }, [
       h('p', { class: 'pp-h pp-c-weak', style: { margin: '0 0 4px' }, text: '記録が消えるおそれがあります' }),
       h('p', { class: 'pp-small', style: { margin: '0 0 8px' }, text: 'iPhone・iPad では、ホーム画面に入れずに Safari で遊んでいると、しばらく（目安は7日）開かなかったときに記録が自動で消されることがあります。ホーム画面のアイコンから開けば消えません。' }),
-      btn('入れ方を見る', 'pp-btn--s pp-btn--sm', function () { openInstall(); })
+      h('p', { class: 'pp-small pp-keep__last' + (due ? ' pp-c-weak' : ''), style: { margin: '0 0 8px' }, text: backupLine(at, due) }),
+      h('div', { class: 'pp-keep__btns' }, [
+        btn('記録をファイルに保存', 'pp-btn--p pp-btn--sm', function () { MQ.ui.saveBackup().then(function () { render(); }); }),
+        btn('入れ方を見る', 'pp-btn--s pp-btn--sm', function () { openInstall(); })
+      ])
+    ]);
+  }
+  function backupLine(at, due) {
+    if (!at) return '記録のファイル保存：まだ一度もしていません' + (due ? '。消えてももどせるよう、保存しておいてください。' : '');
+    const d = new Date(at);
+    const days = Math.floor((Date.now() - at) / (24 * 60 * 60 * 1000));
+    return '最後にファイルに保存した日：' + (d.getMonth() + 1) + '/' + d.getDate() + '（' + (days <= 0 ? '今日' : days + '日前') + '）' + (due ? '。そろそろ保存しておくと安心です。' : '');
+  }
+  /* 記録のバックアップ（v14.46）：設定の「ホーム画面に入れる」の 上。どの 端末でも 出す */
+  function backupSection() {
+    const at = MQ.keep ? MQ.keep.backupAt() : 0;
+    const due = MQ.keep ? MQ.keep.backupDue() : false;
+    const ios = MQ.keep ? MQ.keep.info().ios : false;
+    const line = function (t, cls) { return h('p', { class: 'pp-small' + (cls ? ' ' + cls : ''), style: { margin: '4px 0' }, text: t }); };
+    return h('section', { class: 'pp-section', id: 'pp-backup' }, [
+      sec('記録のバックアップ', 'ファイルに保存・戻す'),
+      h('div', { class: 'pp-card pp-pad' }, [
+        line('記録はこの端末の中だけにあります。ファイルに保存しておけば、消えたときや端末を替えたときにもどせます。'),
+        ios ? line('iPhone・iPad：「記録をファイルに保存」→ 出てきたメニューの「"ファイル"に保存」→ iCloud Drive などを選んで「保存」。', 'pp-muted') : line('保存したファイルは「ダウンロード」フォルダに入ります。', 'pp-muted'),
+        line(backupLine(at, due), 'pp-keep__last' + (due ? ' pp-c-weak' : '')),
+        h('div', { class: 'pp-keep__btns' }, [
+          btn('記録をファイルに保存', 'pp-btn--p pp-btn--sm', function () { MQ.ui.saveBackup().then(function () { render(); }); }),
+          btn('ファイルから戻す', 'pp-btn--s pp-btn--sm', function () { MQ.ui.restoreFromFile(); })
+        ])
+      ])
     ]);
   }
   function openInstall(fromWhere) {
@@ -592,7 +624,7 @@ MQ.ui.parent = (function () {
     body.push(line('2. 共有ボタン（四角から上向きの矢印）を押す。iPhone は画面の下、iPad は右上にあります'));
     body.push(line('3. 「ホーム画面に追加」→「追加」を押す'));
     body.push(line('4. これからは ホーム画面の「まなびモンスター」のアイコンから開く'));
-    body.push(line('注意：Safari のタブとアイコンでは記録が別々です。Safari で遊んだ記録を移すときは、上の「きろくの ほぞん」で記録をコピー（またはファイルに保存）→ アイコンから開いて、同じ場所の「きろくを もどす」を押してください。', 'pp-muted'));
+    body.push(line('注意：Safari のタブとアイコンでは記録が別々です。Safari で遊んだ記録を移すときは、Safari で上の「記録のバックアップ」→「記録をファイルに保存」→ アイコンから開いて、同じ場所の「ファイルから戻す」を押してください。', 'pp-muted'));
     body.push(line('音が出ないときは、本体の消音（マナーモード）を切ってください。', 'pp-muted'));
     body.push(h('h3', { class: 'pp-h pp-h--s', style: { margin: '10px 0 2px' }, text: 'Android（Chrome）' + (/Android/.test(ua) && !standalone ? '（この端末）' : '') }));
     body.push(line('右上の「︙」→「アプリをインストール」または「ホーム画面に追加」を押す'));

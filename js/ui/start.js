@@ -330,29 +330,46 @@ MQ.ui.start = (function () {
       MQ.ui.syncCustom();
       MQ.ui.parent.open('home', { from: 'title' });
     }
-    /* きろくを まもる（v14.42）：iPhone／iPad で ホーム画面に 入れずに あそんで いる 家に、おうちの方むけの 1行。
-       「やり方」→ おうちの人ページの「ホーム画面に入れる」。とじたら 14日 あと・3回まで（js/core/keep.js） */
-    function keepBar() {
-      if (!MQ.keep || !players.length || !MQ.keep.noticeDue()) return null;
+    /* きろくを まもる 2（v14.46・ユーザー「Safari の タブで 消えるのを 解消できる？」→ 1と2 両方）：
+       iPhone／iPad の Safari の タブで ひらいた ときは、小さい バーの かわりに 大きな 案内を 1日 1回 出す。
+       プレイヤーが まだ いない とき（きろくが ない いちばん よい とき）にも 出す。あそぶのは 止めない。 */
+    function keepGuide() {
+      if (!MQ.keep || !MQ.keep.guideDue || !MQ.keep.guideDue()) return null;
+      if (document.querySelector('.keepguide')) return null;   // 描き直しで 2まい 出さない
       if (MQ.text) MQ.text.pause(true);
-      let bar;
+      let box;
       try {
-        bar = h('div', { class: 'keepbar', role: 'status', 'data-noconv': '' }, [
-          h('span', { class: 'keepbar__t' }, [h('b', { text: 'おうちの方へ' }), h('span', { text: 'ホーム画面に入れないと、記録が消えることがあります' })]),
-          h('button', { class: 'keepbar__go', type: 'button', text: 'やり方', onclick: function () {
-            MQ.sfx.unlock(); MQ.sfx.tap();
-            if (!MQ.save.current()) MQ.save.setCurrent(players[0].id);
-            MQ.ui.syncCustom();
-            MQ.ui.parent.openInstall('title');
-          } }),
-          h('button', { class: 'keepbar__x', type: 'button', 'aria-label': 'とじる', text: '×', onclick: function () {
-            MQ.sfx.unlock(); MQ.sfx.tap();
-            MQ.keep.noticeClosed();
-            if (bar.parentNode) bar.parentNode.removeChild(bar);
-          } })
+        const close = function () {
+          MQ.sfx.unlock(); MQ.sfx.tap();
+          MQ.keep.guideClosed();
+          if (box.parentNode) box.parentNode.removeChild(box);
+        };
+        const played = players.some(function (p) { return (p.battles || 0) > 0; });
+        const at = MQ.keep.backupAt();
+        const due = MQ.keep.backupDue();
+        const step = function (n, t, ic) { return h('li', { class: 'keepguide__step' }, [h('b', { text: n }), h('span', { text: t }), ic || null]); };
+        const shareIc = h('i', { class: 'keepguide__share', 'aria-hidden': 'true' });
+        box = h('div', { class: 'keepguide', role: 'dialog', 'aria-modal': 'true', 'data-noconv': '' }, [
+          h('div', { class: 'keepguide__card' }, [
+            h('p', { class: 'keepguide__kick', text: 'おうちの方へ（iPhone・iPad）' }),
+            h('p', { class: 'keepguide__h', text: 'ホーム画面に入れて遊んでください' }),
+            h('p', { class: 'keepguide__p', text: 'いまは Safari のタブで開いています。このままだと、しばらく（目安7日）開かなかったときに、iPhone・iPad が記録を自動で消すことがあります。ホーム画面のアイコンから開けば消えません。' }),
+            h('ol', { class: 'keepguide__steps' }, [
+              step('1', '画面の共有ボタンを押す', shareIc),
+              step('2', '「ホーム画面に追加」→「追加」を押す'),
+              step('3', 'これからはホーム画面の「まなびモンスター」から開く')
+            ]),
+            played
+              ? h('p', { class: 'keepguide__p keepguide__warn', text: 'Safari とアイコンでは記録が別々です。いまの記録は、下の「記録をファイルに保存」で保存し、アイコンから開いて「おうちの人」→ 設定の「ファイルから戻す」で移せます。' + (at ? '（最後の保存：' + (new Date(at).getMonth() + 1) + '/' + new Date(at).getDate() + '）' : '') })
+              : h('p', { class: 'keepguide__p', text: 'まだ記録がないので、いま入れるのがいちばん簡単です。' }),
+            played ? h('button', { class: 'keepguide__save' + (due ? ' is-due' : ''), type: 'button', text: '記録をファイルに保存', onclick: function () {
+              MQ.sfx.unlock(); MQ.sfx.tap(); MQ.ui.saveBackup();
+            } }) : null,
+            h('button', { class: 'keepguide__ok', type: 'button', text: 'きょうはこのまま遊ぶ', onclick: close })
+          ])
         ]);
       } finally { if (MQ.text) MQ.text.pause(false); }
-      return bar;
+      return box;
     }
 
     const actions = [];
@@ -395,12 +412,24 @@ MQ.ui.start = (function () {
       })
     ]));
 
+    (function () {
+      const g = keepGuide();
+      if (!g) return;
+      const stage = document.getElementById('stage') || document.body;
+      const op = openedAt ? Math.max(0, OPEN_MS - (Date.now() - openedAt)) : OPEN_MS;
+      setTimeout(function () {
+        if (document.querySelector('.keepguide')) return;
+        const scr = document.getElementById('screen-start');
+        if (scr && !scr.classList.contains('is-active')) return;   // もう タイトルに いない
+        stage.appendChild(g);
+      }, op + 200);
+    })();
+
     const tod = MQ.ui.scenery ? MQ.ui.scenery.timeOfDay() : 'day';   // 背景（v12.6）：本当の 時計で 空が 変わる
     const wrap = h('div', { class: 'title tod-' + tod + (MQ.ui.scenery && MQ.ui.scenery.canPaint && MQ.ui.scenery.canPaint() ? ' title--painted' : '') }, sky().concat([
       h('div', { class: 'title__sound' }, MQ.ui.soundButtons()),
       // 右上：おうちの人ページ（大人むけ。子どもの ボタンとは 分けて 小さく おく）
       h('button', { class: 'sw sw--parent', type: 'button', text: 'おうちの人', onclick: openParent }),
-      keepBar(),
       // 上の あき（ロゴを 下げる ため。画面が 高い ほど 大きく なる）
       h('div', { class: 'title__top' }, [MQ.ui.scenery ? MQ.ui.scenery.titleTop() : null]),   // 背景（v12.6）：太陽・月
       h('div', { class: 'title__head' }, [

@@ -6572,6 +6572,28 @@ function stripComments(src) {
   check(INDEX_HTML.indexOf('js/core/keep.js') > INDEX_HTML.indexOf('js/core/save.js') && INDEX_HTML.indexOf('js/core/keep.js') < INDEX_HTML.indexOf('js/ui/boot.js'), 'keep: index.html で keep.js は save.js の あと・boot.js の 前');
   check(fs.readFileSync(path.join(base, 'sw.js'), 'utf8').indexOf("'./js/core/keep.js'") >= 0, 'sw.js の FILES に ./js/core/keep.js');
   check(fs.readFileSync(path.join(base, 'js/ui/boot.js'), 'utf8').indexOf('MQ.keep.ask()') >= 0, 'keep: boot.js が ask() を よぶ');
+  /* v14.46 案内画面（1日 1回）と ファイルに ほぞんした 日 */
+  K.fake({ ios: true, standalone: false, persisted: false });
+  MQ.save.setSetting('keepGuideDay', ''); MQ.save.setSetting('backupAt', 0);
+  const d1 = new Date(2026, 9, 7, 9).getTime();
+  check(K.guideDue(d1) === true, 'keep: iPhone の タブでは 案内画面を 出す');
+  K.guideClosed(d1);
+  check(K.guideDue(d1 + 3600000) === false, 'keep: とじた 日は もう 出さない');
+  check(K.guideDue(d1 + DAY) === true, 'keep: つぎの 日は また 出す');
+  const st = MQ.save.get();
+  const had = st.players.map(function (p) { return p.battles || 0; });
+  st.players.forEach(function (p) { p.battles = 0; });
+  check(K.backupDue(d1) === false, 'keep: あそんで いなければ ほぞんを せかさない');
+  if (st.players.length) {
+    st.players[0].battles = 2;
+    check(K.backupDue(d1) === true, 'keep: あそんだのに ほぞんして いない＝知らせる');
+    K.markBackup(d1);
+    check(K.backupDue(d1 + 6 * DAY) === false && K.backupDue(d1 + 7 * DAY) === true, 'keep: ほぞんから 7日で また 知らせる');
+  }
+  st.players.forEach(function (p, i) { p.battles = had[i]; });
+  K.fake({ ios: true, standalone: true, persisted: false });
+  check(K.guideDue(d1 + 9 * DAY) === false && K.backupDue(d1 + 30 * DAY) === false, 'keep: ホーム画面の アイコンからは 案内も 知らせも 出さない');
+  MQ.save.setSetting('keepGuideDay', ''); MQ.save.setSetting('backupAt', 0);
   console.log('v14.42 きろくを まもる OK');
 })();
 

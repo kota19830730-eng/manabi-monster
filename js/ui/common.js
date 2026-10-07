@@ -37,6 +37,78 @@ MQ.ui = MQ.ui || {};
   };
 
   /* あたらしい バージョンが 入った ときの お知らせ（v2.3）。「こうしん」で 読みなおす */
+  /* きろくを ファイルに ほぞん（v14.46）。iPhone／iPad は 共有メニュー（「"ファイル"に保存」→ iCloud Drive）、
+     ほかは ダウンロード。ほぞんできたら 日づけを のこす（MQ.keep.markBackup）。Promise<'share'|'download'|'cancel'|'fail'> */
+  MQ.ui.backupName = function (now) {
+    const dt = new Date(now || Date.now());
+    return 'manabi-monster-' + dt.getFullYear() + ('0' + (dt.getMonth() + 1)).slice(-2) + ('0' + dt.getDate()).slice(-2) + '.json';
+  };
+  MQ.ui.saveBackup = function () {
+    const text = MQ.save.exportText();
+    const name = MQ.ui.backupName();
+    const mark = function () { if (MQ.keep && MQ.keep.markBackup) MQ.keep.markBackup(); };
+    const ios = !!(MQ.keep && MQ.keep.info().ios);
+    let file = null;
+    try { file = new File([text], name, { type: 'application/json' }); } catch (e) { file = null; }
+    if (ios && file && navigator.share && navigator.canShare) {
+      let ok = false;
+      try { ok = navigator.canShare({ files: [file] }); } catch (e) { ok = false; }
+      if (ok) {
+        return navigator.share({ files: [file], title: 'まなびモンスターの記録' }).then(function () {
+          mark(); MQ.ui.toast('記録を保存しました'); return 'share';
+        }).catch(function (e) {
+          if (e && e.name === 'AbortError') return 'cancel';
+          return download();
+        });
+      }
+    }
+    return Promise.resolve(download());
+    function download() {
+      try {
+        const blob = new Blob([text], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        mark();
+        MQ.ui.toast('記録をファイルに保存しました');
+        return 'download';
+      } catch (e) {
+        MQ.ui.toast('保存できませんでした');
+        return 'fail';
+      }
+    }
+  };
+  /* ファイルから もどす（v14.46）。えらぶ → たしかめる → 上書き → タイトルへ */
+  MQ.ui.restoreFromFile = function () {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'application/json,.json';
+    inp.style.display = 'none';
+    inp.addEventListener('change', function () {
+      const f = inp.files && inp.files[0];
+      if (inp.parentNode) inp.parentNode.removeChild(inp);
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = function () { MQ.ui.restoreText(String(r.result)); };
+      r.readAsText(f);
+    });
+    document.body.appendChild(inp);
+    inp.click();
+  };
+  MQ.ui.restoreText = function (text) {
+    let data = null;
+    try { data = JSON.parse(text); } catch (e) { data = null; }
+    if (!data || !Array.isArray(data.players)) { MQ.ui.toast('まなびモンスターの記録ファイルではないようです'); return false; }
+    const names = data.players.map(function (p) { return p.name; }).join('・') || '（なし）';
+    if (!window.confirm('この記録にもどします（' + names + '）。いまの記録は上書きされます。よろしいですか？')) return false;
+    MQ.save.importText(text);
+    MQ.ui.toast('記録をもどしました');
+    MQ.ui.start.render();
+    MQ.ui.show('screen-start');
+    return true;
+  };
+
   MQ.ui.updateReady = function () {
     if (document.getElementById('upd')) return;
     const stage = document.getElementById('stage') || document.body;

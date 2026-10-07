@@ -72,10 +72,35 @@ window.MQ = window.MQ || {};
     MQ.save.setSetting('keepNoticeAt', now || Date.now());
   }
 
+  /* ---- v14.46 案内画面（iPhone／iPad の Safari の タブ）：1日 1回。とじた 日は もう 出さない ---- */
+  function dayKey(t) { const d = new Date(t || Date.now()); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function guideDue(now) {
+    if (!info().risk) return false;
+    if (!MQ.save || !MQ.save.getSetting) return false;
+    return MQ.save.getSetting('keepGuideDay', '') !== dayKey(now);
+  }
+  function guideClosed(now) { MQ.save.setSetting('keepGuideDay', dayKey(now)); }
+
+  /* ---- v14.46 ファイルに ほぞんした 日 ---- */
+  const BACKUP_GAP = 7 * 24 * 60 * 60 * 1000;    // 7日 あいたら 知らせる（Safari が 消す 目安と 同じ）
+  function backupAt() { return (MQ.save && MQ.save.getSetting) ? (MQ.save.getSetting('backupAt', 0) || 0) : 0; }
+  function markBackup(now) { MQ.save.setSetting('backupAt', now || Date.now()); }
+  /* 知らせる ときか：あぶない 端末で、あそんだ きろくが あって、まだ ほぞんして いないか 7日 いじょう あいた */
+  function backupDue(now) {
+    if (!info().risk) return false;
+    const st = MQ.save && MQ.save.get ? MQ.save.get() : null;
+    const played = !!(st && (st.players || []).some(function (p) { return (p.battles || 0) > 0; }));
+    if (!played) return false;
+    const at = backupAt();
+    return !at || ((now || Date.now()) - at) >= BACKUP_GAP;
+  }
+
   MQ.keep = {
     info: info, ask: ask, status: status, last: function () { return last; },
     noticeDue: noticeDue, noticeClosed: noticeClosed,
     NOTICE_GAP: NOTICE_GAP, NOTICE_MAX: NOTICE_MAX,
+    guideDue: guideDue, guideClosed: guideClosed,
+    backupAt: backupAt, markBackup: markBackup, backupDue: backupDue, BACKUP_GAP: BACKUP_GAP,
     fake: function (f) { fake = f || null; last = null; }
   };
 })();
