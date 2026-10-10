@@ -192,6 +192,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/dex.js"></script>
 <script src="../js/ui/parent.js"></script>
 <script src="../js/ui/howto.js"></script>
+<script src="../js/core/subject.js"></script>
 <script src="../js/ui/photo.js"></script>
 <script src="../js/ui/pixedit.js"></script>
 <script src="../js/ui/prize.js"></script>
@@ -954,8 +955,24 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
     if (mode === 'mine' || mode.indexOf('mine:') === 0) {
       const sub = mode.split(':')[1] || 'debut';
       fresh();
-      const png = MQ.sonSkin.sample('sameoni', 'cool');
-      const mon = { id: 'my-test', name: 'ガブリン', area: 'sansu', png: png };
+      // v14.47：3つめに 画像の URL（encodeURIComponent）が あれば その 絵で（ぬいぐるみ 128マス など）
+      const extUrl = mode.split(':').slice(2).map(function (x) { return decodeURIComponent(x); }).filter(function (x) { return /^(file|https?):/i.test(x); })[0] || '';
+      let png = MQ.sonSkin.sample('sameoni', 'cool');
+      if (extUrl) png = await new Promise(function (res) { const im = new Image(); im.onload = function () { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); res(c.toDataURL('image/png')); }; im.onerror = function () { res(png); }; im.src = extUrl; });
+      if (sub === 'evo') {   // 進化の すがた（おうさま・つばさ・ほのお × 2・3段階）を ならべる
+        const box = document.createElement('div');
+        box.style.cssText = 'position:fixed;inset:0;z-index:99;background:#1b2440;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px';
+        document.body.appendChild(box);
+        const cell = function (u) { const im = document.createElement('img'); im.src = u; im.style.cssText = 'width:100%;aspect-ratio:1;image-rendering:pixelated;background:#8fc7ff'; box.appendChild(im); };
+        cell(png);
+        const jobs = [];
+        [undefined, 'wing', 'flame'].forEach(function (st) { [2, 3].forEach(function (sg) { jobs.push(new Promise(function (res) { MQ.monsterGen.evoPng(png, sg, function (u) { if (u) cell(u); res(u); }, st); })); }); });
+        const outs = await Promise.all(jobs);
+        const sz = await Promise.all(outs.map(function (u) { return new Promise(function (res) { const im = new Image(); im.onload = function () { res(im.naturalWidth); }; im.onerror = function () { res(0); }; im.src = u || ''; }); }));
+        say('mine: evo sizes=' + sz.join(','));
+        return;
+      }
+      const mon = { id: 'my-test', name: 'ガブリン', area: 'sansu', png: png, trace: !!extUrl, plush: !!extUrl && png.length > 20000 };   // v14.47 大きな 写真＝ぬいぐるみ
       if (sub !== 'pal') { mon.png2 = png; mon.png3 = png; }   // pal は 本物の しくみで 2・3段階めを 作る
       MQ.save.update(function (p) { MQ.save.addCustom(p, mon); p.meetMine = mon.id; });
       MQ.ui.syncCustom();

@@ -6653,6 +6653,45 @@ function stripComments(src) {
   console.log('v14.44 きみの モンスターに 会う OK');
 })();
 
+/* v14.47 ぬいぐるみ・おもちゃの 写真（js/core/subject.js＝ころたまの 切りぬき）：登録・紙らしさ・床の 上の もの */
+(function () {
+  const IDX = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
+  const SW = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  const HZ = fs.readFileSync(path.join(base, 'tools/harness.html'), 'utf8');
+  check(IDX.indexOf('js/core/subject.js') >= 0 && IDX.indexOf('js/core/subject.js') < IDX.indexOf('js/ui/photo.js'), 'v14.47: index に subject.js（photo.js の 前）');
+  check(SW.indexOf("'./js/core/subject.js'") >= 0 && HZ.indexOf('../js/core/subject.js') >= 0, 'v14.47: sw.js の FILES と harness に subject.js');
+  load('js/core/subject.js');
+  try { load('js/ui/photo.js'); } catch (e) { /* DOM が ない ときは 下で 落ちる */ }
+  check(MQ.subject && MQ.subject.mask && MQ.subject.levels && MQ.subject.PAPER_MIN > 0, 'v14.47: MQ.subject が 読めた');
+  check(MQ.ui && MQ.ui.photo && MQ.ui.photo.parts && typeof MQ.ui.photo.parts.dilate === 'function' && typeof MQ.ui.photo.parts.bbox === 'function', 'v14.47: photo.js が 部品（dilate・bbox・workCanvas）を 出す');
+  const W = 120, H = 100;
+  function pic(bg, fgc, rx, ry) {
+    const p = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = (y * W + x) * 4, j = (((x * 7 + y * 13) % 9) - 4);   // 床の 板の むら
+      const inn = fgc && ((x - 60) * (x - 60)) / (rx * rx) + ((y - 52) * (y - 52)) / (ry * ry) < 1;
+      const c = inn ? fgc : [bg[0] + j, bg[1] + j, bg[2] + j];
+      p[k] = c[0]; p[k + 1] = c[1]; p[k + 2] = c[2]; p[k + 3] = 255;
+    }
+    return p;
+  }
+  check(MQ.subject.paperness(pic([246, 244, 240]), W, H) > MQ.subject.PAPER_MIN, 'v14.47: 白い 紙は 紙（いままでの 道）');
+  const floor = pic([170, 120, 70], [235, 235, 240], 28, 32);   // 茶色の 床の 上の 白い ぬいぐるみ
+  check(MQ.subject.paperness(floor, W, H) < MQ.subject.PAPER_MIN, 'v14.47: 床の 上の ものは 紙で ない');
+  const r = MQ.subject.mask(floor, W, H);
+  let inside = 0, outside = 0, total = 0;
+  if (r) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const inn = ((x - 60) * (x - 60)) / (28 * 28) + ((y - 52) * (y - 52)) / (32 * 32) < 1;
+    if (inn) { total++; if (r.m[y * W + x]) inside++; } else if (r.m[y * W + x]) outside++;
+  }
+  check(r && inside >= total * 0.9 && outside <= total * 0.05, 'v14.47: 床を 消して ぬいぐるみだけ のこる（' + inside + '/' + total + '・はみ出し ' + outside + '）');
+  const q = r ? MQ.subject.levels(floor, r.m, W, H) : null;
+  check(q && q.length === W * H * 3, 'v14.47: levels は RGB の ならび');
+  const PH = fs.readFileSync(path.join(base, 'js/ui/photo.js'), 'utf8');
+  check(PH.indexOf('if (objMode && MQ.subject) { const ob = buildObject(') >= 0 && PH.indexOf('function objectCells(') >= 0, 'v14.47: photo.js は 紙で ない 写真を buildObject へ');
+  console.log('v14.47 ぬいぐるみの 切りぬき OK');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

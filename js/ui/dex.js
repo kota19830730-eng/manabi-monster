@@ -565,7 +565,7 @@ MQ.ui.dex = (function () {
       h('span', { class: 'palmine__label', text: 'きみの モンスター' }),
       h('p', { class: 'palmine__h', text: cur.name + ' が ボスに なって しょうぶ！ かつと きずなが ふえる' }),
       duel,
-      h('p', { class: 'palmine__h', text: 'わざの しゅるい（はじめは 絵の 色で きまったよ）' }),
+      h('p', { class: 'palmine__h', text: e.plush ? 'わざの しゅるい（はじめは 写真の 色で きまったよ）' : 'わざの しゅるい（はじめは 絵の 色で きまったよ）' }),
       kinds,
       h('p', { class: 'palmine__h', text: 'しんかした すがた（Lv.20 の すがたを 見てね）' }),
       styles

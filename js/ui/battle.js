@@ -3353,7 +3353,7 @@ MQ.ui.battle = (function () {
     palSaid++;
     let line = MQ.util.pick(set);
     // きみの モンスター（v14.44）：絵を かいた 子に 話しかける（半分くらい）
-    if (palNow.enemy && palNow.enemy.by === 'photo' && palHero && MINE_TALK[kind] && Math.random() < 0.6) { showPalSay(MQ.util.pick(MINE_TALK[kind]).replace('{n}', palHero), ms); return; }
+    if (palNow.enemy && palNow.enemy.by === 'photo' && palHero && MINE_TALK[kind] && Math.random() < 0.6) { showPalSay(MQ.util.pick((palNow.enemy.plush ? PLUSH_TALK : MINE_TALK)[kind]).replace('{n}', palHero), ms); return; }
     // きずな ♥2（v14.36）：ときどき なまえを よんで くれる
     const pb = palPower();
     if (pb && pb.move && pb.move.callName && palHero && Math.random() < 0.5 && PAL_NAME_TALK[kind]) line = MQ.util.pick(PAL_NAME_TALK[kind]).replace('{n}', palHero);
@@ -3365,6 +3365,13 @@ MQ.ui.battle = (function () {
     boss: ['{n}の 絵は まけないぞ！', 'ぼくを かいた {n}なら たおせる！'],
     miss: ['{n}、ぼくが ついてる！', 'だいじょうぶ！ {n}なら できる！'],
     win: ['{n}に かいて もらえて よかった！', 'ぼくたち さいこうの コンビだね！']
+  };
+  /* ぬいぐるみ・おもちゃの 写真から 作った モンスター（v14.47）：「かいて くれた」では ない ので べつの せりふ */
+  const PLUSH_TALK = {
+    start: ['{n}の だいじな ぼくだよ！ いくよ！', 'いつも いっしょの ぼくが たたかうよ！', '{n}、ぼくに まかせて！'],
+    boss: ['{n}と ぼくなら まけないぞ！', '{n}、いっしょに たおそう！'],
+    miss: ['{n}、ぼくが ついてる！', 'だいじょうぶ！ {n}なら できる！'],
+    win: ['{n}と いっしょで よかった！', 'ぼくたち さいこうの コンビだね！']
   };
   const PAL_NAME_TALK = {
     start: ['{n}、いっしょに いこう！', '{n}と なら まけないよ！'],

@@ -41,6 +41,14 @@ MQ.ui = MQ.ui || {};
 
 MQ.ui.photo = (function () {
   const h = MQ.util.h;
+  /* v14.47 ぬいぐるみの「そのまま」は 切りぬいた 写真（192px）。ドット絵 むけの image-rendering: pixelated の まま 小さく 出すと ギザギザに なる ので、
+     大きな data:image/png（160px いじょう）の <img> は 読めた ときに なめらかに（バトル・メニュー・なかま・この 画面 ぜんぶ）。ドット絵は 48〜128px なので かわらない */
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('load', function (e) {
+      const t = e.target;
+      if (t && t.tagName === 'IMG' && t.naturalWidth >= 160 && String(t.src).indexOf('data:image/png') === 0) t.style.imageRendering = 'auto';
+    }, true);
+  }
   const WORK = 320;                 // しらべる ときの 大きさ（長い ほう。たてよこの 比は そのまま）
   const SIZES = [[48, 'あらい'], [64, 'ふつう'], [96, 'こまかい']];
   let size = 96;                    // ドット絵の マス数（初期は こまかい・v3.3）
@@ -59,6 +67,7 @@ MQ.ui.photo = (function () {
   let inkLv = 50;                   // 線の こさ（大きいほど 線を ひろう）
   let outUrl = '';
   let lastInfo = null;              // できあがりの 情報（テスト用）
+  let objMode = false;              // ぬいぐるみ・おもちゃの 写真（紙の 絵で ない）＝ MQ.subject で 切りぬく（v14.47）
   let lastDark = false;             // 暗い・ざらつく 写真（撮り直しの 注意を 出す・v14.10）
   let eyeTaps = [];                 // 「目は どこ？」で 子どもが タップした 場所（できあがりの 絵の 上の わりあい [u, v]・v14.10）
   // AI（v2.8）
@@ -2168,12 +2177,354 @@ MQ.ui.photo = (function () {
 
   /* </trace> */
 
+  /* =======================================================
+     ぬいぐるみ・おもちゃの 写真（v14.47）
+     ユーザー「ころたまの ぬいぐるみの 判定が 良かった。まなびモンスターにも」→ A「そのまま ドット絵に」。
+     ① MQ.subject.mask で 床・机を 消して 主役だけ（ころたまと 同じ 切りぬき）
+     ② 64マスに：マスの 中の 主役の 点の 平均の 色（主役が 45% より 少ない マスは なし）
+     ③ 色を 10色に まとめて 番号の マス目に → 紙の 絵の「きみの 絵」と 同じ 道（立体の ふち・かっこよく・ブロックふう）
+     小さな 目（ビーズ）は 2〜3マス なので、しみ消し（specks）は かけない
+     ======================================================= */
+  /* N＝ぬいぐるみの マス数（ユーザー「汚く 見える。もっと 解像度 あげて 綺麗に」→ 64 → 128）。hi＝色を 読む 写真の 倍率（しらべる 320px の 2ばい）。
+     genN＝モンスターの 候補（monstergen）に わたす マス数（64 の まま） */
+  const PHOTO_MAX = 12;
+  const OBJ = { N: 128, hi: 2, genN: 64, photo: 192, softLine: 3, softPlain: false, cov: 0.45, colors: 10, minor: 0.25, split: 45, merge: 46, shadowMax: 0.15, shadeK: 0.86, shadeTh: 10 };
+  function d3(a, b) { const r = a[0] - b[0], g = a[1] - b[1], bb = a[2] - b[2]; return Math.sqrt(r * r + g * g + bb * bb); }
+  /* マスの 中の 点を 2つに 分けて、少ない ほう（25% いじょう）が はっきり ちがい（45 いじょう）・暗いか 色が こい なら その 色。
+     平均だと 細い 黒い 線（まゆ・口）や ほっぺの ピンクが 体の 色に とけて 消える（うさぎで 実測）。紙の 絵の えんぴつと 同じ 考え（細い 線を 1マスに） */
+  function cellColor(pts) {
+    let a = pts[0], b = pts[0], far = -1;
+    const mean = [0, 0, 0];
+    pts.forEach(function (c) { mean[0] += c[0] / pts.length; mean[1] += c[1] / pts.length; mean[2] += c[2] / pts.length; });
+    pts.forEach(function (c) { const d = d3(c, mean); if (d > far) { far = d; a = c; } });
+    far = -1;
+    pts.forEach(function (c) { const d = d3(c, a); if (d > far) { far = d; b = c; } });
+    let A = a.slice(), B = b.slice(), na = 0, nb = 0;
+    for (let it = 0; it < 4; it++) {
+      const sa = [0, 0, 0], sb = [0, 0, 0]; na = 0; nb = 0;
+      pts.forEach(function (c) { if (d3(c, A) <= d3(c, B)) { sa[0] += c[0]; sa[1] += c[1]; sa[2] += c[2]; na++; } else { sb[0] += c[0]; sb[1] += c[1]; sb[2] += c[2]; nb++; } });
+      if (na) A = [sa[0] / na, sa[1] / na, sa[2] / na];
+      if (nb) B = [sb[0] / nb, sb[1] / nb, sb[2] / nb];
+    }
+    if (!na || !nb || d3(A, B) < OBJ.split) return mean;
+    const mi = na < nb ? A : B, ma = na < nb ? B : A, nmi = Math.min(na, nb);
+    if (nmi < pts.length * OBJ.minor) return mean;
+    const sat = function (c) { return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]); };
+    const distinct = lumOf(mi[0], mi[1], mi[2]) < lumOf(ma[0], ma[1], ma[2]) - 30 || sat(mi) > sat(ma) + 20;
+    return distinct ? mi : ma;
+  }
+  /* 色の 手本（ぬいぐるみ 用）：色を「明るさ×0.6・赤み×1.8・黄み×1.8」の 場所に うつして えらぶ。
+     ふつうの RGB の きょりだと うすい ピンクの ほっぺ（233,204,231）が クリーム色（242,240,224）の すぐ そばに なり、
+     体の かげの 灰色が 手本を うばって ピンクが 消えた（うさぎで 実測）。えらんだ あと 近い 色（OBJ.merge みまん）は 1つに */
+  function cf3(c) { return [lumOf(c[0], c[1], c[2]) * 0.6, (c[0] - c[1]) * 1.8, ((c[0] + c[1]) / 2 - c[2]) * 1.8]; }
+  function objPalette(list, k) {
+    const fs = list.map(cf3);
+    const step = Math.max(1, Math.ceil(fs.length / 900));
+    const cen = [fs[0].slice()];
+    while (cen.length < k) {
+      let far = -1, fd = -1;
+      for (let i = 0; i < fs.length; i += step) { let md = 1e9; for (let j = 0; j < cen.length; j++) { const d = d3(fs[i], cen[j]); if (d < md) md = d; } if (md > fd) { fd = md; far = i; } }
+      if (far < 0 || fd < OBJ.merge) break;
+      cen.push(fs[far].slice());
+    }
+    let lab = new Int16Array(fs.length);
+    for (let it = 0; it < 5; it++) {
+      const sum = cen.map(function () { return [0, 0, 0, 0]; });
+      for (let i = 0; i < fs.length; i++) { let b = 0, bd = 1e9; for (let j = 0; j < cen.length; j++) { const d = d3(fs[i], cen[j]); if (d < bd) { bd = d; b = j; } } lab[i] = b; sum[b][0] += fs[i][0]; sum[b][1] += fs[i][1]; sum[b][2] += fs[i][2]; sum[b][3]++; }
+      for (let j = 0; j < cen.length; j++) if (sum[j][3]) cen[j] = [sum[j][0] / sum[j][3], sum[j][1] / sum[j][3], sum[j][2] / sum[j][3]];
+    }
+    // 近い 手本は 1つに
+    const alias = cen.map(function (c, j) { return j; });
+    for (let a = 0; a < cen.length; a++) for (let b = a + 1; b < cen.length; b++) if (alias[b] === b && alias[a] === a && d3(cen[a], cen[b]) < OBJ.merge) alias[b] = a;
+    const rgb = cen.map(function () { return [0, 0, 0, 0]; });
+    // 手本の 色は 明るい ほうを 重く（光の あたった ところの 色＝ぬいぐるみの 本当の 色。かげは あとで 2だんめに する）
+    for (let i = 0; i < fs.length; i++) { const t = rgb[alias[lab[i]]], w = Math.pow(Math.max(20, lumOf(list[i][0], list[i][1], list[i][2])) / 255, 3); t[0] += list[i][0] * w; t[1] += list[i][1] * w; t[2] += list[i][2] * w; t[3] += w; }
+    return rgb.filter(function (t) { return t[3] > 0; }).map(function (t) { return [t[0] / t[3], t[1] / t[3], t[2] / t[3]]; });
+  }
+  function smoothLabels(grid, N, rounds) {
+    for (let rd = 0; rd < rounds; rd++) {
+      const out = grid.slice();
+      for (let j = 1; j < N - 1; j++) {
+        for (let i = 1; i < N - 1; i++) {
+          const c = j * N + i, g = grid[c];
+          if (g <= 0) continue;
+          const cnt = new Map();
+          let best = 0, bv = 0, same = 0;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const t = grid[c + dy * N + dx];
+            if (t === g) { same++; continue; }
+            if (t <= 0) continue;
+            const v = (cnt.get(t) || 0) + 1;
+            cnt.set(t, v);
+            if (v > bv) { bv = v; best = t; }
+          }
+          if (same <= 1 && bv >= 5) out[c] = best;
+        }
+      }
+      grid.set(out);
+    }
+  }
+  function objectCells(q, fg, W, H, box, N, p, isShadow) {
+    const bw = box.x1 - box.x0 + 1, bh = box.y1 - box.y0 + 1;
+    const side = Math.max(bw, bh) * 1.06;
+    const ox = (box.x0 + box.x1) / 2 - side / 2, oy = (box.y0 + box.y1) / 2 - side / 2, cs = side / N;
+    const M = 6;
+    const col = new Array(N * N).fill(null);
+    const shadow = new Uint8Array(N * N);
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        let tot = 0, r0 = 0, g0 = 0, b0 = 0;
+        const pts = [];
+        for (let v = 0; v < M; v++) {
+          for (let u = 0; u < M; u++) {
+            const x = Math.floor(ox + (i + (u + 0.5) / M) * cs), y = Math.floor(oy + (j + (v + 0.5) / M) * cs);
+            tot++;
+            if (x < 0 || y < 0 || x >= W || y >= H) continue;
+            const k = y * W + x;
+            if (!fg[k]) continue;
+            pts.push([q[k * 3], q[k * 3 + 1], q[k * 3 + 2]]);
+            r0 += p[k * 4]; g0 += p[k * 4 + 1]; b0 += p[k * 4 + 2];
+          }
+        }
+        if (pts.length < tot * OBJ.cov) continue;
+        col[j * N + i] = cellColor(pts);
+        if (isShadow && isShadow([r0 / pts.length, g0 / pts.length, b0 / pts.length])) shadow[j * N + i] = 1;
+      }
+    }
+    /* のこった 影（床と 同じ 色みで 暗い ところ）：そとから つながる ものだけ 消す（中の 茶色い もようは のこす）。
+       消える マスが 15% を こえる ときは 主役も 床の 色に にて いる（茶色い くま）ので 消さない */
+    const reach = new Uint8Array(N * N), st = [];
+    for (let c = 0; c < N * N; c++) {
+      if (!col[c] || !shadow[c]) continue;
+      const x = c % N, y = (c - x) / N;
+      if (x === 0 || y === 0 || x === N - 1 || y === N - 1 || !col[c - 1] || !col[c + 1] || !col[c - N] || !col[c + N]) { reach[c] = 1; st.push(c); }
+    }
+    while (st.length) {
+      const c = st.pop(), x = c % N;
+      [x > 0 ? c - 1 : -1, x < N - 1 ? c + 1 : -1, c - N, c + N].forEach(function (cc) {
+        if (cc < 0 || cc >= N * N || reach[cc] || !col[cc] || !shadow[cc]) return;
+        reach[cc] = 1; st.push(cc);
+      });
+    }
+    let nAll = 0, nSh = 0;
+    for (let c = 0; c < N * N; c++) { if (col[c]) nAll++; if (reach[c]) nSh++; }
+    let nShAny = 0; for (let c = 0; c < N * N; c++) if (shadow[c]) nShAny++;
+    const shDbg = [nAll, nShAny, nSh];   // テスト用：主役の マス・影らしい マス・消した 影
+    if (nSh && nSh <= nAll * OBJ.shadowMax) for (let c = 0; c < N * N; c++) if (reach[c]) col[c] = null;
+    const list = col.filter(function (c) { return !!c; });
+    /* 色を 10色に → 近い 色（OBJ.merge みまん）は 1つに。ぬいぐるみの 体の 光と かげ（クリーム・灰色・青みの 灰色）を 1色に して まだらを なくす。
+       かわりに 大きな 色（5% いじょう）には「かげの 色」を 1つ ずつ 足し、写真で その 色より 暗い ところを ぼかしてから 2だんに 分ける＝アニメの ぬり（ユーザー「汚く 見える」） */
+    const pal = list.length ? objPalette(list, OBJ.colors) : [];
+    const palF = pal.map(cf3);
+    const grid = new Int16Array(N * N);
+    const cnt = new Int32Array(pal.length + 1);
+    for (let c = 0; c < N * N; c++) {
+      if (!col[c]) continue;
+      let best = 0, bd = 1e9;
+      const fc = cf3(col[c]);
+      for (let t = 0; t < pal.length; t++) {
+        const d = d3(fc, palF[t]);
+        if (d < bd) { bd = d; best = t; }
+      }
+      grid[c] = best + 1;
+      cnt[best + 1]++;
+    }
+    let nIn = 0; for (let t = 1; t <= pal.length; t++) nIn += cnt[t];
+    const shadeOf = new Int16Array(pal.length + 1);   // 色の 番号 → かげの 色の 番号（0＝なし）
+    const ext = pal.map(function (c) { return c.slice(); });
+    for (let t = 1; t <= pal.length; t++) {
+      if (cnt[t] < nIn * 0.05) continue;
+      const c = pal[t - 1];
+      ext.push([c[0] * OBJ.shadeK, c[1] * OBJ.shadeK, c[2] * OBJ.shadeK * 1.02]);
+      shadeOf[t] = ext.length;
+    }
+    // 写真で その 色より どれだけ 暗いか → ぼかして（64マスで 2マス）→ OBJ.shadeTh より 暗ければ かげ
+    const dm = new Float32Array(N * N), has = new Uint8Array(N * N);
+    for (let c = 0; c < N * N; c++) {
+      const t = grid[c];
+      if (t > 0 && shadeOf[t]) { const pc = pal[t - 1]; dm[c] = lumOf(col[c][0], col[c][1], col[c][2]) - lumOf(pc[0], pc[1], pc[2]); has[c] = 1; }
+    }
+    const rb = Math.max(1, Math.round(N / 32)), g0 = grid.slice();
+    for (let c = 0; c < N * N; c++) {
+      if (!has[c]) continue;
+      const x = c % N, y = (c - x) / N;
+      let sum = 0, nn = 0;
+      for (let dy = -rb; dy <= rb; dy++) for (let dx = -rb; dx <= rb; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue;
+        const cc = yy * N + xx;
+        if (g0[cc] !== g0[c]) continue;
+        sum += dm[cc]; nn++;
+      }
+      if (nn && sum / nn < -OBJ.shadeTh) grid[c] = shadeOf[g0[c]];
+    }
+    const WHITE = ext.length + 1, DARK = ext.length + 2;
+    const fills = ext.map(function (c) { return c.slice(); });
+    fills.push([246, 244, 238]);
+    fills.push([62, 58, 72]);
+    smoothLabels(grid, N, N >= 96 ? 2 : 1);   // 1マスだけ ちがう 色の ちらばり（毛なみ・光の むら）を ならす
+    dropLoose(grid, N, WHITE);   // 主役から はなれた 小さな かけら（床の のこり）を 消す
+    // 目は どこ？（紙の 絵と 同じ・タップした ところに 白目＋黒目）
+    if (eyeTaps.length) {
+      let gx0 = N, gy0 = N, gx1 = -1, gy1 = -1;
+      for (let c = 0; c < N * N; c++) if (grid[c]) { const x = c % N, y = (c - x) / N; if (x < gx0) gx0 = x; if (x > gx1) gx1 = x; if (y < gy0) gy0 = y; if (y > gy1) gy1 = y; }
+      const er = gx1 < 0 ? 3 : Math.max(2, Math.round(Math.max(gx1 - gx0 + 1, gy1 - gy0 + 1) * 0.045));
+      eyeTaps.forEach(function (t) {
+        const cx = t[0] * N - 0.5, cy = t[1] * N - 0.5;
+        for (let j = Math.floor(cy - er - 2); j <= cy + er + 2; j++) {
+          for (let i = Math.floor(cx - er - 2); i <= cx + er + 2; i++) {
+            if (i < 0 || j < 0 || i >= N || j >= N) continue;
+            const d = Math.sqrt((i - cx) * (i - cx) + (j - cy) * (j - cy));
+            if (d <= er) grid[j * N + i] = WHITE;
+            else if (d <= er + 1.1) grid[j * N + i] = -1;
+          }
+        }
+        const ps = er >= 3 ? 2 : 1, px = Math.round(cx - ps / 2 + 0.5), py = Math.round(cy - ps / 2 + 0.5);
+        for (let j = py; j < py + ps; j++) for (let i = px; i < px + ps; i++) if (i >= 0 && j >= 0 && i < N && j < N) grid[j * N + i] = -1;
+      });
+    }
+    // そのまま：マスの 色（10色に まとめた 色）＋ブロックと 同じ 立体の ふち（上は 明るく・右と 下は こく）
+    const cells = new Array(N * N).fill(null);
+    for (let c = 0; c < N * N; c++) {
+      if (grid[c] > 0) cells[c] = fills[grid[c] - 1].slice();
+      else if (grid[c] === -1) cells[c] = [44, 40, 58];
+    }
+    const shaded = cells.map(function (c) { return c ? c.slice() : null; });
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const c = j * N + i, g = grid[c];
+        if (g <= 0) continue;
+        // そとの ふち（となりが なし）だけ 明暗：右と 下は こく・上と 左は 明るく。はばは 64マスで 1マス ぶん
+        const fc = cells[c], e = Math.max(1, Math.round(N / 64));
+        let out = 0, inn = 0;
+        for (let k = 1; k <= e; k++) {
+          if ((j + k >= N || grid[c + k * N] === 0) || (i + k >= N || grid[c + k] === 0)) out = 1;
+          if ((j - k < 0 || grid[c - k * N] === 0) || (i - k < 0 || grid[c - k] === 0)) inn = 1;
+        }
+        if (out) shaded[c] = [fc[0] * 0.72, fc[1] * 0.72, fc[2] * 0.72];
+        else if (inn) shaded[c] = [fc[0] + (255 - fc[0]) * 0.35, fc[1] + (255 - fc[1]) * 0.35, fc[2] + (255 - fc[2]) * 0.35];
+      }
+    }
+    const cvT = document.createElement('canvas');
+    cvT.width = N; cvT.height = N;
+    const odT = cvT.getContext('2d').createImageData(N, N);
+    let drawn = 0;
+    shaded.forEach(function (c, k) { if (!c) return; odT.data[k * 4] = Math.round(c[0]); odT.data[k * 4 + 1] = Math.round(c[1]); odT.data[k * 4 + 2] = Math.round(c[2]); odT.data[k * 4 + 3] = 255; drawn++; });
+    cvT.getContext('2d').putImageData(odT, 0, 0);
+    let cool = [];
+    try {
+      const taps = eyeTaps.map(function (t) { return [t[0] * N - 0.5, t[1] * N - 0.5]; });
+      cool = [coolTrace(grid, fills, N, WHITE, DARK, 2, { M: N, taps: taps })];
+      // ブロックふうは 64マスで（128マスだと ブロックが こまかく なりすぎて まだらに 見えた）
+      const MB = Math.min(N, 64), tapsB = taps;   // taps は もとの マス目（N）で 見る
+      try { cool.push(coolTrace(grid, fills, N, WHITE, DARK, 3, { M: MB, taps: tapsB })); } catch (e2) { cool.push(null); }
+      try { cool.push(coolTrace(grid, fills, N, WHITE, DARK, 3, { M: MB, taps: tapsB, snap: 2 })); } catch (e3) { cool.push(null); }
+    } catch (e) { cool = []; }
+    // モンスターの 候補（monstergen）用の マス目：暗くて 灰色の マスは「線」
+    const gen = cells.map(function (c) {
+      if (!c) return null;
+      const l = lumOf(c[0], c[1], c[2]), sat = Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]);
+      return l < 70 && sat < 30 ? { ink: true, c: c.slice() } : { ink: false, c: c.slice() };
+    });
+    const gN = Math.min(N, OBJ.genN), genS = new Array(gN * gN);
+    for (let j = 0; j < gN; j++) for (let i = 0; i < gN; i++) genS[j * gN + i] = gen[Math.floor((j + 0.5) * N / gN) * N + Math.floor((i + 0.5) * N / gN)];
+    return { png: drawn ? cvT.toDataURL('image/png') : '', cool: cool, N: N, genN: gN, drawn: drawn, cells: genS, colors: ext.length, dbg: { sh: shDbg, pal: pal.map(function (c) { return c.map(Math.round).join(','); }) } };
+  }
+  /* 影を 点ごとに：床と 同じ 色みで 暗い 点を、マスクの そとから つながる ものだけ 消す（主役の 15% まで）。ころたまの 切りぬきで のこった ぬいぐるみの 影 */
+  function cutShadow(m, p, W, H, isShadow) {
+    const n = W * H, sh = new Uint8Array(n), st = [];
+    let nm = 0;
+    for (let k = 0; k < n; k++) { if (!m[k]) continue; nm++; if (isShadow([p[k * 4], p[k * 4 + 1], p[k * 4 + 2]])) sh[k] = 1; }
+    const cut = new Uint8Array(n);
+    for (let k = 0; k < n; k++) {
+      if (!sh[k]) continue;
+      const x = k % W, y = (k - x) / W;
+      if (x === 0 || y === 0 || x === W - 1 || y === H - 1 || !m[k - 1] || !m[k + 1] || !m[k - W] || !m[k + W]) { cut[k] = 1; st.push(k); }
+    }
+    while (st.length) {
+      const k = st.pop(), x = k % W;
+      const nb = [x > 0 ? k - 1 : -1, x < W - 1 ? k + 1 : -1, k - W, k + W];
+      for (let i = 0; i < 4; i++) { const kk = nb[i]; if (kk < 0 || kk >= n || cut[kk] || !sh[kk]) continue; cut[kk] = 1; st.push(kk); }
+    }
+    let nc = 0; for (let k = 0; k < n; k++) if (cut[k]) nc++;
+    if (!nc || nc > nm * OBJ.shadowMax) return 0;
+    for (let k = 0; k < n; k++) if (cut[k]) m[k] = 0;
+    return nc;
+  }
+  function buildObject(p, W, H) {
+    const r = MQ.subject.mask(p, W, H);
+    if (!r || !r.box || r.box.n < 60) return null;   // 見つからない ときは 紙の 絵の 道へ
+    const fg = r.m, box = r.box;
+    const q = MQ.subject.levels(p, fg, W, H);
+    let dim = 0, dn = 0;
+    for (let k = 0; k < W * H; k += 7) { dim += lumOf(p[k * 4], p[k * 4 + 1], p[k * 4 + 2]); dn++; }
+    lastDark = dim / Math.max(1, dn) < 90;
+    // 影：床（背景の 色の 手本 r.bg＝明るさで わった 色み）と 同じ 色みで、床より 明るく ない マス
+    const bgs = (r.bg || []).filter(function (c) { return c && c.length >= 3; });
+    const isShadow = bgs.length && MQ.subject.feat ? function (c) {
+      const fe = MQ.subject.feat(c[0], c[1], c[2]);
+      const mag = Math.hypot(fe[1], fe[2]);
+      if (mag < 30) return false;   // 色みの ない 黒・灰色（目・まゆ）は 影に しない
+      const ang = Math.atan2(fe[2], fe[1]);
+      return bgs.some(function (bc) { let da = Math.abs(ang - Math.atan2(bc[2], bc[1])); if (da > Math.PI) da = 2 * Math.PI - da; return da < 0.35 && Math.hypot(bc[1], bc[2]) >= 30 && fe[0] < bc[0] + 15; });
+    } : null;
+    let t = null;
+    try {
+      const k2 = OBJ.hi, W2 = W * k2, H2 = H * k2;
+      const hc = document.createElement('canvas');
+      hc.width = W2; hc.height = H2;
+      const hx = hc.getContext('2d');
+      hx.imageSmoothingEnabled = true;
+      hx.drawImage(img, img.naturalWidth * crop.x, img.naturalHeight * crop.y, Math.max(1, img.naturalWidth * crop.w), Math.max(1, img.naturalHeight * crop.h), 0, 0, W2, H2);
+      const p2 = hx.getImageData(0, 0, W2, H2).data;
+      const m2 = new Uint8Array(W2 * H2);
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) m2[y * W2 + x] = fg[Math.floor(y / k2) * W + Math.floor(x / k2)];
+      if (isShadow) cutShadow(m2, p2, W2, H2, isShadow);
+      const box2 = bbox(m2, W2, H2) || { x0: box.x0 * k2, y0: box.y0 * k2, x1: box.x1 * k2 + k2 - 1, y1: box.y1 * k2 + k2 - 1, n: box.n * k2 * k2 };
+      const q2 = MQ.subject.levels(p2, m2, W2, H2);
+      t = objectCells(q2, m2, W2, H2, box2, OBJ.N, p2, isShadow);
+      /* そのまま＝ころたまと 同じ 切りぬいた 写真（ユーザー「そのままは ころたまと 同じ クオリティに」）。
+         256マス・ふちは 2ばいの 写真で 2px やわらか。ドットの 128マスは「かっこよく」などの もと（t.png は つかわない） */
+      if (MQ.subject.photo) { try { t.photo = MQ.subject.photo(q2, m2, W2, H2, box2, 2, OBJ.photo).toDataURL('image/png'); } catch (ep) { t.photo = ''; } }
+      /* 絵本ふう＝ころたまと 同じ（8色・多数決で 平ら・目／口／ほっぺは のこす）。2ばいの 写真なので 窓も 2ばい（4）。
+         輪かく あり（OBJ.softLine px・こい 茶）＝ゲームの モンスターらしく */
+      if (MQ.subject.soft) {
+        try { t.soft = MQ.subject.soft(q2, m2, W2, H2, box2, { win: 4, out: OBJ.photo, line: OBJ.softLine, edge: 2, chroma: true, K: 10 }).toDataURL('image/png'); } catch (es) { t.soft = ''; }
+        if (OBJ.softPlain) { try { t.softPlain = MQ.subject.soft(q2, m2, W2, H2, box2, { win: 4, out: OBJ.photo, edge: 2, chroma: true, K: 10 }).toDataURL('image/png'); } catch (es2) { t.softPlain = ''; } }
+      }
+    } catch (eh) { t = null; }
+    if (!t) t = objectCells(q, fg, W, H, box, OBJ.N, p, isShadow);   // 2ばいが 作れない ときは 320px の まま
+    if (!t.png || t.drawn < 40) return null;
+    const N = t.genN;   // 候補（monstergen）は 64マス
+    lastCells = { cells: t.cells, N: N };
+    if (cleanMode !== 3) { picks = []; lastInfo = { size: t.N, clean: cleanMode, drawn: t.drawn, colors: t.colors, box: box, obj: true }; return t.photo || t.png; }
+    let list = [];
+    if (MQ.monsterGen && !t.photo) {   // 写真が 作れない とき（古い ブラウザ）だけ 組み立ての 候補も
+      const want = showGroup ? 99 : 12;
+      list = MQ.monsterGen.variants(t.cells, N, want);
+      if (aiSee && aiSee.kinds && MQ.monsterGen.withFirst) list = MQ.monsterGen.withFirst(list, aiSee.kinds);
+    }
+    /* ぬいぐるみの 候補：そのまま（切りぬいた 写真）・絵本ふう。ドット絵（かっこよく）と ブロックふうは 写真だと 顔が ばらばらの 点に なり 汚い ので 出さない（ユーザー 2026-10-10） */
+    const tl = [{ kind: 'trace', tag: 'trace', trace: true, png: t.photo || t.png }];
+    if (t.soft) tl.push({ kind: 'trace', tag: 'soft', trace: true, png: t.soft });
+    if (t.softPlain) tl.push({ kind: 'trace', tag: 'soft2', trace: true, png: t.softPlain });
+    if (!t.photo) (t.cool || []).forEach(function (png, i) { if (png) tl.push({ kind: 'trace', tag: i === 0 ? 'cool' : i === 1 ? 'block' : 'block2', trace: true, png: png }); });
+    list = tl.concat(list);
+    picks = list;
+    if (pickAt >= picks.length) pickAt = 0;
+    const cur = picks[pickAt];
+    lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, kinds2: list.map(function (v) { return v.tag; }), letters: letterPick.join(''), box: box, obj: true, drawn: t.drawn, colors: t.colors, dbg: t.dbg, bg: (r.bg || []).map(function (c) { return [c[0], c[1], c[2]].map(Math.round).join(','); }) };
+    if (cur.letters && letterPick.length && MQ.monsterGen.letterPng) return MQ.monsterGen.letterPng(letterPick, cur.cols || null);
+    return cur.png;
+  }
   function build() {
     if (!img) return '';
     const cv = workCanvas(img, crop);
     const W = cv.width, H = cv.height;
     let data;
     try { data = cv.getContext('2d').getImageData(0, 0, W, H); } catch (e) { return cv.toDataURL(); }
+    if (objMode && MQ.subject) { const ob = buildObject(data.data, W, H); if (ob !== null) return ob; }   // v14.47 ぬいぐるみ・おもちゃ
     const prep = prepare(data.data, W, H);
     const q = prep.q, auto = prep.auto;
     const kTol = tol / 55;                                   // スライダー「はいけいを 消す」（55 = 自動の まま）
@@ -2344,6 +2695,34 @@ MQ.ui.photo = (function () {
     const W = cv.width, H = cv.height;
     let data;
     try { data = cv.getContext('2d').getImageData(0, 0, W, H); } catch (e) { return; }
+    /* v14.47 ぬいぐるみ・おもちゃ：紙らしさが 低い 写真は ころたまの 切りぬき（js/core/subject.js）で 主役を さがす。
+       わくは 主役の まわりに 16% の 余白（subject.mask は ふちの 帯を 背景の 色の 手本に する ので、余白が いる） */
+    objMode = false;
+    if (MQ.subject) {
+      try {
+        if (MQ.subject.paperness(data.data, W, H) < MQ.subject.PAPER_MIN) {
+          const ro = MQ.subject.mask(data.data, W, H);
+          /* つくえ・ゆかの 上の 紙は 紙の 絵の 道へ：切りぬいた ものが はんいの 85% いじょうを うめ（四角い）、その はんいが 紙らしい（0.5 いじょう）。
+             実測：つくえの 上の 紙＝うめ 1.00・紙らしさ 0.74／うさぎ 6まい＝うめ 0.63〜0.67 */
+          let sheet = false;
+          if (ro && ro.box) {
+            const b1 = ro.box, bw1 = b1.x1 - b1.x0 + 1, bh1 = b1.y1 - b1.y0 + 1;
+            if (ro.box.n > bw1 * bh1 * 0.85) {
+              const sub = new Uint8ClampedArray(bw1 * bh1 * 4);
+              for (let y = 0; y < bh1; y++) for (let x = 0; x < bw1; x++) { const sk = ((y + b1.y0) * W + x + b1.x0) * 4, tk = (y * bw1 + x) * 4; sub[tk] = data.data[sk]; sub[tk + 1] = data.data[sk + 1]; sub[tk + 2] = data.data[sk + 2]; sub[tk + 3] = 255; }
+              sheet = MQ.subject.paperness(sub, bw1, bh1) > 0.5;
+            }
+          }
+          if (ro && ro.box && ro.box.n >= 60 && !sheet) {
+            objMode = true;
+            const kx0 = img.naturalWidth / W, ky0 = img.naturalHeight / H, b0 = ro.box;
+            const bw0 = (b0.x1 - b0.x0 + 1) * kx0, bh0 = (b0.y1 - b0.y0 + 1) * ky0, pad0 = Math.max(bw0, bh0) * 0.16;
+            crop = rectCrop(b0.x0 * kx0 - pad0, b0.y0 * ky0 - pad0, (b0.x1 + 1) * kx0 + pad0, (b0.y1 + 1) * ky0 + pad0);
+            return;
+          }
+        }
+      } catch (eo) { objMode = false; }
+    }
     const prep = prepare(data.data, W, H);
     const q = prep.q, thr = prep.auto;
     const np = notPaperMask(q, W, H, thr, true);
@@ -2613,7 +2992,7 @@ MQ.ui.photo = (function () {
     const eyeRow = h('div', { class: 'photo__eyes', hidden: 'hidden', style: { display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' } }, [eyeBtn, eyeClear, eyeNote]);
     function paintEyes() {
       const cur = picks[pickAt];
-      const on = cleanMode === 3 && !edited && !!(cur && cur.trace);
+      const on = cleanMode === 3 && !edited && !!(cur && cur.trace) && !(objMode && lastInfo && lastInfo.obj);   // v14.47 写真には 効かない
       if (!on) eyeMode = false;
       eyeRow.hidden = !on;
       eyeRow.style.display = on ? 'flex' : 'none';
@@ -2701,7 +3080,7 @@ MQ.ui.photo = (function () {
       if (p.letters && letterPick.length && MQ.monsterGen.letterPng) return MQ.monsterGen.letterPng(letterPick, p.cols || null);
       return p.png;
     }
-    function pickName(p) { if (p.label) return p.label; return p.trace ? (p.tag === 'cool' ? 'かっこよく' : p.tag === 'block' ? 'ブロックふう' : p.tag === 'block2' ? 'もっと ブロック' : 'そのまま') : MQ.monsterGen.kindName ? MQ.monsterGen.kindName(p.tag || p.kind) : ''; }
+    function pickName(p) { if (p.label) return p.label; return p.trace ? (p.tag === 'cool' ? 'かっこよく' : p.tag === 'block' ? 'ブロックふう' : p.tag === 'block2' ? 'もっと ブロック' : p.tag === 'soft' ? '絵本ふう' : p.tag === 'soft2' ? '絵本ふう（線なし）' : 'そのまま') : MQ.monsterGen.kindName ? MQ.monsterGen.kindName(p.tag || p.kind) : ''; }
     // 候補 1体ぶんの タイル（絵＋名前）
     function pickTile(p, i, big) {
       return h('button', {
@@ -2721,9 +3100,10 @@ MQ.ui.photo = (function () {
       pickRow.innerHTML = '';
       allRow.innerHTML = '';
       const on = cleanMode === 3 && picks.length > 1 && !edited;
+      const hasGen = picks.some(function (p) { return !p.trace; });   // v14.47 ぬいぐるみは そのまま・絵本ふう だけ
       pickRow.hidden = !on;
-      groupRow.hidden = !on;
-      allRow.hidden = !(on && showGroup);
+      groupRow.hidden = !(on && hasGen);
+      allRow.hidden = !(on && hasGen && showGroup);
       Array.prototype.forEach.call(groupRow.querySelectorAll('.photo__group'), function (b) {
         b.classList.toggle('is-on', b.getAttribute('data-g') === showGroup);
       });
@@ -2738,6 +3118,7 @@ MQ.ui.photo = (function () {
         pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'デザインの あん' }));
         picks.forEach(function (p, i) { if (p.design) pickRow.appendChild(pickTile(p, i)); });
       }
+      if (!hasGen) return;   // v14.47 ぬいぐるみ：そのまま・絵本ふう だけ
       pickRow.appendChild(h('span', { class: 'photo__lbl', text: mine.children.length ? 'ほかの すがた' : 'おすすめ' }));
       let shown = 0;
       picks.forEach(function (p, i) { if (!p.trace && !p.design && shown < 12) { pickRow.appendChild(pickTile(p, i)); shown++; } });
@@ -2787,6 +3168,11 @@ MQ.ui.photo = (function () {
       });
     }
 
+    // v14.47 ぬいぐるみ・おもちゃの ときは スライダー（紙の 絵 用）を かくして 説明を 出す
+    const tolRow = sliderRow('はいけいを 消す', 15, 120, function () { return tol; }, function (v) { tol = v; });
+    const inkRow = sliderRow('線を こく', 0, 100, function () { return inkLv; }, function (v) { inkLv = v; });
+    const objNote = h('p', { class: 'note photo__obj', hidden: 'hidden', text: 'ぬいぐるみや おもちゃを 切りぬいたよ。まわりが のこる ときは、白い 紙か 白い 布の 上に おいて もう いちど とると きれいに なるよ' });
+    const cleanRow = h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'しあげ' }), cleanChips]);
     // できあがりの みほん。しゃしんを とるまでは かくしておく
     const previewRow = h('div', { class: 'photo__preview', hidden: 'hidden' }, [
       h('div', { class: 'photo__views' }, [
@@ -2804,10 +3190,11 @@ MQ.ui.photo = (function () {
       groupRow,
       allRow,
       letterRow,
-      sliderRow('はいけいを 消す', 15, 120, function () { return tol; }, function (v) { tol = v; }),
-      sliderRow('線を こく', 0, 100, function () { return inkLv; }, function (v) { inkLv = v; }),
+      objNote,
+      tolRow,
+      inkRow,
       sizeRow,
-      h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'しあげ' }), cleanChips]),
+      cleanRow,
       h('div', { class: 'photo__btns' }, [
         h('button', { class: 'btn btn--small btn--cream', type: 'button', text: 'わくを 自動で', onclick: function () { MQ.sfx.tap(); eyeTaps = []; autoCrop(); drawStage(); refresh(); } }),
         h('button', { class: 'btn btn--small btn--cream', type: 'button', text: '回す', onclick: function () { MQ.sfx.tap(); rotateImg(); } })
@@ -2833,7 +3220,12 @@ MQ.ui.photo = (function () {
       previewRow.classList.toggle('is-edited', !!edited);
       emptyNote.hidden = !!edited || !(img && !outUrl);
       darkNote.hidden = !(img && !edited && !aiUsed && lastDark);
-      editRow.hidden = !outUrl;
+      const obj = !!(img && !edited && objMode && lastInfo && lastInfo.obj);
+      objNote.hidden = !obj;
+      tolRow.hidden = obj;
+      inkRow.hidden = obj;
+      cleanRow.hidden = obj;   // しあげ（モンスター／ゲームふう／絵の まま）は 写真には 効かない
+      editRow.hidden = !outUrl || (!edited && outUrl.length > 20000);   // v14.47 写真の そのまま・絵本ふうは ドットで 直せない
     }
     // ドット絵エディタ（v2.9）を 開く。できあがりを 直す／まっしろから かく
     function openEditor(blank) {
@@ -2953,6 +3345,12 @@ MQ.ui.photo = (function () {
 
     function save() {
       if (!outUrl) { MQ.ui.toast('まず しゃしんを とるか、ドット絵を かいてね'); return; }
+      // v14.47 しゃしんの「そのまま」（大きな 絵）は 1体 約150KB。セーブが いっぱいに ならない ように 12体まで
+      if (outUrl.length > 20000) {
+        const pl0 = MQ.save.current();
+        const big = ((pl0 && pl0.custom) || []).filter(function (m) { return m.png && m.png.length > 20000; }).length;
+        if (big >= PHOTO_MAX) { MQ.ui.toast('しゃしんの モンスターは ' + PHOTO_MAX + '体まで だよ。下の つくった モンスターを 1体 消すか、かっこよくを えらんでね'); return; }
+      }
       const name = (nameIn.value || '').trim();
       if (!name) { MQ.ui.toast('なまえを 入れてね'); return; }
       // 40体（MQ.save.MAX_CUSTOM）を こえると いちばん 古い 子が だまって 消えて いた → つくる 前に とめる
@@ -2965,6 +3363,7 @@ MQ.ui.photo = (function () {
       if (aiUsed) mon.ai = true;
       if (edited) mon.edited = true;
       if (cleanMode === 3 && picks[pickAt] && picks[pickAt].trace && !aiUsed) mon.trace = true;   // v14.4 きみの 絵（直しても 形は 絵の まま）
+      if (objMode && lastInfo && lastInfo.obj && !edited) mon.plush = true;   // v14.47 ぬいぐるみ・おもちゃの 写真（せりふが 変わる）
       const how = aiUsed ? '（AIで かっこよく）' : edited && !img ? '（ドット絵を じぶんで かいた）' : edited ? '（ドットを 直した）' : '';
       // 3段階に 育つ ように、つの つき／かんむり つきの 絵も いっしょに 作る（v8.2）
       MQ.ui.growCustom(mon, function () {
@@ -3000,7 +3399,7 @@ MQ.ui.photo = (function () {
             MQ.ui.battle.startDuel(id);
           }
         }),
-        h('button', {
+        (m.png && m.png.length > 20000 && !m.edited) ? null : h('button', {
           class: 'btn btn--small btn--cream', type: 'button', text: '直す',
           onclick: function () {
             if (!MQ.ui.pixedit) return;
@@ -3032,6 +3431,7 @@ MQ.ui.photo = (function () {
     MQ.ui.mount('screen-dex', h('div', { class: 'wrap' }, [
       h('h2', { class: 'label', text: 'じぶんの モンスターを つくる', style: { marginTop: '6px' } }),
       h('p', { class: 'note', text: '紙に かいた 絵を しゃしんに とると、ドット絵に なって バトルに 出てくるよ。明るい ところで、紙が ぜんぶ 入るように まっすぐ とると きれいに なるよ。' }),
+      h('p', { class: 'note', text: 'ぬいぐるみや おもちゃも OK！ ゆかや つくえの 上に 1つだけ おいて、まん中に 大きく うつるように とってね。' }),
       h('div', { class: 'photo' }, [
         stage,
         h('button', { class: 'btn', type: 'button', text: '📷 しゃしんを とる', onclick: function () { MQ.sfx.tap(); fileIn.click(); } }),
@@ -3115,6 +3515,8 @@ MQ.ui.photo = (function () {
     // テスト用：さいごの できあがりの 情報／作り直し
     info: function () { return lastInfo; },
     dark: function () { return lastDark; },
+    obj: function () { return objMode; },   // テスト用：ぬいぐるみ・おもちゃの 写真か（v14.47）
+    parts: { workCanvas: workCanvas, dilate: dilate, bbox: bbox },   // js/core/subject.js（ぬいぐるみの 切りぬき）が 借りる
     eyes: function () { return eyeTaps.map(function (t) { return t.slice(); }); },
     inner: function () { return lastInner; },   // テスト用：はこの 中の 生きものの 見わけ（v5.7）
     debug: debugImages,

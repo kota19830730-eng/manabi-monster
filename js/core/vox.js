@@ -932,7 +932,7 @@ MQ.vox = (function () {
       plane.classList.add('v3__slab');
       plane.style.backgroundImage = 'url(' + src + ')';
       plane.style.backgroundSize = (size * U) + 'px ' + (size * U) + 'px';
-      plane.style.imageRendering = 'pixelated';
+      plane.style.imageRendering = (img.naturalWidth || 0) >= 160 ? 'auto' : 'pixelated';   // v14.47 ぬいぐるみの 写真（192px）は なめらかに
       wrap.querySelector('.p--body').appendChild(plane);
       atlas.finish(U);
       wrap.dataset.boxes = boxes.length;

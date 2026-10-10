@@ -741,13 +741,13 @@ MQ.enemies = (function () {
       const line = 'my-' + m.id;
       const grown = !!(m.png2 && m.png3);
       customs.push({
-        id: m.id, name: m.name, area: m.area, png: m.png, rare: true, by: 'photo', trace: !!m.trace, moveKind: m.moveKind || null,
+        id: m.id, name: m.name, area: m.area, png: m.png, rare: true, by: 'photo', trace: !!m.trace, plush: !!m.plush, moveKind: m.moveKind || null,
         line: grown ? line : null, stage: grown ? 1 : null, evo: grown ? m.id + '-2' : null
       });
       if (!grown) return;
-      customs.push({ id: m.id + '-2', name: 'つよい ' + m.name, area: m.area, png: m.png2, rare: true, by: 'photo', trace: !!m.trace, moveKind: m.moveKind || null,
+      customs.push({ id: m.id + '-2', name: 'つよい ' + m.name, area: m.area, png: m.png2, rare: true, by: 'photo', trace: !!m.trace, plush: !!m.plush, moveKind: m.moveKind || null,
                      line: line, stage: 2, evo: m.id + '-3', evoOnly: true });
-      customs.push({ id: m.id + '-3', name: 'でんせつの ' + m.name, area: m.area, png: m.png3, rare: true, by: 'photo', trace: !!m.trace, moveKind: m.moveKind || null,
+      customs.push({ id: m.id + '-3', name: 'でんせつの ' + m.name, area: m.area, png: m.png3, rare: true, by: 'photo', trace: !!m.trace, plush: !!m.plush, moveKind: m.moveKind || null,
                      line: line, stage: 3, evoOnly: true });
     });
     customs.forEach(function (m) { byId[m.id] = m; });

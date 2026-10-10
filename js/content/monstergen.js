@@ -3703,13 +3703,14 @@ MQ.monsterGen = (function () {
     return { cx: Math.round((a + b + 1) / 2), w: b + 1 - a };
   }
   /* stage 2／3 の 部品（うしろ・前）を かえす。単位は px（48×48） */
-  function evoParts(mask, stage, N, style) {
+  function evoParts(mask, stage, N, style, opt) {
     N = N || 48;
+    const gemF = (opt && opt.gemY) || 0.5;   // むねの 宝石の 高さ（v14.47 ぬいぐるみの 写真は 顔が 上半分に ある ので 0.68）
     const bb = maskBox(mask, N);
     if (!bb) return { back: [], front: [] };
     const t = style ? topBand(mask, N, bb) : topCenter(mask, N, bb);
     // v14.44：進化の すがたを 子どもが えらぶ（おうさま＝いままで／つばさ／ほのお）
-    if (style === 'wing' || style === 'flame') return evoStyleParts(bb, t, stage, N, style, mask);
+    if (style === 'wing' || style === 'flame') return evoStyleParts(bb, t, stage, N, style, mask, gemF);
     const back = [], front = [];
     if (stage >= 3) {
       // マント（うしろ）
@@ -3743,7 +3744,7 @@ MQ.monsterGen = (function () {
       front.push([lx - 1 < 0 ? 0 : lx - 1, hy, 4, 4, EVO_GOLD]);
       front.push([rx, hy + 2, 4, 6, EVO_GOLD]);
       front.push([Math.min(N - 4, rx + 1), hy, 4, 4, EVO_GOLD]);
-      front.push([bb.cx - 3, bb.y0 + Math.round(bb.h * 0.5), 6, 6, EVO_GEM]);
+      front.push([bb.cx - 3, bb.y0 + Math.round(bb.h * gemF), 6, 6, EVO_GEM]);
     }
     return { back: back, front: front };
   }
@@ -3764,7 +3765,8 @@ MQ.monsterGen = (function () {
     if (y + h > N) h = N - y;
     return w > 0 && h > 0 ? [x, y, w, h, r[4]] : null;
   }
-  function evoStyleParts(bb, t, stage, N, style, mask) {
+  function evoStyleParts(bb, t, stage, N, style, mask, gemF) {
+    gemF = gemF || 0.5;
     const back = [], front = [];
     // りんかく：その 行の いちばん 左／右・その 列の いちばん 上（体に くっつけて おく ため）
     const rowEdge = function (y) { let a = -1, b = -1; for (let x = 0; x < N; x++) if (mask[y * N + x]) { if (a < 0) a = x; b = x; } return a < 0 ? null : [a, b]; };
@@ -3832,7 +3834,7 @@ MQ.monsterGen = (function () {
         front.push([cx + 2, hy + 3, 4, 7, EVO_FIRE]);
         front.push([cx - 1, hy + 4, 2, 5, EVO_FIRE2]);
       }
-      front.push([bb.cx - 3, bb.y0 + Math.round(bb.h * 0.5), 6, 6, EVO_GEM]);
+      front.push([bb.cx - 3, bb.y0 + Math.round(bb.h * gemF), 6, 6, EVO_GEM]);
     }
     return {
       back: back.map(function (r) { return evoClip(r, N); }).filter(Boolean),
@@ -3902,8 +3904,10 @@ MQ.monsterGen = (function () {
   function evoPng(url, stage, cb, style) {
     const im = new Image();
     im.onload = function () {
-      // v14.4 きみの 絵（64マス）は その 大きさの まま（48に ちぢめると ぼやける）
-      const N = Math.max(48, Math.min(64, im.naturalWidth || 48));
+      // v14.4 きみの 絵（64マス）は その 大きさの まま（48に ちぢめると ぼやける）。
+      // v14.47 ぬいぐるみの 絵（128マス）は 本体を 128 の まま（NB）・かんむりや つばさの 部品は 64マス（N）で 決めて KB ばいに 描く（部品の 大きさは 48〜64マス むけ）
+      const NB = Math.max(48, Math.min(256, im.naturalWidth || 48));
+      const N = Math.min(64, NB), KB = NB / N;
       /* v14.44：すがたを えらぶ とき（style あり）は 本体を 少し 小さく して 下ぞろえ。
          子どもの 絵は マスいっぱいに 広がって いて、つばさ・ほのお・マントを おく すきまが ない ため。
          style なし（息子さんの 絵の すがた・sonskin）は いままで どおり */
@@ -3917,10 +3921,12 @@ MQ.monsterGen = (function () {
       const d = tg.getImageData(0, 0, N, N).data;
       const mask = new Uint8Array(N * N);
       for (let i = 0; i < N * N; i++) mask[i] = d[i * 4 + 3] > 40 ? 1 : 0;
-      const parts = evoParts(mask, stage, N, style);
+      const parts = evoParts(mask, stage, N, style, { gemY: NB >= 160 ? 0.68 : 0.5 });
       const cv = document.createElement('canvas');
-      cv.width = N; cv.height = N;
+      cv.width = NB; cv.height = NB;
       const g = cv.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      g.save(); g.scale(KB, KB);
       function draw(list) {
         list.forEach(function (r) {
           g.fillStyle = r[4];
@@ -3933,9 +3939,16 @@ MQ.monsterGen = (function () {
         });
       }
       draw(parts.back);
+      g.restore();
+      // 本体は もとの 絵から（NB の 大きさで ぼやけない）
+      const dwB = Math.round(NB * sc), dxB = Math.round((NB - dwB) / 2), dyB = NB - dwB;
+      g.imageSmoothingEnabled = NB >= 160;   // 写真の そのまま（192px）は なめらかに ちぢめる
+      if (NB >= 160) g.imageSmoothingQuality = 'high';
+      g.drawImage(im, dxB, dyB, dwB, dwB);
       g.imageSmoothingEnabled = false;
-      g.drawImage(tmp, 0, 0);
+      g.save(); g.scale(KB, KB);
       draw(parts.front);
+      g.restore();
       cb(cv.toDataURL('image/png'));
     };
     im.onerror = function () { cb(null); };
