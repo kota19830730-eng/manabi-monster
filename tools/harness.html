@@ -737,7 +737,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         if (arg === 'flow') {
           const seen = [];
           for (let i = 0; i < 6 && $('.phw'); i++) { seen.push($('.pgd__title').textContent); $('.phw__next').click(); await wait(80); }
-          say('howto: ページ ' + seen.length + '（5 が 正）' + seen.join(' / '));
+          say('howto: ページ ' + seen.length + '（6 が 正）' + seen.join(' / '));
           say('howto: つぎ ' + ($('.pgd__card') ? '3つだけ の 画面 OK' : 'MISSING'));
           return;
         }
@@ -753,6 +753,34 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         say('howto: もどった ' + ($('#screen-parent.is-active') ? '設定 OK' : 'MISSING'));
         return;
       }
+    }
+    /* 感想フォームの お願い（v14.49）：#fbask＝出る→あとで→もう出ない→あした また／:sent＝送りました で 止まる／:stay＝撮る */
+    if (mode.indexOf('fbask') === 0) {
+      const arg = mode.split(':')[1] || '';
+      fresh();
+      MQ.save.setSetting('fbDone', false); MQ.save.setSetting('fbAskDay', ''); MQ.save.setSetting('fbOpenedAt', 0);
+      MQ.ui.start.render(); MQ.ui.show('screen-start'); await wait(2600);
+      say('fbask: 出た ' + ($('.fbask') ? 'OK' : 'MISSING') + '／きょう ' + MQ.save.getSetting('fbAskDay', ''));
+      if (arg === 'stay') { dump(); freeze(); return; }
+      if (arg === 'sent') {
+        $('.fbask__sent').click(); await wait(100);
+        say('fbask: 送りました fbDone=' + MQ.save.getSetting('fbDone', false) + '／とじた ' + (!$('.fbask') ? 'OK' : 'MISSING'));
+        MQ.save.setSetting('fbAskDay', '');
+        MQ.ui.start.render(); await wait(2600);
+        say('fbask: 送った あとは ' + ($('.fbask') ? '出た MISSING' : '出ない OK'));
+        return;
+      }
+      $('.fbask__later').click(); await wait(100);
+      MQ.ui.start.render(); await wait(2600);
+      say('fbask: 同じ日は ' + ($('.fbask') ? '出た MISSING' : '出ない OK'));
+      MQ.save.setSetting('fbAskDay', '2000-1-1');
+      MQ.ui.start.render(); await wait(2600);
+      say('fbask: つぎの日は ' + ($('.fbask') ? '出る OK' : 'MISSING'));
+      if ($('.fbask')) $('.fbask__later').click();
+      MQ.save.update(function (pl) { pl.battles = 1; }); MQ.save.setSetting('fbAskDay', '');
+      MQ.ui.start.render(); await wait(2600);
+      say('fbask: 2回しか たたかって いない ときは ' + ($('.fbask') ? '出た MISSING' : '出ない OK'));
+      return;
     }
     if (mode.indexOf('kidtour') === 0 || mode.indexOf('coach') === 0) {
       const arg = mode.split(':')[1] || '';

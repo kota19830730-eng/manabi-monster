@@ -414,7 +414,7 @@ MQ.ui.start = (function () {
     ]));
 
     (function () {
-      const g = keepGuide();
+      const g = keepGuide() || (MQ.ui.howto && MQ.ui.howto.fbAsk ? MQ.ui.howto.fbAsk() : null);   // 感想フォームの お願い（v14.49）は きろくの 案内が 出ない 日だけ
       if (!g) return;
       const stage = document.getElementById('stage') || document.body;
       const op = openedAt ? Math.max(0, OPEN_MS - (Date.now() - openedAt)) : OPEN_MS;
@@ -423,6 +423,7 @@ MQ.ui.start = (function () {
         const scr = document.getElementById('screen-start');
         if (scr && !scr.classList.contains('is-active')) return;   // もう タイトルに いない
         stage.appendChild(g);
+        if (g.__onShow) g.__onShow();
       }, op + 200);
     })();
 

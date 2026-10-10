@@ -5020,3 +5020,9 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .kidtour .unlockpop__s { font-size: 12px; }
 .kidtour__listen { display: flex; justify-content: center; margin: -6px 0 10px; }
 .phw__node { width: 32px; height: 32px; animation: none; }
+/* 感想フォーム（v14.49）：案内の 6ページめの ボタン と タイトルの お願い（.keepguide を 借りる） */
+.phw__form { display: block; padding: 12px; border-radius: 12px; background: #fff; border: 1.5px solid var(--pp-gold); color: var(--pp-gold-tx); font-weight: 700; font-size: 15px; text-align: center; text-decoration: none; }
+.fbask__go { text-align: center; text-decoration: none; box-sizing: border-box; }
+.fbask__sent { margin-bottom: 4px; }
+.fbask__later { display: block; width: 100%; padding: 10px; border: 0; background: transparent; color: #6f665a; font-family: var(--f-body); font-weight: 700; font-size: 13px; cursor: pointer; }
+.fbask__small { margin: 2px 0 0; font-size: 11px; color: #8a8070; text-align: center; }

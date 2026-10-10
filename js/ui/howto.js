@@ -3,7 +3,7 @@
    ユーザー「初めての説明画面、チュートリアルみたいなのをまなびモンスターにも」（ころたまの 案内を 見て）
    → 決定：おうちの人むけ と 子どもむけ の 両方。**新しく はじめた 子だけ**（いま 遊んで いる 子には 出さない）。
 
-   ① おうちの人むけ（大人の 文・data-noconv）：プレイヤーを 作った 直後、v14.40 の「はじめる前に 3つだけ」の 前に 5ページ。
+   ① おうちの人むけ（大人の 文・data-noconv）：プレイヤーを 作った 直後、v14.40 の「はじめる前に 3つだけ」の 前に 6ページ（6ページめ＝感想フォームの お願い・v14.49）。
       おうちの人ページの 設定「使い方の案内を見る」から いつでも もう一度。
         MQ.ui.howto.parent({ onDone, from })  … onDone＝おわった あと（とばした ときも）
    ② 子どもむけ（ひらがな＋小1の かん字）：さいしょの 地図で 1回だけ 3つの ステップの カード（読み上げ つき）。
@@ -77,11 +77,74 @@ MQ.ui = MQ.ui || {};
           item(h('span', { class: 'phw__dot', text: '2' }), '設定', '学校で習ったところだけ出す・教科書会社・読み上げ・むずかしさ。'),
           item(h('span', { class: 'phw__dot', text: '3' }), 'てがみ・ごほうびマシン', 'お子さんへの手紙を送ったり、ごほうびマシンの中身と確率を決めたりできます（4けたの番号で鍵をかけられます）。'),
           item(h('span', { class: 'phw__dot', text: '4' }), '記録の保存', '記録をファイルに保存・復元できます。機種変更のときに使ってください。')
+        ])
+      ];
+    } },
+    { title: '感想フォームへのご協力のお願い', body: function () {
+      const url = fbUrl();
+      return [
+        h('p', { class: 'phw__p', text: '使ってくださる方の声で作り直しています。しばらく遊んでみたら、一言いただけるととても助かります（1〜2分・名前なしでOK）。' }),
+        h('div', { class: 'phw__list' }, [
+          item(h('span', { class: 'phw__dot', text: '1' }), 'お子さんの一言だけでも', '「ここが好き」「ここがむずかしい」「こうなったらいい」など。'),
+          item(h('span', { class: 'phw__dot', text: '2' }), 'タイトル画面で1日1回お願いします', 'しばらく遊ぶと案内が出ます。「送りました」を押すと出なくなります。'),
+          item(h('span', { class: 'phw__dot', text: '3' }), 'いつでも送れます', '「おうちの人」のホームと設定からも送れます。')
         ]),
-        h('p', { class: 'phw__note', text: 'つぎの画面で、最初の設定を3つだけ決めます。' })
+        url ? h('a', { class: 'phw__form', href: url, target: '_blank', rel: 'noopener', text: '感想フォームを開く', onclick: function () { fbOpened(); } }) : null,
+        h('p', { class: 'phw__note', text: 'Googleのフォームが開きます。「送信」を押すまで何も送られません。' })
       ];
     } }
   ];
+
+  /* ===================== ③ 感想フォームの お願い（v14.49） =====================
+     ユーザー「感想を提出していないユーザーには1日1回ぐらい感想フォームにご協力をお願いします。みたいなの表示させて」。
+     フォームは Google（送ったかは アプリから 分からない）→ おうちの人が「送りました」を 押すまで、
+     **だれかが 3回 いじょう たたかった あと**、タイトル画面で 1日 1回（きろくの 案内 v14.46 が 出る 日は 出さない）。
+     せってい：fbDone（送りました）・fbAskDay（出した 日）・fbOpenedAt（フォームを 開いた）。大人の 文（data-noconv）。 */
+  function dayKey(t) { const d = new Date(t || Date.now()); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function fbUrl() {
+    const P = MQ.ui.parent;
+    if (!P || !P.FEEDBACK_FORM || !P.FEEDBACK_FORM.url) return '';
+    const st = MQ.save.get();
+    const p = MQ.save.current() || (st && st.players && st.players[0]) || { grade: 3 };
+    try { return P.feedbackUrl(p); } catch (e) { return P.FEEDBACK_FORM.url; }
+  }
+  function fbOpened() { MQ.save.setSetting('fbOpenedAt', Date.now()); }
+  function fbSent() { MQ.save.setSetting('fbDone', true); }
+  function fbDue(now) {
+    if (!fbUrl()) return false;
+    if (MQ.save.getSetting('fbDone', false)) return false;
+    if (MQ.save.getSetting('fbAskDay', '') === dayKey(now)) return false;
+    const st = MQ.save.get();
+    return !!(st && (st.players || []).some(function (p) { return (p.battles || 0) >= 3; }));
+  }
+  /* タイトルに かぶせる カード（v14.46 の .keepguide と 同じ 見た目）。出した ときに その日は おしまい */
+  function fbAsk(now) {
+    if (!fbDue(now) || document.querySelector('.keepguide')) return null;
+    const opened = !!MQ.save.getSetting('fbOpenedAt', 0);
+    let box;
+    const close = function () { if (box && box.parentNode) box.parentNode.removeChild(box); };
+    if (MQ.text) MQ.text.pause(true);
+    try {
+      box = h('div', { class: 'keepguide fbask', role: 'dialog', 'aria-modal': 'true', 'data-noconv': '' }, [
+        h('div', { class: 'keepguide__card' }, [
+          h('p', { class: 'keepguide__kick', text: 'おうちの方へ' }),
+          h('p', { class: 'keepguide__h', text: '感想フォームへのご協力をお願いします' }),
+          h('p', { class: 'keepguide__p', text: opened
+            ? '前にフォームを開いていただき、ありがとうございます。送信がお済みでしたら「送りました」を押してください。この案内は出なくなります。'
+            : 'まなびモンスターは、使ってくださる方の声で作り直しています。お子さんの一言（「ここが好き」「ここがむずかしい」）だけでも、とても助かります。1〜2分・名前なしで送れます。' }),
+          h('a', { class: 'keepguide__save fbask__go', href: fbUrl(), target: '_blank', rel: 'noopener', text: '感想フォームを開く',
+            onclick: function () { MQ.sfx.unlock(); MQ.sfx.tap(); fbOpened(); close(); } }),
+          h('button', { class: 'keepguide__ok fbask__sent', type: 'button', text: '送りました（もう表示しない）',
+            onclick: function () { MQ.sfx.unlock(); MQ.sfx.tap(); fbSent(); close(); MQ.ui.toast('ありがとうございます'); } }),
+          h('button', { class: 'fbask__later', type: 'button', text: 'きょうはあとで',
+            onclick: function () { MQ.sfx.unlock(); MQ.sfx.tap(); close(); } }),
+          h('p', { class: 'fbask__small', text: 'Googleのフォームが開きます。「送信」を押すまで何も送られません。' })
+        ])
+      ]);
+    } finally { if (MQ.text) MQ.text.pause(false); }
+    box.__onShow = function () { MQ.save.setSetting('fbAskDay', dayKey(now)); };
+    return box;
+  }
 
   function parent(opts) {
     opts = opts || {};
@@ -173,5 +236,6 @@ MQ.ui = MQ.ui || {};
     return kidEl;
   }
 
-  MQ.ui.howto = { parent: parent, kid: kid, PAGES: PAGES, KID_STEPS: KID_STEPS };
+  MQ.ui.howto = { parent: parent, kid: kid, PAGES: PAGES, KID_STEPS: KID_STEPS,
+    fbAsk: fbAsk, fbDue: fbDue, fbOpened: fbOpened, fbSent: fbSent };
 })();

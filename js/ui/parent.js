@@ -715,7 +715,7 @@ MQ.ui.parent = (function () {
   function formLink(p, text, cls) {
     return h('a', {
       class: 'pp-btn ' + (cls || 'pp-btn--p pp-btn--sm'), href: feedbackUrl(p), target: '_blank', rel: 'noopener',
-      onclick: function () { MQ.sfx.tap(); }
+      onclick: function () { MQ.sfx.tap(); if (MQ.ui.howto && MQ.ui.howto.fbOpened) MQ.ui.howto.fbOpened(); }
     }, [icon('arrow'), h('span', { text: text })]);
   }
   function feedbackCard(p) {
@@ -725,6 +725,10 @@ MQ.ui.parent = (function () {
       h('div', { class: 'pp-card pp-pad pp-fb' }, [
         h('p', { class: 'pp-small', text: 'まなびモンスターは、使ってくださる方の声で作り直しています。お子さんの一言（「ここが好き」「ここがむずかしい」）だけでも、とても助かります。' }),
         formLink(p, '感想フォームを開く', 'pp-btn--p'),
+        // タイトルの お願い（v14.49）を 止める。送ったかは アプリから 分からない ので おうちの人に 押して もらう
+        MQ.save.getSetting('fbDone', false)
+          ? h('p', { class: 'pp-muted pp-tiny', text: '感想を送っていただき、ありがとうございます。' })
+          : btn('送りました（お願いの表示を止める）', 'pp-btn--s pp-btn--sm', function () { if (MQ.ui.howto) MQ.ui.howto.fbSent(); MQ.ui.toast('ありがとうございます'); render(); }),
         h('p', { class: 'pp-muted pp-tiny', text: 'Googleのフォームが開きます。学年・アプリの版・端末の種類だけ最初から入っています（お子さんの名前や成績の細かい記録は入りません）。「送信」を押すまで何も送られません。' })
       ])
     ]);
