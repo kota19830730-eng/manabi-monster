@@ -191,6 +191,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/result.js"></script>
 <script src="../js/ui/dex.js"></script>
 <script src="../js/ui/parent.js"></script>
+<script src="../js/ui/howto.js"></script>
 <script src="../js/ui/photo.js"></script>
 <script src="../js/ui/pixedit.js"></script>
 <script src="../js/ui/prize.js"></script>
@@ -718,6 +719,81 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('open: ' + at + '秒 アニメ ' + anims.length + '本 / 勇者 top ' + Math.round(hero.top) + ' / ロゴ top ' + Math.round(logo.top) + ' / スライム left ' + Math.round(slime.left) + ' / is-opening=' + $('#screen-start .title').classList.contains('is-opening'));
       return;
     }
+    /* はじめての 案内（v14.48・js/ui/howto.js）
+       #howto[:<ページ 0〜4>]＝おうちの人むけ／#howto:flow＝つぎへ を 5回 → 3つだけ の 画面へ／#howto:set＝設定から
+       #kidtour＝はじめての 地図の カード／#kidtour:close＝とじて ふきだし／#coach[:retry|wrong|chest|boss]＝はじめての たたかいの ひとこと */
+    if (mode.indexOf('howto') === 0) {
+      const arg = mode.split(':')[1] || '';
+      try { localStorage.clear(); } catch (e) {}
+      MQ.save.load(); MQ.save.setSetting('sfx', false); MQ.save.setSetting('bgm', false);
+      if (arg === 'flow' || /^\d$/.test(arg) || !arg) {
+        MQ.ui.start.maker(); await wait(120);
+        $('#screen-start .input').value = 'テスト';
+        $$('#screen-start button').filter(function (b) { return b.textContent.indexOf(MQ.text.fit('これで ぼうけんへ！')) >= 0; })[0].click();
+        await wait(200);
+        say('howto: 案内 ' + ($('.phw') ? 'あり OK' : 'なし MISSING') + '／見出し「' + ($('.pgd__title') || {}).textContent + '」');
+        const n = /^\d$/.test(arg) ? +arg : 0;
+        for (let i = 0; i < n; i++) { $('.phw__next').click(); await wait(80); }
+        if (arg === 'flow') {
+          const seen = [];
+          for (let i = 0; i < 6 && $('.phw'); i++) { seen.push($('.pgd__title').textContent); $('.phw__next').click(); await wait(80); }
+          say('howto: ページ ' + seen.length + '（5 が 正）' + seen.join(' / '));
+          say('howto: つぎ ' + ($('.pgd__card') ? '3つだけ の 画面 OK' : 'MISSING'));
+          return;
+        }
+        say('howto: ページ ' + (n + 1) + ' はみ出し ' + (function () { const b = $('.phw .pp__body'); return b ? (b.scrollHeight - b.clientHeight) : -1; })() + 'px');
+        dump(); freeze(); return;
+      }
+      if (arg === 'set') {
+        fresh(); MQ.ui.parent.open('settings', { from: 'map' }); await wait(200);
+        const b = $$('#pp-howto button'); say('howto: 設定の ボタン ' + b.length + '（2 が 正）');
+        b[0].click(); await wait(150);
+        say('howto: 設定から ' + ($('.phw') ? 'ひらいた OK' : 'MISSING') + '／とじる ' + ($('.phw__skip') ? $('.phw__skip').textContent : '-'));
+        $('.phw__skip').click(); await wait(150);
+        say('howto: もどった ' + ($('#screen-parent.is-active') ? '設定 OK' : 'MISSING'));
+        return;
+      }
+    }
+    if (mode.indexOf('kidtour') === 0 || mode.indexOf('coach') === 0) {
+      const arg = mode.split(':')[1] || '';
+      try { localStorage.clear(); } catch (e) {}
+      MQ.save.load(); MQ.save.setSetting('sfx', false); MQ.save.setSetting('bgm', false);
+      MQ.save.createPlayer('はじめて', { hair: 'gold', skin: 'mid', style: 'short' }, 3);
+      MQ.save.update(function (pl) { pl.seenNews = MQ.news.latest(); if (mode.indexOf('coach') === 0) pl.kidTour = true; });
+      MQ.ui.news.reset();
+      MQ.ui.goMap(); await wait(500);
+      if (mode.indexOf('kidtour') === 0) {
+        say('kidtour: カード ' + ($('.kidtour') ? 'あり OK' : 'なし MISSING') + '／ステップ ' + $$('.kidtour__row').length + '（3 が 正）');
+        if (arg === 'close') {
+          $('.kidtour .btn').click(); await wait(100);
+          say('kidtour: とじた ' + (!$('.kidtour') ? 'OK' : 'MISSING') + '／kidTour=' + MQ.save.current().kidTour + '／ふきだし ' + ($('.mapguide') ? 'OK' : 'MISSING'));
+          MQ.ui.goMap(); await wait(500);
+          say('kidtour: 2回め ' + ($('.kidtour') ? 'また 出た MISSING' : '出ない OK'));
+        }
+        dump(); freeze(); return;
+      }
+      $('.node--now').click(); await wait(400);
+      const g = function () { const e = $('.qguide'); return e && !e.hidden ? e.textContent : '（なし）'; };
+      say('coach: 1問め ' + g());
+      if (arg === 'retry' || arg === 'wrong') {
+        answerViaUI(false); await wait(700);
+        say('coach: 1回 まちがえた ' + g());
+        if (arg === 'retry') { dump(); freeze(); return; }
+        answerViaUI(false); await wait(4000);
+        say('coach: 2回 まちがえた → つぎの 問題 ' + g());
+        dump(); freeze(); return;
+      }
+      // たからばこ／ボス まで 正解で すすむ
+      for (let i = 0; i < 40; i++) {
+        const q = MQ.battle.current(); if (!q) break;
+        if (arg === 'chest' && q.chest) break;
+        if (arg === 'boss' && MQ.battle.phase() === 'boss') { await wait(3800); break; }
+        answerViaUI(true); await wait(1500);
+        if (MQ.battle.isOver && MQ.battle.isOver()) break;
+      }
+      say('coach: ' + arg + ' ' + g());
+      dump(); freeze(); return;
+    }
     /* おうちの方へ（v14.40）：プレイヤーを 作ると 1画面 はさまる。:go＝はじめる／:prize＝いま設定する */
     if (mode.indexOf('welcome') === 0) {
       const arg = mode.split(':')[1] || '';
@@ -730,6 +806,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const go = $$('#screen-start button').filter(function (b) { return b.textContent.indexOf(MQ.text.fit('これで ぼうけんへ！')) >= 0; })[0];
       go.click();
       await wait(200);
+      if ($('.phw__skip')) { $('.phw__skip').click(); await wait(200); }   // はじめての 案内（v14.48）を とばす
       say('welcome: 画面 ' + ($('.pgd') ? 'あり OK' : 'なし MISSING') + '／カード ' + $$('.pgd__card').length + '（3 が 正）');
       say('welcome: 学期の えらび ' + $$('.pgd__opt.is-on').map(function (b) { return b.textContent; }).join(' | '));
       say('welcome: 大人の 文 ' + ($('.pgd__title').textContent === 'はじめる前に 3つだけ' ? 'そのまま OK' : 'かわった MISSING:' + $('.pgd__title').textContent));
@@ -4201,7 +4278,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       MQ.save.setSetting('sfx', false);
       MQ.save.setSetting('bgm', false);
       MQ.save.createPlayer('はじめて', { hair: 'gold', skin: 'mid', style: 'short' }, 3);
-      MQ.save.update(function (pl) { pl.seenNews = MQ.news.latest(); });
+      MQ.save.update(function (pl) { pl.seenNews = MQ.news.latest(); pl.kidTour = true; });
       MQ.ui.news.reset();
       MQ.ui.goMap();
       await wait(360);

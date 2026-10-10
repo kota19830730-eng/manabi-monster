@@ -4979,3 +4979,44 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 /* たいけつ（v14.44） */
 .palmine__duel { display: block; margin: 6px auto 2px; padding: 0 22px; font-size: 14px; }
 .rs__duel { border-color: #ff9a3c; }
+
+/* =======================================================
+   はじめての 案内（v14.48・js/ui/howto.js）
+   .phw＝おうちの人むけ 5ページ（v14.40 の .pgd の 明るい 見た目を 借りる・大人の 文）
+   .kidtour＝子どもむけ 3ステップ（v11.1 の .unlockpop と 同じ 紺＋金の カード）
+   ======================================================= */
+.phw .pp__body { overflow-y: auto; }
+.phw__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.phw__skip { padding: 5px 12px; border: 1px solid var(--pp-line); border-radius: 8px; background: #fff; color: var(--pp-mut); font-size: 12px; font-weight: 700; cursor: pointer; }
+.phw__hero { display: flex; align-items: flex-end; justify-content: center; gap: 14px; min-height: 96px; padding: 10px 0 6px;
+             background: linear-gradient(#e7f3ff, #fff8e6); border: 1px solid var(--pp-line); border-radius: 12px; }
+.phw__heroimg { width: 72px; height: 72px; image-rendering: pixelated; }
+.phw__p { margin: 0; font-size: 13.5px; line-height: 1.65; color: var(--pp-ink); }
+.phw__note { margin: 2px 0 0; padding: 8px 10px; border-radius: 10px; background: #fff6dd; font-size: 12.5px; line-height: 1.55; color: var(--pp-mut); }
+.phw__list { display: flex; flex-direction: column; gap: 8px; }
+.phw__item { display: flex; align-items: center; gap: 10px; background: var(--pp-card); border: 1px solid var(--pp-line); border-radius: 12px; padding: 10px 12px 10px 8px; }
+.phw__ico { flex: 0 0 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.phw__it { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.phw__it b { font-family: var(--pp-fh); font-size: 14.5px; color: var(--pp-ink); }
+.phw__it span { font-size: 12.5px; line-height: 1.5; color: var(--pp-mut); }
+.phw__star { width: 28px; height: 28px; }
+.phw__dot { width: 26px; height: 26px; border-radius: 50%; background: var(--pp-gold); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.phw__foot { display: flex; align-items: center; gap: 10px; }
+.phw__back { flex: none; padding: 12px 14px; border: 1px solid var(--pp-line); border-radius: 12px; background: #fff; color: var(--pp-mut); font-weight: 700; font-size: 14px; cursor: pointer; }
+.phw__dots { flex: none; display: flex; gap: 5px; }
+.phw__dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--pp-line); }
+.phw__dots i.is-on { background: var(--pp-gold); }
+.phw__next { flex: 1; width: auto; }
+
+.kidtour__row { gap: 8px; }
+.kidtour__no { flex: none; width: 24px; height: 24px; border-radius: 50%; background: #ffd447; color: #3a2a06; font-family: var(--f-head); font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.kidtour__ico { width: 76px; }
+.kidtour__pair { display: flex; align-items: flex-end; gap: 2px; }
+.kidtour__pair img { width: 36px; height: 36px; image-rendering: pixelated; }
+.kidtour__node { width: 36px; height: 36px; border-radius: 12px; background: linear-gradient(#ffb02e, #ff7a1a); box-shadow: 0 4px 0 #b4500e, 0 0 0 3px #fff6cc; display: flex; align-items: center; justify-content: center; animation: pulse 1.4s ease-in-out infinite; }
+.kidtour__nodein { font-style: normal; font-family: var(--f-head); font-size: 17px; color: #fff; }
+.kidtour__star { width: 24px; height: 24px; }
+.kidtour .unlockpop__t { font-size: 15px; }
+.kidtour .unlockpop__s { font-size: 12px; }
+.kidtour__listen { display: flex; justify-content: center; margin: -6px 0 10px; }
+.phw__node { width: 32px; height: 32px; animation: none; }

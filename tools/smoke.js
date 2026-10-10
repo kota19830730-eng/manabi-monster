@@ -2748,6 +2748,17 @@ console.log('BGM: ' + Object.keys(MQ.bgm.songs).length + ' 曲');
   ['./css/prize.css', './js/core/prize.js', './js/ui/prize.js'].forEach(function (f) { check(sw.indexOf("'" + f + "'") >= 0, 'sw.js の FILES に ' + f); });
   ['../css/prize.css', '../js/core/prize.js', '../js/ui/prize.js'].forEach(function (f) { check(harness.indexOf(f) >= 0, 'harness.html に ' + f); });
   check(INDEX_HTML.indexOf('js/core/prize.js') > INDEX_HTML.indexOf('js/core/capsule.js') && INDEX_HTML.indexOf('js/ui/prize.js') < INDEX_HTML.indexOf('js/ui/capsule.js'), 'index: prize.js の 読みこみ順');
+  // はじめての 案内（v14.48）：howto.js が 登録されて いて、プレイヤーを 作った あと・はじめての 地図・設定から よばれる
+  (function () {
+    const HT = fs.readFileSync(path.join(base, 'js/ui/howto.js'), 'utf8');
+    const SW = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+    const ST = fs.readFileSync(path.join(base, 'js/ui/start.js'), 'utf8');
+    const MP = fs.readFileSync(path.join(base, 'js/ui/map.js'), 'utf8');
+    const PR = fs.readFileSync(path.join(base, 'js/ui/parent.js'), 'utf8');
+    check(INDEX_HTML.indexOf('js/ui/howto.js') > INDEX_HTML.indexOf('js/ui/parent.js') && SW.indexOf("'./js/ui/howto.js'") >= 0, 'howto: index と sw に 登録');
+    check((HT.match(/\{ title: '/g) || []).length === 5 && /KID_STEPS = \[[\s\S]*?\];/.test(HT) && (/KID_STEPS = \[([\s\S]*?)\];/.exec(HT)[1].match(/\['/g) || []).length === 3, 'howto: おうちの人 5ページ・子ども 3ステップ');
+    check(/MQ\.ui\.howto\.parent\(\{ onDone: guide \}\)/.test(ST) && /firstTime && !player\.kidTour/.test(MP) && /howtoSection\(p\)/.test(PR), 'howto: 作った あと・はじめての 地図・設定から よばれる');
+  })();
   Z.setNow(new Date(2026, 8, 13, 10, 0, 0));
   const p = { coins: 0 };
   Z.ensure(p);

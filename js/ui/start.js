@@ -85,7 +85,8 @@ MQ.ui.start = (function () {
       MQ.save.addLog(pl, name + ' が ぼうけんに 出た');
     });
     MQ.ui.syncCustom();
-    guide();
+    // はじめての 案内（v14.48）：おうちの人むけ 5ページ → 「はじめる前に 3つだけ」
+    if (MQ.ui.howto) MQ.ui.howto.parent({ onDone: guide }); else guide();
   }
 
   /* =======================================================

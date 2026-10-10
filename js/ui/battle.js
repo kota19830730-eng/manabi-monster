@@ -380,11 +380,32 @@ MQ.ui.battle = (function () {
     roma:   'ローマじで うってね',
     write:  'ゆびで かいてから 「かけた！」を おしてね'
   };
+  /* はじめての たたかいの ひとこと（v14.48）：1回ずつ。2問め いこうの 問題の 上に 出す */
+  const COACH = {
+    retry: 'まちがえても だいじょうぶ。もう1かい こたえられるよ',
+    wrong: 'こたえを おぼえよう。また あとで でて くるよ',
+    combo: 'れんぞくで せいかいすると ひっさつわざが でるよ',
+    chest: 'たからばこ！ せいかいすると コインが もらえるよ',
+    boss:  'さいごは ボス！ なんかいか せいかいすると たおせるよ'
+  };
+  function coachSay(key) {
+    if (!d.guide || !ctx || !ctx.first) return false;
+    ctx.coachSeen = ctx.coachSeen || {};
+    if (ctx.coachSeen[key]) return false;
+    ctx.coachSeen[key] = true;
+    d.guide.hidden = false;
+    d.guide.textContent = COACH[key];
+    return true;
+  }
   function renderGuide(q) {
     if (!d.guide) return;
     const on = !!(ctx && ctx.first) && MQ.battle.mobIndex() === 0 && MQ.battle.phase() !== 'boss' && !q.chest;
     d.guide.hidden = !on;
     d.guide.textContent = on ? (GUIDE[q.type] || GUIDE.number) : '';
+    if (on || !ctx || !ctx.first) return;
+    if (q.chest) { coachSay('chest'); return; }
+    if (MQ.battle.phase() === 'boss') { coachSay('boss'); return; }
+    if (ctx.coachNext) { const k = ctx.coachNext; ctx.coachNext = null; coachSay(k); }
   }
 
   /* きょうの フィーバー教科 と サポート（v7.2）：
@@ -1822,6 +1843,11 @@ MQ.ui.battle = (function () {
     const palTurn = !!res.palMove && res.outcome !== 'chest';
     if (res.palMove && res.outcome === 'chest') setTimeout(palMoveFx, 60);
     const gbe = guardEventFx();   // ガードくだき（2026-09-14）：ヒビ・こわれた・はね返した・なおった
+    if (ctx && ctx.first) {   // はじめての たたかいの ひとこと（v14.48）
+      if (res.outcome === 'retry') coachSay('retry');
+      else if (res.outcome === 'wrong' && !(ctx.coachSeen || {}).wrong) ctx.coachNext = 'wrong';
+      else if (res.outcome === 'correct' && (res.combo || 0) >= 3 && !(ctx.coachSeen || {}).combo) ctx.coachNext = 'combo';
+    }
 
     /* ---- たからばこ ---- */
     if (res.outcome === 'chest') {

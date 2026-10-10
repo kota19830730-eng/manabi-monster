@@ -919,6 +919,9 @@ MQ.ui.map = (function () {
       bottom
     ]));
 
+    /* はじめての 子の 案内（v14.48）：さいしょの 地図で 1回だけ 3つの ステップ（js/ui/howto.js） */
+    if (firstTime && !player.kidTour && MQ.ui.howto) setTimeout(function () { MQ.ui.howto.kid(MQ.save.current()); }, 300);
+
     /* さいしょの たたかいが おわった あと 1回だけ：できる ことが ふえた（v11.1） */
     if (!firstTime && !player.seenUnlock) {
       MQ.save.update(function (p) { p.seenUnlock = true; });

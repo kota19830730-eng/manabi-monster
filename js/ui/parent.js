@@ -534,6 +534,7 @@ MQ.ui.parent = (function () {
         ])
       ])
     ]));
+    main.push(howtoSection(p));
     main.push(troubleSection(p));
     main.push(h('p', { class: 'pp-muted pp-small pp-center', text: 'バージョン ' + (MQ.version || '－') }));
     kids.push(h('div', { class: 'pp-main' }, main));
@@ -864,6 +865,23 @@ MQ.ui.parent = (function () {
     ]);
   }
 
+  /* 使い方の案内（v14.48・js/ui/howto.js）：はじめに 出た 案内を もう一度 */
+  function howtoSection(p) {
+    return h('section', { class: 'pp-section', id: 'pp-howto' }, [
+      sec('使い方の案内'),
+      h('div', { class: 'pp-card pp-list' }, [
+        h('div', { class: 'pp-line pp-line--col' }, [
+          h('span', { class: 'pp-muted pp-small', text: 'はじめて遊んだときに出た案内を、もう一度見られます。' }),
+          h('div', { class: 'pp-line__in' }, [
+            btn('おうちの人向けの案内', 'pp-btn--s pp-btn--sm', function () {
+              MQ.ui.howto.parent({ from: 'settings', onDone: function () { open('settings'); } });
+            }),
+            btn('子ども向けの案内', 'pp-btn--s pp-btn--sm', function () { MQ.ui.howto.kid(p, true); })
+          ])
+        ])
+      ])
+    ]);
+  }
   function troubleSection(p) {
     const G = MQ.guard;
     const errs = G ? G.all() : [];
