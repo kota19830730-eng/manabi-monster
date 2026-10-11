@@ -4200,23 +4200,100 @@ MQ.ui.battle = (function () {
       setup();
       return true;
     }
-    // 大きさを 変えても 書いたものを のこす
-    function resizeKeep() {
-      if (fits()) return;
-      let data = null;
-      try { data = (canvas.width && canvas.height) ? canvas.toDataURL() : null; } catch (e) {}
-      if (!resize()) return;
-      if (data) {
-        const img = new Image();
-        img.onload = function () {
-          const r = canvas.getBoundingClientRect();
-          c.drawImage(img, 0, 0, r.width, r.height);
-        };
-        img.src = data;
+    /* 大きさを 変えても 書いたものを のこす（v14.50 で 作り直し）
+       前は 絵（ビットマップ）を 新しい 大きさに 引きのばして いた。ひろげる → もどす と
+       たて・よこの のび方が ちがう ので **書いた 数字が つぶれて ゆがんで いた**（ユーザーの 指摘）。
+       いまは 線を 点の ならび（paths）で おぼえて おき、大きさが 変わったら
+       **方眼の マスに 合わせて 同じ わりあいで のばして 描き直す**。
+       ひっさんは マス（--hc）と 起点（--hx, --hy）が 変わる ので、マスの 中の 同じ 場所に もどる。 */
+    let frame = null;          // いまの 線が 書かれた ときの 大きさ（{ w, h, hc, hx, hy }）
+    function measure() {
+      const r = canvas.getBoundingClientRect();
+      if (!r.width || !r.height) return null;
+      const f = { w: r.width, h: r.height, hc: 0, hx: 0, hy: 0 };
+      const memo = canvas.closest ? canvas.closest('.memo') : null;
+      if (memo && memo.classList.contains('is-hissan')) {
+        // 画面ぜんたいを scale して いる ので、CSS の px を 見た目の px に なおす
+        const k = r.width / (canvas.offsetWidth || r.width);
+        const cs = getComputedStyle(canvas);
+        const hc = parseFloat(cs.backgroundSize) || 0;
+        const pos = String(cs.backgroundPosition || '').split(' ');
+        if (hc > 0) {
+          f.hc = hc * k;
+          f.hx = (parseFloat(pos[0]) || 0) * k;
+          f.hy = (parseFloat(pos[1]) || 0) * k;
+        }
+      }
+      return f;
+    }
+    function redraw() {
+      for (let i = 0; i < paths.length; i++) {
+        const p = paths[i];
+        if (!p.length) continue;
+        c.beginPath();
+        c.moveTo(p[0].x, p[0].y);
+        c.lineTo(p[0].x + 0.1, p[0].y + 0.1);
+        for (let j = 1; j < p.length; j++) c.lineTo(p[j].x, p[j].y);
+        c.stroke();
       }
     }
+    /* 線は 書いた ときの 形の まま src に のこす（{ f: 書いた ときの 大きさ, p: 点 }）。
+       大きさが 変わる たびに src から 作り直す ので、ひろげる → もどす で かならず 元の 形・場所に もどる。
+       同じ 大きさの ときに 書いた 線は 1つの かたまりと して 同じ だけ のばす（字の 形が くずれない）。 */
+    let src = [];
+    function sameFrame(a, b) {
+      return Math.abs(a.w - b.w) < 0.5 && Math.abs(a.h - b.h) < 0.5 && Math.abs(a.hc - b.hc) < 0.5 &&
+        Math.abs(a.hx - b.hx) < 0.5 && Math.abs(a.hy - b.hy) < 0.5;
+    }
+    // from で 書いた 線（list）を to の 大きさに 合わせる のばし方
+    function mapOf(from, to, list) {
+      if (sameFrame(from, to)) return { s: 1, ox0: 0, oy0: 0, ox1: 0, oy1: 0 };
+      let s, ox0, oy0, ox1, oy1;
+      if (from.hc && to.hc) {
+        // ひっさん：マスの 大きさの わりあいで、方眼の 起点を 合わせる（数字と 同じ マスに のる）
+        s = to.hc / from.hc; ox0 = from.hx; oy0 = from.hy; ox1 = to.hx; oy1 = to.hy;
+      } else {
+        s = Math.min(to.w / from.w, to.h / from.h); ox0 = oy0 = ox1 = oy1 = 0;
+      }
+      // 書いた 字が メモ欄の 外に はみ出す なら、はみ出さない ところまで 小さく する（形は そのまま）
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      list.forEach(function (e) { e.p.forEach(function (q) { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }); });
+      const pad = 3;
+      if (x0 < ox0) s = Math.min(s, Math.max(0, ox1 - pad) / (ox0 - x0));
+      if (x1 > ox0) s = Math.min(s, (to.w - pad - ox1) / (x1 - ox0));
+      if (y0 < oy0) s = Math.min(s, Math.max(0, oy1 - pad) / (oy0 - y0));
+      if (y1 > oy0) s = Math.min(s, (to.h - pad - oy1) / (y1 - oy0));
+      if (!(s > 0.05)) s = 0.05;
+      return { s: s, ox0: ox0, oy0: oy0, ox1: ox1, oy1: oy1 };
+    }
+    function resizeKeep() {
+      if (fits()) return;
+      if (drawing) endStroke();          // 書いて いる とちゅうで 大きさが 変わったら、その 線は そこで おわり
+      if (!resize()) return;
+      const to = measure();
+      frame = to;
+      if (!to || !src.length) return;
+      // 書いた ときの 大きさごとに まとめて のばす
+      const groups = [];
+      src.forEach(function (e) {
+        let g = null;
+        for (let i = 0; i < groups.length; i++) if (groups[i].f === e.f) { g = groups[i]; break; }
+        if (!g) { g = { f: e.f, list: [] }; groups.push(g); }
+        g.list.push(e);
+      });
+      const out = new Map();
+      groups.forEach(function (g) {
+        const m = mapOf(g.f, to, g.list);
+        g.list.forEach(function (e) {
+          out.set(e, e.p.map(function (q) { return { x: m.ox1 + (q.x - m.ox0) * m.s, y: m.oy1 + (q.y - m.oy0) * m.s }; }));
+        });
+      });
+      paths = src.map(function (e) { return out.get(e); });
+      curPath = null; last = null;
+      redraw();
+    }
     function clear() {
-      strokes = 0; paths = []; curPath = null;
+      strokes = 0; paths = []; src = []; curPath = null; frame = null;
       endStroke();
       writingOff(true);   // v14.16：つぎの 問題に なったら 3D を すぐ 動かし直す
       c.save();
@@ -4280,11 +4357,13 @@ MQ.ui.battle = (function () {
         endStroke();                     // 前の 指は もう いない → 引きつぐ
       }
       if (!fits()) resizeKeep();         // 大きさが ずれていたら 先に 直す
+      if (!frame) frame = measure();     // v14.50：この 線を 書いた ときの 大きさ（あとで ひろげても もどせる）
       drawing = true; activeKind = kind; activeId = id; lastAt = Date.now();
       writingOn();
       strokes++;
       last = pointOf(cx, cy);
       curPath = [last]; paths.push(curPath);
+      if (frame) src.push({ f: frame, p: curPath });   // 書いた ときの 形の まま のこす（resizeKeep が ここから 作り直す）
       c.beginPath();
       c.moveTo(last.x, last.y);
       c.lineTo(last.x + 0.1, last.y + 0.1);

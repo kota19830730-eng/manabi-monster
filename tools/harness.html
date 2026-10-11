@@ -2865,6 +2865,49 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     if (mode === 'bagdex') { fresh(); MQ.ui.dex.pick('tr-wari'); MQ.ui.dex.render('treasure'); MQ.ui.show('screen-dex'); return; }
+    // v14.50：ひっさんの メモで 書いて → ひろげる → もどす。書いた 字が ゆがまず 元の 場所に もどるか（#memowide[:wide]＝ひろげた ままで 撮る）
+    if (mode.indexOf('memowide') === 0) {
+      fresh({ stars: { 'sansu2-1': 3 }, treasure: {}, frags: {} });
+      MQ.save.update(function (pl) { pl.grade = 2; pl.playGrade = 2; pl.best = {}; });
+      MQ.ui.battle.start('sansu2-2'); await wait(400);
+      const cv = $('.memo__canvas'); const r = cv.getBoundingClientRect();
+      function pe(type, x, y) { cv.dispatchEvent(new PointerEvent(type, { pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: r.left + x, clientY: r.top + y, bubbles: true, cancelable: true })); }
+      const pts = [[0.3, 0.25], [0.45, 0.15], [0.6, 0.3], [0.45, 0.55], [0.3, 0.85], [0.65, 0.85]];
+      pe('pointerdown', r.width * pts[0][0], r.height * pts[0][1]);
+      for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i]; for (let t = 0.1; t <= 1.001; t += 0.1) pe('pointermove', r.width * (a[0] + (b[0] - a[0]) * t), r.height * (a[1] + (b[1] - a[1]) * t)); }
+      pe('pointerup', r.width * 0.65, r.height * 0.85);
+      function box() { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; MQ.ui.battle.memoPaths().forEach(function (p) { p.forEach(function (q) { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }); }); return { x0: x0, y0: y0, w: x1 - x0, h: y1 - y0 }; }
+      function fmt(b) { return Math.round(b.x0) + ',' + Math.round(b.y0) + ' ' + Math.round(b.w) + 'x' + Math.round(b.h) + ' たてよこ比 ' + (b.h / b.w).toFixed(3); }
+      const b0 = box();
+      say('memowide: hissan=' + $('.memo').classList.contains('is-hissan') + ' まえ ' + fmt(b0));
+      $('.memo__btn').click(); await wait(200);
+      const b1 = box();
+      const r1 = cv.getBoundingClientRect();
+      const inside = b1.x0 >= 0 && b1.y0 >= 0 && b1.x0 + b1.w <= r1.width && b1.y0 + b1.h <= r1.height;
+      say('memowide: ひろげた ' + fmt(b1) + ' メモ欄 ' + Math.round(r1.width) + 'x' + Math.round(r1.height) + ' はみ出さない ' + (inside ? 'OK' : 'NG'));
+      if (mode.indexOf(':wide') > 0) { dump(); return; }
+      $('.memo__btn').click(); await wait(200);
+      const b2 = box();
+      say('memowide: もどした ' + fmt(b2));
+      const same = Math.abs(b2.x0 - b0.x0) < 1 && Math.abs(b2.y0 - b0.y0) < 1 && Math.abs(b2.w - b0.w) < 1 && Math.abs(b2.h - b0.h) < 1;
+      const ratio = Math.abs(b1.h / b1.w - b0.h / b0.w) < 0.02;
+      const cx = cv.getContext('2d'); const rr = cv.getBoundingClientRect(); let inked = 0;
+      pts.forEach(function (p) { const dd = cx.getImageData(Math.round(rr.width * p[0] * cv.width / rr.width), Math.round(rr.height * p[1] * cv.height / rr.height), 1, 1).data; if (dd[3] > 0) inked++; });
+      say('memowide: もとの 場所に もどる ' + (same ? 'OK' : 'NG') + ' / ひろげても たてよこ比 そのまま ' + (ratio ? 'OK' : 'NG') + ' / 線 ' + inked + '/' + pts.length);
+      // ひろげて から 大きく 書いて → もどす。字が メモ欄から はみ出さず、たてよこ比も そのまま か
+      $('.memo__btn').click(); await wait(200);
+      const rw = cv.getBoundingClientRect();
+      function pw(type, x, y) { cv.dispatchEvent(new PointerEvent(type, { pointerId: 2, pointerType: 'mouse', isPrimary: true, clientX: rw.left + x, clientY: rw.top + y, bubbles: true, cancelable: true })); }
+      pw('pointerdown', rw.width * 0.1, rw.height * 0.6);
+      for (let t = 0.05; t <= 1.001; t += 0.05) pw('pointermove', rw.width * (0.1 + 0.8 * t), rw.height * (0.6 + 0.3 * t));
+      pw('pointerup', rw.width * 0.9, rw.height * 0.9);
+      const bw = box();
+      $('.memo__btn').click(); await wait(200);
+      const b3 = box(); const r3 = cv.getBoundingClientRect();
+      const in3 = b3.x0 >= 0 && b3.y0 >= 0 && b3.x0 + b3.w <= r3.width && b3.y0 + b3.h <= r3.height;
+      say('memowide: ひろげて 書いて もどした ' + fmt(b3) + '（ひろげて いた とき ' + fmt(bw) + '）はみ出さない ' + (in3 ? 'OK' : 'NG'));
+      dump(); return;
+    }
     // メモ欄に ゆびで 書く（v2.7.1）：#memo ふつう／#memo2 ひろげた あと／#memo3 ひろげて もどした あと
     if (mode.indexOf('memo') === 0) {
       const memoRect = mode.indexOf(':rect') > 0;   // #memo:rect＝赤い 四角も 描く（headless で canvas が 写るか）
