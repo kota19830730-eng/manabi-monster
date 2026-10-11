@@ -156,10 +156,14 @@ MQ.content = (function () {
      → 足りない ぶんは **同じ 教科の 前の ステージ（もう ならった 単元）から 借りる**（v14.24） */
   const NEED_POOL = 18;
   const NEED_LV = { 1: 4, 2: 5, 3: 9 };   // ザコ 4/4/4 ＋ たからばこ（lv2）1 ＋ ボス（lv3）5
-  function withBorrowed(all, getList, stageNo, g) {
+  /* v14.54 単元を そろえる：借りるのは **合計が 18問に 足りない ときだけ**・**国語は 借りない**
+     （国語の ステージは 読み／書き／きまり／意味／お話 と しゅるいが ちがう＝前の ステージは べつの 単元）。
+     むずかしさ（lv3）が 少ない だけなら 借りず、ボスは lv2 から 出す（pickFromBag の 'b' → 2 → 1）。
+     前は lv3 が 足りない だけで 前の 単元から 借りて いた（小3「ことばの 意味」に「送りがな」が 12%・実測） */
+  function withBorrowed(all, getList, stageNo, g, areaId) {
     const cnt = { 1: 0, 2: 0, 3: 0 };
     all.forEach(function (q) { cnt[levelOf(q)]++; });
-    if (all.length >= NEED_POOL && cnt[1] >= NEED_LV[1] && cnt[2] >= NEED_LV[2] && cnt[3] >= NEED_LV[3]) return all;
+    if (all.length >= NEED_POOL || areaId === 'kokugo') return all;
     const who = MQ.terms.current();
     const extra = getList().filter(function (q) { return q.stage < stageNo && MQ.terms.allowQ(who, q, g); })
       .sort(function (a, b) { return b.stage - a.stage; });   // 近い 単元から
@@ -175,7 +179,7 @@ MQ.content = (function () {
   function listStage(getList, areaId, stageNo, grade) {
     const g = grade || 3;
     return function make(n, opts) {
-      const all = withBorrowed(getList().filter(function (q) { return q.stage === stageNo && MQ.terms.allowQ(MQ.terms.current(), q, g); }), getList, stageNo, g);
+      const all = withBorrowed(getList().filter(function (q) { return q.stage === stageNo && MQ.terms.allowQ(MQ.terms.current(), q, g); }), getList, stageNo, g, areaId);
       const picked = pickFromBag(areaId + g + '-' + stageNo, all, n, opts);   // 山札（v14.24）
       return picked.map(function (q) {
         return {
@@ -999,6 +1003,16 @@ MQ.content = (function () {
   }
   function setActive(w) { forced = w || null; }
 
+  /* ステージの しゅるい（v14.54 単元を そろえる）。
+     ボスの まとめ問題は「同じ しゅるいの 前の ステージ」からだけ 出す。
+     国語は ステージごとに しゅるいが ちがう（読み・書き・きまり・意味・ひらがな・かたかな・ローマ字・お話）ので ステージ id、
+     算数・理科・社会・英語は 教科の 中の 単元どうし なので 教科（エリア id）。 */
+  function stageKind(st) {
+    const id = (st && st.id) || '';
+    const area = (id.match(/^[a-z]+/) || [''])[0];
+    return area === 'kokugo' ? id : area;
+  }
+
   function areaOf(areaId) {
     const w = activeWorld();
     for (let a = 0; a < w.areas.length; a++) if (w.areas[a].id === areaId) return w.areas[a];
@@ -1137,7 +1151,7 @@ MQ.content = (function () {
 
   return {
     worlds: worlds, world: world, world3: world3, world1: world1, world2: world2, world4: world4, world5: world5, worldForGrade: worldForGrade,
-    activeWorld: activeWorld, setActive: setActive, hasTower: hasTower,
+    activeWorld: activeWorld, setActive: setActive, hasTower: hasTower, stageKind: stageKind,
     areaOf: areaOf, subjectAreas: subjectAreas, findStage: findStage, isUnlocked: isUnlocked,
     isAvailable: isAvailable, lockedReason: lockedReason, MIN_POOL: MIN_POOL, NEED_POOL: NEED_POOL,
     qbag: { pick: pickFromBag, mem: memBags, borrow: withBorrowed },   // 山札（v14.24・テスト用）

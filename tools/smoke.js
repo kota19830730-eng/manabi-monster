@@ -6721,6 +6721,55 @@ function stripComments(src) {
   console.log('v14.47 ぬいぐるみの 切りぬき OK');
 })();
 
+/* =======================================================
+   v14.54 単元を そろえる（ステージの 外から 問題を 入れない）
+   ======================================================= */
+(function () {
+  const C = MQ.content;
+  // ① ステージの しゅるい：国語は ステージごと・ほかは 教科
+  check(C.stageKind({ id: 'kokugo3-1' }) !== C.stageKind({ id: 'kokugo3-2' }), 'v14.54: 国語の 読みと 書きは べつの しゅるい');
+  check(C.stageKind({ id: 'rikashakai3-1' }) === C.stageKind({ id: 'rikashakai3-4' }) && C.stageKind({ id: 'sansu4-2' }) === 'sansu', 'v14.54: 理科社会・算数は 教科で ひとつ');
+  // ② 国語は 借りない・ほかも 18問 いじょう あれば 借りない
+  const fake = [];
+  for (let i = 0; i < 14; i++) fake.push({ stage: 4, lv: 1 + (i % 3), unit: 'x', text: 'f4-' + i, choices: ['a', 'b'] });
+  for (let i = 0; i < 30; i++) fake.push({ stage: 3, lv: 3, unit: 'y', text: 'f3-' + i, choices: ['a', 'b'] });
+  const own = fake.filter(function (q) { return q.stage === 4; });
+  check(C.qbag.borrow(own, function () { return fake; }, 4, 3, 'kokugo').length === own.length, 'v14.54: 国語は 前の ステージから 借りない');
+  const own20 = own.concat(own.slice(0, 6).map(function (q, i) { return Object.assign({}, q, { text: 'g' + i, lv: 1 }); }));
+  check(C.qbag.borrow(own20, function () { return fake; }, 4, 3, 'rika').length === own20.length, 'v14.54: 20問 あれば lv3 が 少なくても 借りない');
+  // ③ 本物の 国語：どの 学期でも ステージの unit だけ が 出る
+  [3, 4, 5, 6].forEach(function (g) {
+    [1, 2, 3].forEach(function (term) {
+      const p = { grade: g, playGrade: g, term: term, units: {}, books: {} };
+      MQ.terms.forcePlayer(p);
+      const qs = MQ['kokugo' + g].questions;
+      [1, 2, 3, 4].forEach(function (no) {
+        const units = {}; qs.forEach(function (q) { if (q.stage === no) units[q.unit] = 1; });
+        const f = C.findStage('kokugo' + g + '-' + no); if (!f || !C.isAvailable(f.stage)) return;
+        let bad = 0;
+        for (let t = 0; t < 8; t++) f.stage.make(12, { boss: false }).concat(f.stage.make(5, { boss: true })).forEach(function (q) {
+          if (q.type !== 'write' && !units[q.unit]) bad++;
+        });
+        check(bad === 0, 'v14.54: 小' + g + ' ' + term + '学期 国語' + no + ' に ほかの 単元 ' + bad + '問');
+      });
+    });
+  });
+  MQ.terms.forcePlayer(null);
+  // ④ ふくしゅうは ステージで しぼれる
+  const pl = { grade: 3, playGrade: 3, review: {} };
+  MQ.review.add(pl, 'kokugo', { key: 'a', q: { prompt: 'a' }, enemyId: 'slime-green', stageId: 'kokugo3-1' });
+  MQ.review.add(pl, 'kokugo', { key: 'b', q: { prompt: 'b' }, enemyId: 'slime-green', stageId: 'kokugo3-2' });
+  const got = MQ.review.pick(pl, 'kokugo', 3, 'kokugo3-2').map(function (e) { return e.key; });
+  check(got.length === 1 && got[0] === 'b', 'v14.54: ふくしゅうは まちがえた ステージでだけ（' + got.join(',') + '）');
+  check(MQ.review.pick(pl, 'kokugo', 3).length === 2, 'v14.54: ステージを わたさなければ ぜんぶ');
+  // ⑤ 画面：リベンジ・まとめ問題も しぼる
+  const UB = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8');
+  check(UB.indexOf('revengeReady(player, ctx.area.id).filter(sameStage)') > 0, 'v14.54: リベンジは にげた ステージでだけ');
+  check(UB.indexOf('MQ.content.stageKind(st) === MQ.content.stageKind(found.stage)') > 0, 'v14.54: まとめ問題は 同じ しゅるいの ステージだけ');
+  check(UB.indexOf("MQ.review.pick(player, ctx.area.id, Math.min(REVIEW_MAX, Math.max(0, REPEAT_MAX - escaped.length)), found.stage.id)") > 0, 'v14.54: ふくしゅうに ステージを わたす');
+  console.log('v14.54 単元を そろえる OK');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

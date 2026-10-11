@@ -83,10 +83,12 @@ MQ.review = (function () {
 
   /* この たたかいに まぜる 問題を えらぶ。
      まちがえた 回数の 多い ものから、同じなら 古い ものから */
-  function pick(player, areaId, n) {
+  /* stageId を わたすと その ステージで まちがえた 問題だけ（v14.54 単元を そろえる）。
+     stageId が ない 古い きろくは どの ステージにも 出す */
+  function pick(player, areaId, n, stageId) {
     const want = Math.max(0, n == null ? PER_BATTLE : n);
     if (!want) return [];
-    return listIn(player, areaId).slice().sort(function (a, b) {
+    return listIn(player, areaId).filter(function (e) { return !stageId || !e.stageId || e.stageId === stageId; }).slice().sort(function (a, b) {
       const d = (b.miss || 1) - (a.miss || 1);
       if (d) return d;
       return Date.parse(a.at || 0) - Date.parse(b.at || 0);

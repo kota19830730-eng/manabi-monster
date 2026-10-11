@@ -288,7 +288,11 @@ MQ.ui.battle = (function () {
       });
     } else {
       // リベンジ（v3.1）：にげてから 時間が たった 敵だけ（古い ものから）。にげた その日は とっくんで
-      const ready = MQ.save.revengeReady(player, ctx.area.id).slice().sort(function (a, b) { return Date.parse(a.at || 0) - Date.parse(b.at || 0); });
+      /* v14.54 単元を そろえる：にげた敵・ふくしゅうは **にげた／まちがえた ステージでだけ** もどる
+         （前は 同じ 教科なら どの ステージにも 出て、かん字を 書く ステージに 読みの 問題が まざった）。
+         ほかの ステージの ぶんは とっくんで いつでも たたかえる。stageId の ない 古い きろくは どこでも */
+      const sameStage = function (e) { return !e.stageId || e.stageId === found.stage.id; };
+      const ready = MQ.save.revengeReady(player, ctx.area.id).filter(sameStage).slice().sort(function (a, b) { return Date.parse(a.at || 0) - Date.parse(b.at || 0); });
       const escaped = ready.slice(0, REVENGE_MAX);
       // 開いている ステージの 中で 何番目か → むずかしさ（0=最初 1=最後）
       const opened = ctx.area.stages.filter(function (st) { return MQ.content.isAvailable(st); });
@@ -299,7 +303,7 @@ MQ.ui.battle = (function () {
       const mobCount = first ? FIRST_MOBS : MOBS;
       /* ふくしゅう（v11.1）：まえに 1回めで まちがえた 問題が そのまま もどって くる。
          リベンジ（にげた敵）と あわせて 3問まで。はじめての たたかいでは 出ない */
-      const reviewList = (!first && MQ.review) ? MQ.review.pick(player, ctx.area.id, Math.min(REVIEW_MAX, Math.max(0, REPEAT_MAX - escaped.length))) : [];
+      const reviewList = (!first && MQ.review) ? MQ.review.pick(player, ctx.area.id, Math.min(REVIEW_MAX, Math.max(0, REPEAT_MAX - escaped.length)), found.stage.id) : [];
       const enemies = MQ.enemies.pickIds(ctx.area.id, mobCount, hard);
       // きょうの フィーバー教科 と サポート（v7.2）。タイムアタックでは なし
       const fs = (MQ.fever && !ctx.timeAttack) ? MQ.fever.battleOpts(player, ctx.area.id) : { fever: null, support: null };
@@ -331,7 +335,9 @@ MQ.ui.battle = (function () {
       const BS = BSET()[first ? 'first' : 'normal'];
       const here = ctx.area.stages.indexOf(found.stage);
       const recap = first ? [] : ctx.area.stages.filter(function (st, i) {
-        return i < here && MQ.content.isAvailable(st) && ((player.stars || {})[st.id] || 0) >= 1;
+        // v14.54：同じ しゅるいの ステージだけ（国語は まとめ問題なし＝かん字を 書く ボスに 読みが 出ない）
+        return i < here && MQ.content.isAvailable(st) && ((player.stars || {})[st.id] || 0) >= 1 &&
+          MQ.content.stageKind(st) === MQ.content.stageKind(found.stage);
       });
       /* ものがたりを 読む（v14.13）：話は 1本で つながって いるので、
          とちゅうに よその 問題（ふくしゅう・リベンジ）や
