@@ -2540,16 +2540,24 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const FONTS = ["'HGKyokashotai'", "'Yu Mincho'", "'BIZ UDMincho Medium'", "'Noto Serif JP'", "'Yu Gothic'"];
       function like(text, o) { return function (ctx) { drawKanjiLike(ctx, text, Object.assign({ w: W, h: Hh, font: FONTS[Math.floor(Math.random() * FONTS.length)], size: rnd(120, 190), rot: rnd(-7, 7), sx: rnd(0.85, 1.15), sy: rnd(0.85, 1.15), shx: rnd(-0.12, 0.12), lw: rnd(0, 6), wave: rnd(1.5, 4), ph: rnd(0, 6) }, o || {})); }; }
       let msSum = 0, msN = 0, msMax = 0;
-      function one(kanji, fn) { const c = document.createElement('canvas'); c.width = W; c.height = Hh; fn(c.getContext('2d')); const t0 = performance.now(); const j = HW.judge(c, kanji); const dt = performance.now() - t0; msSum += dt; msN++; if (dt > msMax) msMax = dt; return j; }
+      /* #judgenear:hand（v14.53）＝手書きに 近い：細い フォント・ゆがみ 大きめ・かたむき ±10・ゆびの 画数つき
+         （正しい字は その字の 画数、まちがいの 字は 書いた 字の 画数）。本物の 画面は いつも 画数が ある */
+      const hand = mode.split(':')[1] === 'hand';
+      if (mode.split(':')[2]) HW.setThresholds({ ok: Number(mode.split(':')[2]) });
+      const THIN = ["'Yu Gothic UI Light'", "'Yu Gothic Light'", "'Meiryo UI'", "'BIZ UDGothic'", "'Yu Gothic UI'"];
+      if (hand) like = function (text, o) { return function (ctx) { drawKanjiLike(ctx, text, Object.assign({ w: W, h: Hh, font: THIN[Math.floor(Math.random() * THIN.length)], size: rnd(110, 190), rot: rnd(-10, 10), sx: rnd(0.8, 1.2), sy: rnd(0.8, 1.2), shx: rnd(-0.18, 0.18), lw: 0, wave: rnd(3, 6), ph: rnd(0, 6) }, o || {})); }; };
+      function fakePaths(n) { const out = []; for (let i = 0; i < n; i++) out.push([{ x: 10 + i, y: 10 }, { x: 60 + i, y: 12 }]); return out; }
+      function one(kanji, fn, drawn) { const c = document.createElement('canvas'); c.width = W; c.height = Hh; fn(c.getContext('2d')); const t0 = performance.now(); const j = HW.judge(c, kanji, hand ? { paths: fakePaths(MQ.kakusu.of(drawn || kanji) || 1) } : undefined); const dt = performance.now() - t0; msSum += dt; msN++; if (dt > msMax) msMax = dt; return j; }
       const rows = { same: [], near: [] };
       SAME.forEach(function (k) { for (let s = 0; s < 4; s++) rows.same.push(Object.assign({ k: k }, one(k, like(k)))); });
-      PAIRS.forEach(function (p) { for (let s = 0; s < 4; s++) rows.near.push(Object.assign({ k: p[0] + '←' + p[1] }, one(p[0], like(p[1])))); });
+      PAIRS.forEach(function (p) { for (let s = 0; s < 4; s++) rows.near.push(Object.assign({ k: p[0] + '←' + p[1] }, one(p[0], like(p[1]), p[1]))); });
       function q(arr, p) { const a = arr.slice().sort(function (x, y) { return x - y; }); return a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))].toFixed(3) : '-'; }
       Object.keys(rows).forEach(function (k) {
         const a = rows[k]; const v = { ok: 0, maybe: 0, ng: 0 }; a.forEach(function (r) { v[r.verdict]++; });
         say('near ' + k + ' n=' + a.length + ' ok ' + Math.round(v.ok / a.length * 100) + '% maybe ' + Math.round(v.maybe / a.length * 100) + '% ng ' + Math.round(v.ng / a.length * 100) + '%');
         ['score', 'miss', 'extra', 'missA', 'extraA'].forEach(function (f) { const xs = a.map(function (r) { return r[f] || 0; }); say('  ' + f + ' p5=' + q(xs, .05) + ' p25=' + q(xs, .25) + ' p50=' + q(xs, .5) + ' p75=' + q(xs, .75) + ' p95=' + q(xs, .95) + ' max=' + q(xs, 1)); });
       });
+      ['same','near'].forEach(function (k) { const a = rows[k]; say('near ' + k + ' 形の 点数だけ（v14.50 まで）なら ok ' + Math.round(a.filter(function (r) { return (r.score||0) >= 0.85; }).length / a.length * 100) + '%'); });
       say('near 1回の はんてい ' + (msSum / msN).toFixed(1) + 'ms（いちばん 長い ' + msMax.toFixed(1) + 'ms）');
       // しきい値の 候補：max(miss, extra) >= T を ×
       [0.12, 0.15, 0.18, 0.2, 0.22, 0.25, 0.3].forEach(function (T) {
@@ -4524,6 +4532,75 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
            #dojo:koku:ex   せつめいの 画面（読み方の コツ）
            #dojo:koku:step 「まず なにを さがす？」の 3たく
            #dojo:koku      ひとりで やってみる まで 通す                       */
+      /* v14.52：#dojo:hissan        ひとりで の ひっさん（メモ欄＋方眼の 数字）
+                 #dojo:hissan:ans    いっしょに の 答え（方眼の 3だんめに 答え）
+                 #dojo:hissan:wide   メモ欄を ひろげる
+                 #dojo:fix[:run]     まちがえた 問題の とき直し（一覧の おすすめ → とく → 消える）
+                 #dojo:rec           一覧（きょうの おすすめ・教科の タブ）
+                 #dojo:quick         しゅぎょうずみの ステージの「すぐ ひとりで やる」 */
+      if (sub === 'hissan') {
+        const how = mode.split(':')[2] || '';
+        MQ.save.update(function (pl) { pl.stars['sansu3-4'] = 2; });
+        MQ.ui.dojo.open('sansu3-4'); await wait(100);
+        const S = MQ.ui.dojo.state();
+        const vs = [];
+        for (let k = 0; k < 30 && vs.length < 5; k++) { const se = MQ.dojo.session('sansu3-4', MQ.save.current()); se.guided.concat(se.practice).forEach(function (q) { if (q.layout === 'vertical' && vs.length < 5) vs.push(q); }); }
+        S.ses.guided = vs.slice(0, 2); S.ses.practice = vs.slice(2, 5);
+        if (how === 'ans') MQ.ui.dojo.guided(0, 'answer'); else MQ.ui.dojo.practice(0, 'ask');
+        await wait(200);
+        const memo = $('.dojo__memo');
+        say('dojo:hissan メモ欄 ' + (memo ? 'あり OK' : 'なし MISSING') + ' / 方眼の 数字 ' + document.querySelectorAll('.dojo__memo .hs__c').length + ' / 答えの 行 ' + document.querySelectorAll('.dojo__memo .hs__ans').length + ' / canvas ' + document.querySelectorAll('.dojo__memo canvas').length + ' / 問題 ' + S.ses.practice[0].a + S.ses.practice[0].sign + S.ses.practice[0].b);
+        if (how === 'wide') {
+          $('.dojo__memo .memo__btn').click(); await wait(200);
+          const r = memo.getBoundingClientRect(), sc = MQ.stage.size().scale;
+          say('dojo:hissan ひろげた ' + memo.classList.contains('memo--wide') + ' 大きさ ' + Math.round(r.width / sc) + 'x' + Math.round(r.height / sc));
+        }
+        // 書いて、まちがえて もう 1回 でも 書いた 線が のこるか
+        if (!how) {
+          const cv = $('.dojo__memo canvas'); const rr = cv.getBoundingClientRect();
+          function pe(type, x, y) { cv.dispatchEvent(new PointerEvent(type, { pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: rr.left + x, clientY: rr.top + y, bubbles: true, cancelable: true })); }
+          pe('pointerdown', rr.width * 0.3, rr.height * 0.8); for (let t = 0; t <= 1; t += 0.1) pe('pointermove', rr.width * (0.3 + 0.3 * t), rr.height * 0.8); pe('pointerup', rr.width * 0.6, rr.height * 0.8);
+          MQ.ui.dojo.submit(0, '1'); await wait(100);
+          say('dojo:hissan まちがえた あとも メモの 線 ' + (MQ.ui.dojo.state().memo && MQ.ui.dojo.state().memo.m.paths().length ? 'のこる OK' : 'きえた NG') + ' / 答えの 位置（えらぶ 問題）OK');
+        }
+        dump(); return;
+      }
+      if (sub === 'fix' || sub === 'rec') {
+        // バトルで まちがえた ことに する（p.review に 3問）
+        const se = MQ.dojo.session('sansu3-4', MQ.save.current());
+        const qs = se.guided.concat(se.practice).slice(0, 3);
+        MQ.save.update(function (pl) {
+          qs.forEach(function (q, k) { MQ.review.add(pl, 'sansu', { key: 'fixtest' + k, q: q, stageId: 'sansu3-4', at: new Date(Date.now() - k * 1000).toISOString() }); });
+          pl.dojo = { 'sansu3-5': { done: 1, at: new Date(Date.now() - 3 * 86400000).toISOString() } };
+        });
+        MQ.ui.dojo.openList(); await wait(150);
+        say('dojo:rec おすすめ ' + Array.prototype.map.call(document.querySelectorAll('.dojorec'), function (b) { return b.textContent.replace(/\s+/g, ' '); }).join(' | '));
+        say('dojo:rec タブ ' + Array.prototype.map.call(document.querySelectorAll('.dojotab'), function (b) { return b.textContent; }).join('/'));
+        if (sub === 'rec') { dump(); return; }
+        $('.dojorec--fix').click(); await wait(150);
+        const run = mode.split(':')[2] === 'run';
+        if (!run) { $('.dojo__next').click(); await wait(150); dump(); return; }
+        $('.dojo__next').click(); await wait(100);
+        const S = MQ.ui.dojo.state();
+        const before = MQ.dojo.fixCount(MQ.save.current());
+        // 1問め 正解・2問め まちがえて から 正解・3問め 正解
+        S.ses.practice.forEach(function (q, i) {
+          if (i === 1) MQ.ui.dojo.submit(i, q.type === 'choice' ? (q.answer + 1) % q.choices.length : '99999');
+          MQ.ui.dojo.submit(i, q.type === 'choice' ? q.answer : (q.type === 'divrem' ? { q: q.answer.q, r: q.answer.r } : String(q.answer)));
+        });
+        MQ.ui.dojo.practice(S.ses.practice.length, 'ask'); await wait(150);
+        const after = MQ.dojo.fixCount(MQ.save.current());
+        say('dojo:fix まえ ' + before + ' → あと ' + after + '（2問 おぼえた・1問 のこる なら OK: ' + (before - after === 2 ? 'OK' : 'NG') + '） / ' + (($('.dojodone') || {}).textContent || 'MISSING').replace(/\s+/g, ' '));
+        dump(); return;
+      }
+      if (sub === 'quick') {
+        MQ.save.update(function (pl) { pl.dojo = { 'sansu3-5': { done: 2, at: new Date().toISOString() } }; });
+        MQ.ui.dojo.open('sansu3-5'); await wait(150);
+        say('dojo:quick ボタン ' + Array.prototype.map.call(document.querySelectorAll('.dojo__next'), function (b) { return b.textContent; }).join(' / '));
+        $('.dojo__next').click(); await wait(150);
+        say('dojo:quick おした あと ' + (($('.dojo__label') || {}).textContent || 'MISSING'));
+        dump(); return;
+      }
       /* #dojo:reki … 歴史の しゅぎょうば（v14.22）。答えの わくの 下に 写真が 出るか */
       if (sub === 'reki') {
         MQ.save.update(function (pl) { pl.grade = 6; pl.playGrade = 6; });

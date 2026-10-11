@@ -1613,13 +1613,15 @@ MQ.ui.battle = (function () {
   /* v13.20 ひっさんを 方眼の マスに 1字ずつ（ノートの ひっさんと 同じ）。
      マスの 大きさは CSS の --hc で、メモの 方眼も 同じ 大きさ・同じ 起点に そろえる＝線が 数字に かからない。
      たし算・ひき算は 小数点で そろえ、かけ算・わり算は 右で そろえる。小数点は 前の 数字の マスの 右下（ノートと 同じ）。 */
-  function hissanHtml(q) {
+  /* v14.52：しゅぎょうばからも 使う（memoEl＝その メモ欄・ans＝答えの 行を 3だんめに 書く。いっしょに とく の 答え） */
+  function hissanHtml(q, memoEl, ans) {
     const addLike = q.sign === '+' || q.sign === '−' || q.sign === '-';
     function parts(v) { const s = String(v); const i = s.indexOf('.'); return i < 0 ? [s, ''] : [s.slice(0, i), s.slice(i + 1)]; }
     const P = [parts(q.a), parts(q.b)];
+    if (ans != null) P.push(parts(ans));
     let rows;   // [{ d: 数字, pt: 小数点 }] の ならび（左が 空き）
     if (addLike) {
-      const il = Math.max(P[0][0].length, P[1][0].length), fl = Math.max(P[0][1].length, P[1][1].length);
+      const il = Math.max.apply(null, P.map(function (p) { return p[0].length; })), fl = Math.max.apply(null, P.map(function (p) { return p[1].length; }));
       rows = P.map(function (p) {
         const r = [];
         for (let i = p[0].length; i < il; i++) r.push(null);
@@ -1632,7 +1634,7 @@ MQ.ui.battle = (function () {
       const raw = P.map(function (p) {
         return (p[0] + p[1]).split('').map(function (c, i) { return { d: c, pt: !!p[1] && i === p[0].length - 1 }; });
       });
-      const w = Math.max(raw[0].length, raw[1].length);
+      const w = Math.max.apply(null, raw.map(function (r) { return r.length; }));
       rows = raw.map(function (r) { const pad = []; for (let i = r.length; i < w; i++) pad.push(null); return pad.concat(r); });
     }
     const cols = rows[0].length + 1;   // 左の 1列は 記号（＋ − × ÷）
@@ -1640,13 +1642,13 @@ MQ.ui.battle = (function () {
     rows.forEach(function (r, y) {
       r.forEach(function (c, x) {
         if (!c) return;
-        html += '<span class="hs__c" style="grid-row:' + (y + 1) + ';grid-column:' + (x + 2) + '">' + MQ.util.esc(c.d) +
+        html += '<span class="hs__c' + (y === 2 ? ' hs__ans' : '') + '" style="grid-row:' + (y + 1) + ';grid-column:' + (x + 2) + '">' + MQ.util.esc(c.d) +
           (c.pt ? '<i class="hs__pt"></i>' : '') + '</span>';
       });
     });
     html += '<span class="hs__c hs__sign" style="grid-row:2;grid-column:1">' + MQ.util.esc(q.sign) + '</span>';
     html += '<span class="hs__bar"></span>';
-    d.memo.style.setProperty('--cols', cols);   // メモ欄に おく＝方眼（canvas）の マスの 大きさも 同じ 式で 決まる
+    (memoEl || d.memo).style.setProperty('--cols', cols);   // メモ欄に おく＝方眼（canvas）の マスの 大きさも 同じ 式で 決まる
     return html;
   }
 
@@ -4493,6 +4495,9 @@ MQ.ui.battle = (function () {
     // メモ欄の 中を のぞく（tools/harness.html 用・v5.5）
     memoStrokes: function () { return memo && memo.strokes ? memo.strokes() : 0; },
     memoPaths: function () { return memo && memo.paths ? memo.paths() : []; },
-    memoTest: function () { return memo && memo.test ? memo.test() : null; }
+    memoTest: function () { return memo && memo.test ? memo.test() : null; },
+    // v14.52：しゅぎょうばで 同じ メモ欄（ゆびで 書く・ひろげて もどしても 字が ゆがまない）と ひっさんの 方眼を 使う
+    makeMemo: function (canvas, clearBtn) { return makeMemo(canvas, clearBtn); },
+    hissanHtml: function (q, memoEl, ans) { return hissanHtml(q, memoEl, ans); }
   };
 })();

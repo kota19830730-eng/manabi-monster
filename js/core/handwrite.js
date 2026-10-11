@@ -29,7 +29,7 @@ MQ.handwrite = (function () {
   let FONT = "'UD Digi Kyokasho N-R', 'UD Digi Kyokasho N', 'HGKyokashotai', 'BIZ UDMincho Medium', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Noto Serif CJK JP', 'Noto Sans JP', 'Noto Sans CJK JP', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif";
   // きびしさ（おうちの人ページ）。#judge の 校正：ok 0.85 で「べつの字が ○」3〜4%・正しい字が そのまま ○ 約80%
   // d＝線が たりない・多い の しきい値の 倍率（v14.51・大きいほど ゆるい）
-  const LEVELS = { easy: { ok: 0.80, ng: 0.55, d: 1.25 }, normal: { ok: 0.85, ng: 0.62, d: 1 }, strict: { ok: 0.90, ng: 0.70, d: 0.85 } };
+  const LEVELS = { easy: { ok: 0.78, ng: 0.55, d: 1.25 }, normal: { ok: 0.82, ng: 0.62, d: 1 }, strict: { ok: 0.88, ng: 0.70, d: 0.85 } };   // v14.53：手書きで 試して ふつう 0.85 → 0.82（正しい字の ○ 87 → 94%）
   let TH = { ok: LEVELS.normal.ok, ng: LEVELS.normal.ng };
   const DIFF = { k: 1 };
   const W = { dir: 0.7, den: 0.3 };
@@ -365,16 +365,22 @@ MQ.handwrite = (function () {
       const strong = (sd.miss >= 0.13 * f && sd.missA >= 0.035 * f) || (sd.extra >= 0.12 * f && sd.extraA >= 0.035 * f);
       const weak = (sd.miss >= 0.10 * f && sd.missA >= 0.018 * f) || (sd.extra >= 0.10 * f && sd.extraA >= 0.018 * f);
       const sMiss = sd.missA >= sd.extraA ? 'missing' : 'extra';
-      if (strong) diff = sMiss;
-      else if (weak) {
-        // ゆびの 線が わかって 画数も 合わない なら ×
-        const ps = (opts.paths && opts.paths.length) ? pathStats(opts.paths) : null;
-        if (ps && out.expected && ps.strokes !== out.expected) diff = sMiss;
-        else diff = 'weak';
-      }
+      const ps = (opts.paths && opts.paths.length) ? pathStats(opts.paths) : null;
+      if (ps && out.expected) {
+        /* v14.53：ゆびで 書いた とき（本物の 画面は いつも これ）。
+           v14.51 は フォントの 字で 校正した ので、手書きの 細い 線・ゆがみを「線が たりない」と 見まちがえ、
+           **正しく 書いても ×**に なった（ユーザー「大人の 僕でも 正解判定 出なかった」）。
+           → **画数が 合って いれば 形の ちがいでは × に しない**（いままで どおり 形の 点数だけで きめる）。
+              画数が たりない（多い）うえに、たりない（多い）線が はっきり 見つかった ときだけ ×。
+              あやしい だけ なら 見くらべ。「目」を「日」と 書くと 画数も 1つ たりない ので ここで 止まる。 */
+        const fewer = ps.strokes < out.expected, more = ps.strokes > out.expected;
+        const strongMiss = sd.miss >= 0.13 * f && sd.missA >= 0.035 * f, strongExtra = sd.extra >= 0.12 * f && sd.extraA >= 0.035 * f;
+        if (fewer && strongMiss) diff = 'missing';
+        else if (more && strongExtra) diff = 'extra';
+        else if ((fewer || more) && weak) diff = 'weak';
+      } else if (strong) diff = sMiss;     // 線の ならびが ない とき（テストの 字）は はっきり ちがう ときだけ
       out.diff = diff;
     }
-    if (diff === 'missing' || diff === 'extra') { out.verdict = 'ng'; out.reason = diff; return out; }
     /* ゆびの 線が わかる とき：画数・なぐりがきの ルール（v2.9）。
        **v5.5：形が おてほんに よく にて いれば ×に せず「見くらべて じぶんで ○×」に する。**
        実機では 線が とちゅうで 切れて 画数が 合わなく なる ことが あった（v5.5 で 直したが、
@@ -385,8 +391,11 @@ MQ.handwrite = (function () {
       Object.assign(out, rule);
       out.score = score;
       if (score >= TH.ok) { out.verdict = 'maybe'; out.reason = rule.reason + '-but-shape'; }
+      // なぐりがきは なぐりがきの ことば（v14.53）。画数が たりない うえに 線も 見つからない ときは「線が たりない」
+      if (rule.reason !== 'scribble' && (diff === 'missing' || diff === 'extra')) { out.verdict = 'ng'; out.reason = diff; }
       return out;
     }
+    if (diff === 'missing' || diff === 'extra') { out.verdict = 'ng'; out.reason = diff; return out; }
     if (asp > 1.2) { out.verdict = 'ng'; out.reason = 'shape'; return out; }
     out.reason = 'score';
     out.verdict = score >= TH.ok ? 'ok' : score < TH.ng ? 'ng' : 'maybe';

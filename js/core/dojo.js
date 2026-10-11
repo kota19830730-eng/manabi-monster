@@ -71,7 +71,17 @@ MQ.dojo = (function () {
     missChoice: 'ちがうよ。ヒントを もういちど 読んで、ほかの ものを 見て みよう。',
     missTen: '0 の 数（位）を もう いちど たしかめよう。', missOne: '1 だけ ちがう。かぞえ直して みよう。',
     missDefault: 'おしい。ヒントを もういちど 読んで、ゆっくり やり直そう。',
-    praise: ['そう！ その ちょうし！', 'せいかい！ ばっちりだね！', 'できた！ すごい！', 'いいね！ わかって きたね！']
+    praise: ['そう！ その ちょうし！', 'せいかい！ ばっちりだね！', 'できた！ すごい！', 'いいね！ わかって きたね！'],
+    // v14.52：おすすめ・教科の タブ・まちがえた 問題の とき直し・すぐ ひとりで・メモ欄
+    recTitle: 'きょうの おすすめ', tabAll: 'ぜんぶ',
+    recFix: 'まちがえた 問題を とき直す', recFixSub: '$問 のこって いるよ',
+    recReview: 'もう いちど れんしゅう', recPreview: 'よしゅう', recNow: 'つぎに たたかう ところ',
+    fixTitle: 'まちがえた 問題', fixHello: 'まえに まちがえた 問題を もう 1回 といて みよう！ 1回で できたら「おぼえた」に なるよ。',
+    fixDoneTitle: 'とき直し おわり！', fixDoneN: '$問 おぼえた！', fixLeft: 'のこりは つぎの たたかいでも 出るよ',
+    fixNone: 'まちがえた 問題は もう ないよ。すごい！', fixGot: 'おぼえた！',
+    quick: 'すぐ ひとりで やる', fromStart: 'せつめいから',
+    memoHint: 'ここに ゆびで 書けるよ', memoHissan: 'ここに ひっさんを 書こう', memoWide: 'ひろげる', memoBack: 'もどす', memoClear: 'けす',
+    lastDays: '$日まえに しゅぎょう', lastToday: 'きょう しゅぎょう'
   };
   // 小1・小2（小1の かん字だけ）。書いて いない ものは TEXT の まま（もともと ひらがなか 小1の 字）
   const KID = Object.assign({}, TEXT, {
@@ -81,7 +91,12 @@ MQ.dojo = (function () {
     doneSayPre: 'しゅぎょう かんりょう！ これで $ が ちずで あそべるよ！',
     missChoice: 'ちがうよ。ヒントを もういちど よんで、ほかの ものを 見て みよう。',
     missTen: '0 の かずを もう いちど たしかめよう。', missOne: '1 だけ ちがう。かぞえなおして みよう。',
-    missDefault: 'おしい。ヒントを もういちど よんで、ゆっくり やりなおそう。'
+    missDefault: 'おしい。ヒントを もういちど よんで、ゆっくり やりなおそう。',
+    recFix: 'まちがえた もんだいを ときなおす', recFixSub: '$もん のこって いるよ',
+    fixTitle: 'まちがえた もんだい', fixHello: 'まえに まちがえた もんだいを もう 1かい といて みよう！ 1かいで できたら「おぼえた」に なるよ。',
+    fixDoneTitle: 'ときなおし おわり！', fixDoneN: '$もん おぼえた！',
+    fixNone: 'まちがえた もんだいは もう ないよ。すごい！',
+    memoHint: 'ここに ゆびで かけるよ', memoHissan: 'ここに ひっさんを かこう'
   });
   function isKid() { return !!(MQ.content && MQ.content.activeWorld && (MQ.content.activeWorld().grade || 3) <= 2); }
   function text(kid) { return (kid === undefined ? isKid() : kid) ? KID : TEXT; }
@@ -195,6 +210,24 @@ MQ.dojo = (function () {
     return null;
   }
 
+  /* ---- えらぶ 問題の ならびを まぜる（v14.52）----
+     stage.make() の えらぶ 問題は「正解が 先頭」の 形（バトルは core/battle.js の prepare で まぜて いる）。
+     しゅぎょうばは まぜて いなかった ので **正解が いつも いちばん 上**だった（400問 中 400問）。 */
+  function prep(q) {
+    if (!q || q.type !== 'choice' || !Array.isArray(q.choices)) return q;
+    const copy = Object.assign({}, q);
+    const right = q.choices[q.answer || 0];
+    copy.choices = MQ.util.shuffle(q.choices.slice());
+    copy.answer = copy.choices.indexOf(right);
+    return copy;
+  }
+  // 書いて 考える メモ欄を つけるか（計算の 問題・ひっさん）
+  function wantsMemo(q) {
+    if (!q || q.scratch === false) return false;
+    if (q.layout === 'vertical') return true;
+    return q.type === 'number' || q.type === 'divrem' || q.type === 'frac';
+  }
+
   /* ---- 問題を えらぶ ---- */
   function usable(q) { return q && OK_TYPES[q.type]; }
   function pickFrom(stage, lv, n, avoid, preferStep, les, preferHint) {
@@ -256,9 +289,93 @@ MQ.dojo = (function () {
     if (guided.length < GUIDED_N || practice.length < PRACTICE_N) return null;
     return {
       stageId: stageId, stage: found.stage, area: found.area, world: found.world, lesson: les, auto: !!base.auto,
-      guided: guided, practice: practice,
+      guided: guided.map(prep), practice: practice.map(prep),
       done: doneCount(player, stageId), preview: termClosed(player, found.stage)
     };
+  }
+
+  /* ---- まちがえた 問題の とき直し（v14.52）----
+     バトルで まちがえた 問題（p.review＝つぎの たたかいで もう一度 出る ぶん・p.escaped＝にげた敵）を
+     しゅぎょうばで ゆっくり とき直す。1回めで 正解 → p.review から 消す（おぼえた）。
+     にげた敵（リベンジ）は のこす（リベンジの たたかいは いつもどおり 出る）。 */
+  const FIX_N = 5;
+  const XP_FIX = 10;
+  function gradePre(player) { return 'g' + ((MQ.save && MQ.save.playGrade) ? MQ.save.playGrade(player) : (player.playGrade || player.grade || 3)) + ':'; }
+  function fixList(player) {
+    if (!player) return [];
+    const pre = gradePre(player), seen = {}, out = [];
+    ['review', 'escaped'].forEach(function (f) {
+      const all = player[f] || {};
+      Object.keys(all).forEach(function (k) {
+        if (k.indexOf(pre) !== 0 || !Array.isArray(all[k])) return;
+        all[k].forEach(function (e) {
+          if (!e || !e.q || !e.key || seen[e.key] || !OK_TYPES[e.q.type]) return;
+          seen[e.key] = true;
+          out.push({ key: e.key, q: e.q, miss: e.miss || (f === 'escaped' ? 2 : 1), at: e.at || '', fromReview: f === 'review', areaId: e.areaId || k.slice(pre.length) });
+        });
+      });
+    });
+    out.sort(function (a, b) { return (b.miss - a.miss) || String(a.at).localeCompare(String(b.at)); });
+    return out;
+  }
+  function fixCount(player) { return fixList(player).length; }
+  function fixSession(player) {
+    const list = fixList(player).slice(0, FIX_N);
+    if (!list.length) return null;
+    const T = text();
+    return {
+      fix: true, stageId: null, stage: { id: 'fix', name: T.fixTitle }, lesson: null, guided: [],
+      practice: list.map(function (e) { const q = prep(Object.assign({}, e.q)); q.__fix = { key: e.key, fromReview: e.fromReview }; return q; }),
+      done: 0, preview: false
+    };
+  }
+  // おぼえた 問題を 消して けいけんちを 足す（呼ぶ側が MQ.save.update の 中で）
+  function fixComplete(p, keys) {
+    keys = keys || [];
+    if (MQ.review) keys.forEach(function (k) { MQ.review.done(p, k); });
+    const xp = keys.length * XP_FIX;
+    const before = MQ.hero.progress(p.xp || 0).level;
+    p.xp = (p.xp || 0) + xp;
+    const after = MQ.hero.progress(p.xp).level;
+    if (xp && MQ.pals && MQ.pals.active(p)) MQ.pals.gain(p, xp);
+    if (keys.length && MQ.save && MQ.save.addLog) MQ.save.addLog(p, 'しゅぎょうば：まちがえた 問題を ' + keys.length + '問 おぼえた');
+    return { xp: xp, n: keys.length, levelUp: after > before, level: after, left: fixCount(p) };
+  }
+
+  /* ---- きょうの おすすめ（v14.52）----
+     ① まちがえた 問題が あれば とき直し
+     ② ★の ある ステージで さいきんの 正解が いちばん 少ない（同じなら いちばん 前に やった）もの
+     ③ よしゅう（まだ しゅぎょう して いない もの）。なければ いまの ステージ
+     子どもの 画面に「にがて」と 書かない（「もう いちど れんしゅう」）。 */
+  function lastAt(player, stageId) {
+    const r = rec(player, stageId);
+    const row = player && player.stats && player.stats.rows ? player.stats.rows[stageId] : null;
+    const a = r && r.at ? Date.parse(r.at) : 0, b = row && row.at ? Date.parse(row.at) : 0;
+    return Math.max(isNaN(a) ? 0 : a, isNaN(b) ? 0 : b);
+  }
+  function recentPct(player, stageId) {
+    const row = player && player.stats && player.stats.rows ? player.stats.rows[stageId] : null;
+    if (!row || !MQ.stats) return null;
+    const m = MQ.stats.measure(row);
+    return m.recentN >= 3 ? m.pct : null;
+  }
+  function recommend(player, c) {
+    c = c || candidates(player);
+    const out = [];
+    const n = fixCount(player);
+    if (n) out.push({ kind: 'fix', n: n });
+    if (c.review.length) {
+      const r = c.review.slice().sort(function (a, b) {
+        const pa = recentPct(player, a.stage.id), pb = recentPct(player, b.stage.id);
+        const sa = pa == null ? 100 : pa, sb = pb == null ? 100 : pb;
+        return (sa - sb) || (lastAt(player, a.stage.id) - lastAt(player, b.stage.id));
+      })[0];
+      out.push({ kind: 'stage', why: 'review', entry: r });
+    }
+    const pre = c.preview.filter(function (e) { return !e.done; })[0];
+    if (pre) out.push({ kind: 'stage', why: 'preview', entry: pre });
+    else if (c.now.length) out.push({ kind: 'stage', why: 'now', entry: c.now[0] });
+    return out.slice(0, 3);
   }
 
   /* ---- はんてい・声かけ ---- */
@@ -323,7 +440,9 @@ MQ.dojo = (function () {
   return {
     lesson: lesson, has: has, isHand: isHand, usableFor: usableFor, rec: rec, doneCount: doneCount,
     previewOk: previewOk, previewOpen: previewOpen, previewTarget: previewTarget, termClosed: termClosed,
-    candidates: candidates, count: count,
+    candidates: candidates, count: count, recommend: recommend, lastAt: lastAt,
+    fixList: fixList, fixCount: fixCount, fixSession: fixSession, fixComplete: fixComplete, XP_FIX: XP_FIX, FIX_N: FIX_N,
+    prep: prep, wantsMemo: wantsMemo,
     session: session, stepFor: stepFor, nums: nums, autoExplain: autoExplain,
     judge: judge, answerText: answerText, missText: missText, commonMiss: commonMiss, praise: praise, passed: passed,
     sensei: sensei, complete: complete, text: text, fmt: fmt, isKid: isKid, TEXT: TEXT, KID: KID,

@@ -2643,7 +2643,7 @@ check(!MQ.content.worldForGrade(6).locked && MQ.content.worldForGrade(6).areas[0
   check(!HW.pathRules([yama[0]], '一') && !HW.pathRules([yama[0], yama[2]], '山'), 'handwrite: 一 を 1画・山 を 2画 は 通る');
   const many = []; for (let i = 0; i < 12; i++) many.push(line([10 + i * 8, 10], [12 + i * 8, 20], 3));
   check((HW.pathRules(many, '山') || {}).reason === 'strokes', 'handwrite: ちょんちょん 12本 は strokes');
-  HW.setLevel('strict'); check(HW.thresholds().ok === 0.9, 'handwrite: setLevel'); HW.setLevel('normal');
+  HW.setLevel('strict'); check(HW.thresholds().ok === HW.LEVELS.strict.ok && HW.LEVELS.strict.ok > HW.LEVELS.normal.ok, 'handwrite: setLevel'); HW.setLevel('normal');
 })();
 
 // ---- AI（v2.8）：せってい・回数・こたえの 読みとり・まちがいの 分け方（通信は しない） ----
@@ -5388,6 +5388,35 @@ function stripComments(src) {
   MQ.save.update(function (pl) { pl.term = 1; pl.units = {}; });
   MQ.content.subjectAreas().forEach(function (area) { const t = D.previewTarget(MQ.save.current(), area); check(!t || !t.pool, 'dojo: 予習の 相手は 生成の ステージだけ（' + area.id + '）'); });
   console.log('しゅぎょうば 全学年: ' + perGrade.join('・'));
+
+  // v14.52：えらぶ 問題の 正解が いつも 先頭に ならない（前は 400問 中 400問 先頭）・ひっさんに メモ欄
+  (function () {
+    MQ.save.createPlayer('dojo52', null, 3);
+    const pl = MQ.save.current();
+    const pos = {}; let vert = 0, vertMemo = 0;
+    ['kokugo3-1', 'rikashakai3-1', 'eigo3-1', 'sansu3-4', 'sansu3-10'].forEach(function (id) {
+      for (let k = 0; k < 8; k++) {
+        const s = D.session(id, pl); if (!s) continue;
+        s.guided.concat(s.practice).forEach(function (q) {
+          if (q.type === 'choice') pos[q.answer] = (pos[q.answer] || 0) + 1;
+          if (q.layout === 'vertical') { vert++; if (D.wantsMemo(q)) vertMemo++; }
+        });
+      }
+    });
+    check(Object.keys(pos).length >= 3, 'dojo v14.52: えらぶ 問題の 正解の 場所が ばらける ' + JSON.stringify(pos));
+    check(vert > 0 && vert === vertMemo, 'dojo v14.52: ひっさんには メモ欄（' + vertMemo + '/' + vert + '）');
+    // まちがえた 問題の とき直し：p.review から 出て、おぼえた ものだけ 消える
+    const qs = D.session('sansu3-4', pl).practice;
+    MQ.save.update(function (p) { qs.forEach(function (q, i) { MQ.review.add(p, 'sansu', { key: 'fx' + i, q: q, stageId: 'sansu3-4' }); }); });
+    check(D.fixCount(MQ.save.current()) === qs.length, 'dojo v14.52: とき直しの 数 ' + D.fixCount(MQ.save.current()));
+    const fs2 = D.fixSession(MQ.save.current());
+    check(fs2 && fs2.fix && fs2.practice.length === qs.length && fs2.practice[0].__fix, 'dojo v14.52: とき直しの セッション');
+    let res = null;
+    MQ.save.update(function (p) { res = D.fixComplete(p, ['fx0']); });
+    check(res.n === 1 && res.xp === D.XP_FIX && D.fixCount(MQ.save.current()) === qs.length - 1, 'dojo v14.52: おぼえた 1問だけ 消える');
+    const rec = D.recommend(MQ.save.current());
+    check(rec.length && rec[0].kind === 'fix', 'dojo v14.52: おすすめの 先頭は とき直し');
+  })();
 
   // 読みこみ順と 登録
   check(INDEX_HTML.indexOf('js/content/lesson3.js') > INDEX_HTML.indexOf('js/content/sansu3.js') && INDEX_HTML.indexOf('js/core/dojo.js') > INDEX_HTML.indexOf('js/content/world3.js') && INDEX_HTML.indexOf('js/ui/dojo.js') > INDEX_HTML.indexOf('js/ui/map.js'), 'index: lesson3 は sansu3 の あと・dojo.js は world3 の あと・ui/dojo は map の あと');

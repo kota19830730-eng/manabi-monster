@@ -18,6 +18,7 @@ MQ.ui.dojo = (function () {
   let S = null;        // いまの 修行
   let root = null;
   let T = null;        // 画面の 文（学年で かわる）
+  let tab = 'all';     // v14.52：一覧の 教科の タブ
 
   function player() { return MQ.save.current(); }
   function strip(s) { return String(s || '').replace(/<[^>]+>/g, ''); }
@@ -54,8 +55,14 @@ MQ.ui.dojo = (function () {
     const sen = MQ.dojo.sensei(p);
     function row(e) {
       const st = e.stage;
-      const sub = e.preview ? (e.done ? T.rowPreDone : T.rowPre)
+      let sub = e.preview ? (e.done ? T.rowPreDone : T.rowPre)
         : (e.stars ? '★' + e.stars + '　' + (e.done ? F(T.rowDoneN, e.done) : T.rowReview) : (e.done ? F(T.rowDoneN, e.done) : T.rowNow));
+      // v14.52：さいごに しゅぎょうした 日（ふくしゅうの めやす）
+      const rec = MQ.dojo.rec(p, st.id);
+      if (rec && rec.at && !e.preview) {
+        const days = Math.floor((Date.now() - Date.parse(rec.at)) / 86400000);
+        if (!isNaN(days)) sub += '　' + (days <= 0 ? T.lastToday : F(T.lastDays, days));
+      }
       return h('button', {
         class: 'dojorow' + (e.preview ? ' dojorow--pre' : '') + (e.done ? ' dojorow--done' : ''), type: 'button',
         onclick: function () { MQ.sfx.tap(); open(st.id); }
@@ -76,16 +83,43 @@ MQ.ui.dojo = (function () {
       ].concat(list.map(row)));
     }
     const total = c.preview.length + c.now.length + c.review.length;
+    /* v14.52：きょうの おすすめ（とき直し・もう いちど・よしゅう）＋ 教科の タブ */
+    const recs = MQ.dojo.recommend(p, c);
+    function recCard(r) {
+      if (r.kind === 'fix') {
+        return h('button', { class: 'dojorec dojorec--fix', type: 'button', onclick: function () { MQ.sfx.tap(); openFix(); } }, [
+          h('span', { class: 'dojorec__tag', text: '✎' }),
+          h('span', { class: 'dojorec__body' }, [h('b', { text: T.recFix }), h('span', { text: F(T.recFixSub, r.n) })]),
+          h('span', { class: 'dojorec__go', text: '▶' })
+        ]);
+      }
+      const e = r.entry;
+      const label = r.why === 'review' ? T.recReview : r.why === 'preview' ? T.recPreview : T.recNow;
+      return h('button', { class: 'dojorec dojorec--' + r.why, type: 'button', onclick: function () { MQ.sfx.tap(); open(e.stage.id); } }, [
+        h('span', { class: 'dojorow__sub', 'data-area': e.area.id, text: e.area.short || e.area.name }),
+        h('span', { class: 'dojorec__body' }, [h('b', { text: e.stage.name }), h('span', { text: label })]),
+        h('span', { class: 'dojorec__go', text: '▶' })
+      ]);
+    }
+    const areas = [];
+    [c.preview, c.now, c.review].forEach(function (l) { l.forEach(function (e) { if (areas.indexOf(e.area) < 0) areas.push(e.area); }); });
+    if (tab !== 'all' && !areas.some(function (a) { return a.id === tab; })) tab = 'all';
+    function inTab(l) { return tab === 'all' ? l : l.filter(function (e) { return e.area.id === tab; }); }
+    const tabs = areas.length > 1 ? h('div', { class: 'dojotabs' }, [{ id: 'all', name: T.tabAll }].concat(areas.map(function (a) { return { id: a.id, name: a.short || a.name }; })).map(function (t) {
+      return h('button', { class: 'dojotab' + (tab === t.id ? ' is-on' : ''), type: 'button', 'data-area': t.id, text: t.name, onclick: function () { MQ.sfx.tap(); tab = t.id; openList(); } });
+    })) : null;
     root = h('div', { class: 'dojo dojo--list' }, [
       topBar('しゅぎょうば', null, function () { MQ.ui.goMap(); }),
       h('div', { class: 'dojo__scroll' }, [
         h('div', { class: 'dojo__sensei dojo__sensei--list' }, [
           senseiImg(sen, 56),
-          bubble(sen.name + '「' + (total ? T.listHello : T.listEmpty) + '」')
+          bubble(sen.name + '「' + (total || recs.length ? T.listHello : T.listEmpty) + '」')
         ]),
-        section(T.secPreview, c.preview, T.secPreviewNote),
-        section(T.secNow, c.now, null),
-        section(T.secReview, c.review, null)
+        recs.length ? h('div', { class: 'dojosec dojosec--rec' }, [h('h3', { class: 'dojosec__t', text: T.recTitle })].concat(recs.map(recCard))) : null,
+        tabs,
+        section(T.secPreview, inTab(c.preview), T.secPreviewNote),
+        section(T.secNow, inTab(c.now), null),
+        section(T.secReview, inTab(c.review), null)
       ])
     ]);
     MQ.ui.mount('screen-dojo', root);
@@ -123,6 +157,44 @@ MQ.ui.dojo = (function () {
     }
     kids.push(h('div', { class: 'card__q' + size, html: q.prompt, raw: true }));
     return h('div', { class: 'card dojo__card' + (q.story ? ' card--story' : ''), raw: true }, kids);
+  }
+  /* v14.52：書いて 考える メモ欄（バトルと 同じ しくみ・ひっさんは 方眼の マスに 数字）。
+     ans を わたすと ひっさんの 3だんめに 答えを 書いて 見せる（いっしょに とく の 答え）。
+     同じ 問題の あいだは 同じ メモ欄を 使い まわす（まちがえて もう 1回の とき 書いた ものが 消えない） */
+  function memoBox(q, ans) {
+    if (!MQ.dojo.wantsMemo(q) || !MQ.ui.battle || !MQ.ui.battle.makeMemo) return null;
+    if (ans == null && S && S.memo && S.memo.q === q) return S.memo.el;
+    const vert = q.layout === 'vertical';
+    let canvas, clear, wide;
+    const el = h('div', { class: 'memo dojo__memo' + (vert ? ' is-hissan' : '') + (ans != null ? ' is-answer' : '') }, [
+      h('div', { class: 'memo__q', html: q.prompt, raw: true }),
+      vert ? h('div', { class: 'hissan', raw: true }) : null,
+      canvas = h('canvas', { class: 'memo__canvas' }),
+      ans != null ? null : h('div', { class: 'memo__btns' }, [
+        wide = h('button', { class: 'memo__btn', type: 'button', text: T.memoWide }),
+        clear = h('button', { class: 'memo__btn', type: 'button', text: T.memoClear })
+      ]),
+      ans != null ? null : h('span', { class: 'memo__hint', text: vert ? T.memoHissan : T.memoHint })
+    ]);
+    if (vert) el.querySelector('.hissan').innerHTML = MQ.ui.battle.hissanHtml(q, el, ans);
+    if (ans != null) return el;
+    const m = MQ.ui.battle.makeMemo(canvas, clear);
+    wide.addEventListener('click', function () {
+      MQ.sfx.tap();
+      const on = el.classList.toggle('memo--wide');
+      wide.textContent = on ? T.memoBack : T.memoWide;
+      if (root) root.classList.toggle('is-memowide', on);
+      m.resizeKeep();
+    });
+    requestAnimationFrame(function () { m.resizeKeep(); });
+    if (S) S.memo = { q: q, el: el, m: m };
+    return el;
+  }
+
+  /* ひっさん（v14.52）：数字は メモ欄の 方眼に ある ので、上の カードは 単元の 見出しだけ（タブレットで キーまで 1画面に） */
+  function qHead(q) {
+    if (q.layout === 'vertical' && MQ.dojo.wantsMemo(q)) return h('p', { class: 'dojo__unit', text: q.unit || '', raw: true });
+    return card(q);
   }
   function hintBox(q) {
     if (!q.hint) return null;
@@ -180,7 +252,9 @@ MQ.ui.dojo = (function () {
         h('span', { text: S.ses.preview ? T.helloPre : T.helloPlan }),
         h('div', { class: 'dojo__plan' }, dots().map(function (t, i) { return h('span', { text: (i + 1) + ' ' + t }); }))
       ]),
-      nextBtn(T.start, function () { explain(0); })
+      // v14.52：もう しゅぎょうした ステージは せつめいを とばして すぐ ひとりで（ふくしゅう）
+      S.ses.done > 0 ? nextBtn(T.quick, function () { practice(0, 'ask'); }) : null,
+      nextBtn(S.ses.done > 0 ? T.fromStart : T.start, function () { explain(0); }, S.ses.done > 0 ? 'btn--cream' : '')
     ]));
   }
 
@@ -206,7 +280,8 @@ MQ.ui.dojo = (function () {
     setDot(1);
     const q = qs[i];
     const step = q.__step === undefined ? (q.__step = MQ.dojo.stepFor(S.ses.lesson, q)) : q.__step;
-    const kids = [card(q)];
+    const kids = [qHead(q)];
+    const vert = q.layout === 'vertical';
     function stepBtns(showResult) {
       return h('div', { class: 'dojo__steps' }, step.options.map(function (o, k) {
         if (showResult) return h('button', { class: 'dojo__step' + (o.ok ? ' is-ok' : k === picked ? ' is-ng' : ''), type: 'button', text: o.text, disabled: true });
@@ -231,11 +306,15 @@ MQ.ui.dojo = (function () {
       // 手順の 3たくが ない 問題（自動の 指導は ぜんぶ）は ヒントから
       say(q.hint ? T.hintIs : T.think);
       if (q.hint) kids.push(hintBox(q));
+      const mb = memoBox(q);
+      if (mb) kids.push(mb);
       kids.push(nextBtn(T.seeAns, function () { guided(i, 'answer'); }));
     } else {
       const ans = MQ.dojo.answerText(q);
       say(ansSay(ans, q.note));
       if (q.hint) kids.push(hintBox(q));
+      // ひっさんは 方眼に 答えまで 書いた 形を 見せる（v14.52）
+      if (vert) { const mb = memoBox(q, ans); if (mb) kids.push(mb); }
       kids.push(h('div', { class: 'dojo__answer' }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: ans, raw: true })]));
       pushPic(kids, q);
       kids.push(nextBtn(i + 1 < qs.length ? T.nextQ : T.toPractice, function () { guided(i + 1, 'ask'); }));
@@ -250,7 +329,7 @@ MQ.ui.dojo = (function () {
     if (i >= qs.length) { finishRound(); return; }
     setDot(2);
     const q = qs[i];
-    const kids = [card(q)];
+    const kids = [qHead(q)];
     if (phase === 'ask') {
       input = ''; div = { q: '', r: '', active: 'q' };
       q.__tries = 0;
@@ -264,6 +343,8 @@ MQ.ui.dojo = (function () {
     }
     if (q.hint) kids.push(hintBox(q));
     if (phase === 'ask' || phase === 'retry') {
+      const mb = memoBox(q);
+      if (mb) kids.push(mb);
       kids.push(inputArea(q, function (value) { submit(i, value); }));
     } else {
       kids.push(h('div', { class: 'dojo__answer' + (phase === 'ok' ? ' is-ok' : '') }, [h('span', { class: 'dojo__anslabel', text: T.ansLabel }), h('b', { text: MQ.dojo.answerText(q), raw: true })]));
@@ -277,6 +358,8 @@ MQ.ui.dojo = (function () {
     const q = S.ses.practice[i];
     if (MQ.dojo.judge(q, value)) {
       MQ.sfx.correct();
+      // とき直し（v14.52）：1回めで 正解 → おぼえた
+      if (S.ses.fix && q.__fix && !(q.__tries || 0)) S.fixed.push(q.__fix.key);
       practice(i, 'ok');
       return;
     }
@@ -351,6 +434,7 @@ MQ.ui.dojo = (function () {
 
   /* ---- 3問 おわった ---- */
   function finishRound() {
+    if (S.ses.fix) { fixDone(); return; }
     S.rounds++;
     if (MQ.dojo.passed(S.misses)) { done(); return; }
     // 合格 ならず → 新しい 問題で ②から（ばつは ない）
@@ -402,8 +486,54 @@ MQ.ui.dojo = (function () {
     ]));
   }
 
+  /* ---- まちがえた 問題の とき直し（v14.52） ---- */
+  function openFix() {
+    const p = player();
+    T = MQ.dojo.text();
+    const ses = MQ.dojo.fixSession(p);
+    if (!ses) { MQ.ui.toast(T.fixNone); return; }
+    S = { ses: ses, sen: MQ.dojo.sensei(p), misses: 0, rounds: 0, fixed: [] };
+    root = h('div', { class: 'dojo' }, [
+      topBar(ses.stage.name, null, function () { openList(); }),
+      h('div', { class: 'dojo__sensei' }, [senseiImg(S.sen, 64), bubble('')]),
+      h('div', { class: 'dojo__main' })
+    ]);
+    MQ.ui.mount('screen-dojo', root);
+    MQ.ui.show('screen-dojo');
+    MQ.bgm.play('map');
+    say(T.fixHello);
+    paint(h('div', { class: 'dojo__pane' }, [
+      h('div', { class: 'dojo__hello' }, [h('b', { text: ses.stage.name }), h('span', { text: F(T.recFixSub, MQ.dojo.fixCount(p)) })]),
+      nextBtn(T.start, function () { practice(0, 'ask'); })
+    ]));
+  }
+  function fixDone() {
+    let res = null;
+    const keys = S.fixed.slice();
+    MQ.save.update(function (p) { res = MQ.dojo.fixComplete(p, keys); });
+    if (MQ.sfx.defeat) MQ.sfx.defeat();
+    say(res.n ? F(T.fixDoneN, res.n) : T.againSay);
+    const lines = [h('b', { class: 'dojodone__xp', text: F(T.fixDoneN, res.n) })];
+    if (res.xp) lines.push(h('span', { text: 'けいけんち +' + res.xp }));
+    if (res.levelUp) lines.push(h('span', { class: 'dojodone__lv', text: F(T.lvUp, res.level) }));
+    if (res.left) lines.push(h('span', { text: T.fixLeft }));
+    paint(h('div', { class: 'dojo__pane' }, [
+      h('div', { class: 'bagcard dojodone' }, [
+        h('span', { class: 'bagcard__star bagcard__star--l' }),
+        h('span', { class: 'bagcard__star bagcard__star--r' }),
+        h('div', { class: 'bagcard__head' }, [h('h3', { class: 'bagcard__title', text: T.fixDoneTitle })]),
+        h('div', { class: 'dojodone__body' }, [h('div', { class: 'dojodone__lines' }, lines)]),
+        h('div', { class: 'dojodone__btns' }, [
+          res.left ? nextBtn(T.recFix, function () { openFix(); }, '') : null,
+          nextBtn(T.toList, function () { openList(); }, 'btn--cream'),
+          nextBtn(T.toMap, function () { MQ.ui.goMap(); }, 'btn--stone')
+        ])
+      ])
+    ]));
+  }
+
   /* ---- テスト用 ---- */
   function state() { return S; }
 
-  return { openList: openList, open: open, state: state, intro: intro, explain: explain, guided: guided, practice: practice, submit: submit, done: done };
+  return { openList: openList, open: open, openFix: openFix, state: state, intro: intro, explain: explain, guided: guided, practice: practice, submit: submit, done: done };
 })();
