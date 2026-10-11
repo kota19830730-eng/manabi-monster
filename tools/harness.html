@@ -2501,6 +2501,73 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       return;
     }
     // かん字の はんてい（v2.9）の 校正：#judge（おてほん＝端末の 教科書体）／#judge:gothic（おてほんを ゴシックに して 書体の ずれを 大きく）
+    /* v14.51：線が 1本 ちがう 字（目→日 など）を ○に しないか。#judgenear
+       right＝出題の 字、wrong＝子どもが 書いた（線が 1本 たりない／多い）字。
+       same は 正しい字（フォント・かたむき・ゆがみ）。ok が へって いない ことも 見る。 */
+    // #judgeone:<字>：フォントごとに 線が たりない・多い の 数字と、かさねた 図（赤＝たりない・青＝多い）
+    if (mode.indexOf('judgeone') === 0) {
+      fresh();
+      const k = decodeURIComponent(mode.split(':')[1] || '皿');
+      const FONTS = ["'HGKyokashotai'", "'Yu Mincho'", "'BIZ UDMincho Medium'", "'Noto Serif JP'", "'Yu Gothic'"];
+      const wrap = document.createElement('div'); wrap.style.cssText = 'position:fixed;left:0;top:0;z-index:99;background:#fff;display:flex;flex-wrap:wrap;gap:4px;padding:4px;width:520px';
+      document.body.appendChild(wrap);
+      FONTS.forEach(function (f) {
+        [0, 5].forEach(function (rot) {
+          const c = document.createElement('canvas'); c.width = 360; c.height = 240;
+          drawKanjiLike(c.getContext('2d'), k, { w: 360, h: 240, font: f, size: 160, rot: rot, wave: 2.5 });
+          const j = MQ.handwrite.judge(c, k);
+          say('one ' + k + ' ' + f + ' rot' + rot + ': ' + j.verdict + ' ' + j.reason + ' score=' + (j.score || 0).toFixed(2) + ' miss=' + (j.miss || 0).toFixed(2) + '/' + (j.missA || 0).toFixed(3) + ' extra=' + (j.extra || 0).toFixed(2) + '/' + (j.extraA || 0).toFixed(3));
+          const im = document.createElement('img'); im.src = c.toDataURL(); im.style.cssText = 'width:96px;height:64px;border:1px solid #ccc'; wrap.appendChild(im);
+        });
+      });
+      const t = MQ.handwrite.templateOf(k); const tc = document.createElement('canvas'); tc.width = 48; tc.height = 48; const tx = tc.getContext('2d'); const id = tx.createImageData(48, 48);
+      for (let i = 0; i < 48 * 48; i++) { const v = 255 - Math.round(t.g[i] * 255); id.data[i * 4] = v; id.data[i * 4 + 1] = v; id.data[i * 4 + 2] = v; id.data[i * 4 + 3] = 255; }
+      tx.putImageData(id, 0, 0); const ti = document.createElement('img'); ti.src = tc.toDataURL(); ti.style.cssText = 'width:96px;height:96px;image-rendering:pixelated;border:2px solid red'; wrap.appendChild(ti);
+      say('one template font=' + MQ.handwrite.font().slice(0, 30));
+      dump(); return;
+    }
+    if (mode.indexOf('judgenear') === 0) {
+      fresh();
+      const HW = MQ.handwrite;
+      const W = 360, Hh = 240;
+      const PAIRS = [
+        ['目', '日'], ['白', '日'], ['犬', '大'], ['太', '大'], ['本', '木'], ['玉', '王'], ['自', '目'], ['百', '白'], ['田', '口'], ['日', '口'],
+        ['主', '王'], ['天', '大'], ['夫', '天'], ['末', '木'], ['未', '木'], ['千', '十'], ['土', '十'], ['王', '土'], ['申', '中'], ['由', '田'],
+        ['石', '右'], ['右', '石'], ['入', '人'], ['九', '力'], ['牛', '午'], ['午', '十'], ['米', '木'], ['休', '体'], ['気', '汽'], ['間', '問'],
+        ['日', '目'], ['大', '犬'], ['木', '本'], ['王', '玉'], ['口', '田'], ['白', '百']
+      ];
+      const SAME = ['目', '日', '白', '犬', '大', '本', '木', '王', '玉', '田', '口', '自', '百', '天', '石', '右', '中', '休', '気', '間', '学', '校', '花', '森', '雨', '車', '糸', '貝', '虫', '音', '空', '赤', '青', '草', '竹', '見', '水', '火', '手', '足', '耳', '早', '名', '町', '男', '女', '子', '字', '皿', '四', '二', '三', '工', '上', '下', '川', '小', '月', '血', '西', '用', '可', '旦'];
+      const FONTS = ["'HGKyokashotai'", "'Yu Mincho'", "'BIZ UDMincho Medium'", "'Noto Serif JP'", "'Yu Gothic'"];
+      function like(text, o) { return function (ctx) { drawKanjiLike(ctx, text, Object.assign({ w: W, h: Hh, font: FONTS[Math.floor(Math.random() * FONTS.length)], size: rnd(120, 190), rot: rnd(-7, 7), sx: rnd(0.85, 1.15), sy: rnd(0.85, 1.15), shx: rnd(-0.12, 0.12), lw: rnd(0, 6), wave: rnd(1.5, 4), ph: rnd(0, 6) }, o || {})); }; }
+      let msSum = 0, msN = 0, msMax = 0;
+      function one(kanji, fn) { const c = document.createElement('canvas'); c.width = W; c.height = Hh; fn(c.getContext('2d')); const t0 = performance.now(); const j = HW.judge(c, kanji); const dt = performance.now() - t0; msSum += dt; msN++; if (dt > msMax) msMax = dt; return j; }
+      const rows = { same: [], near: [] };
+      SAME.forEach(function (k) { for (let s = 0; s < 4; s++) rows.same.push(Object.assign({ k: k }, one(k, like(k)))); });
+      PAIRS.forEach(function (p) { for (let s = 0; s < 4; s++) rows.near.push(Object.assign({ k: p[0] + '←' + p[1] }, one(p[0], like(p[1])))); });
+      function q(arr, p) { const a = arr.slice().sort(function (x, y) { return x - y; }); return a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))].toFixed(3) : '-'; }
+      Object.keys(rows).forEach(function (k) {
+        const a = rows[k]; const v = { ok: 0, maybe: 0, ng: 0 }; a.forEach(function (r) { v[r.verdict]++; });
+        say('near ' + k + ' n=' + a.length + ' ok ' + Math.round(v.ok / a.length * 100) + '% maybe ' + Math.round(v.maybe / a.length * 100) + '% ng ' + Math.round(v.ng / a.length * 100) + '%');
+        ['score', 'miss', 'extra', 'missA', 'extraA'].forEach(function (f) { const xs = a.map(function (r) { return r[f] || 0; }); say('  ' + f + ' p5=' + q(xs, .05) + ' p25=' + q(xs, .25) + ' p50=' + q(xs, .5) + ' p75=' + q(xs, .75) + ' p95=' + q(xs, .95) + ' max=' + q(xs, 1)); });
+      });
+      say('near 1回の はんてい ' + (msSum / msN).toFixed(1) + 'ms（いちばん 長い ' + msMax.toFixed(1) + 'ms）');
+      // しきい値の 候補：max(miss, extra) >= T を ×
+      [0.12, 0.15, 0.18, 0.2, 0.22, 0.25, 0.3].forEach(function (T) {
+        const f = function (r) { return Math.max(r.miss || 0, r.extra || 0) >= T; };
+        const sm = rows.same.filter(f).length / rows.same.length;
+        const nearOk = rows.near.filter(function (r) { return r.verdict === 'ok' && !f(r); }).length / rows.near.length;
+        const nearNotNg = rows.near.filter(function (r) { return r.verdict !== 'ng' && !f(r); }).length / rows.near.length;
+        say('near T=' + T + ': same が × に なる ' + Math.round(sm * 100) + '% / near が ○ の まま ' + Math.round(nearOk * 100) + '% / near が × で ない ' + Math.round(nearNotNg * 100) + '%');
+      });
+      [[0.15,0.12],[0.16,0.13],[0.18,0.15],[0.2,0.2],[0.25,0.2]].forEach(function (TT) { [[0.03,0.03],[0.04,0.04],[0.05,0.05],[0.06,0.06]].forEach(function (AA) { const f = function (r) { return ((r.miss||0) >= TT[0] && (r.missA||0) >= AA[0]) || ((r.extra||0) >= TT[1] && (r.extraA||0) >= AA[1]); }; say('near2 len' + TT + ' area' + AA + ': same × ' + Math.round(rows.same.filter(f).length / rows.same.length * 100) + '% / near のこる ' + Math.round(rows.near.filter(function (r) { return !f(r); }).length / rows.near.length * 100) + '%'); }); });
+      // のこる near（○ の まま）と × に なる same の 名前
+      const T0 = Number((mode.split(':')[1]) || 0.2);
+      const F2 = function (r) { return ((r.miss||0) >= 0.15 && (r.missA||0) >= 0.04) || ((r.extra||0) >= 0.12 && (r.extraA||0) >= 0.04); };
+      say('near のこり: ' + rows.near.filter(function (r) { return !F2(r); }).map(function (r) { return r.k + '(' + (r.miss || 0).toFixed(2) + ',' + (r.missA || 0).toFixed(3) + '/' + (r.extra || 0).toFixed(2) + ',' + (r.extraA || 0).toFixed(3) + ')'; }).join(' '));
+      say('same が ×: ' + rows.same.filter(F2).map(function (r) { return r.k + '(' + (r.miss || 0).toFixed(2) + '/' + (r.extra || 0).toFixed(2) + ')'; }).join(' '));
+      dump();
+      return;
+    }
     if (mode.indexOf('judge') === 0) {
       fresh();
       const HW = MQ.handwrite;
@@ -2583,6 +2650,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       say('write keys: ' + keyBtn('かけた！'));
       const j = MQ.ui.battle.lastJudge();
       say('write judge: ' + JSON.stringify(j));
+      // 書いた 字の 写し（headless は あとから 描いた canvas が 写らない ので img に して 右上に）
+      { const im = document.createElement('img'); im.src = MQ.handwrite.cropUrl($('.memo__canvas'), 120); im.style.cssText = 'position:fixed;right:4px;top:4px;width:120px;height:120px;z-index:99;border:3px solid #4caf50;background:#fff'; document.body.appendChild(im); }
       say('write ui: msg=' + $('.arena__msg').textContent + ' | feedback=' + $('.feedback').textContent + ' | model=' + ($('.card__model') ? $('.card__model').textContent : '-') + ' | cmp=' + !!$('.wcmp') + ' | keys=' + Array.prototype.map.call(document.querySelectorAll('.key'), function (b) { return b.textContent; }).join('/'));
       dump();
       return;

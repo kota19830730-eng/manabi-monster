@@ -28,8 +28,10 @@ MQ.handwrite = (function () {
   // おてほんの フォント：教科書体 → 明朝 → ゴシック の じゅんで、端末に ある もの
   let FONT = "'UD Digi Kyokasho N-R', 'UD Digi Kyokasho N', 'HGKyokashotai', 'BIZ UDMincho Medium', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Noto Serif CJK JP', 'Noto Sans JP', 'Noto Sans CJK JP', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif";
   // きびしさ（おうちの人ページ）。#judge の 校正：ok 0.85 で「べつの字が ○」3〜4%・正しい字が そのまま ○ 約80%
-  const LEVELS = { easy: { ok: 0.80, ng: 0.55 }, normal: { ok: 0.85, ng: 0.62 }, strict: { ok: 0.90, ng: 0.70 } };
+  // d＝線が たりない・多い の しきい値の 倍率（v14.51・大きいほど ゆるい）
+  const LEVELS = { easy: { ok: 0.80, ng: 0.55, d: 1.25 }, normal: { ok: 0.85, ng: 0.62, d: 1 }, strict: { ok: 0.90, ng: 0.70, d: 0.85 } };
   let TH = { ok: LEVELS.normal.ok, ng: LEVELS.normal.ng };
+  const DIFF = { k: 1 };
   const W = { dir: 0.7, den: 0.3 };
   let cache = {};
 
@@ -206,6 +208,107 @@ MQ.handwrite = (function () {
     return { dir: dsim, den: nsim, score: W.dir * dsim + W.den * nsim };
   }
 
+  /* ---- 線が たりない・多い を さがす（v14.51） ----
+     形の 点数（向きと こさ）は 字ぜんたいの にかたを 見るので、「目」を「日」と 書いても
+     0.9 ちかく 出て ○に なって いた（ユーザー「線が 1本 少なくても 正解に なる」）。
+     ここでは おてほんと 書いた 字を 同じ 大きさに そろえて かさね、
+       miss  … おてほんの 線なのに 近くに 書いた 線が ない ところ（線が たりない）
+       extra … 書いた 線なのに 近くに おてほんの 線が ない ところ（線が 多い）
+     を さがし、いちばん 大きい ひと かたまりの 大きさ（字の 大きさ S に 対する 長さ）を かえす。
+     手で 書いた ずれは 小さな かけらに なり、1本 ぬけた 線は 長い かたまりに なる。 */
+  // m の 1 の ところの うち、いちばん 大きい つながりの「長さ」（よこ・たての 長い ほう）と 画素数
+  function biggestBlob(m) {
+    const seen = new Uint8Array(S * S);
+    let best = { len: 0, n: 0 };
+    const st = [];
+    for (let i = 0; i < S * S; i++) {
+      if (!m[i] || seen[i]) continue;
+      let n = 0, x0 = S, y0 = S, x1 = -1, y1 = -1;
+      st.push(i); seen[i] = 1;
+      while (st.length) {
+        const k = st.pop(), x = k % S, y = (k - x) / S;
+        n++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= S || yy >= S) continue;
+          const j = yy * S + xx;
+          if (m[j] && !seen[j]) { seen[j] = 1; st.push(j); }
+        }
+      }
+      const len = Math.max(x1 - x0 + 1, y1 - y0 + 1);
+      if (len > best.len || (len === best.len && n > best.n)) best = { len: len, n: n };
+    }
+    return best;
+  }
+  const NEAR_R = 3;     // これより 近ければ「同じ 線」と みなす（48 の うち）
+  // 0/1 の 地図 → いちばん 近い 1 までの きょり（3-4 チャンファー・÷3 で だいたい px）
+  function distOf(m) {
+    const BIG = 1e6, d = new Float32Array(S * S);
+    for (let i = 0; i < S * S; i++) d[i] = m[i] ? 0 : BIG;
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const i = y * S + x; let v = d[i];
+      if (x > 0) v = Math.min(v, d[i - 1] + 3);
+      if (y > 0) { v = Math.min(v, d[i - S] + 3); if (x > 0) v = Math.min(v, d[i - S - 1] + 4); if (x < S - 1) v = Math.min(v, d[i - S + 1] + 4); }
+      d[i] = v;
+    }
+    for (let y = S - 1; y >= 0; y--) for (let x = S - 1; x >= 0; x--) {
+      const i = y * S + x; let v = d[i];
+      if (x < S - 1) v = Math.min(v, d[i + 1] + 3);
+      if (y < S - 1) { v = Math.min(v, d[i + S] + 3); if (x < S - 1) v = Math.min(v, d[i + S + 1] + 4); if (x > 0) v = Math.min(v, d[i + S - 1] + 4); }
+      d[i] = v;
+    }
+    for (let i = 0; i < S * S; i++) d[i] /= 3;
+    return d;
+  }
+  // 書いた 字を 少し 回す・ななめに する・たてよこに のばす・ずらす（まん中を 中心に）
+  function warp(m, th, k, dx, dy, a) {
+    a = a || 1;
+    const o = new Uint8Array(S * S), c = (S - 1) / 2;
+    const cs = Math.cos(th), sn = Math.sin(th);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      // 出力 → 入力（ぎゃくの 変換）
+      let u = x - c - dx, v = y - c - dy;
+      const ru = cs * u + sn * v, rv = -sn * u + cs * v;
+      const sv = rv * a, su = (ru - k * sv) / a;
+      const sx = Math.round(su + c), sy = Math.round(sv + c);
+      if (sx >= 0 && sy >= 0 && sx < S && sy < S && m[sy * S + sx]) o[y * S + x] = 1;
+    }
+    return o;
+  }
+  function strokeDiff(childG, tmplG) {
+    // おてほんの 線の しん（こい ところ）／書いた 線
+    const tCore = new Uint8Array(S * S), tAll = new Uint8Array(S * S), cLine = new Uint8Array(S * S);
+    for (let i = 0; i < S * S; i++) { if (tmplG[i] > 0.6) tCore[i] = 1; if (tmplG[i] > 0.4) tAll[i] = 1; if (childG[i] > 0.25) cLine[i] = 1; }
+    const dT = distOf(tAll);
+    const tPts = []; for (let i = 0; i < S * S; i++) if (tCore[i]) tPts.push(i);
+    // 書いた 字の かたむき・ななめ・ずれを、おてほんに いちばん かさなる ように 合わせる
+    let best = null;
+    function tryIt(th, k, dx, dy, a) {
+      const w = warp(cLine, th, k, dx, dy, a);
+      const dC = distOf(w);
+      let s = 0, n = 0, e = 0, en = 0;
+      for (let j = 0; j < tPts.length; j++) { s += Math.min(8, dC[tPts[j]]); n++; }
+      for (let i = 0; i < S * S; i++) if (w[i]) { e += Math.min(8, dT[i]); en++; }
+      const cost = (n ? s / n : 8) + (en ? e / en : 8);
+      if (!best || cost < best.cost) best = { cost: cost, w: w, dC: dC, th: th, k: k, dx: dx, dy: dy, a: a };
+    }
+    const R = Math.PI / 180;
+    // 平たい 字・細長い 字は 正方形に のばす ので、かたむきが「ななめ＋たてよこの のび」に なる → a も さがす
+    [0.88, 1, 1.12].forEach(function (a) { [-8, -4, 0, 4, 8].forEach(function (d) { [-0.12, -0.06, 0, 0.06, 0.12].forEach(function (k) { tryIt(d * R, k, 0, 0, a); }); }); });
+    const b0 = best;
+    [-2, 0, 2].forEach(function (da) { [-0.03, 0, 0.03].forEach(function (dk) { [-2, -1, 0, 1, 2].forEach(function (dx) { [-2, -1, 0, 1, 2].forEach(function (dy) {
+      tryIt(b0.th + da * R, b0.k + dk, dx, dy, b0.a);
+    }); }); }); });
+    const miss = new Uint8Array(S * S), extra = new Uint8Array(S * S);
+    for (let i = 0; i < S * S; i++) {
+      if (tCore[i] && best.dC[i] > NEAR_R) miss[i] = 1;
+      if (best.w[i] && dT[i] > NEAR_R) extra[i] = 1;
+    }
+    const bm = biggestBlob(miss), be = biggestBlob(extra);
+    let cn = 0; for (let i = 0; i < S * S; i++) if (best.w[i]) cn++;
+    return { miss: bm.len / S, missN: bm.n, missA: bm.n / Math.max(1, tPts.length), extra: be.len / S, extraN: be.n, extraA: be.n / Math.max(1, cn), fit: best.cost };
+  }
+
   /* ---- おてほん ---- */
   function templateOf(kanji) {
     if (kanji in cache) return cache[kanji];
@@ -251,6 +354,27 @@ MQ.handwrite = (function () {
     if (asp > 0.7) score -= (asp - 0.7) * 0.5;
     score = Math.max(0, Math.min(1, score));
     out.dir = cmp.dir; out.den = cmp.den; out.score = score;
+    /* v14.51：線が たりない・多い。1字の ときだけ（「学校」の ような ことばは 48 に つめると 線が つぶれる）。
+       strong＝はっきり ちがう → ×／weak＝あやしい → ○に しない（見くらべ）。画数も ちがえば ×。
+       しきい値は #judgenear で 校正（正しい字が ×に なるのは 約2%）。 */
+    let diff = '';
+    if (String(kanji).length === 1) {
+      const sd = strokeDiff(nrm.g, t.g);
+      out.miss = sd.miss; out.extra = sd.extra; out.missA = sd.missA; out.extraA = sd.extraA;
+      const f = DIFF.k;
+      const strong = (sd.miss >= 0.13 * f && sd.missA >= 0.035 * f) || (sd.extra >= 0.12 * f && sd.extraA >= 0.035 * f);
+      const weak = (sd.miss >= 0.10 * f && sd.missA >= 0.018 * f) || (sd.extra >= 0.10 * f && sd.extraA >= 0.018 * f);
+      const sMiss = sd.missA >= sd.extraA ? 'missing' : 'extra';
+      if (strong) diff = sMiss;
+      else if (weak) {
+        // ゆびの 線が わかって 画数も 合わない なら ×
+        const ps = (opts.paths && opts.paths.length) ? pathStats(opts.paths) : null;
+        if (ps && out.expected && ps.strokes !== out.expected) diff = sMiss;
+        else diff = 'weak';
+      }
+      out.diff = diff;
+    }
+    if (diff === 'missing' || diff === 'extra') { out.verdict = 'ng'; out.reason = diff; return out; }
     /* ゆびの 線が わかる とき：画数・なぐりがきの ルール（v2.9）。
        **v5.5：形が おてほんに よく にて いれば ×に せず「見くらべて じぶんで ○×」に する。**
        実機では 線が とちゅうで 切れて 画数が 合わなく なる ことが あった（v5.5 で 直したが、
@@ -266,6 +390,7 @@ MQ.handwrite = (function () {
     if (asp > 1.2) { out.verdict = 'ng'; out.reason = 'shape'; return out; }
     out.reason = 'score';
     out.verdict = score >= TH.ok ? 'ok' : score < TH.ng ? 'ng' : 'maybe';
+    if (diff === 'weak' && out.verdict === 'ok') { out.verdict = 'maybe'; out.reason = 'weak-diff'; }
     return out;
   }
 
@@ -302,10 +427,11 @@ MQ.handwrite = (function () {
     dot: dot,
     font: function () { return FONT; },
     setFont: function (f) { FONT = f; cache = {}; },
+    strokeDiff: strokeDiff,
     pathStats: pathStats,
     pathRules: pathRules,
     LEVELS: LEVELS,
-    setLevel: function (name) { const L = LEVELS[name] || LEVELS.normal; TH.ok = L.ok; TH.ng = L.ng; },
+    setLevel: function (name) { const L = LEVELS[name] || LEVELS.normal; TH.ok = L.ok; TH.ng = L.ng; DIFF.k = L.d || 1; },
     thresholds: function () { return { ok: TH.ok, ng: TH.ng }; },
     setThresholds: function (o) { if (o && o.ok != null) TH.ok = o.ok; if (o && o.ng != null) TH.ng = o.ng; }
   };
