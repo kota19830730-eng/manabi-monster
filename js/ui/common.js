@@ -99,10 +99,10 @@ MQ.ui = MQ.ui || {};
   MQ.ui.restoreText = function (text) {
     let data = null;
     try { data = JSON.parse(text); } catch (e) { data = null; }
-    if (!data || !Array.isArray(data.players)) { MQ.ui.toast('まなびモンスターの記録ファイルではないようです'); return false; }
-    const names = data.players.map(function (p) { return p.name; }).join('・') || '（なし）';
+    if (!MQ.save.looksLikeSave(data)) { MQ.ui.toast('まなびモンスターの記録ファイルではないようです'); return false; }
+    const names = data.players.map(function (p) { return p.name; }).join('・');
     if (!window.confirm('この記録にもどします（' + names + '）。いまの記録は上書きされます。よろしいですか？')) return false;
-    MQ.save.importText(text);
+    try { MQ.save.importText(text); } catch (e) { MQ.ui.toast('この記録ファイルは読めませんでした'); return false; }
     MQ.ui.toast('記録をもどしました');
     MQ.ui.start.render();
     MQ.ui.show('screen-start');

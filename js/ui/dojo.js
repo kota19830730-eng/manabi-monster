@@ -379,7 +379,7 @@ MQ.ui.dojo = (function () {
     const two = q.type === 'divrem' || q.type === 'frac';
     const isFrac = q.type === 'frac';
     const decimal = !!q.decimal;
-    const maxLen = q.maxLen || (decimal ? 6 : 5);
+    const maxLen = Math.max(q.maxLen || (decimal ? 6 : 5), String(q.answer).length);   // 答えの けた数より 短く しない
     const wrap = h('div', { class: 'dojo__input' });
     const displays = h('div', { class: 'displays' });
     function renderDisplays() {

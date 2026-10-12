@@ -225,7 +225,7 @@ MQ.save = (function () {
   }
 
   function migrate(s) {
-    if (!s.settings) s.settings = {};
+    if (!s.settings || typeof s.settings !== 'object' || Array.isArray(s.settings)) s.settings = {};
     // 「おと」1つ → 効果音 と BGM に 分ける
     if ('sound' in s.settings) {
       const on = s.settings.sound;
@@ -458,15 +458,32 @@ MQ.save = (function () {
     return JSON.stringify(get());
   }
 
+  /* この アプリの 記録ファイルか（バグチェック 2026-10-12：ほかの アプリの JSON でも players が 配列なら 通って いた） */
+  function looksLikeSave(data) {
+    if (!data || typeof data !== 'object' || !Array.isArray(data.players) || !data.players.length) return false;
+    if (data.settings != null && (typeof data.settings !== 'object' || Array.isArray(data.settings))) return false;
+    return data.players.every(function (p) {
+      return p && typeof p === 'object' && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.xp === 'number' && isFinite(p.xp);
+    });
+  }
+  /* 端末ごとの 設定（りったい・重さの 判定・きろくの 案内・ファイル保存の 日・感想）は ファイルで 上書きしない。
+     もどした ときは「いま ファイルが ある」ので backupAt を いまに する（バグチェック 2026-10-12：
+     iPhone で タブ → アイコンへ うつすと すぐ「まだ一度も保存していません」に なって いた） */
+  const DEVICE_KEYS = ['v3', 'v3auto', 'v3fps', 'keep', 'keepNoticeN', 'keepNoticeAt', 'keepGuideDay', 'backupAt', 'fbDone', 'fbAskDay', 'fbOpenedAt'];
   function importText(text) {
     const data = JSON.parse(text);
-    if (!data || !Array.isArray(data.players)) throw new Error('形式がちがいます');
-    state = migrate(data);
+    if (!looksLikeSave(data)) throw new Error('形式がちがいます');
+    const before = (get() && get().settings) || {};
+    const next = migrate(data);
+    DEVICE_KEYS.forEach(function (k) { if (k in before) next.settings[k] = before[k]; else delete next.settings[k]; });
+    next.settings.backupAt = Date.now();
+    if (!next.players.some(function (p) { return p.id === next.currentId; })) next.currentId = next.players[0].id;
+    state = next;
     persist();
   }
 
   return {
-    load: load, get: get, persist: persist,
+    load: load, get: get, persist: persist, looksLikeSave: looksLikeSave,
     createPlayer: createPlayer, current: current, setCurrent: setCurrent, update: update, deletePlayer: deletePlayer,
     setName: setName, NAME_MAX: NAME_MAX, setGrade: setGrade,
     getSetting: getSetting, setSetting: setSetting,

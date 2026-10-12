@@ -1832,7 +1832,8 @@ MQ.ui.battle = (function () {
     if (label === 'けす') input = input.slice(0, -1);
     else if (label === 'こたえる') { if (input === '' || input === '.' || input === '0.') return; submit(q.decimal ? parseFloat(input) : parseInt(input, 10)); return; }
     else if (label === '.') { if (!q.decimal || input.indexOf('.') >= 0) return; input = (input === '' ? '0' : input) + '.'; }
-    else if (input.length < (q.maxLen || (q.decimal ? 6 : 5))) input += label;   // 大きい数は maxLen: 9
+    // 答えの けた数より 短く しない（バグチェック 2026-10-12：132.965・1000000 が 最後まで 打てなかった）
+    else if (input.length < Math.max(q.maxLen || (q.decimal ? 6 : 5), String(q.answer).length)) input += label;   // 大きい数は maxLen: 9
     renderDisplays();
   }
 
@@ -4026,6 +4027,12 @@ MQ.ui.battle = (function () {
           MQ.save.removeEscaped(p, id, key);
         });
       });
+      /* ザコの すがたに もどす 敵：ボス・ゴールデン・たいけつの ボス・ふだん 出ない 進化形（evoOnly）。
+         （バグチェック 2026-10-12：たいけつの ボス my-…-3 が レアの ザコとして もどって いた） */
+      const asMob = function (id) {
+        const e = MQ.enemies.get(id);
+        return String(id).indexOf('boss-') === 0 || id === MQ.enemies.goldenId() || (ctx.duel && id === ctx.duel) || !!(e && e.evoOnly);
+      };
       /* ふくしゅう（v11.1）
            ・1回めで 正解した ふくしゅう問題 → おぼえた ので 消す
            ・この たたかいで 1回めに まちがえた 問題 → つぎの たたかいに もどす
@@ -4040,7 +4047,7 @@ MQ.ui.battle = (function () {
             if (gone[en.key]) return;
             const rArea = en.areaId || ctx.area.id;
             // ボスの 問題は ザコの すがたで もどす（にげた敵と 同じ）。ボスの まま だと たおして「ボスを たおした」に なる
-            if (String(en.enemyId).indexOf('boss-') === 0) en.enemyId = MQ.enemies.pickIds(rArea, 1)[0];
+            if (asMob(en.enemyId)) en.enemyId = MQ.enemies.pickIds(rArea, 1)[0];
             MQ.review.add(p, rArea, en);
           });
         }
@@ -4051,7 +4058,7 @@ MQ.ui.battle = (function () {
         const areaId = en.areaId || ctx.area.id;
         // ボスの問題は、つぎは ザコの姿で もどってくる
         // ゴールデンスライムも ザコの すがたで もどす（ゴールデンの まま だと リベンジで コインを 何度でも もらえる）
-        if (String(en.enemyId).indexOf('boss-') === 0 || en.enemyId === MQ.enemies.goldenId()) en.enemyId = MQ.enemies.pickIds(areaId, 1)[0];
+        if (asMob(en.enemyId)) en.enemyId = MQ.enemies.pickIds(areaId, 1)[0];
         en.areaId = areaId;
         MQ.save.addEscaped(p, areaId, en);
       });

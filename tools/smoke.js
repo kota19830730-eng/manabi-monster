@@ -6802,6 +6802,44 @@ function stripComments(src) {
   console.log('v14.55 かん字の れい文 OK（' + n + '字＋小3 ' + k3.length + '）');
 })();
 
+/* =======================================================
+   バグチェック（2026-10-12）もどさない ところ
+   ======================================================= */
+(function () {
+  const B = MQ.battle;
+  const st = MQ.content.findStage('sansu3-1').stage;
+  const mk = function (k) { return { key: k, q: st.make(1, { boss: false, lv: 1 })[0], enemyId: 'slime-green', stageId: st.id, areaId: 'sansu', miss: 1 }; };
+  let split = 0, lost = 0, took = 0;
+  for (let t = 0; t < 300; t++) {
+    const s = B.start({ stage: st, mode: 'normal', enemies: ['slime-green'], bossId: 'boss-dragon', mobs: 12, chest: true,
+      escaped: [mk('e1'), mk('e2')], review: [mk('r1')], rareId: MQ.enemies.goldenId() });
+    const m = s.mobs;
+    for (let i = 1; i < m.length; i++) if (m[i].groupId && m[i].groupPos > 0 && m[i - 1].groupId !== m[i].groupId) split++;
+    ['e1', 'e2', 'r1'].forEach(function (k) { if (!m.some(function (q) { return q.id === k; })) lost++; });
+    if (m.some(function (q) { return (q.revenge || q.review) && q.enemyId === MQ.enemies.goldenId(); })) took++;
+  }
+  check(split === 0, 'バグチェック: たからばこが 2体同時の 組を 分けない（' + split + '）');
+  check(lost === 0, 'バグチェック: ふくしゅうが リベンジ／ふくしゅうを けさない（' + lost + '）');
+  check(took === 0, 'バグチェック: レア敵が リベンジ／ふくしゅうを のっとらない（' + took + '）');
+  // ★3 の ふたは ひろった コインと つかった コインを 取り上げない
+  const pl = { stars: { 'sansu3-1': 3 } };
+  check(MQ.coins.earn(pl, { coins: 5, findCoins: 3, coinsSpent: 2, mode: 'normal', stageId: 'sansu3-1' }).coins === 4, 'バグチェック: ひろった コインは ふたの 外');
+  check(MQ.coins.earn(pl, { coins: 5, mode: 'normal', stageId: 'sansu3-1' }).coins === 1, 'バグチェック: ふつうは ★3 で 1まい の まま');
+  // 打てる 長さ は 答えの けた数より 短く しない
+  const UB = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8'), DJ = fs.readFileSync(path.join(base, 'js/ui/dojo.js'), 'utf8');
+  check(UB.indexOf('String(q.answer).length)) input += label') > 0 && DJ.indexOf('String(q.answer).length);') > 0, 'バグチェック: テンキーは 答えの けた数まで 打てる');
+  check(UB.indexOf('const asMob = function (id)') > 0, 'バグチェック: たいけつの ボス・進化形は ザコの すがたで もどす');
+  // 円の 文章題は ねだんが 整数
+  let yen = 0; for (let t = 0; t < 300; t++) MQ.content.findStage('sansu5-4').stage.make(12, {}).forEach(function (q) { if (/円の リボン/.test(q.prompt) && /1m [0-9]+[.][0-9]+円/.test(q.prompt)) yen++; });
+  check(yen === 0, 'バグチェック: 1m ○.○○円 は 出さない（' + yen + '）');
+  // ファイルから もどす：ほかの アプリの ファイルは 入れない・端末の 設定は のこす
+  const SV = MQ.save;
+  check(!SV.looksLikeSave({ app: 'other', players: [{ name: 'Bob', score: 1 }] }) && !SV.looksLikeSave({ players: [null] }), 'バグチェック: ほかの ファイルは 記録と 見なさない');
+  const H = fs.readFileSync(path.join(base, 'js/ui/howto.js'), 'utf8');
+  check(H.indexOf('この案内は5ページ') < 0, 'バグチェック: 案内の ページ数');
+  console.log('バグチェック（2026-10-12） OK');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

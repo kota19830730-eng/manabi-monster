@@ -385,7 +385,9 @@ MQ.battle = (function () {
         q.enemyId = entry.enemyId || (mobs.length ? mobs[0].enemyId : 'slime-green');
         q.stageId = entry.stageId || null;
         q.areaId = entry.areaId || null;
-        if (mobs.length > 1) mobs.splice(MQ.util.randInt(1, mobs.length - 1), 1);   // 新しい 問題と 入れかえ
+        // 新しい 問題と 入れかえ。けすのは 新しい 問題だけ（バグチェック 2026-10-12：リベンジや 前の ふくしゅうを けして いた）
+        const fresh = []; for (let j = 1; j < mobs.length; j++) if (!mobs[j].revenge && !mobs[j].review) fresh.push(j);
+        if (fresh.length) mobs.splice(MQ.util.pick(fresh), 1);
         mobs.splice(MQ.util.randInt(0, mobs.length), 0, q);
       });
 
@@ -396,9 +398,13 @@ MQ.battle = (function () {
       let rareIdx = -1;
       if (opts.rareId && mobs.length) {
         // rareAt（v14.44）：きみの モンスターの はじめての 登場は 2体め（1問めの 帯と かさならない）
-        const at = opts.rareAt != null ? Math.max(0, Math.min(opts.rareAt, mobs.length - 1)) : MQ.util.randInt(0, mobs.length - 1);
-        mobs[at].enemyId = opts.rareId;
-        rareIdx = at;
+        let at = opts.rareAt != null ? Math.max(0, Math.min(opts.rareAt, mobs.length - 1)) : MQ.util.randInt(0, mobs.length - 1);
+        /* リベンジ・ふくしゅうの 問題は のっとらない（バグチェック 2026-10-12：ゴールデンは 1回で にげる ので「もう1回」の 問題が 1回きりに なって いた）。
+           ちかい ほうへ ずらす。ぜんぶ そう なら レア敵は 出さない */
+        const own = function (i) { return i >= 0 && i < mobs.length && !mobs[i].revenge && !mobs[i].review; };
+        let d = 0; while (!own(at + d) && !own(at - d) && d < mobs.length) d++;
+        at = own(at + d) ? at + d : at - d;
+        if (own(at)) { mobs[at].enemyId = opts.rareId; rareIdx = at; }
       }
 
       // まとめて 出てくる 敵（2体同時／3体同時）
@@ -484,7 +490,9 @@ MQ.battle = (function () {
       for (let c = 0; c < nChest; c++) {
         let limit = mobs.length - 1;
         for (let i = 0; i < mobs.length; i++) if (mobs[i].elite) { limit = i; break; }
-        const at = MQ.util.randInt(2, Math.max(2, limit));
+        let at = MQ.util.randInt(2, Math.max(2, limit));
+        // 2体同時の 組の あいだに 入れない（バグチェック 2026-10-12：1体めを まちがえても ダブルKO に なった）
+        while (at < mobs.length && mobs[at].groupId && mobs[at].groupPos > 0) at++;
         const cq = makeChestQuestion(stage);
         if (weekend && weekend.chestCoins) cq.coins = weekend.chestCoins;
         if (c > 0) cq.id = cq.id + ':' + c;       // 2こめは id を かえる（1問ごとの きろくが かさならない ように）
@@ -1124,6 +1132,7 @@ MQ.battle = (function () {
         if (s.eliteLeft > 0) {
           xp = gain(xp);
           s.typeOk[q.type] = (s.typeOk[q.type] || 0) + 1;
+          noteReview(q, wasRetry);   // 1問めも 2回めで 正解なら ふくしゅうへ（バグチェック 2026-10-12）
           return {
             outcome: 'elitehit', xp: xp, crit: crit, combo: s.combo, palHit: palHit, palMove: pm, note: q.note, setMove: setHit,
             burst: burst, counter: counter, weakHit: weakHit, dmg: dmg, hpLeft: s.eliteLeft, hpMax: q.eliteHp || ELITE_HP
@@ -1284,7 +1293,7 @@ MQ.battle = (function () {
     if (s.phase !== 'mob') return out;
     for (let i = s.index; i < s.mobs.length && out.length < n; i++) {
       const q = s.mobs[i];
-      if (q.chest || q.groupId || q.rare || q.elite) continue;
+      if (q.chest || q.groupId || q.rare || q.elite || q.revenge || q.review) continue;
       out.push(i);
     }
     return out;
@@ -1365,6 +1374,7 @@ MQ.battle = (function () {
       s.buff.comboPlus = Math.max(s.buff.comboPlus, it.val);
     } else if (it.power === 'find') {
       s.coins += it.val;
+      s.findCoins = (s.findCoins || 0) + it.val;   // ★3 の コインの ふた（coins.js）の 外で 数える
       out.coins = it.val;
     } else if (it.power === 'swift') {
       s.buff.fastSure = Math.max(s.buff.fastSure, it.val);
@@ -1518,6 +1528,7 @@ MQ.battle = (function () {
       fastBonus: fastBonus,
       time: time,
       coins: s.coins + starCoins + gearCoins + feverCoins + mixCoins + weekendCoins + perfectCoins,
+      findCoins: s.findCoins || 0,
       perfectCoins: perfectCoins,
       starCoins: starCoins,
       gearCoins: gearCoins,

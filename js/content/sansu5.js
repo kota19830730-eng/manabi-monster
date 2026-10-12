@@ -581,7 +581,9 @@ MQ.sansu5 = (function () {
   ];
   function muldWordQ() {
     const w = pf(MULD_WORDS);
-    const a = Math.round((w[2][0] + Math.random() * (w[2][1] - w[2][0])) * 100) / 100, b = Math.round((w[3][0] + Math.random() * (w[3][1] - w[3][0])) * 10) / 10;
+    const a0 = w[2][0] + Math.random() * (w[2][1] - w[2][0]);
+    // 円は 整数（1m 97.24円 は 出さない）
+    const a = w[1] === '円' ? Math.round(a0) : Math.round(a0 * 100) / 100, b = Math.round((w[3][0] + Math.random() * (w[3][1] - w[3][0])) * 10) / 10;
     const p = Math.round(a * b * 1000) / 1000;
     return dec('小数の 文章題', w[0].replace('□', fx(a)).replace('○', fx(b)), p, { key: 'mw:' + fx(a) + ':' + fx(b), hint: fx(a) + ' × ' + fx(b) + ' を 筆算で。', note: fx(a) + ' × ' + fx(b) + ' = ' + fx(p) + w[1] });
   }
@@ -1122,7 +1124,7 @@ MQ.sansu5 = (function () {
     let x;
     do { x = U.randInt(w[5][0], w[5][1]); } while (x % w[6] !== 0);
     const ans = Math.round(x * w[1] * w[2] * w[3] * 1000) / 1000;
-    return dec('速さの 単位', w[0].replace('□', x), ans, { key: 'cv:' + w[0].slice(0, 4) + ':' + x, hint: '1時間 = 60分、1分 = 60秒、1km = 1000m。', note: w[0].replace('□', x).replace('何', fx(ans)).replace('？', '') });
+    return dec('速さの 単位', w[0].replace('□', x), ans, { key: 'cv:' + w[0] + ':' + x, hint: '1時間 = 60分、1分 = 60秒、1km = 1000m。', note: w[0].replace('□', x).replace('何', fx(ans)).replace('？', '') });
   }
   function speedWordQ() {
     const w = pf([['分速 □m で ○分 歩くと 何m？', 'm', [60, 90], [5, 20]], ['秒速 □m で ○秒 走ると 何m？', 'm', [5, 9], [8, 20]], ['時速 □km の 電車が ○時間 走ると 何km？', 'km', [60, 120], [2, 5]]]);

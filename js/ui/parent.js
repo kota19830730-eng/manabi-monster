@@ -565,7 +565,9 @@ MQ.ui.parent = (function () {
   function backupLine(at, due) {
     if (!at) return '記録のファイル保存：まだ一度もしていません' + (due ? '。消えてももどせるよう、保存しておいてください。' : '');
     const d = new Date(at);
-    const days = Math.floor((Date.now() - at) / (24 * 60 * 60 * 1000));
+    // 日づけで 数える（10/11 22時の 保存を 10/12 8時に 見たら「1日前」）
+    const day0 = function (t) { const x = new Date(t); return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    const days = Math.round((day0(Date.now()) - day0(at)) / (24 * 60 * 60 * 1000));
     return '最後にファイルに保存した日：' + (d.getMonth() + 1) + '/' + d.getDate() + '（' + (days <= 0 ? '今日' : days + '日前') + '）' + (due ? '。そろそろ保存しておくと安心です。' : '');
   }
   /* 記録のバックアップ（v14.46）：設定の「ホーム画面に入れる」の 上。どの 端末でも 出す */

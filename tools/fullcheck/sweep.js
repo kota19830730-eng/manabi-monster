@@ -11,7 +11,7 @@ const simple = `aiparent bag bag2 bagdex bagguard bagre battle books books:map b
 cancel capsule capsule:mon capsule:gear capsule:look capsule:sr capsule:dup capsule:pity capsule:poor capsule:roll capsule:comp capsule:secret capticket capticket:see
 chizu cipose cisnap:300 cont counter counter2 counter3 counterboss demo3d demo3d:open demo3dbattle dex dock dock:busy dock:grade dojo dojo:lesson dojo:step dojo:miss dojo:done dojo:g2 dojo:g5 dojomap
 elite elite2 evo evo:my evo:lv fever fever2 fever3 feverparent figs figs3 figs3b figs4 figs5 figs6 firstplay firstplay:map firstplay:q1 firstplay:pop firstplay:measure
-forge forge:hit forge:poor forge:top fxpal gbreak gbreak:hard gbreak:crack gbreak:broke gbreak:block gbreak:fix gbreak:pal gear gear:all gearset:3 gearset:9 gearset:10 graph growshot:bolt:300 guard guardset hd hissan hissan:dec hudhome hudhome:go
+forge forge:hit forge:poor forge:top fxpal gbreak gbreak:hard gbreak:crack gbreak:broke gbreak:block gbreak:fix gbreak:pal gear gear:all gearset:3 gearset:9 gearset:10 graph growshot:bolt:300 guard guardset hd hissan hissan:sansu4-5:dec hudhome hudhome:go
 judge kanso kokugo1 kokugo2 kokugo4 kokugo5 kokugo6 last last1 last2 last4 last5 last6 last1map last2map last4map last5map last6map lastfinal letter letter2 letter3 look lvgift lvgift:50 maker map map:-1 map1 map2 map4 map5 map6 mapui mapui:open mapui:grade measure memo memo2 memo3 menu menu:cap missions missions:all missions2 mix mix2 mix3 mons news news2 news3 note
 open open:0.3 open:skip open:again open:mid palbattle palfx palgauge palhit palname palresult palresult2 pals parent parent1 parent2 parent4 parent5 parent6 perf3d photo photo2 photo2b photoall pika pika:all pika:dex pika:result pika:hint pixedit pixedit:zoom pixedit:blank pixedit:mine pixedit:done
 pp pp:-1 pp:month pp:detail pp:settings pp:report pp:empty pp:drill pptitle pptitle:2 prize prize:pin prize:edit prize:form prize:home prize:reset prizemc prizemc:win prizemc:pity prizemc:only prizetix rename result result2 result3 revenge revenge:fresh revenge:win review review2 roma
@@ -22,7 +22,8 @@ battle1:8 battle1:12 battle2:2 battle2:9 battle2:14 battle3:7 battle3:11 battle3
 koku4:1 koku5:2 koku6:3 rika4:2 rika5:3 rika6:1 shakai4:3 shakai5:2 shakai6:4 eigo4:1 eigo5:3 eigo6:2
 fx:fire:0.5 fx:leaf:0.5 fx:ice:0.5 fx:wind:0.5 fx:bolt:0.5 fx:star:0.5 fx:nova:0.65 fx:starburst:0.8 spatk:fire perffx:fire
 bagfx:burst bagfx:shield bagfx:freeze bagfx:guide bagfx:golden bagfx:chest bagfx:power bagfx:charge bagfx:bond bagfx:rush bagfx:find bagfx:swift bagfx:elixir
-aurora aurora:dex ai ai:ok ai:err ai:off aisee aisee:404 bossof:sansu3-1 bossof:sansu3-9 bossof:kokugo3-1 fitdbg:sansu3-3:3`
+aurora aurora:dex ai ai:ok ai:err ai:off aisee aisee:404 bossof:sansu3-1 bossof:sansu3-9 bossof:kokugo3-1 fitdbg:sansu3-3:3
+welcome welcome:go welcome:prize keep keep:close keep:go keep:home keep:guide keep:app keep:android readja:sansu3-3:3 readja:sansu3-3:3:off mine mine:result mine:title mine:map mine:pal mine:duel mine:list palmove palmove:arm palmove:menu palmove:result palturn:stance palturn:fang palhint palhint:cover howto howto:flow howto:set kidtour kidtour:close coach:retry coach:boss fbask fbask:sent memowide judgenear:hand dokkai dokkai:boss dokkai:maki dokkai:bag nenpyo reki rekiall zu2 result4 prizemc:limit prizetix:many v3probe:slow v3probe:fast lastmob lastguard qfig:kokugo2-2 qfig:kokugo4-1 qfind:かえる`
   .split(/\s+/).filter(Boolean);
 
 const modes = [...new Set(simple)];

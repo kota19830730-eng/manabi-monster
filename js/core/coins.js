@@ -52,8 +52,11 @@ MQ.coins = (function () {
     const raw = Math.max(0, (sum && sum.coins) || 0);
     const out = { coins: raw, raw: raw, capped: false, max: MASTERED_MAX };
     if (!capped(sum) || !mastered(player, sum.stageId)) return out;
-    if (raw <= MASTERED_MAX) return out;
-    out.coins = MASTERED_MAX;
+    /* アイテムで ひろった コイン（findCoins）は ふたの 外。たたかいの 中で つかった ぶん（coinsSpent）は
+       取り上げない（バグチェック 2026-10-12：ひろった コインで じゅうてん → おわりに 取り上げ → さいふが へった） */
+    const keep = Math.min(raw, Math.max(MASTERED_MAX + Math.max(0, sum.findCoins || 0), sum.coinsSpent || 0));
+    if (raw <= keep) return out;
+    out.coins = keep;
     out.capped = true;
     return out;
   }

@@ -864,6 +864,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       fresh();
       const dev = kind === 'app' ? { ios: true, standalone: true, persisted: false } : kind === 'android' ? { ios: false, standalone: false, persisted: true } : { ios: true, standalone: false, persisted: false };
       MQ.keep.fake(dev);
+      MQ.save.setSetting('fbDone', true);   // 感想の お願い（v14.49・同じ .keepguide の 見た目）を 出さない
       const DAY = 24 * 60 * 60 * 1000;
       if (kind === 'save' || kind === 'home' || kind === 'settings' || kind === 'restore') { const p0 = MQ.save.current(); if (p0) { p0.battles = 3; MQ.save.persist(); } }
       const guide = async function () {
@@ -2434,7 +2435,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       MQ.ui.photo.render();
       if (kind === 'mine') {
         // つくった モンスターが ある 状態
-        MQ.save.update(function (p) { MQ.save.addCustom(p, { id: 'my-test', name: 'テスト', area: 'sansu', png: fakeAiArt() }); });
+        MQ.save.update(function (p) { MQ.save.addCustom(p, { id: 'my-test', name: 'テスト', area: 'sansu', png: fakeAiArt(), edited: true }); });   // edited＝「直す」が 出る（大きな 写真の 絵は わざと 出ない）
         MQ.ui.photo.render();
         const fix = Array.prototype.filter.call(document.querySelectorAll('.cell .btn'), function (b) { return b.textContent === MQ.text.fit('直す'); })[0];
         say('pixedit mine: fixbtn=' + !!fix);
@@ -3540,9 +3541,9 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const b = $('.counterbanner');
       if (b) { const c = b.cloneNode(true); c.style.animation = 'none'; c.style.opacity = '1'; $('.arena').appendChild(c); }
       if (mode === 'counter3') {
-        say('counter3: lunge=' + ($('.enemy.is-lunge') ? 'ok' : 'MISSING') + ' retry=' + MQ.battle.isRetry() + ' combo=' + MQ.battle.combo());
+        say('counter3: lunge=' + ($('.enemy.is-lunge, .enemy.is-rush, .enemy.is-rush--quick') ? 'ok' : 'MISSING') + ' retry=' + MQ.battle.isRetry() + ' combo=' + MQ.battle.combo());
         await wait(260);
-        say('counter3: struck=' + ($('.hero.is-struck') ? 'ok' : 'MISSING') + ' msg=' + $('.arena__msg').textContent);
+        say('counter3: struck=' + ($('.hero.is-struck, .hero.is-smashed, .hero.is-smashed--lite') ? 'ok' : 'MISSING') + ' msg=' + $('.arena__msg').textContent);
         if ($('.hero.is-struck')) $('.hero').style.animationPlayState = 'paused';
         dump(); return;
       }
@@ -3996,8 +3997,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       };
       if (mode === 'lastfinal') {
         fresh({ frags: { sansu: true, kokugo: true, rikashakai: true, eigo: true } });
-        MQ.ui.battle.start('tower3');
-        await wait(3200);
+        await toLastBoss('tower3');   // v14.15：手下を たおしてから ラスボス
         for (let i = 0; i < 60 && !$('.bosspick'); i++) await wait(100);   // 先制こうげき（2026-09-19）の あとに パネル
         bossLog('last pick');
         $('.bosspick__btn--norm').click();
