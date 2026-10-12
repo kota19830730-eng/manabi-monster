@@ -207,11 +207,14 @@ MQ.content = (function () {
     const m = q.text.match(/「([^」]+)」を かん字で/) || q.text.match(/「([^」]+)」/);
     if (!m) return null;
     const kanji = q.choices[0];
+    // れい文（v14.55）：「いえに かえる」の「かえる」を ゆびで かこう
+    const prompt = q.ctx ? '「' + q.ctx + '」の「' + (q.yomi || m[1]) + '」を ゆびで ' + (g <= 2 ? 'かこう' : '書こう')
+      : '「<b>' + m[1] + '</b>」の かん字を ゆびで ' + (g <= 2 ? 'かこう' : '書こう');
     return {
       id: areaId + g + '-' + stageNo + ':write:' + kanji,
       type: 'write',
       unit: g <= 2 ? 'かん字を かく（ゆびで）' : 'かん字を書く（ゆびで）',
-      prompt: '「<b>' + m[1] + '</b>」の かん字を ゆびで ' + (g <= 2 ? 'かこう' : '書こう'),
+      prompt: prompt,
       answer: kanji,
       hint: q.hint,
       note: q.note,

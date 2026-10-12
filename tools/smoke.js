@@ -6770,6 +6770,38 @@ function stripComments(src) {
   console.log('v14.54 単元を そろえる OK');
 })();
 
+/* =======================================================
+   v14.55 かん字の れい文（「かえる」だけ では 帰る／返る／変える が 分からない）
+   ======================================================= */
+(function () {
+  const R = MQ.kanjiRei;
+  check(R && R.data, 'v14.55: MQ.kanjiRei が ある');
+  const KAN = /[\u4e00-\u9fff]/;
+  let miss = 0, leak = 0, n = 0;
+  [1, 2, 4, 5, 6].forEach(function (g) {
+    MQ['kokugo' + g].kanji.forEach(function (e) {
+      const x = R.data[g][e.k]; n++;
+      if (!x || x.split('＿').length !== 2) { miss++; return; }
+      for (const ch of e.k) if (KAN.test(ch) && x.indexOf(ch) >= 0) leak++;
+    });
+    MQ['kokugo' + g].questions.forEach(function (q) {
+      if (q.unit === 'かん字を かく') check(q.ctx && q.yomi && q.text.indexOf('<b class="kr">' + q.yomi + '</b>') > 0, 'v14.55: 小' + g + ' 書く 問題に れい文 ' + q.text);
+      if (q.unit === 'かん字の よみ') check(q.text.indexOf('<b class="kr">') > 0 && q.text.indexOf('よみかたは') > 0,'v14.55: 小' + g + ' 読む 問題に れい文 ' + q.text);
+    });
+  });
+  const k3 = MQ.kokugo3.questions.filter(function (q) { return q.stage === 2; });
+  check(k3.every(function (q) { return q.ctx && q.yomi; }), 'v14.55: 小3の 書く 問題 ' + k3.filter(function (q) { return !q.ctx; }).length + 'こ れい文なし');
+  check(!miss && !leak, 'v14.55: れい文 なし ' + miss + '／答えが 入って いる ' + leak + '（' + n + '字）');
+  // 小1・小2 の れい文は ひらがな・カタカナだけ
+  let kj = 0; [1, 2].forEach(function (g) { Object.keys(R.data[g]).forEach(function (k) { if (KAN.test(R.data[g][k])) kj++; }); });
+  check(kj === 0, 'v14.55: 小1・小2 の れい文に かん字 ' + kj);
+  // ゆびで 書く 問題も れい文つき（「家に かえる」の「かえる」を ゆびで 書こう）
+  const st = MQ.content.worldForGrade(2).areas.filter(function (a) { return a.id === 'kokugo'; })[0].stages[1];
+  const w = st.make(12, {}).filter(function (q) { return q.type === 'write'; });
+  check(w.length && w.every(function (q) { return /」の「[^」]+」を ゆびで かこう$/.test(q.prompt); }), 'v14.55: ゆびで 書く 問題に れい文 ' + (w[0] && w[0].prompt));
+  console.log('v14.55 かん字の れい文 OK（' + n + '字＋小3 ' + k3.length + '）');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

@@ -308,5 +308,5 @@ MQ.kokugo2 = (function () {
     { k: '作る', r: 'つくる', w: ['昨る', '乍る', '咋る'], h: 'にんべん＋「乍」。' }
   ];
 
-  return { questions: KOTOBA.concat(MQ.kanjiQ.make(KANJI, 1, 2)), kanji: KANJI, kotoba: KOTOBA };
+  return { questions: KOTOBA.concat(MQ.kanjiQ.make(KANJI, 1, 2, 2)), kanji: KANJI, kotoba: KOTOBA };
 })();

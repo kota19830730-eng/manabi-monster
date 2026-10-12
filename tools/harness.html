@@ -136,6 +136,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/content/dokkai6.js"></script>
 <script src="../js/content/sansu1.js"></script>
 <script src="../js/content/kanjiq.js"></script>
+<script src="../js/content/kanjirei.js"></script>
 <script src="../js/content/kakusu.js"></script>
 <script src="../js/content/kotoba.js"></script>
 <script src="../js/content/kokugo1.js"></script>
@@ -2585,7 +2586,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const list = [];
       MQ.kokugo1.kanji.forEach(function (k) { list.push({ k: k.k, r: k.r }); });
       MQ.kokugo2.kanji.forEach(function (k) { list.push({ k: k.k, r: k.r }); });
-      MQ.kokugo3.questions.filter(function (q) { return q.stage === 2 && /「([^」]+)」を かん字で/.test(q.text); }).forEach(function (q) { list.push({ k: q.choices[0], r: (q.text.match(/「([^」]+)」/) || [])[1] }); });
+      MQ.kokugo3.questions.filter(function (q) { return q.stage === 2 && /「([^」]+)」を かん字で/.test(q.text); }).forEach(function (q) { list.push({ k: q.choices[0], r: q.yomi || (q.text.match(/「([^」]+)」/) || [])[1] }); });
       const pickEvery = Math.max(1, Math.floor(list.length / 48));
       const K = list.filter(function (x, i) { return i % pickEvery === 0; }).slice(0, 48);
       const FONTS = gothic ? ["'UD Digi Kyokasho N'", "'HGKyokashotai'", "'Yu Mincho'", "'BIZ UDMincho Medium'"] : ["'HGKyokashotai'", "'Yu Mincho'", "'BIZ UDMincho Medium'", "'Noto Serif JP'", "'Yu Gothic'"];
@@ -3167,7 +3168,8 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
            [6, 'sansu6-1'], [6, 'sansu6-3'], [6, 'sansu6-7'], [6, 'sansu6-8'], [6, 'sansu6-9'], [6, 'sansu6-11'], [6, 'sansu6-14'], [6, 'kokugo6-3'], [6, 'rika6-1'], [6, 'shakai6-2'], [6, 'shakai6-3'], [6, 'shakai6-4'], [6, 'eigo6-2'],
            [3, 'eigo3-2'], [3, 'eigo3-3'], [4, 'eigo4-2'], [4, 'eigo4-4'], [5, 'eigo5-2'], [5, 'eigo5-4'], [6, 'eigo6-3'], [6, 'eigo6-4'],
            [3, 'kokugo3-4'], [4, 'kokugo4-3'], [4, 'kokugo4-4'], [5, 'kokugo5-3'], [5, 'kokugo5-4'], [6, 'kokugo6-4'], [3, 'rikashakai3-4'], [4, 'shakai4-1'], [4, 'shakai4-4'], [5, 'shakai5-1'], [5, 'shakai5-2'], [6, 'shakai6-1'], [5, 'rika5-1'], [6, 'rika6-2'],
-           [1, 'kokugo1-2'], [1, 'kokugo1-5'], [2, 'kokugo2-3'], [2, 'kokugo2-4'], [5, 'shakai5-4'], [1, 'kokugo1-6'], [2, 'kokugo2-5'], [4, 'kokugo4-5'], [5, 'kokugo5-5'], [6, 'kokugo6-5']]
+           [1, 'kokugo1-2'], [1, 'kokugo1-5'], [2, 'kokugo2-3'], [2, 'kokugo2-4'], [5, 'shakai5-4'], [1, 'kokugo1-6'], [2, 'kokugo2-5'], [4, 'kokugo4-5'], [5, 'kokugo5-5'], [6, 'kokugo6-5'],
+           [1, 'kokugo1-3'], [1, 'kokugo1-4'], [2, 'kokugo2-1'], [2, 'kokugo2-2'], [4, 'kokugo4-1'], [4, 'kokugo4-2'], [5, 'kokugo5-1'], [5, 'kokugo5-2'], [6, 'kokugo6-1'], [6, 'kokugo6-2']]   // かん字の れい文（v14.55）
         : [[3, 'sansu3-5'], [3, 'sansu3-6'], [3, 'sansu3-9'], [3, 'kokugo3-2'], [3, 'eigo3-1']];
       let worst = 0, worstQ = "", checked = 0, bad = 0, badCard = 0, badBody = 0;
       // カードから 問題文が はみ出して いないか ＋ キーや ヒントが 下で 切れて いないか

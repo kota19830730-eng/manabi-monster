@@ -314,5 +314,5 @@ MQ.kokugo6 = (function () {
     { k: '単純', r: 'たんじゅん', w: ['単鈍', '単屯', '短純'], h: 'いとへん＋「屯」。', lv: 3 }
   ];
 
-  return { questions: KOTOBA.concat(MQ.kanjiQ.make(KANJI, 1, 2)), kanji: KANJI, kotoba: KOTOBA };
+  return { questions: KOTOBA.concat(MQ.kanjiQ.make(KANJI, 1, 2, 6)), kanji: KANJI, kotoba: KOTOBA };
 })();

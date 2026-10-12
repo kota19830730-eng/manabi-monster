@@ -276,5 +276,5 @@ MQ.kokugo1 = (function () {
     { k: '左', r: 'ひだり', w: ['右', '在', '友'], h: 'したは「工」。よこせんから かく。' }
   ];
 
-  return { questions: KOTOBA.concat(MQ.kanjiQ.make(KANJI, 3, 4)), kanji: KANJI, kotoba: KOTOBA };
+  return { questions: KOTOBA.concat(MQ.kanjiQ.make(KANJI, 3, 4, 1)), kanji: KANJI, kotoba: KOTOBA };
 })();

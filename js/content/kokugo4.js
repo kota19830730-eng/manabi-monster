@@ -409,5 +409,5 @@ MQ.kokugo4 = (function () {
 ];
 
 
-  return { questions: KOTOBA.concat(MQ.kanjiQ.make(KANJI, 1, 2)), kanji: KANJI, kotoba: KOTOBA };
+  return { questions: KOTOBA.concat(MQ.kanjiQ.make(KANJI, 1, 2, 4)), kanji: KANJI, kotoba: KOTOBA };
 })();

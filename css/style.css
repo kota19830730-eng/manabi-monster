@@ -5054,3 +5054,7 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 .dojo__input .display__value { font-size: 26px; }
 .dojo__input .key { height: 40px; }
 .dojo__input .keys { gap: 6px; }
+
+/* かん字の れい文（v14.55）：「いえに かえる」の 書く／読む ところに 赤い 下線。
+   見出しの 書体（Mochiy Pop One）は 太字が ない ので <b> だけ では 目立たない */
+b.kr { font-weight: inherit; text-decoration: underline; text-decoration-color: #e8443a; text-decoration-thickness: .12em; text-underline-offset: .2em; }

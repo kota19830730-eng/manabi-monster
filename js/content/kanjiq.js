@@ -40,7 +40,8 @@ MQ.kanjiQ = (function () {
     return out.slice(0, n);
   }
 
-  function make(table, stageYomi, stageKaki) {
+  /* grade（v14.55）を わたすと MQ.kanjiRei の れい文で「いえに かえる」の 形に する */
+  function make(table, stageYomi, stageKaki, grade) {
     const N = table.length, qs = [];
     table.forEach(function (e, i) {
       const lv = e.lv || (i < N * 0.4 ? 1 : i < N * 0.75 ? 2 : 3);
@@ -49,6 +50,8 @@ MQ.kanjiQ = (function () {
       const tail = e.n ? '。' + e.n : '。';
       const yq = { stage: stageYomi, lv: lv, unit: 'かん字の よみ', text: '「' + e.k + '」の よみかたは？', choices: [e.r].concat(yomiD), note: e.k + '（' + e.r + '）' + tail };
       const kq = { stage: stageKaki, lv: lv, unit: 'かん字を かく', text: '「' + e.r + '」を かん字で かくと？', choices: [e.k].concat(kakiD), note: e.r + ' → ' + e.k + tail };
+      const rei = grade && MQ.kanjiRei ? MQ.kanjiRei.kakiText(grade, e.k, e.r) : null;
+      if (rei) { kq.text = rei.text; kq.yomi = e.r; kq.ctx = rei.ctx; yq.text = MQ.kanjiRei.yomiText(grade, e.k); }
       if (e.h) { yq.hint = e.h; kq.hint = e.hk || e.h; } else if (e.hk) { kq.hint = e.hk; }
       if (e.b) { yq.boss = true; kq.boss = true; }
       qs.push(yq, kq);

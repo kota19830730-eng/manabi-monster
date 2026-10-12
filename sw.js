@@ -97,6 +97,7 @@ const FILES = [
   './js/content/dokkai6.js',
   './js/content/sansu1.js',
   './js/content/kanjiq.js',
+  './js/content/kanjirei.js',
   './js/content/kakusu.js',
   './js/content/kotoba.js',
   './js/content/kokugo1.js',
