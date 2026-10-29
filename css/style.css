@@ -5058,3 +5058,44 @@ body.is-nospace { word-break: normal; overflow-wrap: anywhere; }
 /* かん字の れい文（v14.55）：「いえに かえる」の 書く／読む ところに 赤い 下線。
    見出しの 書体（Mochiy Pop One）は 太字が ない ので <b> だけ では 目立たない */
 b.kr { font-weight: inherit; text-decoration: underline; text-decoration-color: #e8443a; text-decoration-thickness: .12em; text-underline-offset: .2em; }
+
+/* ---------------------------------------------------------
+   あそぶ 時間（v14.56）：ひとやすみ・きょうは ここまで・もう すこしで おしまい
+   わくは アイテム画面と 同じ `.bagcard`（`.newscard` は 借りない）
+   --------------------------------------------------------- */
+.ptpop { z-index: 70; }
+.ptcard { max-height: calc(var(--stage-h, 700px) - 32px); overflow-y: auto; }
+.ptcard__title { font-size: 24px; padding: 0 26px; }
+.ptcard__art { position: relative; display: flex; justify-content: center; align-items: flex-end; height: 112px; margin: 6px 0 2px; }
+.ptcard__art::before { content: ''; position: absolute; bottom: 4px; left: 50%; width: 110px; height: 14px; margin-left: -55px; border-radius: 50%; background: rgba(0,0,0,.28); }
+.ptcard__art > * { position: relative; animation: bob 2.6s ease-in-out infinite; }
+.ptcard__hero { width: 84px; height: 84px; }
+.ptcard__art.is-sleep > * { animation: none; transform: rotate(-8deg) translateY(4px); filter: brightness(.82); }
+.ptcard__art.is-sleep::after { content: 'Z z'; position: absolute; top: 4px; left: 60%; font-family: var(--f-head); font-size: 22px; color: #bfe0ff; letter-spacing: 4px; animation: bob 2.2s ease-in-out infinite; }
+.ptcard__line { margin: 4px 0 2px; text-align: center; font-family: var(--f-head); font-size: 16px; line-height: 1.4; color: #ffd447; }
+.ptcard__sub { margin: 0 0 12px; text-align: center; font-size: 13px; line-height: 1.5; color: var(--tx-sub); }
+.ptcard__foot { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: stretch; }
+.ptcard__foot--one { grid-template-columns: 1fr; }
+.ptcard__later { padding-left: 18px; padding-right: 18px; }
+.ptcard__clockrow { text-align: center; margin: 2px 0 6px; }
+.ptcard__clock { display: inline-block; min-width: 110px; padding: 4px 16px; border-radius: 12px; background: rgba(10,16,36,.8); font-family: var(--f-head); font-size: 34px; color: #fff; box-shadow: inset 0 0 0 2px rgba(255,212,71,.5); }
+.ptpop--rest.is-done .ptcard__clock { color: #8ff0a0; }
+.ptcard__plink { display: block; margin: 12px auto 0; padding: 4px 14px; border: 0; border-radius: 999px; background: rgba(255,255,255,.1); color: var(--tx-sub); font-size: 12px; font-weight: 700; }
+.ptcard__note { margin: 10px 4px 0; text-align: center; font-size: 11px; line-height: 1.5; color: var(--tx-sub); }
+.ptpop--night .bagcard { background: linear-gradient(#1c2350, #0e1230); }
+/* 番号の キー（おうちの人ページの 部品を そのまま 借りる。.pp は ふだん 全画面なので ここでは ふつうの 箱に） */
+.ptpp.pp { position: static; inset: auto; margin-top: 10px; padding: 12px 10px; border-radius: 14px; background: var(--pp-bg); }
+.ptpp .pp-card { box-shadow: none; background: transparent; }
+.ptpp__opts { display: flex; flex-direction: column; gap: 8px; }
+/* おうちの人ページ：遊んだ 時間の 7日 */
+.pp-ptweek { display: flex; align-items: flex-end; gap: 6px; height: 92px; padding: 4px 0; }
+.pp-ptweek__col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; height: 100%; }
+.pp-ptweek__bar { display: block; width: 70%; max-width: 26px; border-radius: 4px 4px 0 0; background: #cfc6b3; }
+.pp-ptweek__col.is-today .pp-ptweek__bar { background: var(--pp-gold); }
+.pp-ptweek__n { font-size: 11px; color: var(--pp-mut); min-height: 14px; }
+.pp-ptweek__d { font-size: 11px; color: var(--pp-dim); }
+@media (prefers-reduced-motion: reduce) { .ptcard__art > *, .ptcard__art.is-sleep::after { animation: none; } }
+/* 番号の キーを ひらいた ときは 絵と 文を しまって 1画面に おさめる */
+.ptpop.is-pin .ptcard__art, .ptpop.is-pin .ptcard__line, .ptpop.is-pin .ptcard__sub { display: none; }
+.ptpop.is-pin .ptcard__foot .btn--big { min-height: 0; padding-top: 8px; padding-bottom: 8px; font-size: 18px; }
+.ptpop.is-pin .bagcard__head { margin-bottom: 12px; }

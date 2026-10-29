@@ -52,7 +52,7 @@ function load(rel) {
 const INDEX_HTML = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
 const CONTENT_ORDER = INDEX_HTML.split(String.fromCharCode(34)).filter(function (s) { return /^js.content.[a-z0-9]+[.]js$/.test(s); });
 ['js/core/guard.js', 'js/core/util.js', 'js/core/text.js', 'js/core/pixel.js', 'js/core/tiles.js', 'js/core/sfx.js', 'js/core/bgm.js',
- 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/levelup.js', 'js/core/forge.js', 'js/core/keep.js', 'js/core/coins.js', 'js/core/pika.js', 'js/core/weekend.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
+ 'js/core/save.js', 'js/core/stats.js', 'js/core/ai.js', 'js/core/handwrite.js', 'js/core/missions.js', 'js/core/fever.js', 'js/core/pals.js', 'js/core/levelup.js', 'js/core/forge.js', 'js/core/keep.js', 'js/core/coins.js', 'js/core/pika.js', 'js/core/weekend.js', 'js/core/playtime.js', 'js/core/streak.js', 'js/core/letter.js', 'js/core/review.js', 'js/core/speech.js', 'js/core/battle.js',
  'js/core/blocks.js', 'js/core/vox.js'].concat(CONTENT_ORDER).forEach(load);   // vox.js（りったい・v12.0）は chest3d.js より 前
 // カプセルマシン（v9.0）は MQ.enemies / MQ.hero を 見るので 教科の あとで 読む
 load('js/core/capsule.js');
@@ -6838,6 +6838,57 @@ function stripComments(src) {
   const H = fs.readFileSync(path.join(base, 'js/ui/howto.js'), 'utf8');
   check(H.indexOf('この案内は5ページ') < 0, 'バグチェック: 案内の ページ数');
   console.log('バグチェック（2026-10-12） OK');
+})();
+
+// あそぶ 時間（v14.56）：休憩・1日の 上限・夜の 時間。はじめは ぜんぶ なし・たたかいの とちゅうでは 止めない
+(function () {
+  const PT = MQ.playtime;
+  const D = function (s) { return new Date(s).getTime(); };
+  const p = { id: 'ptkid' };
+  check(!PT.anyOn(p) && PT.blocked(p, D('2026-10-29T23:30:00')) === null, 'playtime: はじめは ぜんぶ なし（夜でも 止めない）');
+  check(!PT.set(p, 'limitMin', 7) && PT.set(p, 'limitMin', 30), 'playtime: えらべる 数だけ');
+  PT.setNow(D('2026-10-29T16:00:00'));
+  PT.tick(p, 29 * 60000);
+  check(!PT.blocked(p) && PT.soon(p) && Math.round(PT.remain(p) / 60000) === 1, 'playtime: のこり 1分で「もう すこし」');
+  PT.tick(p, 2 * 60000);
+  check(PT.blocked(p) === 'limit', 'playtime: 上限を こえたら limit');
+  PT.extend(p, 15);
+  check(!PT.blocked(p) && Math.round(PT.remain(p) / 60000) === 15, 'playtime: のばすと こえた ぶんを 足して あと 15分');
+  PT.setNow(D('2026-10-30T09:00:00'));
+  check(PT.played(p) === 0 && !PT.blocked(p), 'playtime: つぎの 日は 0 から（のばした ぶんも きょうだけ）');
+  // 休憩
+  PT.set(p, 'breakMin', 20);
+  PT.takeBreak();
+  PT.tick(p, 19 * 60000);
+  check(!PT.breakDue(p), 'playtime: 19分では まだ');
+  PT.tick(p, 60000);
+  check(PT.breakDue(p), 'playtime: 20分で ひとやすみ');
+  PT.snooze();
+  check(!PT.breakDue(p), 'playtime: あとで → すぐには 出ない');
+  PT.tick(p, PT.SNOOZE_MS);
+  check(PT.breakDue(p), 'playtime: あとで → 10分 あとに もう一度');
+  PT.takeBreak();
+  check(!PT.breakDue(p) && PT.runMs() === 0, 'playtime: やすんだら 0 から');
+  // 夜（21時〜朝6時）。日づけを またいでも 「今夜だけ」は つづく
+  PT.set(p, 'bedtime', 21);
+  check(!PT.bedNow(p, D('2026-10-30T20:59:00')) && PT.bedNow(p, D('2026-10-30T21:00:00')) && PT.bedNow(p, D('2026-10-31T05:59:00')) && !PT.bedNow(p, D('2026-10-31T06:00:00')), 'playtime: 夜は 21時〜6時');
+  PT.allowTonight(p, D('2026-10-30T21:10:00'));
+  check(!PT.bedNow(p, D('2026-10-31T00:30:00')) && PT.bedNow(p, D('2026-10-31T21:05:00')), 'playtime: 今夜だけ は その夜だけ');
+  // 14日より 前は すてる
+  const q = { id: 'pt2' };
+  for (let i = 0; i < 20; i++) PT.add(q, 60000, D('2026-10-01T10:00:00') + i * 86400000);
+  check(Object.keys(q.playMs).length === 14, 'playtime: 記録は 14日ぶん');
+  PT.setNow(null);
+  // とちゅうで 止めない：gate は 地図・たたかいの はじめ・しゅぎょうば だけ。けっか画面の あとに afterResult
+  const CM = fs.readFileSync(path.join(base, 'js/ui/common.js'), 'utf8'), UB = fs.readFileSync(path.join(base, 'js/ui/battle.js'), 'utf8');
+  const RS = fs.readFileSync(path.join(base, 'js/ui/result.js'), 'utf8'), DJ = fs.readFileSync(path.join(base, 'js/ui/dojo.js'), 'utf8');
+  check(CM.indexOf('MQ.ui.playtime.gate()') > CM.indexOf('MQ.ui.goMap = function'), 'playtime: 地図の 前に gate');
+  check((UB.match(/MQ\.ui\.playtime\.gate\(\)/g) || []).length === 2, 'playtime: たたかい・とっくんの はじめ だけ（とちゅうには ない）');
+  check(RS.indexOf('MQ.ui.playtime.afterResult()') > 0 && (DJ.match(/MQ\.ui\.playtime\.gate\(\)/g) || []).length === 2, 'playtime: けっか画面と しゅぎょうば');
+  check(INDEX_HTML.indexOf('js/core/playtime.js') > INDEX_HTML.indexOf('js/core/save.js') && INDEX_HTML.indexOf('js/ui/playtime.js') > INDEX_HTML.indexOf('js/ui/prize.js'), 'playtime: 読みこみ順（ui は prize.js の あと＝番号の キーを 借りる）');
+  const SWT = fs.readFileSync(path.join(base, 'sw.js'), 'utf8');
+  check(SWT.indexOf("'./js/core/playtime.js'") > 0 && SWT.indexOf("'./js/ui/playtime.js'") > 0, 'playtime: sw.js の FILES');
+  console.log('あそぶ 時間（v14.56） OK');
 })();
 
 Promise.all(global.__pending || []).then(function () {

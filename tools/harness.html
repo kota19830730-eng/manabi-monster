@@ -101,6 +101,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/core/coins.js"></script>
 <script src="../js/core/pika.js"></script>
 <script src="../js/core/weekend.js"></script>
+<script src="../js/core/playtime.js"></script>
 <script src="../js/core/streak.js"></script>
 <script src="../js/core/letter.js"></script>
 <script src="../js/core/review.js"></script>
@@ -197,6 +198,7 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
 <script src="../js/ui/photo.js"></script>
 <script src="../js/ui/pixedit.js"></script>
 <script src="../js/ui/prize.js"></script>
+<script src="../js/ui/playtime.js"></script>
 <script src="../js/ui/capsulefx.js"></script>
 <script src="../js/ui/capsule.js"></script>
 
@@ -720,6 +722,79 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
       const slime = $('#screen-start .tmob--slime').getBoundingClientRect();
       say('open: ' + at + '秒 アニメ ' + anims.length + '本 / 勇者 top ' + Math.round(hero.top) + ' / ロゴ top ' + Math.round(logo.top) + ' / スライム left ' + Math.round(slime.left) + ' / is-opening=' + $('#screen-start .title').classList.contains('is-opening'));
       return;
+    }
+    /* あそぶ 時間（v14.56・js/core/playtime.js／js/ui/playtime.js）
+       #playtime[:stop|night|break|rest|soon|pin|ext|parent|gate|result]
+       stop＝きょうは ここまで／night＝おやすみ／pin＝おうちの人の 番号／ext＝番号 → のばす → 地図
+       gate＝地図・たたかいの 前で 止まるか／result＝けっか画面の あとに 出るか／parent＝おうちの人ページの 設定 */
+    if (mode.split(':')[0] === 'playtime') {
+      const arg = mode.split(':')[1] || 'stop';
+      const PT = MQ.playtime;
+      fresh();
+      MQ.save.setSetting('fbDone', true);   // 感想の お願い（v14.49）を 出さない
+      MQ.save.update(function (q) { MQ.pals.add(q, 'slime-green', 300); });
+      const over = function () { MQ.save.update(function (q) { PT.set(q, 'limitMin', 30); PT.add(q, 31 * 60000); }); };
+      MQ.ui.start.render(); MQ.ui.show('screen-start'); await wait(100);
+      if (arg === 'stop' || arg === 'pin' || arg === 'ext') {
+        over(); MQ.prize.setPin('1234');
+        MQ.ui.goMap(); await wait(120);
+        say('playtime: 地図 ' + ($('#screen-map.is-active') ? 'ひらいた NG' : 'とまった OK') + '／カード ' + ($('.ptpop--stop') ? 'OK' : 'MISSING'));
+        if (arg !== 'stop') {
+          $('.ptcard__plink').click(); await wait(80);
+          say('playtime: 番号の キー ' + ($('.ptpp .przpin__k') ? 'OK' : 'MISSING'));
+          if (arg === 'ext') {
+            ['1', '2', '3', '4'].forEach(function (k) { $$('.ptpp .przpin__k').filter(function (b) { return b.textContent === k; })[0].click(); });
+            await wait(300);
+            const o = $$('.ptpp__opts button'); say('playtime: のばす ボタン ' + o.length + '（2 が 正）');
+            o[0].click(); await wait(200);
+            say('playtime: のばした あと 地図 ' + ($('#screen-map.is-active') ? 'OK' : 'NG') + '／のこり ' + Math.round(PT.remain(MQ.save.current()) / 60000) + '分（15 が 正）');
+            return;
+          }
+        }
+        dump(); freeze(); return;
+      }
+      if (arg === 'night') {
+        MQ.save.update(function (q) { PT.set(q, 'bedtime', 21); });
+        PT.setNow(new Date(2026, 9, 29, 21, 30).getTime());
+        MQ.ui.goMap(); await wait(120); PT.setNow(null);
+        say('playtime: 夜 ' + ($('.ptpop--night') ? 'OK' : 'MISSING'));
+        dump(); freeze(); return;
+      }
+      if (arg === 'break' || arg === 'rest' || arg === 'soon') {
+        MQ.ui.goMap(); await wait(80);
+        if (arg === 'soon') { MQ.save.update(function (q) { PT.set(q, 'limitMin', 30); PT.add(q, 28 * 60000); }); MQ.ui.playtime.showSoon(MQ.save.current()); }
+        else MQ.ui.playtime.showBreak();
+        await wait(60);
+        if (arg === 'rest') { $('.ptpop--break .btn--big').click(); await wait(60); }
+        say('playtime: ' + arg + ' ' + ($('.ptpop--' + arg) ? 'OK' : 'MISSING'));
+        dump(); freeze(); return;
+      }
+      if (arg === 'gate') {
+        MQ.ui.goMap(); await wait(80);
+        over();
+        MQ.ui.battle.start('sansu3-1'); await wait(150);
+        say('playtime: たたかいの 前 ' + ($('#screen-battle.is-active') ? 'はじまった NG' : 'とまった OK') + '／' + ($('.ptpop--stop') ? 'カード OK' : 'MISSING'));
+        $('.ptpop--stop .btn--big').click(); await wait(100);
+        say('playtime: タイトルへ ' + ($('#screen-start.is-active') && !$('.ptpop') ? 'OK' : 'NG'));
+        return;
+      }
+      if (arg === 'result') {
+        MQ.save.update(function (q) { PT.set(q, 'breakMin', 20); });
+        PT.tick(MQ.save.current(), 21 * 60000);
+        MQ.ui.show('screen-result');
+        MQ.ui.playtime.afterResult(0); await wait(60);
+        say('playtime: けっか画面の あと ひとやすみ ' + ($('.ptpop--break') ? 'OK' : 'MISSING'));
+        $('.ptcard__later').click(); await wait(40);
+        MQ.ui.playtime.afterResult(0); await wait(60);
+        say('playtime: あとで → すぐは 出ない ' + ($('.ptpop') ? 'NG' : 'OK'));
+        return;
+      }
+      if (arg === 'parent') {
+        MQ.save.update(function (q) { PT.set(q, 'breakMin', 30); PT.set(q, 'limitMin', 60); for (let i = 0; i < 7; i++) PT.add(q, (20 + i * 7) * 60000, Date.now() - i * 86400000); });
+        MQ.ui.parent.open('settings', { from: 'map' }); await wait(200);
+        say('playtime: 設定 ' + ($('#pp-playtime') ? 'OK' : 'MISSING') + '／選ばれて いる ' + $$('#pp-playtime .pp-seg.is-on').map(function (b) { return b.textContent; }).join(','));
+        dump(); freeze(); return;
+      }
     }
     /* はじめての 案内（v14.48・js/ui/howto.js）
        #howto[:<ページ 0〜4>]＝おうちの人むけ／#howto:flow＝つぎへ を 5回 → 3つだけ の 画面へ／#howto:set＝設定から

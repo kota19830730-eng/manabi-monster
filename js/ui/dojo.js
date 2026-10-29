@@ -49,6 +49,7 @@ MQ.ui.dojo = (function () {
   function openList() {
     const p = player();
     if (!p) return;
+    if (MQ.ui.playtime && MQ.ui.playtime.gate()) return;   // あそぶ 時間（v14.56）
     S = null;
     T = MQ.dojo.text();
     const c = MQ.dojo.candidates(p);
@@ -228,6 +229,7 @@ MQ.ui.dojo = (function () {
      ======================================================= */
   function open(stageId) {
     const p = player();
+    if (MQ.ui.playtime && MQ.ui.playtime.gate()) return;   // あそぶ 時間（v14.56）
     T = MQ.dojo.text();
     const ses = MQ.dojo.session(stageId, p);
     if (!ses) { MQ.ui.toast(T.none); return; }

@@ -417,6 +417,8 @@ MQ.ui = MQ.ui || {};
   };
 
   MQ.ui.goMap = function () {
+    // あそぶ 時間（v14.56）：上限・夜の 時間なら 地図に 行かず「きょうは ここまで」
+    if (MQ.ui.playtime && MQ.ui.playtime.gate()) return;
     MQ.ui.map.render();
     MQ.ui.show('screen-map');
     // あたらしい こと！（v8.3）。1回の 起動で 1回だけ・見る ものが なければ 何も しない

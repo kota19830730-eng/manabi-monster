@@ -212,6 +212,7 @@ MQ.ui.battle = (function () {
     const found = MQ.content.findStage(stageId);
     const player = MQ.save.current();
     if (!found || !player) return;
+    if (MQ.ui.playtime && MQ.ui.playtime.gate()) return;   // あそぶ 時間（v14.56）
     build();
     endSpecial(true);   // v13.6：前の たたかいの 広げた 画面・光の 粒が のこって いたら 消す
     MQ.ui.syncCustom();
@@ -492,6 +493,7 @@ MQ.ui.battle = (function () {
     if (!player) return;
     const all = MQ.util.shuffle(MQ.save.allEscaped(player)).slice(0, 5);
     if (!all.length) { MQ.ui.toast('にげた敵は いないよ'); return; }
+    if (MQ.ui.playtime && MQ.ui.playtime.gate()) return;   // あそぶ 時間（v14.56）
     build();
     endSpecial(true);   // v13.6：前の たたかいの 広げた 画面・光の 粒が のこって いたら 消す
     MQ.ui.syncCustom();

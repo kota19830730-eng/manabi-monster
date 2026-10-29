@@ -385,6 +385,8 @@ MQ.ui.result = (function () {
         if (sc && sc.classList.contains('is-active')) MQ.bgm.play('map');
       }, 1800);
     }
+    // あそぶ 時間（v14.56）：ごほうびを 見た あとに「ひとやすみ」「きょうは ここまで」
+    if (MQ.ui.playtime) MQ.ui.playtime.afterResult();
   }
 
   /* けっか画面は かならず 1画面に おさめる（スクロールさせない）。

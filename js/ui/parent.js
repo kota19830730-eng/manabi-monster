@@ -474,6 +474,7 @@ MQ.ui.parent = (function () {
     ]));
     const main = [];
     const wrapSec = function (node) { return node ? h('div', { class: 'pp-card pp-pad pp-legacy' }, [node]) : null; };
+    main.push(playtimeSection(p));   // あそぶ 時間（v14.56）
     main.push(wrapSec(S.words(p)));
     if (S.read) main.push(wrapSec(S.read(p)));
     main.push(wrapSec(S.terms(p)));
@@ -571,6 +572,63 @@ MQ.ui.parent = (function () {
     return '最後にファイルに保存した日：' + (d.getMonth() + 1) + '/' + d.getDate() + '（' + (days <= 0 ? '今日' : days + '日前') + '）' + (due ? '。そろそろ保存しておくと安心です。' : '');
   }
   /* 記録のバックアップ（v14.46）：設定の「ホーム画面に入れる」の 上。どの 端末でも 出す */
+  /* あそぶ 時間（v14.56）：休憩の お知らせ・1日の 上限・夜の 時間。はじめは ぜんぶ「なし」 */
+  function playtimeSection(p) {
+    const T = MQ.playtime;
+    if (!T) return null;
+    const s = T.settings(p);
+    const segs = function (key, list, label) {
+      return h('div', { class: 'pp-segrow' }, list.map(function (v) {
+        return h('button', {
+          class: 'pp-seg' + (s[key] === v ? ' is-on' : ''), type: 'button', text: v ? label(v) : 'なし',
+          onclick: function () {
+            MQ.sfx.tap();
+            MQ.save.update(function (q) { T.set(q, key, v); });
+            render();
+          }
+        });
+      }));
+    };
+    const row = function (title, seg, note) {
+      return h('div', { class: 'pp-line pp-line--col' }, [h('span', { text: title }), seg, note ? h('span', { class: 'pp-muted pp-small', text: note }) : null]);
+    };
+    const today = Math.round(T.playedNow(p) / 60000);
+    const week = T.recent(p, 7);
+    const max = Math.max(30, Math.max.apply(null, week.map(function (d) { return d.min; })));
+    const needPin = (s.limitMin || s.bedtime) && !(MQ.prize && MQ.prize.hasPin());
+    const ext = s.limitMin && isFinite(T.remain(p)) ? '（今日の残り ' + Math.max(0, Math.ceil(T.remain(p) / 60000)) + '分）' : '';
+    return h('section', { class: 'pp-section', id: 'pp-playtime' }, [
+      sec('遊ぶ時間', '休憩・1日の上限・夜'),
+      h('div', { class: 'pp-card pp-list' }, [
+        row('休憩のお知らせ', segs('breakMin', T.BREAKS, function (v) { return v + '分ごと'; }),
+          '続けて遊ぶと、たたかいが終わったところで相棒が「ひとやすみ」を呼びかけます。子どもは「あとで」も選べます。'),
+        row('1日の上限', segs('limitMin', T.LIMITS, function (v) { return v + '分'; }),
+          '上限になったら、そのたたかいが終わったところで「きょうはここまで」になります。たたかいの途中では止めません。' + ext),
+        row('夜の時間', segs('bedtime', T.BEDS, function (v) { return v + '時から'; }),
+          '選んだ時刻から朝' + T.MORNING + '時までは遊べません。'),
+        needPin ? h('div', { class: 'pp-line pp-line--col' }, [
+          h('span', { class: 'pp-c-weak pp-small', text: '時間をのばすには4けたの番号が必要です（ごほうびマシンと同じ番号）。' }),
+          btn('番号を決める', 'pp-btn--p pp-btn--sm', function () { open('prize'); })
+        ]) : null,
+        h('div', { class: 'pp-line pp-line--col' }, [
+          h('span', { text: '遊んだ時間（今日 ' + today + '分）' }),
+          h('div', { class: 'pp-ptweek' }, week.map(function (d, i) {
+            const md = d.day.slice(5).replace('-', '/').replace(/^0/, '');
+            return h('div', { class: 'pp-ptweek__col' + (i === week.length - 1 ? ' is-today' : '') }, [
+              h('span', { class: 'pp-ptweek__n', text: d.min ? String(d.min) : '' }),
+              h('i', { class: 'pp-ptweek__bar', style: { height: Math.round(4 + 56 * d.min / max) + 'px' } }),
+              h('span', { class: 'pp-ptweek__d', text: md })
+            ]);
+          })),
+          h('span', { class: 'pp-muted pp-small', text: '画面を開いて操作している時間だけを数えます（放置した時間は入りません）。' })
+        ]),
+        h('div', { class: 'pp-line pp-line--col' }, [
+          h('span', { class: 'pp-muted pp-small', text: 'このアプリの中だけのしくみなので、記録を消すなどすると外せます。しっかり制限したいときは、iPhone・iPadの「スクリーンタイム」やAndroidの「ファミリーリンク」もあわせてお使いください。' })
+        ])
+      ])
+    ]);
+  }
+
   function backupSection() {
     const at = MQ.keep ? MQ.keep.backupAt() : 0;
     const due = MQ.keep ? MQ.keep.backupDue() : false;
