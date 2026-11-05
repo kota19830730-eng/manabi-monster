@@ -2595,6 +2595,67 @@ MQ.ui.photo = (function () {
     if (cur.letters && letterPick.length && MQ.monsterGen.letterPng) return MQ.monsterGen.letterPng(letterPick, cur.cols || null);
     return cur.png;
   }
+  /* v14.58 紙の 絵の「そのまま」＝写真の 解像度（しらべる 320px の 2ばい）で 切りぬいた 絵。
+     ユーザー「イラストそのまま切り抜いてゲームに登場する」（2026-11-05）。ドット絵に しないので 線も 色も 写真の まま。
+     色は 紙の 色で わって（normalize）紙を 白に そろえる＝暗い 部屋・黄色い 電灯でも 紙が 灰色に ならない。
+     形は 紙の 絵の マスク（fg＝外から つながる 紙を のぞいた もの・紙の 外は v14.57 で 捨てて ある）。
+     線で かこまれた 紙（目の 白・からだの 白）は のこる。仕上げは ぬいぐるみの「そのまま」と 同じ MQ.subject.photo（ふちを やわらかく・OBJ.photo px） */
+  /* ink＝いちばん こい インク（マスクの 中の 明るさ 2%）を この こさ（紙から 215）まで のばす。
+     暗い 部屋の えんぴつ（紙から 100 くらい）は 2倍ほど こく、マーカー（もともと こい）は そのまま。kMax で 上限 */
+  const PAPER_PHOTO = { k: 2, ink: 215, kMax: 2.6, grow: 1, soft: 1, chroma: 1.35, lineCol: 0.15, linePx: 2.2 };
+  function paperPhoto(fg, W, H) {
+    if (!img || !MQ.subject || !MQ.subject.photo) return '';
+    try {
+      const k2 = PAPER_PHOTO.k, W2 = W * k2, H2 = H * k2;
+      const hc = document.createElement('canvas');
+      hc.width = W2; hc.height = H2;
+      const hx = hc.getContext('2d');
+      hx.imageSmoothingEnabled = true;
+      hx.drawImage(img, img.naturalWidth * crop.x, img.naturalHeight * crop.y, Math.max(1, img.naturalWidth * crop.w), Math.max(1, img.naturalHeight * crop.h), 0, 0, W2, H2);
+      const p2 = hx.getImageData(0, 0, W2, H2).data;
+      const q2 = normalize(p2, W2, H2);
+      let m2 = new Uint8Array(W2 * H2);
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) m2[y * W2 + x] = fg[Math.floor(y / k2) * W + Math.floor(x / k2)];
+      /* 暗い 写真の うすい インクを もどす：紙からの こさ（255 − 色）を 写真ごとに k 倍（紙の 白は 白の まま・色えんぴつの 色みも 同じ 倍率で こく）。
+         ふつうの 明るい 写真の マーカーは k＝1（そのまま） */
+      const ds = [];
+      for (let i = 0; i < W2 * H2; i += 3) if (m2[i]) ds.push(255 - lumOf(q2[i * 3], q2[i * 3 + 1], q2[i * 3 + 2]));
+      ds.sort(function (a, b) { return b - a; });
+      const inkD = ds.length ? ds[Math.floor(ds.length * 0.02)] : PAPER_PHOTO.ink;
+      const kk = clamp(PAPER_PHOTO.ink / Math.max(30, inkD), 1, PAPER_PHOTO.kMax);
+      if (kk > 1.02) for (let i = 0; i < q2.length; i++) q2[i] = Math.max(0, 255 - (255 - Math.min(255, q2[i])) * kk);
+      // 色みを 少し こく（紙を 白に した ぶん 色えんぴつが うすく 見える）。灰色の えんぴつは 変わらない
+      let colN = 0, inN = 0;
+      for (let i = 0; i < W2 * H2; i++) {
+        const r = q2[i * 3], g = q2[i * 3 + 1], b = q2[i * 3 + 2], mean = (r + g + b) / 3;
+        q2[i * 3] = clamp(mean + (r - mean) * PAPER_PHOTO.chroma, 0, 255);
+        q2[i * 3 + 1] = clamp(mean + (g - mean) * PAPER_PHOTO.chroma, 0, 255);
+        q2[i * 3 + 2] = clamp(mean + (b - mean) * PAPER_PHOTO.chroma, 0, 255);
+        if (m2[i] && 255 - mean > 40) { inN++; if (Math.max(r, g, b) - Math.min(r, g, b) > 40) colN++; }
+      }
+      /* 線だけの 絵（インクの うち 色の ある 点が 15% 未満）は、OBJ.photo px に ちぢめると 細い 線が 1px 以下に なって 消える（c15）。
+         → ちぢめた あとで 線が linePx px のこる ように、いちばん こい 色で ひろげる（min フィルタ）。色の ある 絵は そのまま */
+      const bb0 = bbox(m2, W2, H2);
+      if (bb0 && inN && colN < inN * PAPER_PHOTO.lineCol) {
+        const sc = OBJ.photo * 0.9 / Math.max(bb0.x1 - bb0.x0 + 1, bb0.y1 - bb0.y0 + 1);
+        const rr = Math.min(4, Math.round((PAPER_PHOTO.linePx / sc - 2) / 2));
+        if (rr >= 1) {
+          const src = new Float32Array(q2);
+          for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+            let best = -1, bl = 1e9;
+            for (let dy = -rr; dy <= rr; dy++) { const yy = y + dy; if (yy < 0 || yy >= H2) continue; for (let dx = -rr; dx <= rr; dx++) { const xx = x + dx; if (xx < 0 || xx >= W2) continue; const j = yy * W2 + xx; const L = src[j * 3] + src[j * 3 + 1] + src[j * 3 + 2]; if (L < bl) { bl = L; best = j; } } }
+            const i = y * W2 + x; q2[i * 3] = src[best * 3]; q2[i * 3 + 1] = src[best * 3 + 1]; q2[i * 3 + 2] = src[best * 3 + 2];
+          }
+          m2 = dilate(m2, W2, H2, rr);
+        }
+      }
+      // 細い 線が ふちの ぼかしで 半透明に ならない ように 1px ふとらせる（まわりは 紙＝白なので ふちが 少し 白く なる だけ）
+      if (PAPER_PHOTO.grow) m2 = dilate(m2, W2, H2, PAPER_PHOTO.grow);
+      const box2 = bbox(m2, W2, H2);
+      if (!box2 || box2.n < 120) return '';
+      return MQ.subject.photo(q2, m2, W2, H2, box2, PAPER_PHOTO.soft, OBJ.photo).toDataURL('image/png');
+    } catch (e) { return ''; }
+  }
   function build() {
     if (!img) return '';
     const cv = workCanvas(img, crop);
@@ -2729,7 +2790,10 @@ MQ.ui.photo = (function () {
       }
       // v14.4 いちばん 先頭は「きみの 絵」＝絵の 形と 色 そのまま（ユーザー「絵の 再現性を 一番 こだわって」）
       if (traced.png && traced.drawn >= 40) {
-        const tl = [{ kind: 'trace', tag: 'trace', trace: true, png: traced.png }];
+        const tl = [{ kind: 'trace', tag: 'trace', trace: true, png: traced.png, label: 'ドット絵' }];
+        // v14.58 いちばん 先頭は「そのまま」＝写真の 切りぬき（AI・ドット絵エディタを 通った ときは 作らない）
+        const pp = !edited && !aiUsed ? paperPhoto(fg, W, H) : '';
+        if (pp) tl.unshift({ kind: 'trace', tag: 'photo', trace: true, photo: true, png: pp, label: 'そのまま' });
         (traced.cool || []).forEach(function (png, i) { if (png) tl.push({ kind: 'trace', tag: i === 0 ? 'cool' : i === 1 ? 'block' : 'block2', trace: true, png: png }); });   // v14.5 かっこよく／v14.45 ブロックふう（形と 色は 絵の まま）
         list = tl.concat(list);
       }
@@ -3098,7 +3162,7 @@ MQ.ui.photo = (function () {
     const eyeRow = h('div', { class: 'photo__eyes', hidden: 'hidden', style: { display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' } }, [eyeBtn, eyeClear, eyeNote]);
     function paintEyes() {
       const cur = picks[pickAt];
-      const on = cleanMode === 3 && !edited && !!(cur && cur.trace) && !(objMode && lastInfo && lastInfo.obj);   // v14.47 写真には 効かない
+      const on = cleanMode === 3 && !edited && !!(cur && cur.trace) && !cur.photo && !(objMode && lastInfo && lastInfo.obj);   // v14.47 写真には 効かない／v14.58 紙の 絵の 切りぬき（そのまま）にも
       if (!on) eyeMode = false;
       eyeRow.hidden = !on;
       eyeRow.style.display = on ? 'flex' : 'none';

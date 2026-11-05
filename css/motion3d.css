@@ -26,6 +26,8 @@
 .v3 .p { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; }
 .v3 .bx { position: relative; }
 .v3 .bx i { position: absolute; display: block; image-rendering: pixelated; }
+/* v14.58 紙の 立て札（写真の 切りぬき）：平らな 絵。下の かげ（drop-shadow）は 動かさない（keyframes は .v3 の transform だけ） */
+.v3--standee .v3standee__img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: auto; transform-origin: 50% 100%; filter: drop-shadow(0 2px 0 rgba(20, 24, 40, .35)); pointer-events: none; }
 
 /* ---------- 待機（主人公） ---------- */
 .mo-idle .p--armL { animation: moArmSwayL 3.2s ease-in-out infinite; }

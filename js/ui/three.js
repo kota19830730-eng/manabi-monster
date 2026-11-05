@@ -54,6 +54,18 @@
     return sc;
   }
   function unitFor(size) { return size >= 60 ? 2 : 1; }
+  /* v14.58 紙の 立て札（写真の 切りぬき）。px＝器の 1辺。ry＝器の 向き */
+  function standee(src, px, ry) {
+    const v = document.createElement('div');
+    v.className = 'v3 v3--standee';
+    v.style.cssText = 'width:' + px + 'px;height:' + px + 'px;';
+    const im = document.createElement('img');
+    im.className = 'v3standee__img';
+    im.src = src; im.alt = ''; im.draggable = false;
+    im.style.transform = 'rotateY(' + Math.round(-(ry || 0) * 0.6) + 'deg)';
+    v.appendChild(im);
+    return v;
+  }
 
   /* ---------- モンスター（enemies.node の .bx → 箱。写真の モンスターは img から） ---------- */
   function monster(id, size, opts) {
@@ -77,7 +89,11 @@
     img.onload = function () {
       const grid = Math.min(img.naturalWidth || 48, 64);
       const me = MQ.enemies.get && MQ.enemies.get(id);
-      const v = MQ.vox.fromImage(img, png.src, { unit: U, size: grid, hide: hideFor(ry, opts), slab: !!(me && me.trace) || !!(MQ.sonSkin && MQ.sonSkin.keyOf(id)) });   // v14.4 絵の まま＝同じ 厚み
+      /* v14.58 写真の 切りぬき（紙の 絵の「そのまま」・ぬいぐるみ＝160px いじょうの 絵）は 箱に しない。
+         64マスの 箱に すると 絵が ブロックに なって「そのまま」で なく なる（ユーザー「イラストそのまま切り抜いてゲームに登場」2026-11-05）。
+         → 紙の 立て札：平らな 絵を 立てて、向き（ry）を 6わり もどして 正面に 近く 見せる。動き（mo-*）は 箱と 同じ */
+      const v = (img.naturalWidth || 0) >= 160 ? standee(png.src, grid * U, ry)
+        : MQ.vox.fromImage(img, png.src, { unit: U, size: grid, hide: hideFor(ry, opts), slab: !!(me && me.trace) || !!(MQ.sonSkin && MQ.sonSkin.keyOf(id)) });   // v14.4 絵の まま＝同じ 厚み
       if (!v) return;
       // 器は 48マスの つもりで 作って ある → 大きさを 合わせ直す
       const k = size / (grid * U);

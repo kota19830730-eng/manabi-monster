@@ -6947,6 +6947,23 @@ function stripComments(src) {
   console.log('v14.57 紙の 外を 捨てる OK');
 })();
 
+/* =======================================================
+   v14.58 紙の 絵の「そのまま」＝写真の 切りぬき・バトルでは 紙の 立て札
+   docs/v14.58そのまま切りぬきメモ.md
+   ======================================================= */
+(function () {
+  const PH = fs.readFileSync(path.join(base, 'js/ui/photo.js'), 'utf8');
+  const TH = fs.readFileSync(path.join(base, 'js/ui/three.js'), 'utf8');
+  const M3 = fs.readFileSync(path.join(base, 'css/motion3d.css'), 'utf8');
+  check(PH.indexOf('function paperPhoto(fg, W, H)') >= 0 && PH.indexOf("tl.unshift({ kind: 'trace', tag: 'photo', trace: true, photo: true, png: pp, label: 'そのまま' })") >= 0, 'v14.58: 紙の 絵の 先頭は「そのまま」（写真の 切りぬき）');
+  check(PH.indexOf("png: traced.png, label: 'ドット絵'") >= 0, 'v14.58: ドット絵は「ドット絵」の 名前で のこる');
+  check(PH.indexOf('!cur.photo && !(objMode') >= 0, 'v14.58: 切りぬきには「目は どこ？」を 出さない');
+  check(PH.indexOf('MQ.subject.photo(q2, m2, W2, H2, box2, PAPER_PHOTO.soft, OBJ.photo)') >= 0, 'v14.58: 仕上げは ぬいぐるみと 同じ MQ.subject.photo');
+  check(TH.indexOf('function standee(src, px, ry)') >= 0 && TH.indexOf('(img.naturalWidth || 0) >= 160 ? standee(') >= 0, 'v14.58: 160px いじょうの 写真の 絵は 箱に しない（紙の 立て札）');
+  check(M3.indexOf('.v3--standee .v3standee__img') >= 0, 'v14.58: 立て札の CSS');
+  console.log('v14.58 そのまま 切りぬき OK');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);
