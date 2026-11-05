@@ -6891,6 +6891,62 @@ function stripComments(src) {
   console.log('あそぶ 時間（v14.56） OK');
 })();
 
+/* =======================================================
+   v14.57 紙の 外を 捨てる（写真→モンスター：手・つくえ・ゆかを 絵に しない・細い 線を 消さない）
+   docs/v14.57紙の外を捨てるメモ.md
+   ======================================================= */
+(function () {
+  const P = MQ.ui && MQ.ui.photo && MQ.ui.photo.parts;
+  check(P && typeof P.sheetMask === 'function' && typeof P.rawPaperness === 'function', 'v14.57: photo.js が sheetMask・rawPaperness を 出す');
+  if (!P || !P.sheetMask) return;
+  const W = 120, H = 100;
+  // 紙に 直した 写真（q）：紙＝255。手（肌色・下の ふちから）・赤い ぬり（まん中）・細い 線（2px の 丸）
+  function q1(withHand) {
+    const q = new Float32Array(W * H * 3);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let c = [255, 255, 255];
+      const dx = x - 60, dy = y - 40, rr = Math.sqrt(dx * dx + dy * dy);
+      if (rr >= 22 && rr < 24) c = [70, 70, 70];                     // えんぴつの 丸
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) c = [230, 60, 60];    // 赤い ぬり
+      if (withHand && x >= 30 && x < 80 && y >= 72) c = [225, 170, 140];   // 手（ふちから）
+      const k = (y * W + x) * 3; q[k] = c[0]; q[k + 1] = c[1]; q[k + 2] = c[2];
+    }
+    return q;
+  }
+  const s1 = P.sheetMask(q1(true), W, H);
+  check(s1 && s1.area < 0.985 && s1.area > 0.5, 'v14.57: 手の ある 紙 → 紙が 見つかる（area ' + (s1 && s1.area.toFixed(2)) + '）');
+  if (s1) {
+    let hand = 0, handN = 0, red = 0, redN = 0, line = 0, lineN = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = y * W + x, dx = x - 60, dy = y - 40, rr = Math.sqrt(dx * dx + dy * dy);
+      if (x >= 34 && x < 76 && y >= 80) { handN++; if (s1.m[k]) hand++; }
+      else if (Math.abs(dx) < 6 && Math.abs(dy) < 6) { redN++; if (s1.m[k]) red++; }
+      else if (rr >= 22 && rr < 24) { lineN++; if (s1.m[k]) line++; }
+    }
+    check(hand <= handN * 0.05, 'v14.57: 手は 紙の 外（' + hand + '/' + handN + '）');
+    check(red >= redN * 0.95 && line >= lineN * 0.95, 'v14.57: まん中の ぬりと 線は 紙の 中（ぬり ' + red + '/' + redN + '・線 ' + line + '/' + lineN + '）');
+  }
+  check(P.sheetMask(q1(false), W, H) === null, 'v14.57: 紙が わく いっぱい（手なし）→ null＝いままで どおり');
+  // もとの 写真の 明るさで 紙らしさ：暗い ゆかの 上の 明るい ぬいぐるみ（うさぎ）は 紙で ない／白い 紙は 紙
+  function raw(bg, fgc) {
+    const p = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = (y * W + x) * 4, inn = fgc && ((x - 60) * (x - 60)) / (28 * 28) + ((y - 52) * (y - 52)) / (32 * 32) < 1;
+      const c = inn ? fgc : bg; p[k] = c[0]; p[k + 1] = c[1]; p[k + 2] = c[2]; p[k + 3] = 255;
+    }
+    return p;
+  }
+  const all = new Uint8Array(W * H).fill(1);
+  check(P.rawPaperness(raw([150, 120, 95], [235, 235, 240]), all, W, H) < 0.5, 'v14.57: 暗い ゆか＋明るい ぬいぐるみ → 紙で ない');
+  check(P.rawPaperness(raw([246, 244, 240], null), all, W, H) >= 0.5, 'v14.57: 白い 紙 → 紙');
+  const PH = fs.readFileSync(path.join(base, 'js/ui/photo.js'), 'utf8');
+  check(PH.indexOf('if (n <= 1) cl[k] = 0;') >= 0 && PH.indexOf('if (n <= 2) cl[k] = 0;') < 0, 'v14.57: ごみ取りは となりが 1つ 以下 だけ（細い 線を 食べない）');
+  check(PH.indexOf('if (lnN >= Math.max(3, tot * 0.08)) thinCells.push([c, lnN / tot]);') >= 0 && PH.indexOf('if (colorCells < (drawnCells + thinCells.length) * 0.2) thinCells.forEach(') >= 0, 'v14.57: 細い 線の マスを 落とさない（えんぴつだけの 絵）');
+  check(PH.indexOf('const pencil = colAll < total * 0.2;') >= 0, 'v14.57: えんぴつだけの 絵の 小片を 消さない');
+  check(PH.indexOf('if (inSheet) for (let k = 0; k < np.length; k++) if (np[k] && !sheet.m[k]) np[k] = 0;') >= 0, 'v14.57: 自動わくは 紙の 中から えらぶ');
+  console.log('v14.57 紙の 外を 捨てる OK');
+})();
+
 Promise.all(global.__pending || []).then(function () {
   console.log(failures === 0 ? 'ALL OK' : failures + ' failure(s)');
   process.exit(failures ? 1 : 0);

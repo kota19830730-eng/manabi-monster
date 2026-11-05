@@ -365,13 +365,17 @@ MQ.ui.photo = (function () {
       if (d > thr.d || s > thr.s) np[k] = 1;
     }
     const cl = removeLines(np, q, w, hh, loose);
+    /* ごみ（ぽつんと ある 点）だけ 消す。v14.57 まで「となりが 2つ 以下」を その場で 消して いた ので、
+       1px の 細い 線（となりは ちょうど 2つ）が 線に そって 連鎖で 消え、うすい えんぴつの 絵が 点線に なって いた
+       （ネットの 絵 c38・c15 で 実測）。→ もとの マスクを 見ながら、となりが 1つ 以下の 点だけ 消す */
+    const src = new Uint8Array(cl);
     for (let y = 1; y < hh - 1; y++) {
       for (let x = 1; x < w - 1; x++) {
         const k = y * w + x;
-        if (!cl[k]) continue;
+        if (!src[k]) continue;
         let n = 0;
-        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && cl[k + dy * w + dx]) n++;
-        if (n <= 2) cl[k] = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && src[k + dy * w + dx]) n++;
+        if (n <= 1) cl[k] = 0;
       }
     }
     return cl;
@@ -434,6 +438,70 @@ MQ.ui.photo = (function () {
     }
     return { label: label, comps: comps };
   }
+
+  /* 紙（シート）の はんい（v14.57）：わくの 中の 手・つくえ・ゆか・ペンを 絵と して 拾わない ための マスク。
+     紙に 直した q で「明るくて 色みの ない 点」を 紙らしい と し、半径 r で とじて（線や ぬりの すきまを うめる）
+     紙らしい 点が いちばん 多い かたまりを 紙と する。紙の 中の あな（絵）は うめる。ふちに つながる あな（手・ペン）は うめない。
+     紙の へり（かげ）は 少し けずる。
+     かえり値：null（紙が 見つからない＝いままで どおり）か { m（1 = 紙の 中）, n, area（写真に 対する わりあい）}
+       紙らしい 点が 2割 未満（ぬりで うまった 絵・暗い 写真）→ null
+       area が 0.985 いじょう（紙が わく いっぱい・白い ゆかの 上の ぬいぐるみ）→ null（何も 切らない）
+     ネットの 絵 28まいで 実測（docs/v14.57紙の外を捨てるメモ.md） */
+  function sheetMask(q, w, hh) {
+    const n = w * hh, like = new Uint8Array(n);
+    let cnt = 0;
+    for (let k = 0; k < n; k++) {
+      const r = q[k * 3], g = q[k * 3 + 1], b = q[k * 3 + 2];
+      const d = 255 - lumOf(r, g, b), sat = Math.max(r, g, b) - Math.min(r, g, b);
+      if (d <= 55 && sat <= 40) { like[k] = 1; cnt++; }
+    }
+    if (cnt < n * 0.2) return null;
+    const r = Math.max(3, Math.round(Math.min(w, hh) * 0.05));
+    function invert(a) { const o = new Uint8Array(n); for (let k = 0; k < n; k++) o[k] = a[k] ? 0 : 1; return o; }
+    const closed = invert(dilate(invert(dilate(like, w, hh, r)), w, hh, r));   // とじる（ふくらませて ちぢめる）
+    const cc = components(closed, w, hh, 0);
+    if (!cc.comps.length) return null;
+    const cntBy = new Int32Array(cc.comps.length + 1);
+    for (let k = 0; k < n; k++) if (like[k] && cc.label[k]) cntBy[cc.label[k]]++;
+    let best = null, bestN = 0;
+    cc.comps.forEach(function (c) { if (cntBy[c.id] > bestN) { bestN = cntBy[c.id]; best = c; } });
+    if (!best || bestN < n * 0.15) return null;
+    const m = new Uint8Array(n);
+    for (let k = 0; k < n; k++) m[k] = cc.label[k] === best.id ? 1 : 0;
+    // あなを うめる：紙で ない かたまりの うち、写真の ふち（2px）に かからない もの＝紙の 中の 絵。
+    // ふちに かかる もの（手・ペン・つくえ）は 外の まま（ふちの 点が 紙でも、かたまりの はんいで 見る）
+    const holes = components(invert(m), w, hh, 0);
+    const fillId = new Uint8Array(holes.comps.length + 1);
+    holes.comps.forEach(function (c) { if (!c.edge) fillId[c.id] = 1; });
+    for (let k = 0; k < n; k++) if (!m[k] && fillId[holes.label[k]]) m[k] = 1;
+    // へりを けずる
+    const er = Math.max(2, Math.round(Math.min(w, hh) * 0.012));
+    const fin = invert(dilate(invert(m), w, hh, er));
+    let fn = 0;
+    for (let k = 0; k < n; k++) if (fin[k]) fn++;
+    const area = fn / n;
+    if (area >= 0.985) return null;
+    return { m: fin, n: fn, area: area, like: cnt / n };
+  }
+  /* 紙の マスクの「紙らしさ」を もとの 写真の 明るさで 見る（0〜1）：写真の 明るい ほう 3割に 入り、色みの 小さい 点の わりあい。
+     紙に 直した q では ゆかも 白く なる ので、ぬいぐるみの ゆか（うさぎの 写真＝ゆかは 暗く ぬいぐるみが 明るい）と
+     ゆかの 上の 紙（紙が いちばん 明るい）を ここで 見分ける。subject.paperness と 同じ 見方 */
+  function rawPaperness(p, m, w, hh) {
+    const lums = [];
+    for (let i = 0; i < w * hh; i += 5) lums.push(lumOf(p[i * 4], p[i * 4 + 1], p[i * 4 + 2]));
+    lums.sort(function (a, b) { return b - a; });
+    const bright = lums[Math.floor(lums.length * 0.3)];
+    let n = 0, ok = 0;
+    for (let k = 0; k < w * hh; k += 2) {
+      if (!m[k]) continue;
+      n++;
+      const r = p[k * 4], g = p[k * 4 + 1], b = p[k * 4 + 2], L = lumOf(r, g, b);
+      if (L >= bright - 12 && (Math.max(r, g, b) - Math.min(r, g, b)) * 160 / (L + 16) < 26) ok++;
+    }
+    return n ? ok / n : 0;
+  }
+  let lastSheet = null;    // さいごに 見つけた 紙（テスト用：{ area, like, raw }）
+  let autoCropRect = null; // 自動わくの 結果（手で 動かしたか を 見る）
 
   /* かたまりを まとめる：いちばん 大きな もの ＋ その 近く（reach）に ある もの。
      かえり値：のこす id の 表 と まとめた はんい */
@@ -1437,6 +1505,8 @@ MQ.ui.photo = (function () {
     const grid = new Int16Array(N * N);   // 0＝なし・-1＝線・1〜＝色の 番号
     const lf = new Float32Array(N * N);   // マスの 中の 線の わりあい
     const fill = new Int16Array(N * N);   // 線で なかった ときの 色
+    const thinCells = [];                 // v14.57 細い 線だけの マス（えんぴつだけの 絵の ときに 足す）
+    let colorCells = 0, drawnCells = 0;
     for (let j = 0; j < N; j++) {
       for (let i = 0; i < N; i++) {
         let tot = 0, fgN = 0, lnN = 0;
@@ -1453,15 +1523,21 @@ MQ.ui.photo = (function () {
             votes[dark[k] ? DARK : who[k] && (dist[k] <= TRACE.Dfill || regFill[k]) ? who[k] : WHITE]++;
           }
         }
-        if (fgN < tot * 0.4) continue;
         const c = j * N + i;
+        /* v14.57 細い えんぴつの 線：マスの 4割に とどかなくても、線の 点が 3つ いじょう あれば 線の マスの 候補
+           （ネットの 絵 c15・c38 で 線が ぜんぶ 消えて いた）。足すのは えんぴつだけの 絵の ときだけ（下） */
+        if (fgN < tot * 0.4) { if (lnN >= Math.max(3, tot * 0.08)) thinCells.push([c, lnN / tot]); continue; }
         lf[c] = lnN / tot;
         let best = 0, bv = 0;
         for (let t = 1; t <= DARK; t++) if (votes[t] > bv) { bv = votes[t]; best = t; }
         fill[c] = best;
         grid[c] = best || -1;
+        drawnCells++;
+        if (best > 0 && best !== WHITE && best !== DARK) colorCells++;
       }
     }
+    // えんぴつだけの 絵（色の マスが 2割 未満）：細い 線の マスを 足す。色の ある 絵は いままで どおり（仕切りの 線の きれはしを 拾わない）
+    if (colorCells < (drawnCells + thinCells.length) * 0.2) thinCells.forEach(function (tc) { grid[tc[0]] = -1; lf[tc[0]] = tc[1]; });
     for (let j = 0; j < N; j++) {
       for (let i = 0; i < N; i++) {
         const c = j * N + i;
@@ -1613,11 +1689,12 @@ MQ.ui.photo = (function () {
       }
       comps.push({ mem: mem, col: col });
     }
-    let big = 0;
-    comps.forEach(function (o, i) { if (o.mem.length > comps[big].mem.length) big = i; });
+    let big = 0, colAll = 0;
+    comps.forEach(function (o, i) { if (o.mem.length > comps[big].mem.length) big = i; colAll += o.col; });
+    const pencil = colAll < total * 0.2;   // v14.57 えんぴつだけの 絵：線が 切れて 小片に なる ので「色の ない 小片」は 消さない
     comps.forEach(function (o, i) {
       if (i === big) return;
-      if ((o.col < o.mem.length * 0.2 && o.mem.length < total * 0.06) || o.mem.length < total * 0.012) o.mem.forEach(function (c) { grid[c] = 0; });
+      if ((!pencil && o.col < o.mem.length * 0.2 && o.mem.length < total * 0.06) || o.mem.length < total * 0.012) o.mem.forEach(function (c) { grid[c] = 0; });
     });
   }
   // 同じ 色で つながった かたまりが min マスより 小さければ、まわりで いちばん 多い 色に（線は そのまま）
@@ -2524,9 +2601,15 @@ MQ.ui.photo = (function () {
     const W = cv.width, H = cv.height;
     let data;
     try { data = cv.getContext('2d').getImageData(0, 0, W, H); } catch (e) { return cv.toDataURL(); }
-    if (objMode && MQ.subject) { const ob = buildObject(data.data, W, H); if (ob !== null) return ob; }   // v14.47 ぬいぐるみ・おもちゃ
     const prep = prepare(data.data, W, H);
     const q = prep.q, auto = prep.auto;
+    /* v14.57 わくの 中の 紙。自動わくが ぬいぐるみ（objMode）と 見た 写真でも、子どもが 手で わくを 紙に 合わせた なら 紙の 絵の 道 */
+    const sheet = sheetMask(q, W, H);
+    const sheetRaw = sheet ? rawPaperness(data.data, sheet.m, W, H) : 0;
+    lastSheet = sheet ? { area: Math.round(sheet.area * 100) / 100, like: Math.round(sheet.like * 100) / 100, raw: Math.round(sheetRaw * 100) / 100 } : null;
+    const moved = !autoCropRect || Math.abs(crop.x - autoCropRect.x) + Math.abs(crop.y - autoCropRect.y) + Math.abs(crop.w - autoCropRect.w) + Math.abs(crop.h - autoCropRect.h) > 0.02;
+    if (objMode && sheet && moved && sheet.area >= 0.4 && sheetRaw >= 0.5) objMode = false;
+    if (objMode && MQ.subject) { const ob = buildObject(data.data, W, H); if (ob !== null) return ob; }   // v14.47 ぬいぐるみ・おもちゃ
     const kTol = tol / 55;                                   // スライダー「はいけいを 消す」（55 = 自動の まま）
     const thr = { d: auto.d * kTol, s: auto.s * kTol };
     // 線と 見なす こさ：紙との 差が「紙でない」しきい値の 0.4〜2.2倍（スライダー「線を こく」で 変わる。50 = 1.3倍）
@@ -2534,9 +2617,10 @@ MQ.ui.photo = (function () {
     const lineS = Math.max(16, thr.s * 1.4);                 // これより 色が あれば「色」
 
     let fg = foregroundMask(q, W, H, thr);
+    if (sheet) for (let k = 0; k < fg.length; k++) if (fg[k] && !sheet.m[k]) fg[k] = 0;   // v14.57 紙の 外（手・つくえ・ゆか）は 絵に しない
     fg = keepMain(fg, W, H);
     const box = bbox(fg, W, H);
-    if (!box || box.n < 30) { lastDark = prep.noisy; lastInfo = { empty: true, thr: thr }; return ''; }
+    if (!box || box.n < 30) { lastDark = prep.noisy; lastInfo = { empty: true, thr: thr, sheet: lastSheet }; return ''; }
     // 絵の まま（ぬりえ方式・v14.4）：モンスターの 候補の 先頭「きみの 絵」／しあげ4（テスト用）は これだけ
     const traced = traceCells(q, fg, W, H, box, lineD, lineS, cleanMode === 4 && size === 48 ? 48 : 64);
     // 暗い 写真：ざらつきが 大きい か、線が 明るい 写真の 7わり より うすい（v14.10）
@@ -2653,7 +2737,7 @@ MQ.ui.photo = (function () {
         picks = list;
         if (pickAt >= picks.length) pickAt = 0;
         const cur = picks[pickAt];
-        lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, kinds2: list.map(function (v) { return v.tag; }), letters: letterPick.join(''), box: box, inner: inn ? { sides: inn.sides, enclosed: inn.enclosed, deep: inn.deep } : null };
+        lastInfo = { size: 48, clean: 3, kinds: list.map(function (v) { return v.kind; }), pick: pickAt, kinds2: list.map(function (v) { return v.tag; }), letters: letterPick.join(''), sheet: lastSheet, box: box, inner: inn ? { sides: inn.sides, enclosed: inn.enclosed, deep: inn.deep } : null };
         // 字の モンスター：子どもが えらんだ もじが あれば その もじで（絵から 読んだ もじは 目やす）
         if (cur.letters && letterPick.length && MQ.monsterGen.letterPng) {
           return MQ.monsterGen.letterPng(letterPick, cur.cols || null);
@@ -2680,7 +2764,7 @@ MQ.ui.photo = (function () {
       drawn++;
     }
     ox2.putImageData(od, 0, 0);
-    lastInfo = { size: N, drawn: drawn, colors: pal.length, clean: cleanMode, box: box, thr: { d: Math.round(thr.d * 10) / 10, s: Math.round(thr.s * 10) / 10, line: Math.round(lineD * 10) / 10 }, inner: inn ? { sides: inn.sides, enclosed: inn.enclosed, deep: inn.deep } : null };
+    lastInfo = { size: N, drawn: drawn, colors: pal.length, clean: cleanMode, sheet: lastSheet, box: box, thr: { d: Math.round(thr.d * 10) / 10, s: Math.round(thr.s * 10) / 10, line: Math.round(lineD * 10) / 10 }, inner: inn ? { sides: inn.sides, enclosed: inn.enclosed, deep: inn.deep } : null };
     return out.toDataURL('image/png');
   }
 
@@ -2698,7 +2782,12 @@ MQ.ui.photo = (function () {
     /* v14.47 ぬいぐるみ・おもちゃ：紙らしさが 低い 写真は ころたまの 切りぬき（js/core/subject.js）で 主役を さがす。
        わくは 主役の まわりに 16% の 余白（subject.mask は ふちの 帯を 背景の 色の 手本に する ので、余白が いる） */
     objMode = false;
-    if (MQ.subject) {
+    autoCropRect = null;
+    /* v14.57 先に 紙を さがす。紙が 写真の 一部（92% 以下）に 見つかれば、ぬいぐるみの 判定は とばし、絵は 紙の 中から えらぶ */
+    const prep = prepare(data.data, W, H);
+    const sheet = sheetMask(prep.q, W, H);
+    const inSheet = !!(sheet && sheet.area <= 0.92 && rawPaperness(data.data, sheet.m, W, H) >= 0.5);
+    if (MQ.subject && !inSheet) {
       try {
         if (MQ.subject.paperness(data.data, W, H) < MQ.subject.PAPER_MIN) {
           const ro = MQ.subject.mask(data.data, W, H);
@@ -2718,14 +2807,15 @@ MQ.ui.photo = (function () {
             const kx0 = img.naturalWidth / W, ky0 = img.naturalHeight / H, b0 = ro.box;
             const bw0 = (b0.x1 - b0.x0 + 1) * kx0, bh0 = (b0.y1 - b0.y0 + 1) * ky0, pad0 = Math.max(bw0, bh0) * 0.16;
             crop = rectCrop(b0.x0 * kx0 - pad0, b0.y0 * ky0 - pad0, (b0.x1 + 1) * kx0 + pad0, (b0.y1 + 1) * ky0 + pad0);
+            autoCropRect = { x: crop.x, y: crop.y, w: crop.w, h: crop.h };
             return;
           }
         }
       } catch (eo) { objMode = false; }
     }
-    const prep = prepare(data.data, W, H);
     const q = prep.q, thr = prep.auto;
     const np = notPaperMask(q, W, H, thr, true);
+    if (inSheet) for (let k = 0; k < np.length; k++) if (np[k] && !sheet.m[k]) np[k] = 0;   // v14.57 紙の 外は 見ない
     const cc = components(np, W, H, 2);
     const L = Math.max(W, H);
     function thin(c) {
@@ -2736,6 +2826,21 @@ MQ.ui.photo = (function () {
     if (!cand.length) cand = cc.comps.filter(function (c) { return !thin(c); });
     if (!cand.length) return;
     cand.sort(function (a, b) { return b.n - a.n; });
+    /* v14.57 紙いっぱいの 絵（スキャン・紙だけ 写した 写真）は、細い 線を 消さなく なった ので 線で ふちまで つながり
+       「ふちに かかる」と して 外れ、頭が 切れた（c28）。→ ふちに かかる かたまりでも、写真の 4割 以上に 広がり・
+       ふちに かからない いちばん 大きな ものの 3倍 以上・**ふちに ふれて いる 長さが ふち ぜんたいの 15% 以下**（絵は ふちに 少し ふれる だけ。
+       ゆか・子ども・つくえは ふちに 長く ふれる＝p48・p55 で 背景を 絵に した）なら 絵と する。紙が 一部に 見つかって いる ときは やらない */
+    if (!inSheet) {
+      const bigEdge = cc.comps.filter(function (c) { return c.edge && !thin(c); }).sort(function (a, b) { return b.n - a.n; })[0];
+      if (bigEdge && bigEdge.n >= cand[0].n * 3 && (bigEdge.x1 - bigEdge.x0 + 1) * (bigEdge.y1 - bigEdge.y0 + 1) >= W * H * 0.4) {
+        let touch = 0;
+        const band = 2;
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          if (x < band || y < band || x >= W - band || y >= H - band) { if (cc.label[y * W + x] === bigEdge.id) touch++; }
+        }
+        if (touch <= 2 * band * (W + H) * 0.15) cand.unshift(bigEdge);
+      }
+    }
     const main = cand[0];
     if (main.n < 40) return;
     // 近くの 小さな かたまりだけ まとめる（大きな ものは となりの 絵）
@@ -2754,6 +2859,7 @@ MQ.ui.photo = (function () {
     const bw = (x1 - x0 + 1) * kx, bh = (y1 - y0 + 1) * ky;
     const pad = Math.max(bw, bh) * 0.08;
     crop = rectCrop(x0 * kx - pad, y0 * ky - pad, (x1 + 1) * kx + pad, (y1 + 1) * ky + pad);
+    autoCropRect = { x: crop.x, y: crop.y, w: crop.w, h: crop.h };
   }
 
   // 写真を 90度 回す（横向きに とった とき）
@@ -3516,7 +3622,7 @@ MQ.ui.photo = (function () {
     info: function () { return lastInfo; },
     dark: function () { return lastDark; },
     obj: function () { return objMode; },   // テスト用：ぬいぐるみ・おもちゃの 写真か（v14.47）
-    parts: { workCanvas: workCanvas, dilate: dilate, bbox: bbox },   // js/core/subject.js（ぬいぐるみの 切りぬき）が 借りる
+    parts: { workCanvas: workCanvas, dilate: dilate, bbox: bbox, sheetMask: sheetMask, rawPaperness: rawPaperness },   // js/core/subject.js（ぬいぐるみの 切りぬき）が 借りる。sheetMask・rawPaperness は smoke 用（v14.57）
     eyes: function () { return eyeTaps.map(function (t) { return t.slice(); }); },
     inner: function () { return lastInner; },   // テスト用：はこの 中の 生きものの 見わけ（v5.7）
     debug: debugImages,
