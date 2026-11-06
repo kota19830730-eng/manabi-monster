@@ -2603,18 +2603,20 @@ MQ.ui.photo = (function () {
   /* ink＝いちばん こい インク（マスクの 中の 明るさ 2%）を この こさ（紙から 215）まで のばす。
      暗い 部屋の えんぴつ（紙から 100 くらい）は 2倍ほど こく、マーカー（もともと こい）は そのまま。kMax で 上限 */
   const PAPER_PHOTO = { k: 2, ink: 215, kMax: 2.6, grow: 1, soft: 1, chroma: 1.35, lineCol: 0.15, linePx: 2.2 };
-  /* v14.59 モンスターふう（案A）＝「そのまま」の 切りぬきに ゲームの モンスターと 同じ 立体かげ（左上 明るく・右下 かげ）と
-     絵の 色を こくした ふち（黒には しない）。線で かこまれた 紙の 白は 絵の 主な 色の うすい 色に。
-     形・顔は そのまま（ドットに すると 顔が くずれる＝ユーザー「どう見ても A。それ以外は 顔面 崩れてる」2026-11-06）。
-     数字は 192px（OBJ.photo）の とき。見本は 2026-11-06 の アーティファクト「モンスターふう 見本」 */
-  const MONS_LOOK = { sat: 1.3, shade: 0.32, light: 0.35, ring: 0.72, belly: 0.86, dark: [40, 36, 70], hi: [255, 255, 250] };
+  /* v14.59 モンスターふう（案D）＝「そのまま」の 切りぬきの ふち（シルエット）だけを ゲームと 同じ 48マスの ドットに。
+     中は 写真の 絵の まま＝顔・目・口・中の 線は いじらない。
+     （絵 ぜんたいを 48マスに すると 顔が 4〜6マス・目が 1マスに なって くずれる＝ユーザー「顔面 崩れてる」→ 案D を えらんだ 2026-11-06）
+     - 線で かこまれた 紙の 白 → 絵の 主な 色あいの うすい 色（色の ない 絵は クリーム色）・色み 1.3 倍
+     - マスの 中で 絵が ある 点は 絵の まま、すきまは その マスの 平均の 色で うめる（ふちが カクカクに なる）
+     - はしの マスは マスごと かげ（右・下が 外）／明るく（左・上が 外）＝ゲームの blocks と 同じ 向き
+     - 外がわ 1マスに となりの 色を こくした ふち（黒に しない）
+     - 4マス より 小さい かけら（紙の よごれ・はなれた 点）は 消す
+     見本は アーティファクト「モンスターふう 見本」2版 */
+  const MONS_LOOK = { N: 48, sat: 1.3, belly: 0.86, on: 0.4, onDark: 0.2, shade: 0.3, light: 0.32, ring: 0.72, minCells: 4, dark: [40, 36, 70], hi: [255, 255, 250] };
   function monsterLook(cv) {
     try {
-      const W = cv.width, H = cv.height, s = W / 192, g = cv.getContext('2d');
-      const d = g.getImageData(0, 0, W, H).data, out = new Uint8ClampedArray(d.length);
-      const M = new Uint8Array(W * H);
-      for (let i = 0; i < W * H; i++) M[i] = d[i * 4 + 3] > 110 ? 1 : 0;
-      function inM(x, y) { x = Math.round(x); y = Math.round(y); return x >= 0 && y >= 0 && x < W && y < H && M[y * W + x] === 1; }
+      const L = MONS_LOOK, W = cv.width, H = cv.height, N = L.N, sx = W / N, sy = H / N;
+      const d = cv.getContext('2d').getImageData(0, 0, W, H).data;
       function hsl(r, gg, b) {
         r /= 255; gg /= 255; b /= 255; const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b); let h = 0, ss = 0; const l = (mx + mn) / 2;
         if (mx !== mn) { const dd = mx - mn; ss = l > 0.5 ? dd / (2 - mx - mn) : dd / (mx + mn);
@@ -2627,30 +2629,68 @@ MQ.ui.photo = (function () {
         const q = l < 0.5 ? l * (1 + ss) : l + ss - l * ss, p = 2 * l - q;
         return [f(p, q, h + 1 / 3) * 255, f(p, q, h) * 255, f(p, q, h - 1 / 3) * 255];
       }
-      function mixc(c, t, a) { return [c[0] + (t[0] - c[0]) * a, c[1] + (t[1] - c[1]) * a, c[2] + (t[2] - c[2]) * a]; }
+      function mixc(c, t, k) { return [c[0] + (t[0] - c[0]) * k, c[1] + (t[1] - c[1]) * k, c[2] + (t[2] - c[2]) * k]; }
+      const M = new Uint8Array(W * H);
+      for (let i = 0; i < W * H; i++) M[i] = d[i * 4 + 3] > 110 ? 1 : 0;
       let hx = 0, hy = 0, hn = 0;
       for (let i = 0; i < W * H; i++) if (M[i]) { const h = hsl(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]); if (h[1] > 0.3 && h[2] > 0.2 && h[2] < 0.85) { hx += Math.cos(h[0] * 6.283); hy += Math.sin(h[0] * 6.283); hn++; } }
       const colored = hn > W * H * 0.02, hue = ((Math.atan2(hy, hx) / 6.283) + 1) % 1;
-      const L = MONS_LOOK;
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        const i = y * W + x; if (!M[i]) continue;
-        let c = [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]];
-        const h = hsl(c[0], c[1], c[2]);
+      const base = new Float32Array(W * H * 3);
+      for (let i = 0; i < W * H; i++) {
+        if (!M[i]) continue;
+        let c = [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]; const h = hsl(c[0], c[1], c[2]);
         if (h[2] > 0.86 && h[1] < 0.25) c = colored ? rgb(hue, 0.55, L.belly) : [244, 240, 230];
         else if (h[1] > 0.15) c = rgb(h[0], Math.min(1, h[1] * L.sat), h[2]);
-        if (!inM(x + 7 * s, y + 7 * s) || !inM(x + 4 * s, y + 9 * s)) c = mixc(c, L.dark, L.shade);
-        else if (!inM(x - 5 * s, y - 5 * s)) c = mixc(c, L.hi, L.light);
-        out[i * 4] = c[0]; out[i * 4 + 1] = c[1]; out[i * 4 + 2] = c[2]; out[i * 4 + 3] = d[i * 4 + 3];
+        base[i * 3] = c[0]; base[i * 3 + 1] = c[1]; base[i * 3 + 2] = c[2];
       }
-      const R = Math.max(2, Math.round(3 * s)), R2 = R * R + 1;
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        const i = y * W + x; if (M[i]) continue;
-        let best = -1, bd = 1e9;
-        for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const r = dx * dx + dy * dy; if (r <= R2 && r < bd && inM(x + dx, y + dy)) { bd = r; best = (y + dy) * W + x + dx; } }
-        if (best < 0) continue;
-        const c = mixc([out[best * 4], out[best * 4 + 1], out[best * 4 + 2]], L.dark, L.ring);
-        out[i * 4] = c[0]; out[i * 4 + 1] = c[1]; out[i * 4 + 2] = c[2]; out[i * 4 + 3] = 255;
+      function cellRange(c, n, sz) { return [Math.floor(c * sz), Math.min(n, Math.floor((c + 1) * sz))]; }
+      const on = new Uint8Array(N * N), avg = new Array(N * N);
+      for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) {
+        const ry = cellRange(cy, H, sy), rx = cellRange(cx, W, sx);
+        let n = 0, a = 0, dark = 0, r = 0, g = 0, b = 0;
+        for (let y = ry[0]; y < ry[1]; y++) for (let x = rx[0]; x < rx[1]; x++) {
+          const i = y * W + x; n++;
+          if (M[i]) { a++; r += base[i * 3]; g += base[i * 3 + 1]; b += base[i * 3 + 2]; if (base[i * 3] + base[i * 3 + 1] + base[i * 3 + 2] < 240) dark++; }
+        }
+        const k = cy * N + cx;
+        on[k] = n && (a / n > L.on || dark / n > L.onDark) ? 1 : 0;
+        avg[k] = a ? [r / a, g / a, b / a] : null;
       }
+      // 小さい かけらを 消す
+      const seen = new Uint8Array(N * N);
+      for (let k0 = 0; k0 < N * N; k0++) {
+        if (!on[k0] || seen[k0]) continue;
+        const st = [k0], mem = []; seen[k0] = 1;
+        while (st.length) { const k = st.pop(), x = k % N, y = (k - x) / N; mem.push(k);
+          [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (v) { const xx = x + v[0], yy = y + v[1]; if (xx < 0 || yy < 0 || xx >= N || yy >= N) return; const kk = yy * N + xx; if (on[kk] && !seen[kk]) { seen[kk] = 1; st.push(kk); } }); }
+        if (mem.length < L.minCells) mem.forEach(function (k) { on[k] = 0; });
+      }
+      function at(x, y) { return x >= 0 && y >= 0 && x < N && y < N && on[y * N + x] === 1; }
+      const out = new Uint8ClampedArray(W * H * 4);
+      let any = 0;
+      for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) {
+        const k = cy * N + cx;
+        let fill = avg[k], tone = null, ta = 0;
+        if (on[k]) {
+          any++;
+          if (!fill) fill = colored ? rgb(hue, 0.55, 0.8) : [236, 232, 222];
+          if (!at(cx + 1, cy) || !at(cx, cy + 1)) { tone = L.dark; ta = L.shade; }
+          else if (!at(cx - 1, cy) || !at(cx, cy - 1)) { tone = L.hi; ta = L.light; }
+        } else {
+          let nb = null;
+          [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (v) { if (!nb && at(cx + v[0], cy + v[1])) nb = avg[(cy + v[1]) * N + cx + v[0]]; });
+          if (!nb) continue;
+          fill = mixc(nb, L.dark, L.ring);
+        }
+        const ry = cellRange(cy, H, sy), rx = cellRange(cx, W, sx);
+        for (let y = ry[0]; y < ry[1]; y++) for (let x = rx[0]; x < rx[1]; x++) {
+          const i = y * W + x;
+          let c = on[k] && M[i] ? [base[i * 3], base[i * 3 + 1], base[i * 3 + 2]] : fill;
+          if (tone) c = mixc(c, tone, ta);
+          out[i * 4] = c[0]; out[i * 4 + 1] = c[1]; out[i * 4 + 2] = c[2]; out[i * 4 + 3] = 255;
+        }
+      }
+      if (any < 20) return '';
       const c2 = document.createElement('canvas'); c2.width = W; c2.height = H;
       c2.getContext('2d').putImageData(new ImageData(out, W, H), 0, 0);
       return c2.toDataURL('image/png');
