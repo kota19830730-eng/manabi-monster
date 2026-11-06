@@ -6955,7 +6955,8 @@ function stripComments(src) {
   const PH = fs.readFileSync(path.join(base, 'js/ui/photo.js'), 'utf8');
   const TH = fs.readFileSync(path.join(base, 'js/ui/three.js'), 'utf8');
   const M3 = fs.readFileSync(path.join(base, 'css/motion3d.css'), 'utf8');
-  check(PH.indexOf('function paperPhoto(fg, W, H)') >= 0 && PH.indexOf("tl.unshift({ kind: 'trace', tag: 'photo', trace: true, photo: true, png: pp, label: 'そのまま' })") >= 0, 'v14.58: 紙の 絵の 先頭は「そのまま」（写真の 切りぬき）');
+  check(PH.indexOf('function paperPhoto(fg, W, H, more)') >= 0 && PH.indexOf("tag: 'mons', trace: true, photo: true, png: ppMore.mons, label: 'モンスターふう'") >= 0 && PH.indexOf('function monsterLook(cv)') >= 0, 'v14.59: 2ばんめは「モンスターふう」（立体かげ＋色の ふち・形は そのまま）');
+  check(PH.indexOf("tl.unshift({ kind: 'trace', tag: 'photo', trace: true, photo: true, png: pp, label: 'そのまま' })") >= 0, 'v14.58: 紙の 絵の 先頭は「そのまま」（写真の 切りぬき）');
   check(PH.indexOf("png: traced.png, label: 'ドット絵'") >= 0, 'v14.58: ドット絵は「ドット絵」の 名前で のこる');
   check(PH.indexOf('!cur.photo && !(objMode') >= 0, 'v14.58: 切りぬきには「目は どこ？」を 出さない');
   check(PH.indexOf('MQ.subject.photo(q2, m2, W2, H2, box2, PAPER_PHOTO.soft, OBJ.photo)') >= 0, 'v14.58: 仕上げは ぬいぐるみと 同じ MQ.subject.photo');

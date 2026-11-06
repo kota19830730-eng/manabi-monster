@@ -2603,7 +2603,60 @@ MQ.ui.photo = (function () {
   /* ink＝いちばん こい インク（マスクの 中の 明るさ 2%）を この こさ（紙から 215）まで のばす。
      暗い 部屋の えんぴつ（紙から 100 くらい）は 2倍ほど こく、マーカー（もともと こい）は そのまま。kMax で 上限 */
   const PAPER_PHOTO = { k: 2, ink: 215, kMax: 2.6, grow: 1, soft: 1, chroma: 1.35, lineCol: 0.15, linePx: 2.2 };
-  function paperPhoto(fg, W, H) {
+  /* v14.59 モンスターふう（案A）＝「そのまま」の 切りぬきに ゲームの モンスターと 同じ 立体かげ（左上 明るく・右下 かげ）と
+     絵の 色を こくした ふち（黒には しない）。線で かこまれた 紙の 白は 絵の 主な 色の うすい 色に。
+     形・顔は そのまま（ドットに すると 顔が くずれる＝ユーザー「どう見ても A。それ以外は 顔面 崩れてる」2026-11-06）。
+     数字は 192px（OBJ.photo）の とき。見本は 2026-11-06 の アーティファクト「モンスターふう 見本」 */
+  const MONS_LOOK = { sat: 1.3, shade: 0.32, light: 0.35, ring: 0.72, belly: 0.86, dark: [40, 36, 70], hi: [255, 255, 250] };
+  function monsterLook(cv) {
+    try {
+      const W = cv.width, H = cv.height, s = W / 192, g = cv.getContext('2d');
+      const d = g.getImageData(0, 0, W, H).data, out = new Uint8ClampedArray(d.length);
+      const M = new Uint8Array(W * H);
+      for (let i = 0; i < W * H; i++) M[i] = d[i * 4 + 3] > 110 ? 1 : 0;
+      function inM(x, y) { x = Math.round(x); y = Math.round(y); return x >= 0 && y >= 0 && x < W && y < H && M[y * W + x] === 1; }
+      function hsl(r, gg, b) {
+        r /= 255; gg /= 255; b /= 255; const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b); let h = 0, ss = 0; const l = (mx + mn) / 2;
+        if (mx !== mn) { const dd = mx - mn; ss = l > 0.5 ? dd / (2 - mx - mn) : dd / (mx + mn);
+          h = mx === r ? (gg - b) / dd + (gg < b ? 6 : 0) : mx === gg ? (b - r) / dd + 2 : (r - gg) / dd + 4; h /= 6; }
+        return [h, ss, l];
+      }
+      function rgb(h, ss, l) {
+        if (ss === 0) return [l * 255, l * 255, l * 255];
+        function f(p, q, t) { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1 / 6) return p + (q - p) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; }
+        const q = l < 0.5 ? l * (1 + ss) : l + ss - l * ss, p = 2 * l - q;
+        return [f(p, q, h + 1 / 3) * 255, f(p, q, h) * 255, f(p, q, h - 1 / 3) * 255];
+      }
+      function mixc(c, t, a) { return [c[0] + (t[0] - c[0]) * a, c[1] + (t[1] - c[1]) * a, c[2] + (t[2] - c[2]) * a]; }
+      let hx = 0, hy = 0, hn = 0;
+      for (let i = 0; i < W * H; i++) if (M[i]) { const h = hsl(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]); if (h[1] > 0.3 && h[2] > 0.2 && h[2] < 0.85) { hx += Math.cos(h[0] * 6.283); hy += Math.sin(h[0] * 6.283); hn++; } }
+      const colored = hn > W * H * 0.02, hue = ((Math.atan2(hy, hx) / 6.283) + 1) % 1;
+      const L = MONS_LOOK;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = y * W + x; if (!M[i]) continue;
+        let c = [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]];
+        const h = hsl(c[0], c[1], c[2]);
+        if (h[2] > 0.86 && h[1] < 0.25) c = colored ? rgb(hue, 0.55, L.belly) : [244, 240, 230];
+        else if (h[1] > 0.15) c = rgb(h[0], Math.min(1, h[1] * L.sat), h[2]);
+        if (!inM(x + 7 * s, y + 7 * s) || !inM(x + 4 * s, y + 9 * s)) c = mixc(c, L.dark, L.shade);
+        else if (!inM(x - 5 * s, y - 5 * s)) c = mixc(c, L.hi, L.light);
+        out[i * 4] = c[0]; out[i * 4 + 1] = c[1]; out[i * 4 + 2] = c[2]; out[i * 4 + 3] = d[i * 4 + 3];
+      }
+      const R = Math.max(2, Math.round(3 * s)), R2 = R * R + 1;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = y * W + x; if (M[i]) continue;
+        let best = -1, bd = 1e9;
+        for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const r = dx * dx + dy * dy; if (r <= R2 && r < bd && inM(x + dx, y + dy)) { bd = r; best = (y + dy) * W + x + dx; } }
+        if (best < 0) continue;
+        const c = mixc([out[best * 4], out[best * 4 + 1], out[best * 4 + 2]], L.dark, L.ring);
+        out[i * 4] = c[0]; out[i * 4 + 1] = c[1]; out[i * 4 + 2] = c[2]; out[i * 4 + 3] = 255;
+      }
+      const c2 = document.createElement('canvas'); c2.width = W; c2.height = H;
+      c2.getContext('2d').putImageData(new ImageData(out, W, H), 0, 0);
+      return c2.toDataURL('image/png');
+    } catch (e) { return ''; }
+  }
+  function paperPhoto(fg, W, H, more) {
     if (!img || !MQ.subject || !MQ.subject.photo) return '';
     try {
       const k2 = PAPER_PHOTO.k, W2 = W * k2, H2 = H * k2;
@@ -2653,7 +2706,9 @@ MQ.ui.photo = (function () {
       if (PAPER_PHOTO.grow) m2 = dilate(m2, W2, H2, PAPER_PHOTO.grow);
       const box2 = bbox(m2, W2, H2);
       if (!box2 || box2.n < 120) return '';
-      return MQ.subject.photo(q2, m2, W2, H2, box2, PAPER_PHOTO.soft, OBJ.photo).toDataURL('image/png');
+      const pc = MQ.subject.photo(q2, m2, W2, H2, box2, PAPER_PHOTO.soft, OBJ.photo);
+      if (more) more.mons = monsterLook(pc);   // v14.59 モンスターふう
+      return pc.toDataURL('image/png');
     } catch (e) { return ''; }
   }
   function build() {
@@ -2792,7 +2847,9 @@ MQ.ui.photo = (function () {
       if (traced.png && traced.drawn >= 40) {
         const tl = [{ kind: 'trace', tag: 'trace', trace: true, png: traced.png, label: 'ドット絵' }];
         // v14.58 いちばん 先頭は「そのまま」＝写真の 切りぬき（AI・ドット絵エディタを 通った ときは 作らない）
-        const pp = !edited && !aiUsed ? paperPhoto(fg, W, H) : '';
+        const ppMore = {};
+        const pp = !edited && !aiUsed ? paperPhoto(fg, W, H, ppMore) : '';
+        if (pp && ppMore.mons) tl.unshift({ kind: 'trace', tag: 'mons', trace: true, photo: true, png: ppMore.mons, label: 'モンスターふう' });   // v14.59 2ばんめ
         if (pp) tl.unshift({ kind: 'trace', tag: 'photo', trace: true, photo: true, png: pp, label: 'そのまま' });
         (traced.cool || []).forEach(function (png, i) { if (png) tl.push({ kind: 'trace', tag: i === 0 ? 'cool' : i === 1 ? 'block' : 'block2', trace: true, png: png }); });   // v14.5 かっこよく／v14.45 ブロックふう（形と 色は 絵の まま）
         list = tl.concat(list);
