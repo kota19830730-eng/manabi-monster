@@ -3325,6 +3325,7 @@ MQ.ui.photo = (function () {
 
     // 候補の タイル（v3.8）。タップで えらぶ。v5.8：上位 12体＋「ほかの すがた」で のこり ぜんぶ
     const pickRow = h('div', { class: 'photo__picks', hidden: 'hidden' });
+    const chooseRow = h('div', { class: 'photo__choose', hidden: 'hidden' });   // v14.60 どっちに する？
     const allRow = h('div', { class: 'photo__picks photo__all', hidden: 'hidden' });
     /* なかまから えらぶ（v6.2）。
        85しゅるい ぜんぶを ならべると さがせない。**いきもの／むし／おばけ・ひと／もの・のりもの／しぜん**
@@ -3363,9 +3364,39 @@ MQ.ui.photo = (function () {
         h('span', { class: 'photo__pickname', text: pickName(p) })
       ]);
     }
+    /* v14.60 ③ 2まいから えらぶ：紙の 絵＝そのまま／モンスターふう、ぬいぐるみ＝そのまま／絵本ふう。
+       バトルの 空に 立たせて 大きく 見せる。ほかの すがた・こまかい 直しは 下の「もっと」へ */
+    function choiceIdx() {
+      if (cleanMode !== 3 || edited || picks.length < 2) return [];
+      const out = [];
+      if (picks[0] && picks[0].photo) picks.forEach(function (p, i) { if (p.photo && out.length < 2) out.push(i); });
+      else if (objMode && lastInfo && lastInfo.obj) picks.forEach(function (p, i) { if (p.trace && out.length < 2) out.push(i); });
+      return out.length === 2 ? out : [];
+    }
+    const CHOICE_SUB = { photo: 'かいた 絵の まま', mons: 'ゲームっぽく', trace: 'しゃしんの まま', soft: '絵本みたいに' };
+    function paintChoice() {
+      const two = choiceIdx();
+      chooseRow.innerHTML = '';
+      chooseRow.hidden = !two.length;
+      if (!two.length) return two;
+      chooseRow.appendChild(h('p', { class: 'photo__ask', text: 'どっちに する？' }));
+      chooseRow.appendChild(h('div', { class: 'photo__two' }, two.map(function (i) {
+        const p = picks[i];
+        return h('button', {
+          class: 'photo__choice' + (i === pickAt ? ' is-on' : ''), type: 'button',
+          onclick: function () { if (pickAt === i) return; pickAt = i; MQ.sfx.tap(); refresh(); }
+        }, [
+          h('div', { class: 'photo__csky' }, [h('img', { class: 'photo__cimg', src: p.png, alt: '' }), h('span', { class: 'shadow photo__cshadow' })]),
+          h('span', { class: 'photo__cname', text: pickName(p) }),
+          h('span', { class: 'photo__csub', text: CHOICE_SUB[p.tag] || '' })
+        ]);
+      })));
+      return two;
+    }
     function paintPicks() {
       pickRow.innerHTML = '';
       allRow.innerHTML = '';
+      const two = paintChoice();
       const on = cleanMode === 3 && picks.length > 1 && !edited;
       const hasGen = picks.some(function (p) { return !p.trace; });   // v14.47 ぬいぐるみは そのまま・絵本ふう だけ
       pickRow.hidden = !on;
@@ -3378,8 +3409,8 @@ MQ.ui.photo = (function () {
       /* v14.5 きみの 絵（そのまま／かっこよく）は 大きな 2枚。はじめは「そのまま」（ユーザー決定 2026-09-14）。
          組み立ての すがたは その 下に 小さく（「ほかの すがた」） */
       const mine = h('div', { class: 'photo__mine' });
-      picks.forEach(function (p, i) { if (p.trace) mine.appendChild(pickTile(p, i, true)); });
-      if (mine.children.length) { pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'きみの 絵' })); pickRow.appendChild(mine); pickRow.appendChild(eyeRow); }   // 目は どこ？（v14.10）は きみの 絵の すぐ 下
+      picks.forEach(function (p, i) { if (p.trace && two.indexOf(i) < 0) mine.appendChild(pickTile(p, i, true)); });   // v14.60 上の 2まいは ここに 出さない
+      if (mine.children.length) { pickRow.appendChild(h('span', { class: 'photo__lbl', text: two.length ? 'ほかの 作りかた' : 'きみの 絵' })); pickRow.appendChild(mine); pickRow.appendChild(eyeRow); }   // 目は どこ？（v14.10）は きみの 絵の すぐ 下
       // v14.10 デザインの あん：絵から 読んだ 目・つの・きば・はね で「絵に ちかい」、そこから「つよそう」「かわいい」
       if (picks.some(function (p) { return p.design; })) {
         pickRow.appendChild(h('span', { class: 'photo__lbl', text: 'デザインの あん' }));
@@ -3441,33 +3472,39 @@ MQ.ui.photo = (function () {
     const objNote = h('p', { class: 'note photo__obj', hidden: 'hidden', text: 'ぬいぐるみや おもちゃを 切りぬいたよ。まわりが のこる ときは、白い 紙か 白い 布の 上に おいて もう いちど とると きれいに なるよ' });
     const cleanRow = h('div', { class: 'photo__row' }, [h('span', { class: 'photo__lbl', text: 'しあげ' }), cleanChips]);
     // できあがりの みほん。しゃしんを とるまでは かくしておく
+    const blankBtn = h('button', { class: 'btn btn--cream photo__blank', type: 'button', text: 'ドット絵を じぶんで かく', onclick: function () { openEditor(true); } });
+    /* v14.60 ③：しゃしんの あとは「どっちに する？」2まい → なまえ → なかまに する。のこりは「もっと」の 中 */
+    const saveBtn = h('button', { class: 'btn btn--big', type: 'button', text: 'なかまに する！', onclick: function () { MQ.sfx.tap(); save(); } });
+    const makeBox = h('div', { class: 'photo__make' }, [
+      h('p', { class: 'photo__ask', text: 'なまえを つけよう' }),
+      nameIn,
+      h('p', { class: 'note', style: { margin: '0' }, text: 'どの エリアに 出す？' }),
+      areaChips,
+      saveBtn
+    ]);
+    const blank2 = h('button', { class: 'btn btn--small btn--cream', type: 'button', text: 'ドット絵を じぶんで かく', onclick: function () { openEditor(true); } });
+    const more = h('details', { class: 'photo__more' }, [
+      h('summary', { class: 'photo__moresum', text: 'ほかの すがた・こまかく 直す' }),
+      h('div', { class: 'photo__morein' }, [
+        seeRow, pickRow, partsRow, groupRow, allRow, letterRow, objNote, tolRow, inkRow, sizeRow, cleanRow,
+        h('div', { class: 'photo__btns' }, [
+          h('button', { class: 'btn btn--small btn--cream', type: 'button', text: 'わくを 自動で', onclick: function () { MQ.sfx.tap(); eyeTaps = []; autoCrop(); drawStage(); refresh(); } }),
+          h('button', { class: 'btn btn--small btn--cream', type: 'button', text: '回す', onclick: function () { MQ.sfx.tap(); rotateImg(); } })
+        ]),
+        h('p', { class: 'note photo__edited', text: '直した ドット絵を つかうよ。もっと 直すことも、写真から やり直すことも できるよ。' }),
+        editRow,
+        blank2
+      ])
+    ]);
+    const views = h('div', { class: 'photo__views' }, [
+      h('div', { class: 'photo__view' }, [preview, h('span', { class: 'photo__cap', text: 'できあがり' })]),
+      h('div', { class: 'photo__view photo__view--battle' }, [
+        h('div', { class: 'photo__sky' }, [previewBattle, h('span', { class: 'shadow shadow--foe photo__shadow' })]),
+        h('span', { class: 'photo__cap', text: 'バトルでは' })
+      ])
+    ]);
     const previewRow = h('div', { class: 'photo__preview', hidden: 'hidden' }, [
-      h('div', { class: 'photo__views' }, [
-        h('div', { class: 'photo__view' }, [preview, h('span', { class: 'photo__cap', text: 'できあがり' })]),
-        h('div', { class: 'photo__view photo__view--battle' }, [
-          h('div', { class: 'photo__sky' }, [previewBattle, h('span', { class: 'shadow shadow--foe photo__shadow' })]),
-          h('span', { class: 'photo__cap', text: 'バトルでは' })
-        ])
-      ]),
-      emptyNote,
-      darkNote,
-      seeRow,
-      pickRow,
-      partsRow,
-      groupRow,
-      allRow,
-      letterRow,
-      objNote,
-      tolRow,
-      inkRow,
-      sizeRow,
-      cleanRow,
-      h('div', { class: 'photo__btns' }, [
-        h('button', { class: 'btn btn--small btn--cream', type: 'button', text: 'わくを 自動で', onclick: function () { MQ.sfx.tap(); eyeTaps = []; autoCrop(); drawStage(); refresh(); } }),
-        h('button', { class: 'btn btn--small btn--cream', type: 'button', text: '回す', onclick: function () { MQ.sfx.tap(); rotateImg(); } })
-      ]),
-      h('p', { class: 'note photo__edited', text: '直した ドット絵を つかうよ。もっと 直すことも、写真から やり直すことも できるよ。' }),
-      editRow
+      emptyNote, darkNote, chooseRow, views, makeBox, more
     ]);
 
     // ドラッグ中は 1フレームに 1回だけ 作り直す（重い 計算を まとめる）
@@ -3485,6 +3522,10 @@ MQ.ui.photo = (function () {
       previewBattle.src = outUrl || '';
       previewRow.hidden = !(img || edited);   // しゃしんも 直した 絵も ない ときは かくす
       previewRow.classList.toggle('is-edited', !!edited);
+      // v14.60 2まいの どちらかを えらんで いる ときは 上の 2まいが みほん（できあがり／バトルでは は 出さない）
+      views.hidden = !chooseRow.hidden && choiceIdx().indexOf(pickAt) >= 0;
+      blankBtn.hidden = !!img;   // しゃしんが ある ときは「もっと」の 中
+      if (edited) more.open = true;   // 直した ドット絵：直す／やり直す ボタンを 見せる
       emptyNote.hidden = !!edited || !(img && !outUrl);
       darkNote.hidden = !(img && !edited && !aiUsed && lastDark);
       const obj = !!(img && !edited && objMode && lastInfo && lastInfo.obj);
@@ -3697,24 +3738,20 @@ MQ.ui.photo = (function () {
 
     MQ.ui.mount('screen-dex', h('div', { class: 'wrap' }, [
       h('h2', { class: 'label', text: 'じぶんの モンスターを つくる', style: { marginTop: '6px' } }),
-      h('p', { class: 'note', text: '紙に かいた 絵を しゃしんに とると、ドット絵に なって バトルに 出てくるよ。明るい ところで、紙が ぜんぶ 入るように まっすぐ とると きれいに なるよ。' }),
+      h('p', { class: 'note', text: '紙に かいた 絵を しゃしんに とると、その 絵が モンスターに なって バトルに 出てくるよ。明るい ところで、紙が ぜんぶ 入るように まっすぐ とると きれいに なるよ。' }),
       h('p', { class: 'note', text: 'ぬいぐるみや おもちゃも OK！ ゆかや つくえの 上に 1つだけ おいて、まん中に 大きく うつるように とってね。' }),
       h('div', { class: 'photo' }, [
         stage,
         h('button', { class: 'btn', type: 'button', text: '📷 しゃしんを とる', onclick: function () { MQ.sfx.tap(); fileIn.click(); } }),
         h('p', { class: 'note photo__tip', style: { margin: '0', textAlign: 'center' }, text: 'よるの へやは くらいよ。でんきの すぐ 下か まどの そばで とろう' }),
         fileIn,
-        h('button', { class: 'btn btn--cream photo__blank', type: 'button', text: 'ドット絵を じぶんで かく', onclick: function () { openEditor(true); } }),
+        blankBtn,
         aiBtn,
         aiRow,
         aiErr,
         aiNote,
         previewRow,
-        aiWait,
-        nameIn,
-        h('p', { class: 'note', style: { margin: '0' }, text: 'どの エリアに 出す？' }),
-        areaChips,
-        h('button', { class: 'btn btn--big', type: 'button', text: 'なかまに する！', onclick: function () { MQ.sfx.tap(); save(); } })
+        aiWait
       ]),
       mine.length ? h('h2', { class: 'label', text: 'つくった モンスター' }) : null,
       mine.length ? h('div', { class: 'grid' }, mine) : null,

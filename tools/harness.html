@@ -2485,6 +2485,10 @@ window.addEventListener('unhandledrejection', function (e) { window.__log.push('
         await wait(200);
         say('eyes: ' + JSON.stringify(MQ.ui.photo.eyes()));
       }
+      // v14.60 :make = なまえの ところまで／:more = 「もっと」を ひらいて そこまで／:pick1 = 2まいめを えらぶ
+      if (parts[5] && parts[5].indexOf('pick1') >= 0) { const c2 = document.querySelectorAll('.photo__choice')[1]; if (c2) c2.click(); await wait(300); say('choice: ' + document.querySelectorAll('.photo__choice').length + ' on=' + JSON.stringify(MQ.ui.photo.info().pick)); }
+      if (parts[5] && parts[5].indexOf('make') >= 0) { const wrap = $('#screen-dex .wrap'), tgt = $('.photo__make'); if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 200; }
+      if (parts[5] && parts[5].indexOf('more') >= 0) { const wrap = $('#screen-dex .wrap'), tgt = $('.photo__more'); if (tgt) tgt.open = true; await wait(100); if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 60; }
       if (parts[5] === 'down') { const wrap = $('#screen-dex .wrap'); const tgt = $('.photo__preview'); if (wrap && tgt) wrap.scrollTop = tgt.offsetTop - 90; }   // :down = できあがりまで スクロール
       // できあがり（PNG）と わくの 中の 写真（JPEG）を ログに 出す（外の 道具で ならべて 見る ため）
       say('png:' + ($('.photo__out').src || ''));

@@ -2713,6 +2713,25 @@ body {
 .photo__lbtn.is-on { border-color: var(--gold); background: var(--gold); color: var(--gold-ink); }
 .photo__btns { display: flex; gap: 8px; justify-content: center; }
 .chips--tight { gap: 6px; }
+/* v14.60 ③ どっちに する？（そのまま／モンスターふう）→ なまえ → なかまに する。のこりは「もっと」 */
+.photo__ask { margin: 2px 0 0; font-family: var(--f-head); font-size: 22px; color: var(--gold); text-align: center; }
+.photo__choose { display: grid; gap: 8px; }
+.photo__two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.photo__choice { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 8px 10px; border: 4px solid var(--frame); border-radius: 18px; background: rgba(16,24,48,.85); cursor: pointer; font-family: var(--f-body); }
+.photo__choice.is-on { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(245,197,66,.35), 0 5px 0 var(--gold-sh); }
+.photo__csky { position: relative; width: 100%; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: linear-gradient(#4fb8f5 0%, #86d6ff 55%, #b7e8ff 100%); }
+.photo__csky::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 18%; background: repeating-linear-gradient(90deg, #8f9aa8 0 16px, #848f9d 16px 32px); box-shadow: inset 0 4px 0 #6fcf4a; }
+.photo__cimg { position: absolute; left: 8%; right: 8%; bottom: 16%; width: 84%; height: 78%; z-index: 2; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 4px 4px rgba(10,10,40,.45)); }
+.photo__cshadow { position: absolute; left: 50%; bottom: 12%; width: 56%; height: 7%; transform: translateX(-50%); z-index: 1; }
+.photo__cname { margin-top: 4px; font-family: var(--f-head); font-size: 19px; white-space: nowrap; color: #e6ecff; }
+.photo__csub { font-size: 13px; color: var(--tx-sub); }
+.photo__choice.is-on .photo__cname { color: var(--gold); }
+.photo__make { display: grid; gap: 10px; }
+.photo__make .input { font-size: 22px; min-height: 58px; text-align: center; }
+.photo__more { border-radius: 12px; background: rgba(8,14,32,.5); }
+.photo__moresum { padding: 12px 14px; cursor: pointer; font-size: 15px; color: #c6d2ee; }
+.photo__more[open] .photo__moresum { color: var(--gold); }
+.photo__morein { display: grid; gap: 12px; padding: 4px 10px 14px; }
 .chip--s { min-height: 36px; padding: 0 10px; font-size: 13px; }
 .photo__empty { color: #ffd0d8; margin: 0; }
 
